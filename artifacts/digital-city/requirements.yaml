@@ -1,0 +1,20 @@
+packages:
+  "framer-motion": "For premium smooth animations and page transitions"
+  "react-hook-form": "For robust order forms"
+  "@hookform/resolvers": "For Zod schema validation in forms"
+  "clsx": "Utility for conditionally joining classNames"
+  "tailwind-merge": "Utility to merge tailwind classes without style conflicts"
+  "date-fns": "For formatting order dates in the admin dashboard"
+
+images:
+  - path: "artifacts/digital-city/public/images/hero-bg.png"
+    description: "Luxurious dark abstract background with subtle glowing gold geometric lines, deep black and premium gold accents, highly detailed, 8k"
+    aspect_ratio: "16:9"
+  - path: "artifacts/digital-city/public/images/logo.png"
+    description: "Minimalist premium logo for Digital City, gold geometric emblem on transparent background, luxury style"
+    aspect_ratio: "1:1"
+
+notes:
+  - Forced dark mode theme with gold accents
+  - UI relies on generated @workspace/api-client-react hooks
+  - Zod schemas are inferred for form validation matching API requirements
