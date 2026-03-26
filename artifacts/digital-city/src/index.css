@@ -1,61 +1,58 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: 'Outfit', sans-serif;
-  --font-display: 'Cairo', sans-serif;
+  --font-sans: 'Tajawal', 'Cairo', sans-serif;
+  --font-display: 'Tajawal', 'Cairo', sans-serif;
+  --font-latin: 'Outfit', 'Tajawal', sans-serif;
 
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
-  
+
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
-  
+
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
-  
+
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
-  
+
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
-  
+
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
-  
+
   --color-border: hsl(var(--border));
   --color-ring: hsl(var(--ring));
-  
+
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
 }
 
 /* FORCED DARK MODE WITH GOLD ACCENTS */
 :root {
-  --background: 0 0% 4%; /* Very deep black/gray */
-  --foreground: 0 0% 98%; /* Off-white */
-  
-  /* Premium Gold Accent */
+  --background: 0 0% 4%;
+  --foreground: 0 0% 98%;
+
   --primary: 43 74% 49%;
   --primary-foreground: 0 0% 10%;
-  
-  /* Darker elevated surfaces */
+
   --secondary: 0 0% 9%;
   --secondary-foreground: 0 0% 98%;
-  
+
   --muted: 0 0% 15%;
   --muted-foreground: 0 0% 65%;
-  
-  /* Bright Gold for highlights */
+
   --accent: 46 80% 60%;
   --accent-foreground: 0 0% 10%;
-  
+
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
-  
+
   --border: 0 0% 15%;
   --ring: 43 74% 49%;
-  
+
   --card: 0 0% 7%;
   --card-foreground: 0 0% 98%;
 
@@ -67,33 +64,36 @@
     @apply border-border;
   }
 
-  body {
-    @apply font-sans antialiased bg-background text-foreground selection:bg-primary/30 selection:text-primary-foreground overflow-x-hidden;
+  html {
+    direction: rtl;
   }
 
+  body {
+    font-family: 'Tajawal', 'Cairo', sans-serif;
+    @apply antialiased bg-background text-foreground selection:bg-primary/30 selection:text-primary-foreground overflow-x-hidden;
+  }
+
+  /* Use Tajawal for all Arabic headings */
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-display);
+    font-family: 'Tajawal', 'Cairo', sans-serif;
     @apply font-bold tracking-tight;
   }
 
-  /* Custom Scrollbar for a premium feel */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  /* Latin/French text uses Outfit */
+  :lang(fr) body,
+  :lang(fr) h1,
+  :lang(fr) h2,
+  :lang(fr) h3 {
+    font-family: 'Outfit', 'Tajawal', sans-serif;
   }
-  ::-webkit-scrollbar-track {
-    background: hsl(var(--background));
-  }
-  ::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted));
-    border-radius: 4px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--primary) / 0.5);
-  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: hsl(var(--background)); }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--muted)); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.5); }
 }
 
-/* Glassmorphism utilities */
+/* Glassmorphism */
 .glass-panel {
   @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl;
 }
@@ -107,5 +107,17 @@
 }
 
 .text-gradient-gold {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-[#D4AF37] via-[#F3E5AB] to-[#D4AF37];
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(90deg, #D4AF37, #F3E5AB, #D4AF37);
 }
+
+/* Ensure Arabic text always renders RTL even inside LTR parents */
+[lang="ar"], .ar-text {
+  direction: rtl;
+  unicode-bidi: embed;
+}
+
+/* Force headings to use full font weight for Arabic */
+h1 { font-weight: 900; }
+h2 { font-weight: 800; }
+h3 { font-weight: 700; }

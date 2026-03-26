@@ -111,20 +111,24 @@ export default function Home() {
               {t("بن قردان", "Ben Guerdane")}
             </span>
 
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-3 leading-tight">
-              {lang === "ar" ? (
-                <>
-                  المدينة{" "}
+            <h1
+              dir={isRTL ? "rtl" : "ltr"}
+              className="text-5xl md:text-7xl font-bold text-white mb-3 leading-tight"
+              style={{ fontFamily: isRTL ? "'Tajawal','Cairo',sans-serif" : "'Outfit',sans-serif" }}
+            >
+              {isRTL ? (
+                <bdi dir="rtl">
+                  {"المدينة "}
                   <span
                     className="bg-clip-text text-transparent"
                     style={{ backgroundImage: "linear-gradient(90deg,#D4AF37,#F3E5AB,#D4AF37)" }}
                   >
                     الرقمية
                   </span>
-                </>
+                </bdi>
               ) : (
                 <>
-                  Ville{" "}
+                  {"Ville "}
                   <span
                     className="bg-clip-text text-transparent"
                     style={{ backgroundImage: "linear-gradient(90deg,#D4AF37,#F3E5AB,#D4AF37)" }}
