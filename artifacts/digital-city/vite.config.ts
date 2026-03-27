@@ -11,13 +11,13 @@ if (Number.isNaN(port) || port <= 0) throw new Error(`Invalid PORT value: "${raw
 const basePath = process.env.BASE_PATH;
 if (!basePath) throw new Error("BASE_PATH environment variable is required.");
 
+const API_PORT = 8080;
+
 export default defineConfig({
   base: basePath,
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "src"),
-    },
+    alias: { "@": path.resolve(import.meta.dirname, "src") },
     dedupe: ["react", "react-dom"],
   },
   root: path.resolve(import.meta.dirname),
@@ -29,11 +29,14 @@ export default defineConfig({
     port,
     host: "0.0.0.0",
     allowedHosts: true,
-    headers: {
-      "Cache-Control": "no-store",
-    },
-    fs: {
-      strict: false,
+    headers: { "Cache-Control": "no-store" },
+    fs: { strict: false },
+    proxy: {
+      // All /api/* requests go to the API server
+      "/api": {
+        target: `http://localhost:${API_PORT}`,
+        changeOrigin: true,
+      },
     },
   },
   preview: {

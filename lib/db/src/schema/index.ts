@@ -2,3 +2,8 @@ export * from "./serviceProviders";
 export * from "./orders";
 export * from "./categories";
 export * from "./articles";
+export * from "./delegations";
+export * from "./deliveryStaff";
+export * from "./promoBanners";
+export * from "./ratings";
+export * from "./hotelBookings";

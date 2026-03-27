@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { ordersTable, serviceProvidersTable } from "@workspace/db/schema";
+import { ordersTable, serviceProvidersTable, deliveryStaffTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -17,83 +17,74 @@ router.get("/orders", async (req, res) => {
 
 router.get("/orders/:id", async (req, res) => {
   const id = parseInt(req.params.id);
-  if (isNaN(id)) {
-    res.status(400).json({ message: "Invalid order ID" });
-    return;
-  }
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid order ID" }); return; }
   try {
     const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id));
-    if (!order) {
-      res.status(404).json({ message: "Order not found" });
-      return;
-    }
+    if (!order) { res.status(404).json({ message: "Order not found" }); return; }
     res.json(order);
   } catch (err) {
-    req.log.error({ err }, "Error fetching order");
-    res.status(500).json({ message: "Internal server error" });
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
   }
 });
 
 router.post("/orders", async (req, res) => {
-  const { customerName, customerAddress, notes, serviceProviderId, serviceType } = req.body;
-
+  const { customerName, customerPhone, customerAddress, delegationId, notes, serviceProviderId, serviceType } = req.body;
   if (!customerName || !customerAddress || !serviceProviderId || !serviceType) {
-    res.status(400).json({ message: "Missing required fields: customerName, customerAddress, serviceProviderId, serviceType" });
+    res.status(400).json({ message: "customerName, customerAddress, serviceProviderId, serviceType are required" });
     return;
   }
-
   try {
     const [provider] = await db.select().from(serviceProvidersTable).where(eq(serviceProvidersTable.id, parseInt(serviceProviderId)));
-    if (!provider) {
-      res.status(400).json({ message: "Service provider not found" });
-      return;
-    }
+    if (!provider) { res.status(400).json({ message: "Service provider not found" }); return; }
 
     const [order] = await db.insert(ordersTable).values({
-      customerName,
-      customerAddress,
+      customerName, customerPhone, customerAddress,
+      delegationId: delegationId ? parseInt(delegationId) : null,
       notes: notes || null,
       serviceType,
       serviceProviderId: provider.id,
       serviceProviderName: provider.name,
       status: "pending",
     }).returning();
-
     res.status(201).json(order);
   } catch (err) {
-    req.log.error({ err }, "Error creating order");
-    res.status(500).json({ message: "Internal server error" });
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
   }
 });
 
 router.patch("/orders/:id", async (req, res) => {
   const id = parseInt(req.params.id);
-  if (isNaN(id)) {
-    res.status(400).json({ message: "Invalid order ID" });
-    return;
-  }
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid order ID" }); return; }
 
-  const { status } = req.body;
-  const validStatuses = ["pending", "confirmed", "in_progress", "delivered", "cancelled"];
-  if (!status || !validStatuses.includes(status)) {
-    res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
-    return;
+  const { status, deliveryStaffId, deliveryFee } = req.body;
+  const validStatuses = ["pending", "accepted", "in_delivery", "delivered", "cancelled", "confirmed", "in_progress"];
+  if (status && !validStatuses.includes(status)) {
+    res.status(400).json({ message: `Invalid status.` }); return;
   }
-
   try {
-    const [order] = await db.update(ordersTable)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(ordersTable.id, id))
-      .returning();
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (status) updates.status = status;
+    if (deliveryStaffId !== undefined) updates.deliveryStaffId = deliveryStaffId ? parseInt(deliveryStaffId) : null;
+    if (deliveryFee !== undefined) updates.deliveryFee = parseFloat(deliveryFee);
 
-    if (!order) {
-      res.status(404).json({ message: "Order not found" });
-      return;
-    }
+    const [order] = await db.update(ordersTable).set(updates as any).where(eq(ordersTable.id, id)).returning();
+    if (!order) { res.status(404).json({ message: "Order not found" }); return; }
     res.json(order);
   } catch (err) {
-    req.log.error({ err }, "Error updating order");
-    res.status(500).json({ message: "Internal server error" });
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Provider endpoint - get orders for a specific provider
+router.get("/provider/:providerId/orders", async (req, res) => {
+  const providerId = parseInt(req.params.providerId);
+  if (isNaN(providerId)) { res.status(400).json({ message: "Invalid providerId" }); return; }
+  try {
+    const orders = await db.select().from(ordersTable)
+      .where(eq(ordersTable.serviceProviderId, providerId));
+    res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
   }
 });
 

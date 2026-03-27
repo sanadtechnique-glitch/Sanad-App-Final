@@ -5,6 +5,11 @@ import ordersRouter from "./orders";
 import categoriesRouter from "./categories";
 import suppliersRouter from "./suppliers";
 import articlesRouter from "./articles";
+import delegationsRouter from "./delegations";
+import deliveryStaffRouter from "./deliveryStaff";
+import promoBannersRouter from "./promoBanners";
+import ratingsRouter from "./ratings";
+import hotelBookingsRouter from "./hotelBookings";
 
 const router: IRouter = Router();
 
@@ -14,5 +19,10 @@ router.use(ordersRouter);
 router.use(categoriesRouter);
 router.use(suppliersRouter);
 router.use(articlesRouter);
+router.use(delegationsRouter);
+router.use(deliveryStaffRouter);
+router.use(promoBannersRouter);
+router.use(ratingsRouter);
+router.use(hotelBookingsRouter);
 
 export default router;

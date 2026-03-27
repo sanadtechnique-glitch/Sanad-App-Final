@@ -7,51 +7,52 @@ const router: IRouter = Router();
 
 router.get("/admin/suppliers", async (req, res) => {
   try {
-    const suppliers = await db.select().from(serviceProvidersTable).orderBy(serviceProvidersTable.createdAt);
-    res.json(suppliers);
-  } catch (err) {
-    req.log.error({ err }, "Error fetching suppliers");
-    res.status(500).json({ message: "Internal server error" });
-  }
+    res.json(await db.select().from(serviceProvidersTable).orderBy(serviceProvidersTable.name));
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+});
+
+router.get("/admin/suppliers/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
+  try {
+    const [row] = await db.select().from(serviceProvidersTable).where(eq(serviceProvidersTable.id, id));
+    if (!row) { res.status(404).json({ message: "Not found" }); return; }
+    res.json(row);
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
 router.post("/admin/suppliers", async (req, res) => {
-  const { name, nameAr, category, description, descriptionAr, address, rating, isAvailable } = req.body;
+  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable } = req.body;
   if (!name || !nameAr || !category) {
-    res.status(400).json({ message: "name, nameAr, category are required" });
-    return;
+    res.status(400).json({ message: "name, nameAr, category required" }); return;
   }
   try {
-    const [supplier] = await db.insert(serviceProvidersTable).values({
+    const [row] = await db.insert(serviceProvidersTable).values({
       name, nameAr, category,
       description: description || "",
       descriptionAr: descriptionAr || "",
       address: address || "",
+      phone: phone || null,
+      photoUrl: photoUrl || null,
+      shift: shift || "all",
       rating: rating ?? 4.5,
       isAvailable: isAvailable ?? true,
     }).returning();
-    res.status(201).json(supplier);
-  } catch (err) {
-    req.log.error({ err }, "Error creating supplier");
-    res.status(500).json({ message: "Internal server error" });
-  }
+    res.status(201).json(row);
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
 router.patch("/admin/suppliers/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
-  const { name, nameAr, category, description, descriptionAr, address, rating, isAvailable } = req.body;
+  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable } = req.body;
   try {
-    const [supplier] = await db.update(serviceProvidersTable)
-      .set({ name, nameAr, category, description, descriptionAr, address, rating, isAvailable })
-      .where(eq(serviceProvidersTable.id, id))
-      .returning();
-    if (!supplier) { res.status(404).json({ message: "Not found" }); return; }
-    res.json(supplier);
-  } catch (err) {
-    req.log.error({ err }, "Error updating supplier");
-    res.status(500).json({ message: "Internal server error" });
-  }
+    const [row] = await db.update(serviceProvidersTable)
+      .set({ name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable })
+      .where(eq(serviceProvidersTable.id, id)).returning();
+    if (!row) { res.status(404).json({ message: "Not found" }); return; }
+    res.json(row);
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
 router.delete("/admin/suppliers/:id", async (req, res) => {
@@ -60,10 +61,21 @@ router.delete("/admin/suppliers/:id", async (req, res) => {
   try {
     await db.delete(serviceProvidersTable).where(eq(serviceProvidersTable.id, id));
     res.json({ success: true });
-  } catch (err) {
-    req.log.error({ err }, "Error deleting supplier");
-    res.status(500).json({ message: "Internal server error" });
-  }
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+});
+
+// Toggle availability
+router.patch("/admin/suppliers/:id/toggle", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
+  try {
+    const [current] = await db.select().from(serviceProvidersTable).where(eq(serviceProvidersTable.id, id));
+    if (!current) { res.status(404).json({ message: "Not found" }); return; }
+    const [row] = await db.update(serviceProvidersTable)
+      .set({ isAvailable: !current.isAvailable })
+      .where(eq(serviceProvidersTable.id, id)).returning();
+    res.json(row);
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
 export default router;

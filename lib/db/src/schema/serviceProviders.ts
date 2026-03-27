@@ -2,17 +2,23 @@ import { pgTable, text, serial, boolean, real, timestamp } from "drizzle-orm/pg-
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const serviceCategoryEnum = ["restaurant", "pharmacy", "lawyer", "grocery", "mechanic", "doctor"] as const;
+export const serviceCategoryEnum = ["restaurant", "pharmacy", "lawyer", "grocery", "mechanic", "doctor", "car", "hotel"] as const;
 export type ServiceCategory = typeof serviceCategoryEnum[number];
+
+export const pharmacyShiftEnum = ["day", "night", "all"] as const;
+export type PharmacyShift = typeof pharmacyShiftEnum[number];
 
 export const serviceProvidersTable = pgTable("service_providers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   nameAr: text("name_ar").notNull(),
   category: text("category").$type<ServiceCategory>().notNull(),
-  description: text("description").notNull(),
-  descriptionAr: text("description_ar").notNull(),
-  address: text("address").notNull(),
+  description: text("description").notNull().default(""),
+  descriptionAr: text("description_ar").notNull().default(""),
+  address: text("address").notNull().default(""),
+  phone: text("phone"),
+  photoUrl: text("photo_url"),
+  shift: text("shift").$type<PharmacyShift>().default("all"),
   rating: real("rating").default(4.5),
   isAvailable: boolean("is_available").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

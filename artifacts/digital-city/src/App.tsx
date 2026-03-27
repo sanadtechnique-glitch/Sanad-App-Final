@@ -5,6 +5,8 @@ import Home from "./pages/home";
 import Services from "./pages/services";
 import Order from "./pages/order";
 import Admin from "./pages/admin";
+import Provider from "./pages/provider";
+import Delivery from "./pages/delivery";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,6 +32,8 @@ function Router() {
       <Route path="/services" component={Services} />
       <Route path="/order/:id" component={Order} />
       <Route path="/admin" component={Admin} />
+      <Route path="/provider" component={Provider} />
+      <Route path="/delivery" component={Delivery} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -11,6 +11,9 @@ export const articlesTable = pgTable("articles", {
   descriptionAr: text("description_ar").notNull().default(""),
   descriptionFr: text("description_fr").notNull().default(""),
   price: real("price").notNull().default(0),
+  originalPrice: real("original_price"),
+  discountedPrice: real("discounted_price"),
+  photoUrl: text("photo_url"),
   isAvailable: boolean("is_available").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

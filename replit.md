@@ -18,80 +18,70 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ## Project: المدينة الرقمية (Digital City)
 
-A premium delivery app for Ben Guerdane with dark mode + gold accent theme.
+A premium delivery app for Ben Guerdane with forced dark mode + gold (#D4AF37) accent theme.
 
-### Features
-- 6 Service categories: Restaurant, Pharmacy, Lawyer, Grocery, Mechanic, Doctor
-- Internal ordering system (no phone numbers shown to customers ever)
-- Admin dashboard for order management with status updates
-- 12 seeded service providers
-- Mobile-first design with bottom navigation + desktop sidebar
+### Architecture
+
+- `artifacts/api-server` — Express API server on port 8080, routes mounted at `/api/*`
+- `artifacts/digital-city` — React + Vite frontend, proxies `/api/*` to port 8080
+- `lib/db` — Drizzle ORM schema + migrations
+- `lib/api-client-react` — Generated TanStack Query hooks (Orval codegen)
+
+### API Base URL
+
+All API routes are mounted at `/api` prefix. In `main.tsx`, `setBaseUrl("/api")` is called so the generated client uses the correct prefix. The Vite proxy forwards `/api/*` → `http://localhost:8080`.
 
 ### Pages
-- `/` - Home screen with hero + 6 category cards
-- `/services` - Service providers list with category filter
-- `/order/:id` - Order form for a specific provider
-- `/admin` - Admin dashboard with order management
 
-### API Endpoints
-- `GET /api/services?category=` - list providers
-- `POST /api/orders` - create order
-- `GET /api/orders` - list all orders (admin)
-- `PATCH /api/orders/:id` - update order status
+| Route | Description |
+|-------|-------------|
+| `/` | Home page — hero, category grid, quick stats |
+| `/services` | Services listing with category filter |
+| `/order/:id` | Customer order form |
+| `/admin` | Admin dashboard (8 sections) |
+| `/provider` | Provider dashboard (accept/reject orders) |
+| `/delivery` | Delivery staff dashboard |
 
-## Structure
+### Admin Dashboard Sections (8)
 
-```text
-artifacts-monorepo/
-├── artifacts/
-│   ├── api-server/         # Express API server
-│   └── digital-city/       # React + Vite frontend (المدينة الرقمية)
-├── lib/                    # Shared libraries
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-│       └── src/schema/
-│           ├── serviceProviders.ts
-│           └── orders.ts
-├── scripts/                # Utility scripts
-│   └── src/seed.ts         # Database seeder
-├── pnpm-workspace.yaml
-├── tsconfig.base.json
-├── tsconfig.json
-└── package.json
+1. **نظرة عامة / Vue d'ensemble** — Stats + recent orders + active suppliers
+2. **الطلبات / Commandes** — Full order management with status update, staff assignment, WhatsApp
+3. **الفئات / Catégories** — CRUD for service categories
+4. **المزودون / Fournisseurs** — CRUD for suppliers with pharmacy shift (day/night/all), toggle availability
+5. **المنتجات / Articles** — CRUD for articles with original/discounted pricing
+6. **السائقون / Livreurs** — CRUD for delivery staff
+7. **المعتمديات / Délégations** — CRUD for zones with per-zone delivery fees
+8. **الإعلانات / Publicités** — CRUD for promo banners with color picker and date range
+
+### Database Tables
+
+`service_providers`, `orders`, `categories`, `articles`, `delegations`, `delivery_staff`, `promo_banners`, `ratings`, `hotel_bookings`
+
+### Key Rules
+
+- **NEVER show phone numbers** in the customer-facing app (`/`, `/services`, `/order`). Phones are only for admin/provider/delivery WhatsApp integration.
+- Dark mode is FORCED — no light mode toggle.
+- Gold accent: `#D4AF37`. Fonts: Tajawal (Arabic) + Outfit (French/Latin).
+- Language: AR/FR toggle in localStorage, RTL layout switches via `document.documentElement.dir`.
+
+### Order Status Flow
+
+`pending → accepted → in_delivery → delivered | cancelled`
+
+### Languages
+
+Arabic (RTL) and French (LTR). `useLang()` hook provides `lang`, `t(ar, fr)`, `isRTL`.
+
+### Admin API Helper
+
+`src/lib/admin-api.ts` — simple fetch wrapper with `BASE = "/api"` prefix. Used by all admin/provider/delivery pages (NOT by the generated client which handles its own prefix via `setBaseUrl`).
+
+### Pharmacy Shifts
+
+Suppliers with `category === "pharmacy"` have a `shift` field: `"day"`, `"night"`, `"all"`. Used for automatic display filtering.
+
+### DB Push Command
+
 ```
-
-## TypeScript & Composite Projects
-
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
-
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
-
-## Root Scripts
-
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
-
-## Packages
-
-### `artifacts/api-server` (`@workspace/api-server`)
-
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
-
-### `artifacts/digital-city` (`@workspace/digital-city`)
-
-React + Vite frontend for the Digital City delivery app. Uses:
-- `@workspace/api-client-react` for API hooks
-- `framer-motion` for animations
-- `react-hook-form` + `@hookform/resolvers` for order form
-- `date-fns` for date formatting
-
-### `lib/db` (`@workspace/db`)
-
-Database layer using Drizzle ORM with PostgreSQL. Tables: `service_providers`, `orders`.
-
-- `pnpm --filter @workspace/db run push` — push schema changes
-- Seed: `pnpm --filter @workspace/scripts run seed`
+pnpm --filter @workspace/db run push
+```
