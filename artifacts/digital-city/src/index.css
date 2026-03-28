@@ -121,3 +121,27 @@
 h1 { font-weight: 900; }
 h2 { font-weight: 800; }
 h3 { font-weight: 700; }
+
+/* Hide scrollbar but keep scroll functionality */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Hero ambient glow pulse */
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; transform: translate(-50%,-50%) scale(1); }
+  50%       { opacity: 1;   transform: translate(-50%,-50%) scale(1.12); }
+}
+
+/* Gold shimmer animation */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.gold-shimmer {
+  background: linear-gradient(90deg, #D4AF37 0%, #F3E5AB 40%, #D4AF37 60%, #C9A227 100%);
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

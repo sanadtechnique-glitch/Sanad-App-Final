@@ -1,79 +1,125 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout";
-import { Button } from "@/components/ui/button";
-import { useListServices, useCreateOrder } from "@workspace/api-client-react";
-import { ChevronLeft, CheckCircle2, Building2, AlertCircle } from "lucide-react";
+import { useLang } from "@/lib/language";
+import { get, post } from "@/lib/admin-api";
+import {
+  ChevronRight, CheckCircle2, MapPin, User, StickyNote,
+  Phone, Loader2, AlertTriangle, Star, Building2, Hash,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// Form validation schema matching CreateOrderRequest
-const orderSchema = z.object({
-  customerName: z.string().min(3, "Name must be at least 3 characters"),
-  customerAddress: z.string().min(5, "Please provide a detailed address"),
-  notes: z.string().optional(),
+interface Supplier {
+  id: number; name: string; nameAr: string; category: string;
+  description: string; descriptionAr: string; address: string;
+  rating?: number; isAvailable: boolean;
+}
+interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
+
+const schema = z.object({
+  customerName:    z.string().min(2),
+  customerPhone:   z.string().min(8),
+  customerAddress: z.string().min(5),
+  delegationId:    z.string().optional(),
+  notes:           z.string().optional(),
 });
+type FormValues = z.infer<typeof schema>;
 
-type OrderFormValues = z.infer<typeof orderSchema>;
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <label className="block text-xs font-black text-white/50 mb-1.5 uppercase tracking-widest">{children}</label>;
+}
+
+function InputBase({ error, children }: { error?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      {children}
+      {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
+    </div>
+  );
+}
 
 export default function Order() {
-  const { id } = useParams();
-  const providerId = parseInt(id || "0", 10);
+  const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  const [isSuccess, setIsSuccess] = useState(false);
+  const { lang, t, isRTL } = useLang();
 
-  // Fetch provider details
-  const { data: services, isLoading: isLoadingProvider } = useListServices();
-  const provider = services?.find(s => s.id === providerId);
+  const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [delegations, setDelegations] = useState<Delegation[]>([]);
+  const [loadingProvider, setLoadingProvider] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [orderId, setOrderId] = useState<number | null>(null);
 
-  // Mutation hook
-  const createOrderMutation = useCreateOrder();
+  useEffect(() => {
+    Promise.all([
+      get<Supplier[]>("/services"),
+      get<Delegation[]>("/admin/delegations"),
+    ]).then(([providers, dels]) => {
+      const found = providers.find(p => p.id === parseInt(id || "0"));
+      if (!found) { setNotFound(true); setLoadingProvider(false); return; }
+      setSupplier(found);
+      setDelegations(dels);
+      setLoadingProvider(false);
+    }).catch(() => { setNotFound(true); setLoadingProvider(false); });
+  }, [id]);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<OrderFormValues>({
-    resolver: zodResolver(orderSchema)
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({
+    resolver: zodResolver(schema),
   });
 
-  const onSubmit = async (data: OrderFormValues) => {
-    if (!provider) return;
+  const selectedDelegationId = watch("delegationId");
+  const selectedDelegation = delegations.find(d => d.id.toString() === selectedDelegationId);
 
+  const onSubmit = async (data: FormValues) => {
+    if (!supplier) return;
+    setSubmitting(true);
     try {
-      await createOrderMutation.mutateAsync({
-        data: {
-          ...data,
-          serviceProviderId: provider.id,
-          serviceType: provider.category
-        }
-      });
-      setIsSuccess(true);
-      
-      // Auto redirect after 3 seconds
-      setTimeout(() => {
-        setLocation("/services");
-      }, 3000);
-    } catch (error) {
-      console.error("Order failed", error);
+      const payload = {
+        customerName:    data.customerName,
+        customerPhone:   data.customerPhone,
+        customerAddress: data.customerAddress,
+        delegationId:    data.delegationId ? parseInt(data.delegationId) : null,
+        deliveryFee:     selectedDelegation?.deliveryFee ?? 0,
+        notes:           data.notes || null,
+        serviceProviderId: supplier.id,
+        serviceType: supplier.category,
+      };
+      const res = await post<{ id: number }>("/orders", payload);
+      setOrderId(res.id);
+      setSuccess(true);
+      setTimeout(() => setLocation("/services"), 4000);
+    } catch {
+      setSubmitting(false);
     }
   };
 
-  if (isLoadingProvider) {
+  if (loadingProvider) {
     return (
       <Layout>
-        <div className="pt-20 px-4 flex justify-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
         </div>
       </Layout>
     );
   }
 
-  if (!provider) {
+  if (notFound || !supplier) {
     return (
       <Layout>
-        <div className="pt-20 px-4 text-center">
-          <h2 className="text-2xl font-bold text-white">Provider not found</h2>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 px-4">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+            <AlertTriangle size={28} className="text-red-400" />
+          </div>
+          <h2 className="text-2xl font-black text-white">{t("المزود غير موجود", "Prestataire introuvable")}</h2>
           <Link href="/services">
-            <Button variant="outline" className="mt-4">Back to Services</Button>
+            <button className="px-5 py-2.5 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] font-bold text-sm hover:bg-[#D4AF37]/20 transition-colors">
+              {t("العودة للخدمات", "Retour aux services")}
+            </button>
           </Link>
         </div>
       </Layout>
@@ -82,107 +128,194 @@ export default function Order() {
 
   return (
     <Layout>
-      <div className="pt-8 px-4 sm:px-6 max-w-2xl mx-auto pb-24">
-        
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/services" className="w-10 h-10 rounded-full glass-panel flex items-center justify-center hover:bg-white/10 transition-colors">
-            <ChevronLeft size={20} className="text-foreground" />
+      <div className="pt-6 px-4 sm:px-6 max-w-xl mx-auto pb-28" dir={isRTL ? "rtl" : "ltr"}>
+
+        {/* ── Back ── */}
+        <div className="flex items-center gap-4 mb-7">
+          <Link href="/services">
+            <div className="w-11 h-11 rounded-2xl glass-panel border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-[#D4AF37]/30 transition-all cursor-pointer">
+              <ChevronRight size={18} className={cn("text-white/60", !isRTL && "rotate-180")} />
+            </div>
           </Link>
           <div>
-            <h1 className="text-2xl font-display font-bold text-white">Place Order</h1>
-            <p className="text-muted-foreground text-sm">طلب جديد</p>
+            <h1 className="text-2xl font-black text-white">{t("تأكيد الطلب", "Confirmer la commande")}</h1>
+            <p className="text-white/30 text-sm">{t("أدخل بياناتك لإتمام الطلب", "Remplissez vos informations")}</p>
           </div>
         </div>
 
         <AnimatePresence mode="wait">
-          {isSuccess ? (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="glass-panel rounded-3xl p-12 text-center flex flex-col items-center border-primary/30"
+          {success ? (
+            /* ── Success ── */
+            <motion.div key="success"
+              initial={{ opacity: 0, scale: 0.93 }} animate={{ opacity: 1, scale: 1 }}
+              className="glass-panel rounded-3xl p-12 text-center flex flex-col items-center border border-[#D4AF37]/25"
             >
-              <div className="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center mb-6 gold-glow">
-                <CheckCircle2 className="w-12 h-12 text-primary" />
+              <motion.div
+                initial={{ scale: 0 }} animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
+                className="w-24 h-24 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/30 flex items-center justify-center mb-6"
+                style={{ boxShadow: "0 0 40px -10px rgba(212,175,55,0.4)" }}
+              >
+                <CheckCircle2 size={44} className="text-[#D4AF37]" />
+              </motion.div>
+              <h2 className="text-3xl font-black text-white mb-2">
+                {t("تم تأكيد طلبك!", "Commande confirmée !")}
+              </h2>
+              {orderId && (
+                <div className="flex items-center gap-2 mb-3">
+                  <Hash size={14} className="text-[#D4AF37]/60" />
+                  <span className="text-[#D4AF37] font-mono font-black">
+                    {orderId.toString().padStart(5, "0")}
+                  </span>
+                </div>
+              )}
+              <p className="text-white/40 text-sm mb-8 leading-relaxed max-w-xs">
+                {t(
+                  "سيتواصل معك المزود قريباً. يتم تحويلك للرئيسية...",
+                  "Le prestataire vous contactera bientôt. Redirection..."
+                )}
+              </p>
+              <div className="w-32 h-1 bg-white/5 rounded-full overflow-hidden">
+                <motion.div className="h-full bg-[#D4AF37] rounded-full"
+                  initial={{ width: "0%" }} animate={{ width: "100%" }}
+                  transition={{ duration: 4, ease: "linear" }} />
               </div>
-              <h2 className="text-3xl font-display font-bold text-white mb-2">Order Confirmed!</h2>
-              <p className="text-xl font-display text-primary mb-6">تم تأكيد طلبك</p>
-              <p className="text-muted-foreground mb-8">Your order has been sent directly to {provider.nameAr}. They will process it shortly.</p>
-              <Button variant="outline" onClick={() => setLocation("/services")}>
-                Return to Services
-              </Button>
             </motion.div>
           ) : (
-            <motion.div
-              key="form"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
-              {/* Provider Summary Card */}
-              <div className="glass-panel rounded-2xl p-5 border-primary/20 flex items-center gap-4">
-                <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center">
-                  <Building2 className="text-primary" size={24} />
+            /* ── Form ── */
+            <motion.div key="form" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+              {/* Provider card */}
+              <div className="glass-panel rounded-2xl p-4 mb-6 border border-[#D4AF37]/15 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center flex-shrink-0">
+                  <Building2 size={20} className="text-[#D4AF37]" />
                 </div>
-                <div>
-                  <p className="text-xs text-primary font-bold tracking-wider uppercase mb-1">ORDERING FROM</p>
-                  <h3 className="text-lg font-display font-bold text-white">{provider.nameAr}</h3>
-                  <p className="text-sm text-muted-foreground">{provider.name}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-white leading-tight">
+                    {lang === "ar" ? supplier.nameAr : (supplier.name || supplier.nameAr)}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <MapPin size={10} className="text-white/30 flex-shrink-0" />
+                    <p className="text-xs text-white/30 truncate">{supplier.address}</p>
+                  </div>
+                  {supplier.rating && (
+                    <div className="flex items-center gap-0.5 mt-1">
+                      {[1,2,3,4,5].map(i => (
+                        <Star key={i} size={10} className={i <= Math.round(supplier.rating!) ? "text-[#D4AF37] fill-[#D4AF37]" : "text-white/15"} />
+                      ))}
+                      <span className="text-xs text-white/30 ml-1">{supplier.rating.toFixed(1)}</span>
+                    </div>
+                  )}
                 </div>
+                <span className="text-xs font-black px-2.5 py-1 rounded-full bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 flex-shrink-0">
+                  {t("متاح","Dispo")}
+                </span>
               </div>
 
-              {/* Order Form */}
-              <form onSubmit={handleSubmit(onSubmit)} className="glass-panel rounded-3xl p-6 sm:p-8 space-y-6">
-                
-                {createOrderMutation.isError && (
-                  <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/30 flex items-start gap-3">
-                    <AlertCircle className="text-destructive shrink-0 mt-0.5" size={18} />
-                    <p className="text-sm text-destructive font-medium">Failed to submit order. Please try again.</p>
+              {/* Form */}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
+                {/* Name */}
+                <InputBase error={errors.customerName && t("الاسم مطلوب (٣ أحرف على الأقل)","Nom requis (3 caractères min)")}>
+                  <FieldLabel>{t("الاسم الكامل", "Nom complet")}</FieldLabel>
+                  <div className="relative">
+                    <User size={15} className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
+                    <input {...register("customerName")}
+                      placeholder={t("أدخل اسمك الكامل","Votre nom complet")}
+                      className={cn(
+                        "w-full bg-black/50 border rounded-xl py-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#D4AF37]/50 transition-colors",
+                        isRTL ? "pr-10 pl-4" : "pl-10 pr-4",
+                        errors.customerName ? "border-red-500/40" : "border-white/10"
+                      )} />
+                  </div>
+                </InputBase>
+
+                {/* Phone */}
+                <InputBase error={errors.customerPhone && t("رقم الهاتف مطلوب","Téléphone requis")}>
+                  <FieldLabel>{t("رقم الهاتف", "Numéro de téléphone")}</FieldLabel>
+                  <div className="relative">
+                    <Phone size={15} className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
+                    <input {...register("customerPhone")} type="tel"
+                      placeholder={t("+216 __ ___ ___","+216 __ ___ ___")}
+                      className={cn(
+                        "w-full bg-black/50 border rounded-xl py-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#D4AF37]/50 transition-colors",
+                        isRTL ? "pr-10 pl-4" : "pl-10 pr-4",
+                        errors.customerPhone ? "border-red-500/40" : "border-white/10"
+                      )} />
+                  </div>
+                </InputBase>
+
+                {/* Delegation */}
+                {delegations.length > 0 && (
+                  <div className="space-y-1.5">
+                    <FieldLabel>{t("المعتمدية (المنطقة)", "Délégation (Zone)")}</FieldLabel>
+                    <select {...register("delegationId")}
+                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]/50 transition-colors">
+                      <option value="" className="bg-zinc-900">{t("اختر منطقتك","Choisissez votre zone")}</option>
+                      {delegations.map(d => (
+                        <option key={d.id} value={d.id.toString()} className="bg-zinc-900">
+                          {lang === "ar" ? d.nameAr : d.name} — {d.deliveryFee} TND
+                        </option>
+                      ))}
+                    </select>
+                    {selectedDelegation && (
+                      <p className="text-xs text-[#D4AF37]/70 font-bold">
+                        {t("رسوم التوصيل","Frais de livraison")}: {selectedDelegation.deliveryFee} TND
+                      </p>
+                    )}
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-white ml-1">Full Name <span className="text-primary">*</span></label>
-                  <input
-                    {...register("customerName")}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                    placeholder="John Doe / فلان الفلاني"
-                  />
-                  {errors.customerName && <p className="text-xs text-destructive ml-1">{errors.customerName.message}</p>}
+                {/* Address */}
+                <InputBase error={errors.customerAddress && t("العنوان مطلوب","Adresse requise")}>
+                  <FieldLabel>{t("عنوان التوصيل", "Adresse de livraison")}</FieldLabel>
+                  <div className="relative">
+                    <MapPin size={15} className={cn("absolute top-4 text-white/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
+                    <textarea {...register("customerAddress")} rows={2}
+                      placeholder={t("الشارع، الحي، المعلم القريب...","Rue, quartier, repère...")}
+                      className={cn(
+                        "w-full bg-black/50 border rounded-xl py-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#D4AF37]/50 transition-colors resize-none",
+                        isRTL ? "pr-10 pl-4" : "pl-10 pr-4",
+                        errors.customerAddress ? "border-red-500/40" : "border-white/10"
+                      )} />
+                  </div>
+                </InputBase>
+
+                {/* Notes */}
+                <div className="space-y-1.5">
+                  <FieldLabel>{t("ملاحظات (اختياري)", "Notes (optionnel)")}</FieldLabel>
+                  <div className="relative">
+                    <StickyNote size={15} className={cn("absolute top-4 text-white/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
+                    <textarea {...register("notes")} rows={3}
+                      placeholder={t("أي تفاصيل إضافية...","Détails supplémentaires...")}
+                      className={cn(
+                        "w-full bg-black/50 border border-white/10 rounded-xl py-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#D4AF37]/50 transition-colors resize-none",
+                        isRTL ? "pr-10 pl-4" : "pl-10 pr-4"
+                      )} />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-white ml-1">Delivery Address <span className="text-primary">*</span></label>
-                  <input
-                    {...register("customerAddress")}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                    placeholder="Street, Building, Landmark..."
-                  />
-                  {errors.customerAddress && <p className="text-xs text-destructive ml-1">{errors.customerAddress.message}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-white ml-1">Order Details / Notes</label>
-                  <textarea
-                    {...register("notes")}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all min-h-[120px] resize-y"
-                    placeholder="What do you need? What should we know?"
-                  />
-                </div>
-
-                <div className="pt-4 border-t border-white/10">
-                  <Button 
-                    type="submit" 
-                    className="w-full h-14 text-lg font-bold"
-                    isLoading={createOrderMutation.isPending}
-                  >
-                    Submit Order | تأكيد الطلب
-                  </Button>
-                  <p className="text-center text-xs text-muted-foreground mt-4 font-medium flex items-center justify-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    Secure internal communication. No phone numbers shared.
+                {/* Privacy note */}
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-white/3 border border-white/5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
+                  <p className="text-xs text-white/30 leading-relaxed">
+                    {t(
+                      "لا يتم مشاركة أرقام الهاتف مع مقدمي الخدمات. تواصلنا داخلي وآمن.",
+                      "Aucun numéro de téléphone n'est partagé avec les prestataires. Communication interne sécurisée."
+                    )}
                   </p>
                 </div>
+
+                {/* Submit */}
+                <button type="submit" disabled={submitting}
+                  className="w-full h-14 rounded-2xl font-black text-base text-black transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                  style={{ background: submitting ? "rgba(212,175,55,0.5)" : "linear-gradient(135deg,#D4AF37,#B8962E)", boxShadow: submitting ? "none" : "0 0 30px -8px rgba(212,175,55,0.5)" }}
+                >
+                  {submitting ? (
+                    <><Loader2 size={20} className="animate-spin" />{t("جاري الإرسال...","Envoi en cours...")}</>
+                  ) : (
+                    t("تأكيد الطلب", "Confirmer la commande")
+                  )}
+                </button>
               </form>
             </motion.div>
           )}

@@ -1,134 +1,225 @@
-import { useState } from "react";
-import { Link, useSearch } from "wouter";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { Link } from "wouter";
+import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout";
-import { Button } from "@/components/ui/button";
-import { useListServices, ServiceCategory } from "@workspace/api-client-react";
-import { MapPin, Star, AlertCircle, ChevronLeft, ArrowRight } from "lucide-react";
+import { useLang } from "@/lib/language";
+import { get } from "@/lib/admin-api";
+import {
+  MapPin, Star, ChevronRight, Utensils, Pill, Scale,
+  ShoppingCart, Wrench, Stethoscope, Car, Hotel,
+  Moon, Sun, AlertTriangle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface Supplier {
+  id: number; name: string; nameAr: string; category: string;
+  description: string; descriptionAr: string; address: string;
+  rating?: number; isAvailable: boolean; shift?: string;
+}
+
+const CATS = [
+  { id: "all",        ar: "الكل",      fr: "Tous",        icon: null,         gradient: "from-[#D4AF37]/20 to-[#8B7329]/10", iconColor: "text-[#D4AF37]",  border: "hover:border-[#D4AF37]/30" },
+  { id: "restaurant", ar: "مطاعم",     fr: "Restaurants", icon: Utensils,     gradient: "from-orange-500/20 to-red-500/10",   iconColor: "text-orange-400", border: "hover:border-orange-500/30" },
+  { id: "pharmacy",   ar: "صيدلية",    fr: "Pharmacie",   icon: Pill,         gradient: "from-emerald-500/20 to-teal-500/10", iconColor: "text-emerald-400",border: "hover:border-emerald-500/30" },
+  { id: "lawyer",     ar: "محامي",     fr: "Avocat",      icon: Scale,        gradient: "from-amber-500/20 to-yellow-500/10", iconColor: "text-amber-400",  border: "hover:border-amber-500/30" },
+  { id: "grocery",    ar: "بقالة",     fr: "Épicerie",    icon: ShoppingCart, gradient: "from-blue-500/20 to-cyan-500/10",    iconColor: "text-blue-400",   border: "hover:border-blue-500/30" },
+  { id: "mechanic",   ar: "ميكانيكي", fr: "Mécanicien",  icon: Wrench,       gradient: "from-zinc-400/20 to-slate-500/10",   iconColor: "text-zinc-300",   border: "hover:border-zinc-500/30" },
+  { id: "doctor",     ar: "طبيب",      fr: "Médecin",     icon: Stethoscope,  gradient: "from-rose-500/20 to-pink-500/10",    iconColor: "text-rose-400",   border: "hover:border-rose-500/30" },
+  { id: "car",        ar: "سيارات",    fr: "Voitures",    icon: Car,          gradient: "from-sky-500/20 to-blue-500/10",     iconColor: "text-sky-400",    border: "hover:border-sky-500/30" },
+  { id: "hotel",      ar: "فنادق",     fr: "Hôtels",      icon: Hotel,        gradient: "from-violet-500/20 to-purple-500/10",iconColor: "text-violet-400", border: "hover:border-violet-500/30" },
+];
+
+function StarRow({ rating }: { rating?: number | null }) {
+  const r = Math.round(rating ?? 0);
+  return (
+    <span className="flex items-center gap-0.5">
+      {[1,2,3,4,5].map(i => (
+        <Star key={i} size={11} className={i <= r ? "text-[#D4AF37] fill-[#D4AF37]" : "text-white/15 fill-white/15"} />
+      ))}
+      {rating != null && <span className="ml-1.5 text-xs text-white/40 font-mono tabular-nums">{rating.toFixed(1)}</span>}
+    </span>
+  );
+}
+
+const container = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.055 } },
+};
+const cardAnim = {
+  hidden: { opacity: 0, y: 28, scale: 0.97 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 260, damping: 22 } },
+};
 
 export default function Services() {
-  const searchString = useSearch();
-  const searchParams = new URLSearchParams(searchString);
-  const initialCategory = searchParams.get("category") as ServiceCategory | undefined;
-  
-  const [activeCategory, setActiveCategory] = useState<ServiceCategory | "all">(initialCategory || "all");
+  const { lang, t, isRTL } = useLang();
+  const [active, setActive] = useState("all");
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
-  // Fetch services. If 'all', pass undefined.
-  const { data: services, isLoading, error } = useListServices(
-    activeCategory === "all" ? undefined : { category: activeCategory }
-  );
+  useEffect(() => {
+    setLoading(true); setHasError(false);
+    const path = active === "all" ? "/services" : `/services?category=${active}`;
+    get<Supplier[]>(path)
+      .then(data => { setSuppliers(data); setLoading(false); })
+      .catch(() => { setHasError(true); setLoading(false); });
+  }, [active]);
 
-  const categories = [
-    { id: "all", label: "All", labelAr: "الكل" },
-    { id: ServiceCategory.restaurant, label: "Restaurants", labelAr: "مطاعم" },
-    { id: ServiceCategory.pharmacy, label: "Pharmacy", labelAr: "صيدلية" },
-    { id: ServiceCategory.grocery, label: "Grocery", labelAr: "بقالة" },
-    { id: ServiceCategory.doctor, label: "Doctor", labelAr: "طبيب" },
-    { id: ServiceCategory.lawyer, label: "Lawyer", labelAr: "محامي" },
-    { id: ServiceCategory.mechanic, label: "Mechanic", labelAr: "ميكانيكي" },
-  ];
+  const cfg = (id: string) => CATS.find(c => c.id === id) ?? CATS[0];
 
   return (
     <Layout>
-      <div className="pt-8 px-4 sm:px-6 lg:px-8 pb-24">
-        {/* Header */}
+      <div className="pt-6 px-4 sm:px-6 lg:px-8 pb-28" dir={isRTL ? "rtl" : "ltr"}>
+
+        {/* ── Header ── */}
         <div className="flex items-center gap-4 mb-8">
-          <Link href="/" className="w-10 h-10 rounded-full glass-panel flex items-center justify-center hover:bg-white/10 transition-colors">
-            <ChevronLeft size={20} className="text-foreground" />
+          <Link href="/">
+            <div className="w-11 h-11 rounded-2xl glass-panel border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-[#D4AF37]/30 transition-all cursor-pointer">
+              <ChevronRight size={18} className={cn("text-white/60", !isRTL && "rotate-180")} />
+            </div>
           </Link>
           <div>
-            <h1 className="text-3xl font-display font-bold text-white">Providers</h1>
-            <p className="text-muted-foreground text-sm">مقدمي الخدمات</p>
+            <h1 className="text-3xl font-black text-white leading-tight">
+              {t("مقدمو الخدمات", "Prestataires")}
+            </h1>
+            <p className="text-white/30 text-sm mt-0.5 font-medium">
+              {t("اختر الخدمة المناسبة لك", "Choisissez votre prestataire")}
+            </p>
           </div>
         </div>
 
-        {/* Category Filter Pills */}
-        <div className="flex overflow-x-auto pb-4 mb-6 -mx-4 px-4 sm:mx-0 sm:px-0 gap-3 no-scrollbar scroll-smooth">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id as ServiceCategory | "all")}
-              className={`whitespace-nowrap px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-300 border ${
-                activeCategory === cat.id
-                  ? "bg-primary text-primary-foreground border-primary shadow-[0_0_15px_rgba(212,175,55,0.3)]"
-                  : "bg-white/5 text-muted-foreground border-white/10 hover:border-primary/50 hover:text-white"
-              }`}
-            >
-              <span className="font-display mr-1">{cat.labelAr}</span>
-              <span className="opacity-70 text-xs">| {cat.label}</span>
-            </button>
-          ))}
+        {/* ── Category Filter ── */}
+        <div className="flex gap-2.5 pb-3 mb-6 overflow-x-auto no-scrollbar">
+          {CATS.map(cat => {
+            const isAct = active === cat.id;
+            const Icon = cat.icon;
+            return (
+              <button key={cat.id} onClick={() => setActive(cat.id)}
+                className={cn(
+                  "flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm border transition-all duration-300",
+                  isAct
+                    ? "bg-[#D4AF37] text-black border-[#D4AF37] shadow-[0_0_22px_rgba(212,175,55,0.35)]"
+                    : "bg-white/5 text-white/50 border-white/10 hover:text-white hover:border-white/25"
+                )}>
+                {Icon && <Icon size={14} className={isAct ? "text-black" : cat.iconColor} />}
+                <span>{lang === "ar" ? cat.ar : cat.fr}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Content */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="glass-panel h-48 rounded-3xl animate-pulse bg-white/5" />
+        {/* ── States ── */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1,2,3,4,5,6].map(i => (
+              <div key={i} className="glass-panel rounded-3xl h-56 animate-pulse border border-white/5"
+                style={{ animationDelay: `${i * 60}ms` }} />
             ))}
           </div>
-        ) : error ? (
-          <div className="glass-panel rounded-3xl p-12 text-center border-destructive/20 flex flex-col items-center">
-            <AlertCircle className="w-12 h-12 text-destructive mb-4" />
-            <h3 className="text-xl font-bold text-white mb-2">Failed to load</h3>
-            <p className="text-muted-foreground">Please try again later.</p>
-          </div>
-        ) : services?.length === 0 ? (
-          <div className="glass-panel rounded-3xl p-12 text-center flex flex-col items-center">
-            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
-              <Star className="w-8 h-8 text-muted-foreground" />
+        ) : hasError ? (
+          <div className="glass-panel rounded-3xl p-14 text-center flex flex-col items-center border border-red-500/20 mt-4">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+              <AlertTriangle size={32} className="text-red-400" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2 font-display">لا يوجد مزودي خدمة</h3>
-            <p className="text-muted-foreground">No providers found for this category.</p>
+            <h3 className="text-xl font-black text-white mb-2">{t("حدث خطأ", "Erreur de chargement")}</h3>
+            <p className="text-white/30 text-sm">{t("حاول مرة أخرى", "Veuillez réessayer")}</p>
+          </div>
+        ) : suppliers.length === 0 ? (
+          <div className="glass-panel rounded-3xl p-14 text-center flex flex-col items-center border border-white/5 mt-4">
+            <div className="w-20 h-20 rounded-full bg-[#D4AF37]/10 flex items-center justify-center mb-4 border border-[#D4AF37]/20">
+              <Star size={32} className="text-[#D4AF37]/50" />
+            </div>
+            <h3 className="text-xl font-black text-white mb-2">{t("لا توجد نتائج", "Aucun résultat")}</h3>
+            <p className="text-white/30 text-sm">{t("جرّب فئة أخرى", "Essayez une autre catégorie")}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {services?.map((provider, index) => (
-              <motion.div
-                key={provider.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.05 }}
-                className="glass-panel rounded-3xl p-6 flex flex-col h-full group hover:border-primary/30 transition-colors"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-display font-bold text-white mb-1 group-hover:text-primary transition-colors">
-                      {provider.nameAr}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">{provider.name}</p>
-                  </div>
-                  <div className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                    provider.isAvailable 
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-                      : "bg-destructive/10 text-destructive border-destructive/20"
-                  }`}>
-                    {provider.isAvailable ? "Available" : "Busy"}
-                  </div>
-                </div>
+          <AnimatePresence mode="wait">
+            <motion.div key={active} variants={container} initial="hidden" animate="show"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {suppliers.map(s => {
+                const c = cfg(s.category);
+                const Icon = c.icon ?? Utensils;
+                return (
+                  <motion.div key={s.id} variants={cardAnim}>
+                    <Link href={s.isAvailable ? `/order/${s.id}` : "#"}>
+                      <div className={cn(
+                        "relative glass-panel rounded-3xl p-5 flex flex-col h-full group transition-all duration-300 border",
+                        s.isAvailable
+                          ? cn("border-white/10 cursor-pointer", c.border, "hover:shadow-[0_8px_40px_-10px_rgba(212,175,55,0.25)]")
+                          : "border-white/5 cursor-not-allowed opacity-55"
+                      )}>
+                        {/* Gold shimmer on hover */}
+                        {s.isAvailable && (
+                          <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                            style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.04) 0%, transparent 60%)" }} />
+                        )}
 
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                  <MapPin size={16} className="text-primary" />
-                  <span className="truncate">{provider.address}</span>
-                </div>
+                        {/* Top row: icon + status */}
+                        <div className="flex justify-between items-start mb-4">
+                          <div className={cn("w-13 h-13 rounded-2xl flex items-center justify-center w-12 h-12 bg-gradient-to-br border border-white/8", c.gradient)}>
+                            <Icon size={22} className={c.iconColor} />
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5">
+                            <span className={cn("text-xs font-black px-2.5 py-1 rounded-full border",
+                              s.isAvailable
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : "bg-red-500/10 text-red-400 border-red-500/20"
+                            )}>
+                              {s.isAvailable ? t("متاح", "Disponible") : t("مشغول", "Occupé")}
+                            </span>
+                            {s.category === "pharmacy" && s.shift && s.shift !== "all" && (
+                              <span className={cn("text-xs px-2 py-0.5 rounded-full border flex items-center gap-1 font-bold",
+                                s.shift === "day"
+                                  ? "bg-amber-400/10 text-amber-400 border-amber-400/20"
+                                  : "bg-blue-400/10 text-blue-400 border-blue-400/20"
+                              )}>
+                                {s.shift === "day" ? <Sun size={9} /> : <Moon size={9} />}
+                                {s.shift === "day" ? t("نهاري", "Jour") : t("ليلي", "Nuit")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
 
-                <p className="text-sm text-muted-foreground/80 line-clamp-2 mb-6 flex-grow">
-                  {provider.descriptionAr}
-                </p>
+                        {/* Name */}
+                        <h3 className="text-lg font-black text-white mb-0.5 leading-snug group-hover:text-[#D4AF37] transition-colors duration-300">
+                          {lang === "ar" ? s.nameAr : (s.name || s.nameAr)}
+                        </h3>
+                        {lang === "fr" && s.name && (
+                          <p className="text-xs text-white/20 mb-1.5 font-medium">{s.nameAr}</p>
+                        )}
 
-                <Link href={`/order/${provider.id}`} className="mt-auto block">
-                  <Button 
-                    variant={provider.isAvailable ? "default" : "outline"} 
-                    className="w-full justify-between group/btn"
-                    disabled={!provider.isAvailable}
-                  >
-                    <span className="font-display">اطلب الان | Order Now</span>
-                    <ArrowRight size={18} className="transition-transform group-hover/btn:translate-x-1" />
-                  </Button>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
+                        {/* Description */}
+                        <p className="text-sm text-white/40 line-clamp-2 mb-3 flex-1 leading-relaxed">
+                          {lang === "ar" ? s.descriptionAr : (s.description || s.descriptionAr)}
+                        </p>
+
+                        {/* Address */}
+                        <div className="flex items-center gap-1.5 text-xs text-white/25 mb-3">
+                          <MapPin size={11} className="text-[#D4AF37]/50 flex-shrink-0" />
+                          <span className="truncate">{s.address}</span>
+                        </div>
+
+                        {/* Rating */}
+                        {s.rating != null && <StarRow rating={s.rating} />}
+
+                        {/* CTA row */}
+                        {s.isAvailable && (
+                          <div className="mt-4 pt-3.5 border-t border-white/5 flex items-center justify-between">
+                            <span className="text-xs font-black text-[#D4AF37]/60 tracking-wide">
+                              {t("اطلب الآن", "Commander")}
+                            </span>
+                            <div className="w-8 h-8 rounded-full border border-[#D4AF37]/25 bg-[#D4AF37]/8 flex items-center justify-center group-hover:bg-[#D4AF37] group-hover:border-[#D4AF37] transition-all duration-300">
+                              <ChevronRight size={14} className={cn("text-[#D4AF37] group-hover:text-black transition-colors", isRTL && "rotate-180")} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
         )}
       </div>
     </Layout>
