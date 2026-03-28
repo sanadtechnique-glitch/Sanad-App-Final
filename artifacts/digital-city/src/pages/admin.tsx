@@ -936,7 +936,7 @@ const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string }[] = [
 ];
 
 const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "BenGardane@2026#Gold";
+const ADMIN_PASSWORD = "AdminAdmin";
 const ADMIN_KEY = "dc_admin_auth";
 
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
