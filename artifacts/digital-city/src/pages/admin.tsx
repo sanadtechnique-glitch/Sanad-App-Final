@@ -935,52 +935,121 @@ const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string }[] = [
   { id: "banners",       icon: Megaphone,        ar: "الإعلانات",    fr: "Publicités" },
 ];
 
-const ADMIN_PASSWORD = "admin2024";
+const ADMIN_USERNAME = "admin";
+const ADMIN_PASSWORD = "BenGardane@2026#Gold";
 const ADMIN_KEY = "dc_admin_auth";
 
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
+  const [username, setUsername] = useState("");
   const [pw, setPw] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
   const submit = (e: React.FormEvent) => {
-    e.preventDefault(); setError(false); setLoading(true);
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
     setTimeout(() => {
-      if (pw === ADMIN_PASSWORD) { localStorage.setItem(ADMIN_KEY, "1"); onLogin(); }
-      else { setError(true); }
+      if (username !== ADMIN_USERNAME) {
+        setError("اسم المستخدم غير صحيح · Identifiant incorrect");
+      } else if (pw !== ADMIN_PASSWORD) {
+        setError("كلمة المرور غير صحيحة · Mot de passe incorrect");
+      } else {
+        localStorage.setItem(ADMIN_KEY, "1");
+        onLogin();
+      }
       setLoading(false);
-    }, 400);
+    }, 450);
   };
+
+  const canSubmit = username.trim().length > 0 && pw.length > 0 && !loading;
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#000" }}>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
         className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-[#D4AF37]/15 border-2 border-[#D4AF37]/40 flex items-center justify-center mx-auto mb-5"
-            style={{ boxShadow: "0 0 30px -8px rgba(212,175,55,0.5)" }}>
-            <LayoutDashboard size={26} className="text-[#D4AF37]" />
+
+        {/* Logo */}
+        <div className="text-center mb-10">
+          <div
+            className="w-18 h-18 rounded-2xl bg-[#D4AF37]/15 border-2 border-[#D4AF37]/40 flex items-center justify-center mx-auto mb-5 w-[72px] h-[72px]"
+            style={{ boxShadow: "0 0 40px -10px rgba(212,175,55,0.55)" }}>
+            <LayoutDashboard size={28} className="text-[#D4AF37]" />
           </div>
           <h1 className="text-3xl font-black text-white mb-1">لوحة التحكم</h1>
           <p className="text-white/30 text-sm">Admin Panel · المدينة الرقمية</p>
         </div>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="rounded-[15px] p-5 border border-white/10 space-y-3" style={{ background: "#121212" }}>
-            <label className="block text-xs font-black text-white/40 uppercase tracking-widest mb-1">كلمة المرور</label>
+
+        {/* Form */}
+        <form onSubmit={submit} className="space-y-3" dir="rtl">
+          {/* Username */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-black text-white/40 uppercase tracking-widest">
+              اسم المستخدم · Identifiant
+            </label>
             <input
-              type="password" value={pw} onChange={e => { setPw(e.target.value); setError(false); }}
-              placeholder="••••••••"
-              className="w-full bg-black/50 border rounded-xl px-4 py-3 text-white font-black text-center text-xl tracking-widest outline-none transition-all"
-              style={{ borderColor: error ? "#ef4444" : pw ? "#D4AF37" : "#333" }}
-              autoFocus />
-            {error && (
-              <p className="text-red-400 text-xs text-center font-bold">كلمة المرور غير صحيحة</p>
-            )}
+              type="text"
+              value={username}
+              onChange={e => { setUsername(e.target.value); setError(null); }}
+              placeholder="admin"
+              autoComplete="username"
+              autoFocus
+              className="w-full bg-[#111] border rounded-xl px-4 py-3.5 text-white font-bold outline-none transition-all placeholder:text-white/20"
+              style={{ borderColor: error && username && username !== ADMIN_USERNAME ? "#ef4444" : username ? "#D4AF37" : "#2a2a2a" }}
+            />
           </div>
-          <button type="submit" disabled={!pw || loading}
-            className="w-full py-3.5 rounded-xl font-black text-black text-base transition-all disabled:opacity-40"
-            style={{ background: "#D4AF37" }}>
-            {loading ? "..." : "دخول ←"}
+
+          {/* Password */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-black text-white/40 uppercase tracking-widest">
+              كلمة المرور · Mot de passe
+            </label>
+            <input
+              type="password"
+              value={pw}
+              onChange={e => { setPw(e.target.value); setError(null); }}
+              placeholder="••••••••••••"
+              autoComplete="current-password"
+              className="w-full bg-[#111] border rounded-xl px-4 py-3.5 text-white font-bold outline-none transition-all placeholder:text-white/20"
+              style={{ borderColor: error && username === ADMIN_USERNAME ? "#ef4444" : pw ? "#D4AF37" : "#2a2a2a" }}
+            />
+          </div>
+
+          {/* Error message */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/10">
+                <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
+                <p className="text-red-400 text-xs font-bold">{error}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="w-full py-4 rounded-xl font-black text-black text-base transition-all disabled:opacity-35 mt-2"
+            style={{ background: "#D4AF37", boxShadow: canSubmit ? "0 0 25px rgba(212,175,55,0.3)" : "none" }}>
+            {loading
+              ? <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 rounded-full border-2 border-black/30 border-t-black animate-spin" />
+                  جاري التحقق...
+                </span>
+              : "تسجيل الدخول ←"}
           </button>
         </form>
+
+        <p className="text-center text-white/15 text-xs mt-8">
+          المدينة الرقمية — Digital City · بن قردان
+        </p>
       </motion.div>
     </div>
   );

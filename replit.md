@@ -46,7 +46,7 @@ All API routes are mounted at `/api` prefix. In `main.tsx`, `setBaseUrl("/api")`
 
 ### Login/Auth
 
-- **Admin**: Password `admin2024` stored in `localStorage` key `dc_admin_auth`. Gold logout button in sidebar.
+- **Admin**: Username `admin` / Password `BenGardane@2026#Gold`. Session stored in `localStorage` key `dc_admin_auth`. Gold logout button in sidebar. Unauthenticated visits to `/admin` auto-redirect to the login screen.
 - **Provider**: Name selection acts as login. Gold "خروج / Déco." button in dashboard header.
 - **Delivery**: Name selection acts as login. Gold "خروج / Déco." button in dashboard header.
 
