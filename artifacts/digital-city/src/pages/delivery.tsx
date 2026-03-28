@@ -129,8 +129,13 @@ export default function DeliveryDashboard() {
                 className="p-2.5 rounded-xl border border-white/10 text-white/40 hover:text-white transition-all">
                 <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
               </button>
-              <button onClick={logout} className="p-2.5 rounded-xl border border-white/10 text-white/40 hover:text-red-400 hover:border-red-400/30 transition-all">
+              <button onClick={logout}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-black text-sm transition-all"
+                style={{ background: "#D4AF37", color: "#000" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#C09B28")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#D4AF37")}>
                 <LogOut size={14} />
+                <span>{t("خروج", "Déco.")}</span>
               </button>
             </div>
           </div>

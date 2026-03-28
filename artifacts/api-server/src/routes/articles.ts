@@ -5,6 +5,21 @@ import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+// Public: articles for a supplier (customer-facing product grid)
+router.get("/articles", async (req, res) => {
+  const { supplierId } = req.query;
+  if (!supplierId || typeof supplierId !== "string" || isNaN(parseInt(supplierId))) {
+    res.status(400).json({ message: "supplierId query param required" }); return;
+  }
+  try {
+    const rows = await db.select().from(articlesTable)
+      .where(eq(articlesTable.supplierId, parseInt(supplierId)));
+    res.json(rows.filter(r => r.isAvailable));
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 router.get("/admin/articles", async (req, res) => {
   try {
     const { supplierId } = req.query;

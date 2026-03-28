@@ -37,12 +37,24 @@ All API routes are mounted at `/api` prefix. In `main.tsx`, `setBaseUrl("/api")`
 |-------|-------------|
 | `/` | Home page — hero, category grid, quick stats |
 | `/services` | Services listing with category filter |
-| `/order/:id` | Customer order form |
-| `/admin` | Admin dashboard (8 sections) |
-| `/provider` | Provider dashboard (accept/reject orders) |
-| `/delivery` | Delivery staff dashboard |
+| `/store/:id` | Customer-facing product grid (1:1 image, cart, order) |
+| `/order/:id` | Customer order form (accepts `?notes=` param from store) |
+| `/hotel/:id` | Hotel booking form |
+| `/admin` | Admin dashboard — password protected (`admin2024`), gold logout in sidebar |
+| `/provider` | Provider dashboard — name-select login, gold logout button |
+| `/delivery` | Delivery staff dashboard — name-select login, gold logout button |
 
-### Admin Dashboard Sections (8)
+### Login/Auth
+
+- **Admin**: Password `admin2024` stored in `localStorage` key `dc_admin_auth`. Gold logout button in sidebar.
+- **Provider**: Name selection acts as login. Gold "خروج / Déco." button in dashboard header.
+- **Delivery**: Name selection acts as login. Gold "خروج / Déco." button in dashboard header.
+
+### Provider Store (Customer Product Grid)
+
+`/store/:id` — Fetches articles for a supplier via `GET /api/articles?supplierId=X`. Shows products in a 2–4 col grid with 1:1 aspect ratio, gold border on black background. Each card has name, price, +/- qty controls and "إضافة للسلة" button. Floating cart button → cart drawer → `placeOrder()` navigates to `/order/:id?notes=<cart_summary>`.
+
+### Admin Dashboard Sections (9)
 
 1. **نظرة عامة / Vue d'ensemble** — Stats + recent orders + active suppliers
 2. **الطلبات / Commandes** — Full order management with status update, staff assignment, WhatsApp

@@ -70,8 +70,10 @@ export default function Order() {
     }).catch(() => { setNotFound(true); setLoadingProvider(false); });
   }, [id]);
 
+  const prefilledNotes = decodeURIComponent(new URLSearchParams(window.location.search).get("notes") || "");
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
+    defaultValues: { notes: prefilledNotes || undefined },
   });
 
   const selectedDelegationId = watch("delegationId");

@@ -155,7 +155,7 @@ export default function Services() {
                 const avail = effectivelyAvailable(s);
                 const shiftOff = s.isAvailable && s.category === "pharmacy" && !isPharmacyShiftActive(s.shift);
                 const targetHref = avail
-                  ? (s.category === "hotel" ? `/hotel/${s.id}` : `/order/${s.id}`)
+                  ? (s.category === "hotel" ? `/hotel/${s.id}` : `/store/${s.id}`)
                   : "#";
                 return (
                   <motion.div key={s.id} variants={cardAnim}>

@@ -935,10 +935,66 @@ const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string }[] = [
   { id: "banners",       icon: Megaphone,        ar: "الإعلانات",    fr: "Publicités" },
 ];
 
+const ADMIN_PASSWORD = "admin2024";
+const ADMIN_KEY = "dc_admin_auth";
+
+function AdminLogin({ onLogin }: { onLogin: () => void }) {
+  const [pw, setPw] = useState("");
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault(); setError(false); setLoading(true);
+    setTimeout(() => {
+      if (pw === ADMIN_PASSWORD) { localStorage.setItem(ADMIN_KEY, "1"); onLogin(); }
+      else { setError(true); }
+      setLoading(false);
+    }, 400);
+  };
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#000" }}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 rounded-2xl bg-[#D4AF37]/15 border-2 border-[#D4AF37]/40 flex items-center justify-center mx-auto mb-5"
+            style={{ boxShadow: "0 0 30px -8px rgba(212,175,55,0.5)" }}>
+            <LayoutDashboard size={26} className="text-[#D4AF37]" />
+          </div>
+          <h1 className="text-3xl font-black text-white mb-1">لوحة التحكم</h1>
+          <p className="text-white/30 text-sm">Admin Panel · المدينة الرقمية</p>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="rounded-[15px] p-5 border border-white/10 space-y-3" style={{ background: "#121212" }}>
+            <label className="block text-xs font-black text-white/40 uppercase tracking-widest mb-1">كلمة المرور</label>
+            <input
+              type="password" value={pw} onChange={e => { setPw(e.target.value); setError(false); }}
+              placeholder="••••••••"
+              className="w-full bg-black/50 border rounded-xl px-4 py-3 text-white font-black text-center text-xl tracking-widest outline-none transition-all"
+              style={{ borderColor: error ? "#ef4444" : pw ? "#D4AF37" : "#333" }}
+              autoFocus />
+            {error && (
+              <p className="text-red-400 text-xs text-center font-bold">كلمة المرور غير صحيحة</p>
+            )}
+          </div>
+          <button type="submit" disabled={!pw || loading}
+            className="w-full py-3.5 rounded-xl font-black text-black text-base transition-all disabled:opacity-40"
+            style={{ background: "#D4AF37" }}>
+            {loading ? "..." : "دخول ←"}
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { lang, t, isRTL } = useLang();
   const [active, setActive] = useState<Section>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem(ADMIN_KEY) === "1");
+
+  const adminLogout = () => { localStorage.removeItem(ADMIN_KEY); setIsLoggedIn(false); };
+
+  if (!isLoggedIn) return <AdminLogin onLogin={() => setIsLoggedIn(true)} />;
 
   return (
     <div className="min-h-screen bg-background flex" dir={isRTL ? "rtl" : "ltr"}>
@@ -976,12 +1032,18 @@ export default function Admin() {
           })}
         </nav>
 
-        {/* Back to app */}
-        <div className="px-2 py-3 border-t border-white/5">
+        {/* Back to app + Logout */}
+        <div className="px-2 py-3 border-t border-white/5 space-y-1">
           <a href="/" className={cn("flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/30 hover:text-white hover:bg-white/5 transition-all text-sm font-bold")}>
             <ChevronRight size={17} className={cn("flex-shrink-0", isRTL ? "rotate-0" : "rotate-180")} />
             <span className="hidden md:block">{t("العودة للتطبيق","Retour à l'app")}</span>
           </a>
+          <button onClick={adminLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-black transition-all"
+            style={{ background: "#D4AF37", color: "#000" }}>
+            <Power size={17} className="flex-shrink-0" />
+            <span className="hidden md:block">{t("تسجيل الخروج","Déconnexion")}</span>
+          </button>
         </div>
       </aside>
 
