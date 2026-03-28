@@ -11,7 +11,7 @@ import { Hotel, Calendar, Users, Phone, MapPin, CheckCircle2, Loader2, Star } fr
 import { cn } from "@/lib/utils";
 
 interface HotelSupplier {
-  id: number; name: string; nameAr: string;
+  id: number; name: string; nameAr: string; category: string;
   description: string; descriptionAr: string;
   address: string; rating?: number; isAvailable: boolean;
 }
