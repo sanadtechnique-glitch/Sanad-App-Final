@@ -53,10 +53,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Desktop Sidebar ── */}
       <aside
         className={cn(
-          "hidden md:flex flex-col fixed top-0 h-screen w-24",
-          "glass-panel border-white/5 z-50 py-8 items-center justify-between",
-          isRTL ? "right-0 border-l" : "left-0 border-r"
+          "hidden md:flex flex-col fixed top-0 h-screen w-24 z-50 py-8 items-center justify-between",
+          isRTL
+            ? "right-0 border-l-2 border-l-[#D4AF37]"
+            : "left-0 border-r-2 border-r-[#D4AF37]"
         )}
+        style={{ background: "#121212" }}
       >
         {/* Logo */}
         <div className="flex flex-col items-center gap-2">
@@ -94,8 +96,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <LangToggle />
       </aside>
 
-      {/* ── Mobile Top Bar (language + logo) ── */}
-      <header className="md:hidden flex items-center justify-between px-4 pt-4 pb-2">
+      {/* ── Mobile Top Bar (language + logo) ── reference: border-bottom 2px solid gold */}
+      <header className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b-2 border-[#D4AF37] sticky top-0 z-50" style={{ background: "#121212" }}>
         <div className="w-9 h-9 rounded-full bg-[#D4AF37]/20 flex items-center justify-center border border-[#D4AF37]/30">
           <span className="font-bold text-[#D4AF37] text-sm">DC</span>
         </div>
@@ -108,7 +110,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* ── Mobile Bottom Navigation ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full glass-panel border-t border-white/10 px-6 py-3 z-50 flex justify-around items-center rounded-t-2xl">
+      <nav className="md:hidden fixed bottom-0 left-0 w-full border-t-2 border-[#D4AF37] px-6 py-3 z-50 flex justify-around items-center rounded-t-2xl" style={{ background: "#121212" }}>
         {navItems.map((item) => {
           const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
           return (

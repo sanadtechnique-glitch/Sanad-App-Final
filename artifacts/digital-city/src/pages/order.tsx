@@ -184,8 +184,8 @@ export default function Order() {
           ) : (
             /* ── Form ── */
             <motion.div key="form" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-              {/* Provider card */}
-              <div className="glass-panel rounded-2xl p-4 mb-6 border border-[#D4AF37]/15 flex items-center gap-4">
+              {/* Provider card — reference spec: #121212 bg, gold border */}
+              <div className="rounded-[15px] p-4 mb-6 border border-[#D4AF37]/30 flex items-center gap-4" style={{ background: "#121212" }}>
                 <div className="w-12 h-12 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center flex-shrink-0">
                   <Building2 size={20} className="text-[#D4AF37]" />
                 </div>
@@ -222,9 +222,9 @@ export default function Order() {
                     <input {...register("customerName")}
                       placeholder={t("أدخل اسمك الكامل","Votre nom complet")}
                       className={cn(
-                        "w-full bg-black/50 border rounded-xl py-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#D4AF37]/50 transition-colors",
+                        "w-full bg-[#1a1a1a] border-[#444] rounded-xl py-3.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#D4AF37] transition-colors",
                         isRTL ? "pr-10 pl-4" : "pl-10 pr-4",
-                        errors.customerName ? "border-red-500/40" : "border-white/10"
+                        errors.customerName ? "border-red-500" : "border-[#444]"
                       )} />
                   </div>
                 </InputBase>
@@ -237,9 +237,9 @@ export default function Order() {
                     <input {...register("customerPhone")} type="tel"
                       placeholder={t("+216 __ ___ ___","+216 __ ___ ___")}
                       className={cn(
-                        "w-full bg-black/50 border rounded-xl py-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#D4AF37]/50 transition-colors",
+                        "w-full bg-[#1a1a1a] border-[#444] rounded-xl py-3.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#D4AF37] transition-colors",
                         isRTL ? "pr-10 pl-4" : "pl-10 pr-4",
-                        errors.customerPhone ? "border-red-500/40" : "border-white/10"
+                        errors.customerPhone ? "border-red-500" : "border-[#444]"
                       )} />
                   </div>
                 </InputBase>
@@ -249,7 +249,7 @@ export default function Order() {
                   <div className="space-y-1.5">
                     <FieldLabel>{t("المعتمدية (المنطقة)", "Délégation (Zone)")}</FieldLabel>
                     <select {...register("delegationId")}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]/50 transition-colors">
+                      className="w-full bg-[#1a1a1a] border border-[#444] rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-[#D4AF37] transition-colors">
                       <option value="" className="bg-zinc-900">{t("اختر منطقتك","Choisissez votre zone")}</option>
                       {delegations.map(d => (
                         <option key={d.id} value={d.id.toString()} className="bg-zinc-900">
@@ -273,9 +273,9 @@ export default function Order() {
                     <textarea {...register("customerAddress")} rows={2}
                       placeholder={t("الشارع، الحي، المعلم القريب...","Rue, quartier, repère...")}
                       className={cn(
-                        "w-full bg-black/50 border rounded-xl py-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#D4AF37]/50 transition-colors resize-none",
+                        "w-full bg-[#1a1a1a] border-[#444] rounded-xl py-3.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#D4AF37] transition-colors resize-none",
                         isRTL ? "pr-10 pl-4" : "pl-10 pr-4",
-                        errors.customerAddress ? "border-red-500/40" : "border-white/10"
+                        errors.customerAddress ? "border-red-500" : "border-[#444]"
                       )} />
                   </div>
                 </InputBase>
@@ -288,7 +288,7 @@ export default function Order() {
                     <textarea {...register("notes")} rows={3}
                       placeholder={t("أي تفاصيل إضافية...","Détails supplémentaires...")}
                       className={cn(
-                        "w-full bg-black/50 border border-white/10 rounded-xl py-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#D4AF37]/50 transition-colors resize-none",
+                        "w-full bg-[#1a1a1a] border border-[#444] rounded-xl py-3.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#D4AF37] transition-colors resize-none",
                         isRTL ? "pr-10 pl-4" : "pl-10 pr-4"
                       )} />
                   </div>

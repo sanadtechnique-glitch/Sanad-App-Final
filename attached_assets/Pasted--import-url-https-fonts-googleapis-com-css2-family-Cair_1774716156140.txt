@@ -1,0 +1,111 @@
+/* تصميم المدينة الرقمية - بنقردان */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+
+:root {
+    --gold: #D4AF37; /* الذهبي المعتمد */
+    --black: #000000; /* الأسود الخالص */
+    --dark-grey: #121212;
+    --transition: all 0.3s ease;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Cairo', sans-serif;
+}
+
+body {
+    background-color: var(--black);
+    color: white;
+    direction: rtl;
+    overflow-x: hidden;
+}
+
+/* الترويسة الفاخرة */
+header {
+    background: var(--dark-grey);
+    border-bottom: 2px solid var(--gold);
+    padding: 1rem;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+header h1 {
+    color: var(--gold);
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+}
+
+/* نظام الشبكة للمزودين (12 مزود) */
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    padding: 20px;
+}
+
+.provider-card {
+    background: var(--dark-grey);
+    border: 1px solid #333;
+    border-radius: 15px;
+    padding: 15px;
+    text-align: center;
+    transition: var(--transition);
+    position: relative;
+}
+
+.provider-card:hover {
+    border-color: var(--gold);
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(212, 175, 55, 0.2);
+}
+
+.status-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.status-open { background: #2ecc71; color: white; }
+.status-closed { background: #e74c3c; color: white; }
+
+.gold-btn {
+    background: var(--gold);
+    color: black;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 10px;
+}
+
+/* نموذج الطلب */
+.order-form {
+    background: var(--dark-grey);
+    border: 1px solid var(--gold);
+    padding: 25px;
+    border-radius: 20px;
+    max-width: 500px;
+    margin: 20px auto;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    color: white;
+    border-radius: 8px;
+    text-align: right;
+}
+
+input:focus { border-color: var(--gold); outline: none; }

@@ -143,11 +143,12 @@ export default function Services() {
                   <motion.div key={s.id} variants={cardAnim}>
                     <Link href={s.isAvailable ? `/order/${s.id}` : "#"}>
                       <div className={cn(
-                        "relative glass-panel rounded-3xl p-5 flex flex-col h-full group transition-all duration-300 border",
+                        "relative rounded-[15px] p-5 flex flex-col h-full group border",
+                        "card-hover",
                         s.isAvailable
-                          ? cn("border-white/10 cursor-pointer", c.border, "hover:shadow-[0_8px_40px_-10px_rgba(212,175,55,0.25)]")
+                          ? "border-[#333] cursor-pointer"
                           : "border-white/5 cursor-not-allowed opacity-55"
-                      )}>
+                      )} style={{ background: "#121212" }}>
                         {/* Gold shimmer on hover */}
                         {s.isAvailable && (
                           <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"

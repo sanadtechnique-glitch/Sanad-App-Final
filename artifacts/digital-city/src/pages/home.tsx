@@ -182,11 +182,9 @@ export default function Home() {
                 <motion.div key={cat.id} variants={itemAnim}>
                   <Link href={`/services?category=${cat.id}`}>
                     <div className={[
-                      "glass-panel rounded-2xl p-4 flex flex-col items-center text-center cursor-pointer",
-                      "group transition-all duration-300 border border-white/8",
-                      "hover:shadow-[0_4px_30px_-8px_rgba(212,175,55,0.2)]",
-                      cat.border,
-                    ].join(" ")}>
+                      "rounded-[15px] p-4 flex flex-col items-center text-center cursor-pointer",
+                      "card-hover group border border-[#333]",
+                    ].join(" ")} style={{ background: "#121212" }}>
                       <div className={`w-13 h-13 w-12 h-12 rounded-2xl flex items-center justify-center mb-3 bg-gradient-to-br border border-white/6 ${cat.color}`}>
                         <Icon size={22} className={`${cat.iconColor} group-hover:scale-110 transition-transform duration-300`} />
                       </div>

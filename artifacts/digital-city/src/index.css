@@ -1,138 +1,219 @@
 @import "tailwindcss";
 
+/* ─── Design System from reference spec ──────────────────────────────────── */
+/* --gold: #D4AF37 | --black: #000000 | --dark-grey: #121212               */
+
 @theme inline {
-  --font-sans: 'Tajawal', 'Cairo', sans-serif;
-  --font-display: 'Tajawal', 'Cairo', sans-serif;
-  --font-latin: 'Outfit', 'Tajawal', sans-serif;
+  --font-sans:    'Cairo', 'Tajawal', sans-serif;
+  --font-display: 'Cairo', 'Tajawal', sans-serif;
+  --font-latin:   'Outfit', 'Cairo', sans-serif;
+
+  --color-gold:        #D4AF37;
+  --color-gold-light:  #F3E5AB;
+  --color-gold-dark:   #B8962E;
+  --color-dark-grey:   #121212;
+  --color-input-bg:    #1a1a1a;
 
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
-
-  --color-primary: hsl(var(--primary));
+  --color-primary:    hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
-
-  --color-secondary: hsl(var(--secondary));
+  --color-secondary:  hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
-
-  --color-muted: hsl(var(--muted));
+  --color-muted:      hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
-
-  --color-accent: hsl(var(--accent));
+  --color-accent:     hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
-
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
-
   --color-border: hsl(var(--border));
-  --color-ring: hsl(var(--ring));
-
-  --color-card: hsl(var(--card));
+  --color-ring:   hsl(var(--ring));
+  --color-card:   hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
 }
 
-/* FORCED DARK MODE WITH GOLD ACCENTS */
+/* ─── Colour tokens ────────────────────────────────────────────────────────── */
 :root {
-  --background: 0 0% 4%;
-  --foreground: 0 0% 98%;
+  /* Pure black background — matches reference spec */
+  --background: 0 0% 0%;
+  --foreground: 0 0% 97%;
 
-  --primary: 43 74% 49%;
-  --primary-foreground: 0 0% 10%;
+  /* Gold primary = #D4AF37 */
+  --primary: 43 64% 52%;
+  --primary-foreground: 0 0% 5%;
 
-  --secondary: 0 0% 9%;
-  --secondary-foreground: 0 0% 98%;
-
-  --muted: 0 0% 15%;
-  --muted-foreground: 0 0% 65%;
-
-  --accent: 46 80% 60%;
-  --accent-foreground: 0 0% 10%;
-
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 98%;
-
-  --border: 0 0% 15%;
-  --ring: 43 74% 49%;
-
+  /* Dark-grey panels = #121212 */
+  --secondary: 0 0% 7%;
+  --secondary-foreground: 0 0% 97%;
   --card: 0 0% 7%;
-  --card-foreground: 0 0% 98%;
+  --card-foreground: 0 0% 97%;
 
-  --radius: 1rem;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 60%;
+
+  --accent: 43 74% 55%;
+  --accent-foreground: 0 0% 5%;
+
+  --destructive: 0 84% 58%;
+  --destructive-foreground: 0 0% 97%;
+
+  --border: 0 0% 16%;
+  --ring: 43 64% 52%;
+  --radius: 0.875rem;
 }
 
+/* ─── Base ─────────────────────────────────────────────────────────────────── */
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { box-sizing: border-box; }
 
   html {
     direction: rtl;
+    background-color: #000000;
   }
 
   body {
-    font-family: 'Tajawal', 'Cairo', sans-serif;
-    @apply antialiased bg-background text-foreground selection:bg-primary/30 selection:text-primary-foreground overflow-x-hidden;
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+    background-color: #000000;
+    color: white;
+    direction: rtl;
+    overflow-x: hidden;
+    @apply antialiased selection:bg-[#D4AF37]/25 selection:text-[#D4AF37];
   }
 
-  /* Use Tajawal for all Arabic headings */
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Tajawal', 'Cairo', sans-serif;
-    @apply font-bold tracking-tight;
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+    font-weight: 700;
   }
 
-  /* Latin/French text uses Outfit */
-  :lang(fr) body,
-  :lang(fr) h1,
-  :lang(fr) h2,
-  :lang(fr) h3 {
-    font-family: 'Outfit', 'Tajawal', sans-serif;
-  }
+  h1 { font-weight: 900; }
+  h2 { font-weight: 800; }
+  h3 { font-weight: 700; }
 
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: hsl(var(--background)); }
-  ::-webkit-scrollbar-thumb { background: hsl(var(--muted)); border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.5); }
+  /* Gold-tinted scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #000; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #D4AF37; }
+
+  /* Reference spec: inputs */
+  input, select, textarea {
+    background: #1a1a1a;
+    border: 1px solid #444;
+    color: white;
+    border-radius: 8px;
+    text-align: right;
+    transition: border-color 0.3s ease;
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+  }
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: #D4AF37;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.12);
+  }
 }
 
-/* Glassmorphism */
+/* ─── Reference spec: glass-panel → solid dark-grey panel ─────────────────── */
+/* Keeping a subtle glass layer on top of the #121212 base */
 .glass-panel {
-  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl;
+  background: rgba(18, 18, 18, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
 }
 
+/* ─── Reference spec: provider card hover ──────────────────────────────────── */
+/* translateY(-5px) + gold box-shadow */
+.provider-card {
+  background: #121212;
+  border: 1px solid #333;
+  border-radius: 15px;
+  padding: 15px;
+  text-align: center;
+  transition: all 0.3s ease;
+  position: relative;
+}
+.provider-card:hover {
+  border-color: #D4AF37;
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(212, 175, 55, 0.2);
+}
+
+/* Card hover lift — applied to all service/supplier cards */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.card-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 20px rgba(212, 175, 55, 0.2);
+  border-color: rgba(212, 175, 55, 0.4) !important;
+}
+
+/* ─── Reference spec: gold button ─────────────────────────────────────────── */
+.gold-btn {
+  background: #D4AF37;
+  color: #000000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-family: 'Cairo', 'Tajawal', sans-serif;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.3s ease;
+  letter-spacing: 0.5px;
+}
+.gold-btn:hover {
+  background: #C9A227;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.35);
+}
+.gold-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Reference spec: status badges ───────────────────────────────────────── */
+.status-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-family: 'Cairo', sans-serif;
+}
+.status-open   { background: #2ecc71; color: white; }
+.status-closed { background: #e74c3c; color: white; }
+
+/* ─── Header sticky gold border (reference spec) ───────────────────────────── */
+.dc-header {
+  background: #121212;
+  border-bottom: 2px solid #D4AF37;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* ─── Gold glow utilities ──────────────────────────────────────────────────── */
 .gold-glow {
-  box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.4);
+  box-shadow: 0 0 20px -5px rgba(212, 175, 55, 0.4);
 }
-
 .gold-glow-strong {
-  box-shadow: 0 0 30px -5px hsl(var(--primary) / 0.6);
+  box-shadow: 0 0 30px -5px rgba(212, 175, 55, 0.6);
 }
 
+/* ─── Gold gradient text ───────────────────────────────────────────────────── */
 .text-gradient-gold {
-  @apply bg-clip-text text-transparent;
-  background-image: linear-gradient(90deg, #D4AF37, #F3E5AB, #D4AF37);
+  background: linear-gradient(90deg, #D4AF37, #F3E5AB, #C9A227);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Ensure Arabic text always renders RTL even inside LTR parents */
-[lang="ar"], .ar-text {
-  direction: rtl;
-  unicode-bidi: embed;
-}
-
-/* Force headings to use full font weight for Arabic */
-h1 { font-weight: 900; }
-h2 { font-weight: 800; }
-h3 { font-weight: 700; }
-
-/* Hide scrollbar but keep scroll functionality */
-.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
-.no-scrollbar::-webkit-scrollbar { display: none; }
-
-/* Hero ambient glow pulse */
-@keyframes pulse {
-  0%, 100% { opacity: 0.5; transform: translate(-50%,-50%) scale(1); }
-  50%       { opacity: 1;   transform: translate(-50%,-50%) scale(1.12); }
-}
-
-/* Gold shimmer animation */
+/* ─── Gold shimmer animation ───────────────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -200% center; }
   100% { background-position:  200% center; }
@@ -144,4 +225,30 @@ h3 { font-weight: 700; }
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* ─── Hero ambient glow ────────────────────────────────────────────────────── */
+@keyframes ambient-pulse {
+  0%, 100% { opacity: 0.5; transform: translate(-50%,-50%) scale(1); }
+  50%       { opacity: 0.9; transform: translate(-50%,-50%) scale(1.1); }
+}
+
+/* ─── Scrollbar hide ───────────────────────────────────────────────────────── */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ─── RTL helpers ──────────────────────────────────────────────────────────── */
+[lang="ar"], .ar-text {
+  direction: rtl;
+  unicode-bidi: embed;
+}
+
+/* ─── Order form (reference spec) ──────────────────────────────────────────── */
+.order-form {
+  background: #121212;
+  border: 1px solid #D4AF37;
+  padding: 25px;
+  border-radius: 20px;
+  max-width: 500px;
+  margin: 20px auto;
 }
