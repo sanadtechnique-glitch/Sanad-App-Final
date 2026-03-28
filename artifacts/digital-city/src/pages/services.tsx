@@ -50,6 +50,13 @@ const cardAnim = {
   show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 260, damping: 22 } },
 };
 
+function isPharmacyShiftActive(shift?: string): boolean {
+  if (!shift || shift === "all") return true;
+  const hour = new Date().getHours();
+  const isDay = hour >= 8 && hour < 20;
+  return shift === "day" ? isDay : !isDay;
+}
+
 export default function Services() {
   const { lang, t, isRTL } = useLang();
   const [active, setActive] = useState("all");
@@ -66,6 +73,12 @@ export default function Services() {
   }, [active]);
 
   const cfg = (id: string) => CATS.find(c => c.id === id) ?? CATS[0];
+
+  const effectivelyAvailable = (s: Supplier) => {
+    if (!s.isAvailable) return false;
+    if (s.category === "pharmacy") return isPharmacyShiftActive(s.shift);
+    return true;
+  };
 
   return (
     <Layout>
@@ -139,43 +152,50 @@ export default function Services() {
               {suppliers.map(s => {
                 const c = cfg(s.category);
                 const Icon = c.icon ?? Utensils;
+                const avail = effectivelyAvailable(s);
+                const shiftOff = s.isAvailable && s.category === "pharmacy" && !isPharmacyShiftActive(s.shift);
+                const targetHref = avail
+                  ? (s.category === "hotel" ? `/hotel/${s.id}` : `/order/${s.id}`)
+                  : "#";
                 return (
                   <motion.div key={s.id} variants={cardAnim}>
-                    <Link href={s.isAvailable ? `/order/${s.id}` : "#"}>
+                    <Link href={targetHref}>
                       <div className={cn(
                         "relative rounded-[15px] p-5 flex flex-col h-full group border",
                         "card-hover",
-                        s.isAvailable
+                        avail
                           ? "border-[#333] cursor-pointer"
                           : "border-white/5 cursor-not-allowed opacity-55"
                       )} style={{ background: "#121212" }}>
                         {/* Gold shimmer on hover */}
-                        {s.isAvailable && (
+                        {avail && (
                           <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
                             style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.04) 0%, transparent 60%)" }} />
                         )}
 
                         {/* Top row: icon + status */}
                         <div className="flex justify-between items-start mb-4">
-                          <div className={cn("w-13 h-13 rounded-2xl flex items-center justify-center w-12 h-12 bg-gradient-to-br border border-white/8", c.gradient)}>
+                          <div className={cn("rounded-2xl flex items-center justify-center w-12 h-12 bg-gradient-to-br border border-white/8", c.gradient)}>
                             <Icon size={22} className={c.iconColor} />
                           </div>
                           <div className="flex flex-col items-end gap-1.5">
                             <span className={cn("text-xs font-black px-2.5 py-1 rounded-full border",
-                              s.isAvailable
+                              avail
                                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                : "bg-red-500/10 text-red-400 border-red-500/20"
+                                : shiftOff
+                                  ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                  : "bg-red-500/10 text-red-400 border-red-500/20"
                             )}>
-                              {s.isAvailable ? t("متاح", "Disponible") : t("مشغول", "Occupé")}
+                              {avail ? t("متاح", "Disponible") : shiftOff ? t("خارج الوردية", "Hors shift") : t("مشغول", "Occupé")}
                             </span>
                             {s.category === "pharmacy" && s.shift && s.shift !== "all" && (
                               <span className={cn("text-xs px-2 py-0.5 rounded-full border flex items-center gap-1 font-bold",
                                 s.shift === "day"
                                   ? "bg-amber-400/10 text-amber-400 border-amber-400/20"
-                                  : "bg-blue-400/10 text-blue-400 border-blue-400/20"
+                                  : "bg-indigo-400/10 text-indigo-400 border-indigo-400/20"
                               )}>
                                 {s.shift === "day" ? <Sun size={9} /> : <Moon size={9} />}
-                                {s.shift === "day" ? t("نهاري", "Jour") : t("ليلي", "Nuit")}
+                                {s.shift === "day" ? t("نهاري 8ص-8م", "Jour 8h-20h") : t("ليلي 8م-8ص", "Nuit 20h-8h")}
                               </span>
                             )}
                           </div>
@@ -204,10 +224,10 @@ export default function Services() {
                         {s.rating != null && <StarRow rating={s.rating} />}
 
                         {/* CTA row */}
-                        {s.isAvailable && (
+                        {avail && (
                           <div className="mt-4 pt-3.5 border-t border-white/5 flex items-center justify-between">
                             <span className="text-xs font-black text-[#D4AF37]/60 tracking-wide">
-                              {t("اطلب الآن", "Commander")}
+                              {s.category === "hotel" ? t("احجز الآن", "Réserver") : t("اطلب الآن", "Commander")}
                             </span>
                             <div className="w-8 h-8 rounded-full border border-[#D4AF37]/25 bg-[#D4AF37]/8 flex items-center justify-center group-hover:bg-[#D4AF37] group-hover:border-[#D4AF37] transition-all duration-300">
                               <ChevronRight size={14} className={cn("text-[#D4AF37] group-hover:text-black transition-colors", isRTL && "rotate-180")} />

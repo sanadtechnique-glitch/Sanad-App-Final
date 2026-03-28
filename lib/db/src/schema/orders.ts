@@ -19,6 +19,7 @@ export const ordersTable = pgTable("orders", {
   serviceProviderName: text("service_provider_name").notNull(),
   deliveryStaffId: integer("delivery_staff_id"),
   deliveryFee: real("delivery_fee").default(0),
+  photoUrl: text("photo_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { ordersTable, serviceProvidersTable, deliveryStaffTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -28,7 +28,7 @@ router.get("/orders/:id", async (req, res) => {
 });
 
 router.post("/orders", async (req, res) => {
-  const { customerName, customerPhone, customerAddress, delegationId, notes, serviceProviderId, serviceType } = req.body;
+  const { customerName, customerPhone, customerAddress, delegationId, notes, serviceProviderId, serviceType, photoUrl } = req.body;
   if (!customerName || !customerAddress || !serviceProviderId || !serviceType) {
     res.status(400).json({ message: "customerName, customerAddress, serviceProviderId, serviceType are required" });
     return;
@@ -41,6 +41,7 @@ router.post("/orders", async (req, res) => {
       customerName, customerPhone, customerAddress,
       delegationId: delegationId ? parseInt(delegationId) : null,
       notes: notes || null,
+      photoUrl: photoUrl || null,
       serviceType,
       serviceProviderId: provider.id,
       serviceProviderName: provider.name,
@@ -75,13 +76,37 @@ router.patch("/orders/:id", async (req, res) => {
   }
 });
 
-// Provider endpoint - get orders for a specific provider
+// Provider: orders for a specific provider
 router.get("/provider/:providerId/orders", async (req, res) => {
   const providerId = parseInt(req.params.providerId);
   if (isNaN(providerId)) { res.status(400).json({ message: "Invalid providerId" }); return; }
   try {
     const orders = await db.select().from(ordersTable)
       .where(eq(ordersTable.serviceProviderId, providerId));
+    res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Provider: count of pending orders (notification polling)
+router.get("/provider/:providerId/pending-count", async (req, res) => {
+  const providerId = parseInt(req.params.providerId);
+  if (isNaN(providerId)) { res.status(400).json({ message: "Invalid providerId" }); return; }
+  try {
+    const orders = await db.select({ id: ordersTable.id }).from(ordersTable)
+      .where(and(eq(ordersTable.serviceProviderId, providerId), eq(ordersTable.status as any, "pending")));
+    res.json({ count: orders.length });
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Delivery pool: ALL accepted + in_delivery orders
+router.get("/delivery/orders", async (req, res) => {
+  try {
+    const orders = await db.select().from(ordersTable)
+      .where(inArray(ordersTable.status as any, ["accepted", "in_delivery"]));
     res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
   } catch (err) {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });

@@ -807,19 +807,132 @@ function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Section: Hotel Bookings
+// ──────────────────────────────────────────────────────────────────────────────
+interface HotelBooking {
+  id: number; hotelId: number; customerName: string; customerPhone: string;
+  checkIn: string; checkOut: string; guests: number; notes?: string;
+  status: string; createdAt: string; hotelName?: string; hotelNameAr?: string;
+}
+
+const HB_STATUS: Record<string, { ar: string; fr: string; color: string }> = {
+  pending:   { ar: "قيد الانتظار", fr: "En attente", color: "text-amber-400 bg-amber-400/10 border-amber-400/30" },
+  confirmed: { ar: "مؤكد",         fr: "Confirmé",   color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30" },
+  cancelled: { ar: "ملغي",         fr: "Annulé",     color: "text-red-400 bg-red-400/10 border-red-400/30" },
+};
+
+function HotelBookingsSection({ t, lang }: { t: (a: string, f: string) => string; lang: string }) {
+  const [bookings, setBookings] = useState<HotelBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+
+  const load = useCallback(() => {
+    setLoading(true);
+    get<HotelBooking[]>("/hotel-bookings").then(d => { setBookings(d); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const updateStatus = async (id: number, status: string) => {
+    await patch(`/hotel-bookings/${id}`, { status });
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+  };
+
+  const filtered = filter === "all" ? bookings : bookings.filter(b => b.status === filter);
+
+  const fmt = (d: string) => {
+    try { return new Date(d).toLocaleDateString(lang === "ar" ? "ar-TN" : "fr-TN", { day: "numeric", month: "short", year: "numeric" }); }
+    catch { return d; }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-black text-white">{t("حجوزات الفنادق", "Réservations Hôtel")}</h2>
+          <p className="text-white/30 text-sm mt-0.5">{filtered.length} {t("حجز", "réservation(s)")}</p>
+        </div>
+        <GoldBtn onClick={load} variant="ghost"><RefreshCw size={14} /></GoldBtn>
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex gap-2 mb-5">
+        {["all", "pending", "confirmed", "cancelled"].map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            className={cn("px-3 py-1.5 rounded-xl text-xs font-black border transition-all",
+              filter === f ? "bg-[#D4AF37] text-black border-[#D4AF37]" : "border-white/10 text-white/40 hover:text-white")}>
+            {f === "all" ? t("الكل", "Tous") : (HB_STATUS[f]?.[lang === "ar" ? "ar" : "fr"] ?? f)}
+            <span className="ml-1.5 opacity-60">{(f === "all" ? bookings : bookings.filter(b => b.status === f)).length}</span>
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16"><div className="w-7 h-7 border-[3px] border-[#D4AF37] border-t-transparent rounded-full animate-spin" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="glass-panel rounded-2xl p-14 text-center">
+          <Hotel size={40} className="text-white/10 mx-auto mb-3" />
+          <p className="text-white/20 font-bold">{t("لا توجد حجوزات", "Aucune réservation")}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(b => {
+            const s = HB_STATUS[b.status] ?? HB_STATUS.pending;
+            return (
+              <div key={b.id} className="glass-panel rounded-2xl p-5 border border-white/5">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono text-xs text-white/25">#{b.id.toString().padStart(4, "0")}</span>
+                      <span className={cn("text-xs font-black px-2.5 py-0.5 rounded-full border", s.color)}>{lang === "ar" ? s.ar : s.fr}</span>
+                    </div>
+                    <p className="font-black text-white text-lg">{b.customerName}</p>
+                    <p className="text-sm text-[#D4AF37]/60 font-bold">{lang === "ar" ? (b.hotelNameAr || b.hotelName) : (b.hotelName || b.hotelNameAr)}</p>
+                    <p className="text-xs text-white/30 mt-0.5">{t("هاتف", "Tél")}: {b.customerPhone}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-xs text-white/30">{t("وصول", "Arrivée")}</div>
+                    <div className="text-sm font-black text-white">{fmt(b.checkIn)}</div>
+                    <div className="text-xs text-white/30 mt-1">{t("مغادرة", "Départ")}</div>
+                    <div className="text-sm font-black text-white">{fmt(b.checkOut)}</div>
+                    <div className="text-xs text-white/25 mt-1">{b.guests} {t("ضيف", "pers.")}</div>
+                  </div>
+                </div>
+                {b.notes && <p className="text-xs text-white/30 mb-4 p-2.5 rounded-xl border border-white/5 bg-white/2">{b.notes}</p>}
+                {b.status === "pending" && (
+                  <div className="flex gap-2">
+                    <GoldBtn onClick={() => updateStatus(b.id, "confirmed")} className="flex-1 justify-center">
+                      <Check size={14} />{t("تأكيد", "Confirmer")}
+                    </GoldBtn>
+                    <GoldBtn onClick={() => updateStatus(b.id, "cancelled")} variant="danger" className="flex-1 justify-center">
+                      <X size={14} />{t("إلغاء", "Annuler")}
+                    </GoldBtn>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Main Admin Page
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners";
+type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings";
 
 const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string }[] = [
-  { id: "overview",    icon: LayoutDashboard, ar: "نظرة عامة",  fr: "Tableau de bord" },
-  { id: "orders",      icon: Package,          ar: "الطلبات",    fr: "Commandes" },
-  { id: "categories",  icon: Tag,              ar: "الفئات",     fr: "Catégories" },
-  { id: "suppliers",   icon: Users,            ar: "المزودون",   fr: "Fournisseurs" },
-  { id: "articles",    icon: ShoppingBag,      ar: "المنتجات",   fr: "Articles" },
-  { id: "staff",       icon: Truck,            ar: "السائقون",   fr: "Livreurs" },
-  { id: "delegations", icon: Map,              ar: "المعتمديات", fr: "Délégations" },
-  { id: "banners",     icon: Megaphone,        ar: "الإعلانات",  fr: "Publicités" },
+  { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",    fr: "Tableau de bord" },
+  { id: "orders",        icon: Package,          ar: "الطلبات",      fr: "Commandes" },
+  { id: "hotelBookings", icon: Hotel,            ar: "حجوزات الفنادق", fr: "Réservations Hôtel" },
+  { id: "categories",    icon: Tag,              ar: "الفئات",       fr: "Catégories" },
+  { id: "suppliers",     icon: Users,            ar: "المزودون",     fr: "Fournisseurs" },
+  { id: "articles",      icon: ShoppingBag,      ar: "المنتجات",     fr: "Articles" },
+  { id: "staff",         icon: Truck,            ar: "السائقون",     fr: "Livreurs" },
+  { id: "delegations",   icon: Map,              ar: "المعتمديات",   fr: "Délégations" },
+  { id: "banners",       icon: Megaphone,        ar: "الإعلانات",    fr: "Publicités" },
 ];
 
 export default function Admin() {
@@ -884,14 +997,15 @@ export default function Admin() {
 
         <AnimatePresence mode="wait">
           <motion.div key={active} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-            {active === "overview"    && <OverviewSection t={t} />}
-            {active === "orders"      && <OrdersSection t={t} lang={lang} />}
-            {active === "categories"  && <CategoriesSection t={t} />}
-            {active === "suppliers"   && <SuppliersSection t={t} lang={lang} />}
-            {active === "articles"    && <ArticlesSection t={t} lang={lang} />}
-            {active === "staff"       && <DeliveryStaffSection t={t} />}
-            {active === "delegations" && <DelegationsSection t={t} />}
-            {active === "banners"     && <BannersSection t={t} />}
+            {active === "overview"      && <OverviewSection t={t} />}
+            {active === "orders"        && <OrdersSection t={t} lang={lang} />}
+            {active === "hotelBookings" && <HotelBookingsSection t={t} lang={lang} />}
+            {active === "categories"    && <CategoriesSection t={t} />}
+            {active === "suppliers"     && <SuppliersSection t={t} lang={lang} />}
+            {active === "articles"      && <ArticlesSection t={t} lang={lang} />}
+            {active === "staff"         && <DeliveryStaffSection t={t} />}
+            {active === "delegations"   && <DelegationsSection t={t} />}
+            {active === "banners"       && <BannersSection t={t} />}
           </motion.div>
         </AnimatePresence>
       </main>

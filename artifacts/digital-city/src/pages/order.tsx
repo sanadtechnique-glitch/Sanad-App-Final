@@ -10,6 +10,7 @@ import { get, post } from "@/lib/admin-api";
 import {
   ChevronRight, CheckCircle2, MapPin, User, StickyNote,
   Phone, Loader2, AlertTriangle, Star, Building2, Hash,
+  Camera, Upload, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,7 @@ export default function Order() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
+  const [prescriptionPhoto, setPrescriptionPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -75,6 +77,14 @@ export default function Order() {
   const selectedDelegationId = watch("delegationId");
   const selectedDelegation = delegations.find(d => d.id.toString() === selectedDelegationId);
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setPrescriptionPhoto(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
   const onSubmit = async (data: FormValues) => {
     if (!supplier) return;
     setSubmitting(true);
@@ -88,6 +98,7 @@ export default function Order() {
         notes:           data.notes || null,
         serviceProviderId: supplier.id,
         serviceType: supplier.category,
+        photoUrl: prescriptionPhoto || null,
       };
       const res = await post<{ id: number }>("/orders", payload);
       setOrderId(res.id);
@@ -293,6 +304,38 @@ export default function Order() {
                       )} />
                   </div>
                 </div>
+
+                {/* Pharmacy prescription photo upload */}
+                {supplier?.category === "pharmacy" && (
+                  <div className="space-y-2">
+                    <FieldLabel>{t("صورة الوصفة الطبية (اختياري)", "Ordonnance médicale (optionnel)")}</FieldLabel>
+                    {prescriptionPhoto ? (
+                      <div className="relative rounded-xl overflow-hidden border border-[#D4AF37]/30">
+                        <img src={prescriptionPhoto} alt="prescription" className="w-full h-40 object-cover" />
+                        <button type="button" onClick={() => setPrescriptionPhoto(null)}
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:bg-red-600 transition-colors">
+                          <X size={13} />
+                        </button>
+                        <div className="absolute bottom-2 left-2 text-xs bg-black/60 text-white px-2 py-1 rounded-lg backdrop-blur-sm">
+                          {t("✓ تم رفع الوصفة", "✓ Ordonnance jointe")}
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-dashed border-white/15 cursor-pointer hover:border-[#D4AF37]/40 hover:bg-[#D4AF37]/3 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center group-hover:bg-[#D4AF37]/20 transition-colors">
+                          <Camera size={20} className="text-[#D4AF37]/60" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-bold text-white/50 group-hover:text-white/70 transition-colors">
+                            {t("اضغط لرفع صورة الوصفة", "Cliquez pour télécharger")}
+                          </p>
+                          <p className="text-xs text-white/25 mt-0.5">JPG, PNG, WEBP</p>
+                        </div>
+                        <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                      </label>
+                    )}
+                  </div>
+                )}
 
                 {/* Privacy note */}
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-white/3 border border-white/5">

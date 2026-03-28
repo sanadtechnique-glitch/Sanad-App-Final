@@ -4,6 +4,7 @@ import { LanguageProvider } from "@/lib/language";
 import Home from "./pages/home";
 import Services from "./pages/services";
 import Order from "./pages/order";
+import HotelBooking from "./pages/hotel-booking";
 import Admin from "./pages/admin";
 import Provider from "./pages/provider";
 import Delivery from "./pages/delivery";
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/services" component={Services} />
       <Route path="/order/:id" component={Order} />
+      <Route path="/hotel/:id" component={HotelBooking} />
       <Route path="/admin" component={Admin} />
       <Route path="/provider" component={Provider} />
       <Route path="/delivery" component={Delivery} />
