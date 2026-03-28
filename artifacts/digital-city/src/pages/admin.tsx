@@ -1059,11 +1059,7 @@ export default function Admin() {
   const { lang, t, isRTL } = useLang();
   const [active, setActive] = useState<Section>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem(ADMIN_KEY) === "1");
-
-  const adminLogout = () => { localStorage.removeItem(ADMIN_KEY); setIsLoggedIn(false); };
-
-  if (!isLoggedIn) return <AdminLogin onLogin={() => setIsLoggedIn(true)} />;
+  const adminLogout = () => {};
 
   return (
     <div className="min-h-screen bg-background flex" dir={isRTL ? "rtl" : "ltr"}>
