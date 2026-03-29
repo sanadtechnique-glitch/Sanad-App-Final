@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout";
 import { useLang } from "@/lib/language";
@@ -59,7 +59,9 @@ function isPharmacyShiftActive(shift?: string): boolean {
 
 export default function Services() {
   const { lang, t, isRTL } = useLang();
-  const [active, setActive] = useState("all");
+  const search = useSearch();
+  const urlCategory = new URLSearchParams(search).get("category") || "all";
+  const [active, setActive] = useState(urlCategory);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
