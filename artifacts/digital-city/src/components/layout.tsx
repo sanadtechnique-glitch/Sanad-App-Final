@@ -419,8 +419,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ background: "#FFA500" }}
       >
         {/* Logo */}
-        <div className="w-11 h-11 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#2E7D32]/20 shadow-[0_0_14px_-4px_rgba(255,165,0,0.5)] flex items-center justify-center">
-          <img src="/logo.png" alt="سںد" className="w-full h-full object-contain p-0.5" draggable={false} />
+        <div className="flex items-center justify-center bg-white rounded-full border-2 border-[#1B5E20] shadow-[0_2px_10px_rgba(27,94,32,0.25)]"
+          style={{ width: 54, height: 38 }}>
+          <img src="/logo.png" alt="سند" className="w-11 h-8 object-contain" draggable={false} />
         </div>
 
         {/* Nav icons */}
@@ -500,8 +501,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b-2 border-[#2E7D32] sticky top-0 z-50"
         style={{ background: "#FFA500" }}
       >
-        <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#2E7D32]/20 flex items-center justify-center shadow-[0_0_10px_-3px_rgba(255,165,0,0.45)]">
-          <img src="/logo.png" alt="سںد" className="w-full h-full object-contain p-0.5" draggable={false} />
+        <div className="flex items-center justify-center bg-white rounded-full border-2 border-[#1B5E20] shadow-[0_2px_8px_rgba(27,94,32,0.22)]"
+          style={{ width: 50, height: 34 }}>
+          <img src="/logo.png" alt="سند" className="w-10 h-7 object-contain" draggable={false} />
         </div>
         <div className="flex items-center gap-2">
           <CartButton onClick={() => setCartOpen(true)} large />

@@ -770,13 +770,16 @@ export default function LoginPage() {
           {/* ── Header ── */}
           <div className="px-8 pt-8 pb-6">
             <div className="flex flex-col items-center gap-2">
-              {/* Logo — no frame, directly on orange */}
-              <img
-                src="/logo.png"
-                alt="سند - Sanad Logo"
-                className="w-28 h-28 object-contain"
-                draggable={false}
-              />
+              {/* Logo — white oval with dark green border */}
+              <div className="flex items-center justify-center bg-white rounded-full border-[3px] border-[#1B5E20] shadow-[0_4px_18px_rgba(27,94,32,0.28)]"
+                style={{ width: 148, height: 96 }}>
+                <img
+                  src="/logo.png"
+                  alt="سند - Sanad Logo"
+                  className="w-24 h-20 object-contain"
+                  draggable={false}
+                />
+              </div>
               {/* App name + slogan */}
               <div className="text-center mt-1">
                 <h1
