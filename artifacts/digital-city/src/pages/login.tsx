@@ -785,31 +785,31 @@ export default function LoginPage() {
             className="px-8 pt-7 pb-5 border-b"
             style={{ borderColor: "rgba(102,187,106,0.12)" }}
           >
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
+              {/* Logo Image */}
               <div
-                className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center"
+                className="w-[100px] h-[100px] rounded-full overflow-hidden flex items-center justify-center"
                 style={{
-                  background: "rgba(0,77,64,0.07)",
-                  border: "2.5px solid rgba(0,77,64,0.25)",
-                  boxShadow: "0 0 32px -8px rgba(0,77,64,0.30)",
+                  boxShadow: "0 4px 24px -6px rgba(225,173,1,0.55), 0 0 0 3px rgba(102,187,106,0.35)",
                 }}
               >
-                <span
-                  className="font-black text-[#004D40] text-2xl leading-none"
-                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}
-                >
-                  سند
-                </span>
+                <img
+                  src="/logo.png"
+                  alt="سند - Sanad Logo"
+                  className="w-full h-full object-cover"
+                  draggable={false}
+                />
               </div>
-              <div className="text-center">
+              {/* App name */}
+              <div className="text-center mt-1">
                 <h1
                   className="text-2xl font-black text-[#004D40] tracking-tight leading-tight"
                   style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}
                 >
                   سند
                 </h1>
-                <p className="text-[#004D40]/60 text-sm mt-1 font-bold" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-                  سندك الرسمي ... من السوق للدار
+                <p className="text-[#004D40]/65 text-sm mt-0.5 font-bold" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                  سندك الرقمي.. من المحل للدار
                 </p>
               </div>
             </div>

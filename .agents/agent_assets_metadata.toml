@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "9VeQ31SSK97bcpLne8I8Q"
+uri = "file://artifacts/digital-city/public/logo.png"
+type = "image"
+title = "سند - Sanad Logo (logo.png)"
