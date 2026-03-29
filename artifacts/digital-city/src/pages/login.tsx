@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertCircle, Eye, EyeOff, ChevronDown, LogIn,
-  UserPlus, Phone, Lock, User, CheckCircle, MapPin,
+  UserPlus, Phone, Lock, User, CheckCircle, MapPin, Search,
 } from "lucide-react";
 import { get, post } from "@/lib/admin-api";
 import { setSession, type Role } from "@/lib/auth";
@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 // ─────────────────────────────────────────────────────────────────────────────
 interface Supplier   { id: number; name: string; nameAr: string; }
 interface Staff      { id: number; name: string; nameAr: string; phone: string; }
-interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
 
 type ProfileOption = { value: Role; labelAr: string; labelFr: string; color: string };
 
@@ -30,6 +29,47 @@ const SIGNUP_PROFILES: ProfileOption[] = [
   { value: "provider", labelAr: "مزود خدمة",  labelFr: "Fournisseur", color: "#4CAF50" },
   { value: "delivery", labelAr: "سائق توصيل", labelFr: "Livreur",     color: "#388E3C" },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tunisia Delegations — full static list (all 24 governorates)
+// ─────────────────────────────────────────────────────────────────────────────
+const TUNISIA_DELEGATIONS: { gov: string; delegations: string[] }[] = [
+  { gov: "تونس", delegations: ["المدينة","باب باب حدي","باب سويقة","العمران","العمران الأعلى","التحرير","المنزه","حي الخضراء","الكبارية","الوردية","الحرائرية","الزهراء"] },
+  { gov: "أريانة", delegations: ["أريانة المدينة","سكرة","رواد","قلعة الأندلس","سيدي ثابت","كالة الكبيرة","المنيهلة","التضامن"] },
+  { gov: "بن عروس", delegations: ["بن عروس","المروج","حمام الأنف","حمام الشط","بومهل البساتين","المحمدية","فوشانة","مقرين","النقاذة","الزهراء","الموروج"] },
+  { gov: "منوبة", delegations: ["منوبة","دوار هيشر","طبربة","البطان","الجديدة","برج العامري","مورناقية","تبورسق"] },
+  { gov: "نابل", delegations: ["نابل","الحمامات","مرناق","قليبية","منزل تميم","الميدا","بني خيار","قربص","سليمان","تازركة","بوعرقوب","خميس الفليفلة","الدار البيضاء","كركوان"] },
+  { gov: "زغوان", delegations: ["زغوان","الزريبة","بئر مشارقة","الفحص","الناظور","صواف"] },
+  { gov: "بنزرت", delegations: ["بنزرت الشمالية","بنزرت الجنوبية","جومين","ماطر","غار الملح","المطلوي","أوسجة","سيدي عثمان","غزالة","منزل جميل","العالية","رأس الجبل","سجنان","تينجة"] },
+  { gov: "باجة", delegations: ["باجة الشمالية","باجة الجنوبية","عمدون","نفزة","تبرسق","تستور","قبلاط","مجاز الباب"] },
+  { gov: "جندوبة", delegations: ["جندوبة","جندوبة الشمالية","بوسالم","طبرقة","عين دراهم","فرنانة","غار الدماء","وادي مليز","بلطة بوعوان"] },
+  { gov: "الكاف", delegations: ["الكاف الغربية","الكاف الشرقية","نبر","ساقية سيدي يوسف","تاجروين","القلعة الخصبة","القصور","مكثر","الجريصة","الدهماني","القبائلية"] },
+  { gov: "سليانة", delegations: ["سليانة الشمالية","سليانة الجنوبية","بوعرادة","الكريب","برقو","مكثر","الروحية","قعفور","العروسة","البرة"] },
+  { gov: "سوسة", delegations: ["سوسة المدينة","سوسة الرياض","سوسة سيدي عبيد","سوسة الجوهرة","حمام سوسة","أكودة","كلاب","سيدي بوعلي","سيدي الهاني","القلعة الكبرى","القلعة الصغرى","النفيضة","بوفيشة","كنار","زرمدين"] },
+  { gov: "المنستير", delegations: ["المنستير","الوردانين","الساحلين","المصدور","أوصيف","بنبلة","قصر هلال","منزل كمال","طبلبة","قصيبة","بقالطة","ارتيزة"] },
+  { gov: "المهدية", delegations: ["المهدية","بومرداس","أولاد الشامخ","القصور","الحيمة","السواسي","الجم","الشابة","ملولش","قصور الساف","سيدي علوان"] },
+  { gov: "صفاقس", delegations: ["صفاقس المدينة","صفاقس الغربية","صفاقس الجنوبية","تينة","الحنشة","بئر علي بن خليفة","الغريبة","جبنيانة","العامرة","قرقنة","ساقية الزيت","ساقية الدائر","الصخيرة","عقارب"] },
+  { gov: "القيروان", delegations: ["القيروان الشمالية","القيروان الجنوبية","الشبيكة","السبيخة","الوسلاتية","حفوز","عين جلولة","منزل مهيري","الوقف","بوحجلة","حاجب العيون","نصر الله"] },
+  { gov: "القصرين", delegations: ["القصرين الشمالية","القصرين الجنوبية","سبيطلة","سبيبة","الجدليان","العيون","تالة","هيدرة","ماجل بلعباس","الرقاب","فوساناه"] },
+  { gov: "سيدي بوزيد", delegations: ["سيدي بوزيد الغربية","سيدي بوزيد الشرقية","المزونة","سيدي علي بن عون","المكناسي","سوق الجديد","بير الحفي","جلمة","أولاد حفوز","مائدة","المنصورة","الرقاب"] },
+  { gov: "قابس", delegations: ["قابس المدينة","قابس الغربية","قابس الجنوبية","غنوش","الحامة","ماطماطة","ماطماطة الجديدة","المطوية","وذرف","منزل الحبيب"] },
+  { gov: "مدنين", delegations: ["مدنين الشمالية","مدنين الجنوبية","جرجيس","بني خداش","سيدي مخلوف","بنقردان","جربة - حومة السوق","جربة - ميدون","جربة - أجيم","الرمادة"] },
+  { gov: "تطاوين", delegations: ["تطاوين الشمالية","تطاوين الجنوبية","ذهيبة","بئر الأحمر","غمراسن","الصمار","رمادة"] },
+  { gov: "قفصة", delegations: ["قفصة الشمالية","قفصة الجنوبية","أم العرائس","سيدي عيش","بلخير","القطار","المتلوي","قبيلي","المظيلة"] },
+  { gov: "توزر", delegations: ["توزر","دقاش","تمغزة","نفطة","حزوة"] },
+  { gov: "قبلي", delegations: ["قبلي الشمالية","قبلي الجنوبية","دوز الشمالية","دوز الجنوبية","فوار","سوق الأحد"] },
+];
+
+const DELEGATION_FEE_MAP: Record<string, number> = {
+  "بنقردان": 3,
+  "جرجيس": 5,
+  "مدنين الشمالية": 6, "مدنين الجنوبية": 6,
+  "جربة - حومة السوق": 8, "جربة - ميدون": 8, "جربة - أجيم": 8,
+  "سيدي مخلوف": 4.5,
+  "بني خداش": 7,
+};
+
+const DEFAULT_DELIVERY_FEE = 5;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Reusable sub-components
@@ -349,31 +389,25 @@ function SignUpForm() {
   const [loading, setLoading]   = useState(false);
   const [success, setSuccess]   = useState(false);
 
-  const [delegations, setDelegations]         = useState<Delegation[]>([]);
-  const [delegationId, setDelegationId]       = useState<number | null>(null);
+  const [delegationName, setDelegationName]   = useState<string>("بنقردان");
   const [delegationOpen, setDelegationOpen]   = useState(false);
-
-  useEffect(() => {
-    get<Delegation[]>("/admin/delegations").then(list => {
-      setDelegations(list);
-      const ben = list.find(d =>
-        d.nameAr?.includes("بنقردان") || d.nameAr?.includes("بن قردان") ||
-        d.name?.toLowerCase().includes("ben gard")
-      );
-      setDelegationId(ben?.id ?? list[0]?.id ?? null);
-    }).catch(() => {});
-  }, []);
-
-  const selectedDelegation = delegations.find(d => d.id === delegationId);
+  const [delegationSearch, setDelegationSearch] = useState("");
 
   const needsPhone = role === "provider" || role === "delivery";
   const canSubmit  =
     username.trim() !== "" &&
     password.trim() !== "" &&
     confirm.trim()  !== "" &&
-    delegationId !== null &&
+    delegationName  !== "" &&
     (!needsPhone || phone.trim() !== "") &&
     !loading;
+
+  const filteredDelegations = delegationSearch.trim()
+    ? TUNISIA_DELEGATIONS.map(g => ({
+        gov: g.gov,
+        delegations: g.delegations.filter(d => d.includes(delegationSearch.trim())),
+      })).filter(g => g.delegations.length > 0)
+    : TUNISIA_DELEGATIONS;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -400,9 +434,8 @@ function SignUpForm() {
         setSession({
           role: "client",
           name: pseudo,
-          delegationId:   delegationId ?? undefined,
-          delegationFee:  selectedDelegation?.deliveryFee ?? 0,
-          delegationName: selectedDelegation?.nameAr ?? selectedDelegation?.name ?? "",
+          delegationName,
+          delegationFee: DELEGATION_FEE_MAP[delegationName] ?? DEFAULT_DELIVERY_FEE,
         });
         setSuccess(true);
         setTimeout(() => navigate("/"), 900);
@@ -433,9 +466,8 @@ function SignUpForm() {
           role: "provider",
           name: newSupplier.nameAr,
           supplierId: newSupplier.id,
-          delegationId:   delegationId ?? undefined,
-          delegationFee:  selectedDelegation?.deliveryFee ?? 0,
-          delegationName: selectedDelegation?.nameAr ?? selectedDelegation?.name ?? "",
+          delegationName,
+          delegationFee: DELEGATION_FEE_MAP[delegationName] ?? DEFAULT_DELIVERY_FEE,
         });
         setSuccess(true);
         setTimeout(() => navigate("/provider"), 900);
@@ -462,9 +494,8 @@ function SignUpForm() {
           role: "delivery",
           name: newStaff.nameAr,
           staffId: newStaff.id,
-          delegationId:   delegationId ?? undefined,
-          delegationFee:  selectedDelegation?.deliveryFee ?? 0,
-          delegationName: selectedDelegation?.nameAr ?? selectedDelegation?.name ?? "",
+          delegationName,
+          delegationFee: DELEGATION_FEE_MAP[delegationName] ?? DEFAULT_DELIVERY_FEE,
         });
         setSuccess(true);
         setTimeout(() => navigate("/delivery"), 900);
@@ -525,63 +556,85 @@ function SignUpForm() {
       <div>
         <FieldLabel>المعتمدية · Délégation</FieldLabel>
         <div className="relative">
-          <MapPin size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#004D40]/30 pointer-events-none" />
+          <MapPin size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#004D40]/30 pointer-events-none z-10" />
           <button
             type="button"
-            onClick={() => setDelegationOpen(o => !o)}
+            onClick={() => { setDelegationOpen(o => !o); setDelegationSearch(""); }}
             className="w-full ps-10 pe-4 py-3.5 rounded-xl border transition-all outline-none text-right font-bold text-[#004D40] flex items-center justify-between"
             style={{
               background: "#FFFDE7",
-              borderColor: delegationOpen ? "#66BB6A" : selectedDelegation ? "rgba(102,187,106,0.8)" : "rgba(0,77,64,0.18)",
+              borderColor: delegationOpen ? "#66BB6A" : delegationName ? "rgba(102,187,106,0.8)" : "rgba(0,77,64,0.18)",
             }}
           >
-            <ChevronDown size={14} className={cn("text-[#004D40]/25 transition-transform", delegationOpen && "rotate-180")} />
-            <span>
-              {selectedDelegation
-                ? <>{selectedDelegation.nameAr}<span className="text-[#004D40]/30 font-normal"> — {selectedDelegation.deliveryFee} DT</span></>
-                : <span className="text-[#004D40]/30 font-normal">اختر منطقتك · Choisissez votre zone</span>
-              }
+            <ChevronDown size={14} className={cn("text-[#004D40]/25 transition-transform flex-shrink-0", delegationOpen && "rotate-180")} />
+            <span className="truncate">
+              {delegationName || <span className="text-[#004D40]/30 font-normal">اختر منطقتك · Choisissez votre zone</span>}
             </span>
           </button>
           <AnimatePresence>
             {delegationOpen && (
               <motion.div
-                initial={{ opacity: 0, y: -6, scaleY: 0.9 }}
+                initial={{ opacity: 0, y: -6, scaleY: 0.92 }}
                 animate={{ opacity: 1, y: 0, scaleY: 1 }}
                 exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
                 transition={{ duration: 0.14 }}
-                className="absolute top-full mt-1 w-full rounded-xl border z-50 overflow-hidden shadow-xl max-h-52 overflow-y-auto"
-                style={{ background: "#E1AD01", borderColor: "rgba(102,187,106,0.3)" }}
+                className="absolute top-full mt-1 w-full rounded-xl border z-50 shadow-2xl overflow-hidden"
+                style={{ background: "#FFFDE7", borderColor: "#66BB6A" }}
               >
-                {delegations.length === 0 && (
-                  <div className="px-4 py-3 text-sm text-[#004D40]/40 text-right">جاري التحميل...</div>
-                )}
-                {delegations.map(d => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => { setDelegationId(d.id); setDelegationOpen(false); setError(null); }}
-                    className={cn(
-                      "w-full px-4 py-3 flex items-center justify-end gap-3 text-right transition-colors",
-                      delegationId === d.id ? "bg-[#004D40]/8" : "hover:bg-[#004D40]/4"
-                    )}
-                  >
-                    <span className="font-bold text-[#004D40] text-sm">
-                      {d.nameAr}
-                      <span className="text-[#004D40]/40 font-normal text-xs"> — {d.deliveryFee} DT</span>
-                    </span>
-                    {delegationId === d.id && (
-                      <div className="w-2 h-2 rounded-full bg-[#66BB6A] flex-shrink-0" />
-                    )}
-                  </button>
-                ))}
+                {/* Search bar */}
+                <div className="px-3 py-2 border-b" style={{ borderColor: "rgba(102,187,106,0.25)", background: "#E1AD01" }}>
+                  <div className="relative">
+                    <Search size={13} className="absolute top-1/2 -translate-y-1/2 start-2.5 text-[#004D40]/40 pointer-events-none" />
+                    <input
+                      type="text"
+                      autoFocus
+                      value={delegationSearch}
+                      onChange={e => setDelegationSearch(e.target.value)}
+                      placeholder="ابحث عن معتمديتك..."
+                      className="w-full ps-8 pe-3 py-2 rounded-lg text-sm font-bold text-[#004D40] outline-none placeholder:text-[#004D40]/30 text-right"
+                      style={{ background: "rgba(255,253,231,0.9)", border: "1px solid rgba(102,187,106,0.4)" }}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
+                {/* Scrollable list grouped by governorate */}
+                <div className="max-h-56 overflow-y-auto">
+                  {filteredDelegations.length === 0 && (
+                    <div className="px-4 py-4 text-sm text-[#004D40]/40 text-center">لا توجد نتائج</div>
+                  )}
+                  {filteredDelegations.map(group => (
+                    <div key={group.gov}>
+                      <div className="px-4 py-1.5 text-[10px] font-black text-[#004D40]/35 uppercase tracking-widest text-right sticky top-0"
+                           style={{ background: "rgba(225,173,1,0.12)" }}>
+                        ولاية {group.gov}
+                      </div>
+                      {group.delegations.map(d => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => { setDelegationName(d); setDelegationOpen(false); setDelegationSearch(""); setError(null); }}
+                          className={cn(
+                            "w-full px-5 py-2.5 flex items-center justify-between text-right transition-colors",
+                            delegationName === d
+                              ? "bg-[#66BB6A]/15 text-[#004D40]"
+                              : "hover:bg-[#004D40]/5 text-[#004D40]/80"
+                          )}
+                        >
+                          <div className={cn("w-2 h-2 rounded-full flex-shrink-0", delegationName === d ? "bg-[#66BB6A]" : "bg-transparent")} />
+                          <span className="font-bold text-sm">{d}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-        {selectedDelegation && (
-          <p className="text-[11px] text-[#66BB6A]/70 font-bold mt-1.5 text-right">
-            رسوم التوصيل: {selectedDelegation.deliveryFee} DT · Frais de livraison
+        {delegationName && (
+          <p className="text-[11px] text-[#66BB6A] font-bold mt-1.5 text-right flex items-center justify-end gap-1">
+            <MapPin size={10} />
+            {delegationName}
           </p>
         )}
       </div>
