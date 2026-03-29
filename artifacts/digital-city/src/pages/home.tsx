@@ -161,25 +161,27 @@ export default function Home() {
           </div>
 
           <motion.div key={lang} variants={container} initial="hidden" animate="show"
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
+            className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-x-3 gap-y-6">
             {CATEGORIES.map(cat => {
               const Icon = cat.icon;
               const label = lang === "ar" ? cat.ar : cat.fr;
-              const desc  = lang === "ar" ? cat.descAr : cat.descFr;
               return (
                 <motion.div key={cat.id} variants={itemAnim}>
                   <Link href={`/services?category=${cat.id}`}>
-                    <div className={[
-                      "rounded-[15px] p-4 flex flex-col items-center text-center cursor-pointer",
-                      "card-hover group border border-[#2E7D32]/30",
-                    ].join(" ")} style={{ background: "#FFFDE7" }}>
-                      <div className={`w-13 h-13 w-12 h-12 rounded-2xl flex items-center justify-center mb-3 bg-gradient-to-br border border-[#2E7D32]/6 ${cat.color}`}>
-                        <Icon size={22} className={`${cat.iconColor} group-hover:scale-110 transition-transform duration-300`} />
+                    <div className="flex flex-col items-center text-center gap-2.5 cursor-pointer group">
+                      {/* Circle — transparent bg, green border */}
+                      <div className={[
+                        "w-16 h-16 rounded-full flex items-center justify-center",
+                        "border-2 border-[#2E7D32]/35",
+                        "bg-transparent",
+                        "group-hover:border-[#2E7D32] group-hover:bg-[#2E7D32]/8 transition-all duration-200",
+                      ].join(" ")}>
+                        <Icon size={26} className={`${cat.iconColor} group-hover:scale-110 transition-transform duration-300`} />
                       </div>
-                      <p className="font-black text-[#2E7D32] text-sm leading-snug group-hover:text-[#2E7D32] transition-colors">
+                      {/* Label below circle */}
+                      <p className="font-black text-[#2E7D32] text-xs leading-snug">
                         {label}
                       </p>
-                      <p className="text-[11px] text-[#2E7D32]/30 mt-1 leading-tight">{desc}</p>
                     </div>
                   </Link>
                 </motion.div>
