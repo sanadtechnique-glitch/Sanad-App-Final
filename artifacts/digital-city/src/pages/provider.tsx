@@ -14,11 +14,12 @@ interface Supplier { id: number; name: string; nameAr: string; category: string;
 interface Order { id: number; customerName: string; customerPhone?: string; customerAddress: string; notes?: string; status: string; createdAt: string; deliveryFee?: number; photoUrl?: string; }
 
 const STATUS: Record<string, { ar: string; fr: string; color: string }> = {
-  pending:     { ar: "قيد الانتظار", fr: "En attente",  color: "text-amber-400 border-amber-400/30 bg-amber-400/10" },
-  accepted:    { ar: "مقبول",        fr: "Accepté",      color: "text-blue-400 border-blue-400/30 bg-blue-400/10" },
-  in_delivery: { ar: "في التوصيل",  fr: "En livraison", color: "text-purple-400 border-purple-400/30 bg-purple-400/10" },
-  delivered:   { ar: "تم التوصيل",  fr: "Livré",        color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" },
-  cancelled:   { ar: "ملغي",        fr: "Annulé",       color: "text-red-400 border-red-400/30 bg-red-400/10" },
+  pending:     { ar: "قيد الانتظار", fr: "En attente",       color: "text-amber-400 border-amber-400/30 bg-amber-400/10" },
+  accepted:    { ar: "مقبول",        fr: "Accepté",           color: "text-blue-400 border-blue-400/30 bg-blue-400/10" },
+  prepared:    { ar: "جاهز للتوصيل", fr: "Prêt à livrer",    color: "text-[#D4AF37] border-[#D4AF37]/30 bg-[#D4AF37]/10" },
+  in_delivery: { ar: "في التوصيل",  fr: "En livraison",      color: "text-purple-400 border-purple-400/30 bg-purple-400/10" },
+  delivered:   { ar: "تم التوصيل",  fr: "Livré",             color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" },
+  cancelled:   { ar: "ملغي",        fr: "Annulé",            color: "text-red-400 border-red-400/30 bg-red-400/10" },
 };
 
 function timeAgo(dateStr: string, lang: string) {
@@ -235,7 +236,7 @@ export default function ProviderDashboard() {
               <p className="text-xs text-white/30">{t("انتظار", "En attente")}</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-black text-blue-400">{orders.filter(o => ["accepted","in_delivery"].includes(o.status)).length}</p>
+              <p className="text-2xl font-black text-blue-400">{orders.filter(o => ["accepted","prepared","in_delivery"].includes(o.status)).length}</p>
               <p className="text-xs text-white/30">{t("نشط", "En cours")}</p>
             </div>
             <div className="text-center">
@@ -340,9 +341,12 @@ export default function ProviderDashboard() {
                         </div>
                       )}
                       {order.status === "accepted" && (
-                        <p className="text-center text-xs text-blue-400/50 font-bold py-1">
-                          {t("✓ مقبول — بانتظار التوصيل", "✓ Accepté — En attente du livreur")}
-                        </p>
+                        <button onClick={() => updateStatus(order.id, "prepared")}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 font-black text-sm hover:bg-[#D4AF37]/20 transition-all"
+                          style={{ color: "#D4AF37" }}>
+                          <Truck size={15} />
+                          {t("جاهز للتوصيل ✓", "Prêt pour livraison ✓")}
+                        </button>
                       )}
                     </div>
                   </motion.div>

@@ -44,15 +44,28 @@ All API routes are mounted at `/api` prefix. In `main.tsx`, `setBaseUrl("/api")`
 | `/provider` | Provider dashboard — name-select login, gold logout button |
 | `/delivery` | Delivery staff dashboard — name-select login, gold logout button |
 
-### Login/Auth
+### Login/Auth (Unified)
 
-- **Admin**: Username `admin` / Password `AdminAdmin`. Session stored in `localStorage` key `dc_admin_auth`. Gold logout button in sidebar. Unauthenticated visits to `/admin` auto-redirect to the login screen.
-- **Provider**: Name selection acts as login. Gold "خروج / Déco." button in dashboard header.
-- **Delivery**: Name selection acts as login. Gold "خروج / Déco." button in dashboard header.
+All roles use `/login` — single page with role dropdown + username + password.
+- **Admin**: username `admin` (any password) → `/admin`. Session guard: unauthenticated visits redirect to `/login`.
+- **Provider**: username matches supplier name in DB → `/provider`. Auto-selects the matched supplier on mount.
+- **Delivery**: username matches delivery staff name in DB → `/delivery`. Auto-selects staff on mount.
+- **Client**: any name → `/` (home).
+- Session: `DcSession { role, name, supplierId?, staffId? }` stored in `localStorage` key `dc_session` via `src/lib/auth.ts`.
+- Logout clears session + navigates to `/login` in all dashboards.
+
+### Global Cart (Customer)
+
+`src/lib/cart.tsx` — React Context wrapping all routes (via `App.tsx` CartProvider). Cart persists in `localStorage` key `dc_cart`.
+- `CartState { supplierId, supplierName, items[], deliveryFee }`
+- Cart icon with badge shown in Layout sidebar (desktop) and top bar (mobile)
+- Cart drawer slides in from the side with item list, qty controls, subtotal + delivery fee + total
+- "Passer la commande" → navigates to `/order/:supplierId?notes=<cart_summary>`
+- Adding item from a different supplier clears the old cart
 
 ### Provider Store (Customer Product Grid)
 
-`/store/:id` — Fetches articles for a supplier via `GET /api/articles?supplierId=X`. Shows products in a 2–4 col grid with 1:1 aspect ratio, gold border on black background. Each card has name, price, +/- qty controls and "إضافة للسلة" button. Floating cart button → cart drawer → `placeOrder()` navigates to `/order/:id?notes=<cart_summary>`.
+`/store/:id` — Uses global cart context. Products in 2–4 col grid with 1:1 aspect ratio, gold border on black. Each card has name, price, +/- qty controls and "إضافة للسلة" button. Cart managed globally and accessible from Layout cart icon.
 
 ### Admin Dashboard Sections (9)
 
@@ -78,7 +91,23 @@ All API routes are mounted at `/api` prefix. In `main.tsx`, `setBaseUrl("/api")`
 
 ### Order Status Flow
 
-`pending → accepted → in_delivery → delivered | cancelled`
+`pending → accepted → prepared → in_delivery → delivered | cancelled`
+
+- **pending**: Customer placed order, awaiting provider action
+- **accepted**: Provider accepted → shows "Prêt pour livraison" gold button
+- **prepared**: Provider marked order as ready → appears in delivery pool
+- **in_delivery**: Delivery staff took the order → shows "Livré ✓" + "Refuser" buttons
+- **delivered**: Order completed
+- **cancelled**: Provider rejected the order
+
+### RBAC per Dashboard
+
+| Role | Sees | Can Do |
+|------|------|--------|
+| Admin | All orders, providers, staff, articles, delegations | Full CRUD |
+| Provider | Only their own supplier's orders | Accept, Reject, Mark as Prêt |
+| Delivery | Only `prepared` orders in pool | Claim (→ in_delivery), Livré, Refuser (→ back to prepared) |
+| Client | Public pages: home, services, store | Browse, add to cart, place order |
 
 ### Languages
 

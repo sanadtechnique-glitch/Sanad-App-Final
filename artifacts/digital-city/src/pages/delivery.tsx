@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSession, clearSession } from "@/lib/auth";
-import { Truck, CheckCircle, MapPin, RefreshCw, ChevronRight, MessageCircle, LogOut, Check, Package } from "lucide-react";
+import { Truck, CheckCircle, MapPin, RefreshCw, ChevronRight, MessageCircle, LogOut, Check, Package, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { get, patch } from "@/lib/admin-api";
@@ -121,7 +121,7 @@ export default function DeliveryDashboard() {
     );
   }
 
-  const poolOrders = orders.filter(o => o.status === "accepted");
+  const poolOrders = orders.filter(o => o.status === "prepared");
   const myOrders   = orders.filter(o => o.status === "in_delivery");
 
   /* ── Delivery Dashboard ── */
@@ -201,10 +201,16 @@ export default function DeliveryDashboard() {
                         </button>
                       )}
                     </div>
-                    <button onClick={() => updateStatus(order.id, "delivered")}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black hover:bg-emerald-500/20 transition-all">
-                      <Check size={16} />{t("تم التوصيل ✓", "Livraison terminée ✓")}
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => updateStatus(order.id, "delivered")}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black text-sm hover:bg-emerald-500/20 transition-all">
+                        <Check size={15} />{t("تم التوصيل ✓", "Livré ✓")}
+                      </button>
+                      <button onClick={() => updateStatus(order.id, "prepared")}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 font-black text-sm hover:bg-red-500/20 transition-all">
+                        <X size={14} />{t("رفض", "Refuser")}
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               ))}
