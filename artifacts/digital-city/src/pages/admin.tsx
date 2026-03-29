@@ -938,7 +938,7 @@ const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string }[] = [
 ];
 
 const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "AdminAdmin";
+const ADMIN_PASSWORD = "Abc1234";
 const ADMIN_KEY = "dc_admin_auth";
 
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
@@ -1062,10 +1062,10 @@ export default function Admin() {
   const [active, setActive] = useState<Section>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [, navigate] = useLocation();
+  const session = getSession();
 
   useEffect(() => {
-    const s = getSession();
-    if (!s || s.role !== "admin") navigate("/login");
+    if (!session || session.role !== "admin") navigate("/login");
   }, []);
 
   const adminLogout = () => { clearSession(); navigate("/login"); };
@@ -1086,7 +1086,7 @@ export default function Admin() {
           </div>
           <div className="hidden md:block overflow-hidden">
             <p className="text-xs font-black text-[#004D40] leading-tight">{t("لوحة التحكم","Admin Panel")}</p>
-            <p className="text-[10px] text-[#004D40]/30">{t("المدينة الرقمية","Digital City")}</p>
+            <p className="text-[10px] text-[#66BB6A] font-bold">{session?.name ?? "Admin"}</p>
           </div>
         </div>
 

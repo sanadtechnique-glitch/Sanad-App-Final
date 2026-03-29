@@ -213,6 +213,10 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
           setError("اسم المستخدم غير صحيح · Identifiant incorrect");
           return;
         }
+        if (password.trim() !== "Abc1234") {
+          setError("كلمة المرور غير صحيحة · Mot de passe incorrect");
+          return;
+        }
         setSession({ role: "admin", name: "Admin" });
         navigate("/admin");
         return;
