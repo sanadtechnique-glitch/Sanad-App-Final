@@ -63,6 +63,14 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
     direction="rtl"
   >سـد</text>
 
+  <!-- Dot above the pin -->
+  <circle
+    cx="${pinCX}"
+    cy="${pinCY - 9 * (pinSize / 24) - 10}"
+    r="5.5"
+    fill="#2E7D32"
+  />
+
   <!-- Pin icon exactly where ن was -->
   ${pinPath(pinCX, pinCY, pinSize)}
 
