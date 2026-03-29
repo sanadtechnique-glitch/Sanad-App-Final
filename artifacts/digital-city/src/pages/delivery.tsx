@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
+import { getSession, clearSession } from "@/lib/auth";
 import { Truck, CheckCircle, MapPin, RefreshCw, ChevronRight, MessageCircle, LogOut, Check, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -28,8 +30,17 @@ export default function DeliveryDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [, navigate] = useLocation();
+
   useEffect(() => {
-    get<Staff[]>("/admin/delivery-staff").then(setStaff).catch(() => {});
+    get<Staff[]>("/admin/delivery-staff").then(list => {
+      setStaff(list);
+      const session = getSession();
+      if (session?.role === "delivery" && session.staffId) {
+        const found = list.find(s => s.id === session.staffId);
+        if (found) selectStaff(found);
+      }
+    }).catch(() => {});
   }, []);
 
   const loadOrders = useCallback(async (silent = false) => {
@@ -66,8 +77,10 @@ export default function DeliveryDashboard() {
   };
 
   const logout = () => {
+    clearSession();
     setSelected(null); setOrders([]);
     if (pollRef.current) clearInterval(pollRef.current);
+    navigate("/login");
   };
 
   /* ── Staff selection screen ── */

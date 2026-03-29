@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
+import { getSession, clearSession } from "@/lib/auth";
 import {
   LayoutDashboard, Package, Tag, Users, ShoppingBag,
   Truck, Map, Megaphone, RefreshCw, Plus, Pencil, Trash2,
@@ -1059,7 +1061,14 @@ export default function Admin() {
   const { lang, t, isRTL } = useLang();
   const [active, setActive] = useState<Section>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const adminLogout = () => {};
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    const s = getSession();
+    if (!s || s.role !== "admin") navigate("/login");
+  }, []);
+
+  const adminLogout = () => { clearSession(); navigate("/login"); };
 
   return (
     <div className="min-h-screen bg-background flex" dir={isRTL ? "rtl" : "ltr"}>

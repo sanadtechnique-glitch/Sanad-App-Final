@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
+import { getSession, clearSession } from "@/lib/auth";
 import {
   Power, Clock, Truck, Star, RefreshCw, MessageCircle, ChevronRight,
   Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon,
@@ -39,8 +41,17 @@ export default function ProviderDashboard() {
   const [tab, setTab] = useState<"pending" | "all">("pending");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [, navigate] = useLocation();
+
   useEffect(() => {
-    get<Supplier[]>("/admin/suppliers").then(setProviders).catch(() => {});
+    get<Supplier[]>("/admin/suppliers").then(list => {
+      setProviders(list);
+      const session = getSession();
+      if (session?.role === "provider" && session.supplierId) {
+        const found = list.find(s => s.id === session.supplierId);
+        if (found) selectProvider(found);
+      }
+    }).catch(() => {});
   }, []);
 
   const loadOrders = useCallback(async (provider: Supplier, silent = false) => {
@@ -90,8 +101,10 @@ export default function ProviderDashboard() {
   };
 
   const logout = () => {
+    clearSession();
     setSelected(null); setOrders([]); setPendingCount(0);
     if (pollRef.current) clearInterval(pollRef.current);
+    navigate("/login");
   };
 
   const openWhatsApp = (phone?: string) => {
