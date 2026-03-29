@@ -4,15 +4,18 @@ import { readFileSync, writeFileSync } from "fs";
 const font = readFileSync("/tmp/Cairo.ttf");
 
 const W = 220;
-const H = 235;
+const H = 230;
 
-// Map pin (Lucide MapPin 24x24 viewBox).
-// The tip of the pin is at the bottom of the 24x24 path (≈ y=22).
-// We translate so the tip lands at (cx, cy).
-function pinPath(cx, cy, pinSize) {
+// Map pin (Lucide 24×24 viewBox).
+// pinCenterY  = y of the circle (the "dot" part at the top of the pin).
+// The tip extends downward below pinCenterY.
+function pinPath(cx, pinCenterY, pinSize) {
   const s = pinSize / 24;
+  // In the 24×24 path the circle center is at y=9, tip at y≈22.
+  // We place the circle center at pinCenterY:
+  //   transform y = pinCenterY - 9*s
   const tx = cx - 12 * s;
-  const ty = cy - 22 * s;
+  const ty = pinCenterY - 9 * s;
   return `
     <g transform="translate(${tx.toFixed(2)}, ${ty.toFixed(2)}) scale(${s.toFixed(4)})">
       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
@@ -22,21 +25,27 @@ function pinPath(cx, cy, pinSize) {
   `;
 }
 
-// Layout:
-//   Pin: large, tip touches the top of the noon letter
-//   Arabic "سـد" (dotless noon): baseline at textY
-//   Latin "Sanad": below Arabic text
+// ── Layout ────────────────────────────────────────────────
+// Text "سـد" is in the UPPER area.
+// The map pin sits BELOW the noon letter exactly where its dot used to be.
+//
+// At font-size 64, Cairo:
+//   baseline  ≈ textY
+//   cap-top   ≈ textY − 44
+//   dot below noon ≈ textY + 14   (noon dot is ~14 px below baseline)
+//
+// Noon letter (ن, middle of سـد in RTL display):
+//   Word width at 64px ≈ 120 px, centered at W/2=110
+//   RTL order:  س (right) → ن (middle) → د (left)
+//   ن center x  ≈ 110 + 10 = 120  (noon sits right-of-center)
 
-const pinSize  = 76;          // bigger pin
-const pinCX    = W / 2 + 2;  // centered (noon is roughly central in سـد)
+const fontSize   = 64;
+const textY      = 130;           // Arabic text baseline
+const dotX       = 120;           // x center of noon letter's dot
+const dotY       = textY + 16;    // y of where noon dot would be
 
-// Arabic text baseline — keep in lower half
-const textY    = 188;
-// Cap-height of Cairo at size 62 ≈ 43px → top of letters ≈ textY - 43 = 145
-// We want pin tip just 4px above letter tops → pinTipY ≈ 141
-const pinTipY  = 140;
-
-const sanadY   = textY + 26;  // "Sanad" sits just below Arabic text
+const pinSize    = 60;            // large but proportional — circle ≈ 15 px radius
+const sanadY     = dotY + (pinSize * 13 / 24) + 22;  // below pin tip
 
 const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
@@ -44,21 +53,20 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
   <!-- Cream background -->
   <rect x="0" y="0" width="${W}" height="${H}" rx="28" ry="28" fill="#FFF3E0"/>
 
-  <!-- Map pin — tip almost touching top of noon letter -->
-  ${pinPath(pinCX, pinTipY, pinSize)}
-
-  <!-- Arabic brand name (dotless noon U+06BA) -->
+  <!-- Arabic brand name (dotless noon U+06BA) — dot removed, pin below -->
   <text
     x="${W / 2}"
     y="${textY}"
     text-anchor="middle"
-    dominant-baseline="auto"
     font-family="Cairo, sans-serif"
     font-weight="900"
-    font-size="62"
+    font-size="${fontSize}"
     fill="#2E7D32"
     direction="rtl"
   >س&#x06BA;د</text>
+
+  <!-- Map pin replacing the noon dot -->
+  ${pinPath(dotX, dotY, pinSize)}
 
   <!-- Latin sub-name -->
   <text
