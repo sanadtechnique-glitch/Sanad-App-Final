@@ -18,7 +18,7 @@ interface Supplier {
 }
 
 const CATS = [
-  { id: "all",        ar: "الكل",      fr: "Tous",        icon: null,         gradient: "from-[#66BB6A]/20 to-[#8B7329]/10", iconColor: "text-[#66BB6A]",  border: "hover:border-[#66BB6A]/30" },
+  { id: "all",        ar: "الكل",      fr: "Tous",        icon: null,         gradient: "from-[#2E7D32]/20 to-[#8B7329]/10", iconColor: "text-[#2E7D32]",  border: "hover:border-[#2E7D32]/30" },
   { id: "restaurant", ar: "مطاعم",     fr: "Restaurants", icon: Utensils,     gradient: "from-orange-500/20 to-red-500/10",   iconColor: "text-orange-400", border: "hover:border-orange-500/30" },
   { id: "pharmacy",   ar: "صيدلية",    fr: "Pharmacie",   icon: Pill,         gradient: "from-emerald-500/20 to-teal-500/10", iconColor: "text-emerald-400",border: "hover:border-emerald-500/30" },
   { id: "lawyer",     ar: "محامي",     fr: "Avocat",      icon: Scale,        gradient: "from-amber-500/20 to-yellow-500/10", iconColor: "text-amber-400",  border: "hover:border-amber-500/30" },
@@ -34,9 +34,9 @@ function StarRow({ rating }: { rating?: number | null }) {
   return (
     <span className="flex items-center gap-0.5">
       {[1,2,3,4,5].map(i => (
-        <Star key={i} size={11} className={i <= r ? "text-[#66BB6A] fill-[#66BB6A]" : "text-[#66BB6A]/15 fill-white/15"} />
+        <Star key={i} size={11} className={i <= r ? "text-[#2E7D32] fill-[#2E7D32]" : "text-[#2E7D32]/15 fill-white/15"} />
       ))}
-      {rating != null && <span className="ml-1.5 text-xs text-[#66BB6A]/40 font-mono tabular-nums">{rating.toFixed(1)}</span>}
+      {rating != null && <span className="ml-1.5 text-xs text-[#2E7D32]/40 font-mono tabular-nums">{rating.toFixed(1)}</span>}
     </span>
   );
 }
@@ -87,15 +87,15 @@ export default function Services() {
         {/* ── Header ── */}
         <div className="flex items-center gap-4 mb-8">
           <Link href="/">
-            <div className="w-11 h-11 rounded-2xl glass-panel border border-[#66BB6A]/10 flex items-center justify-center hover:bg-[#66BB6A]/10 hover:border-[#66BB6A]/30 transition-all cursor-pointer">
-              <ChevronRight size={18} className={cn("text-[#66BB6A]/60", !isRTL && "rotate-180")} />
+            <div className="w-11 h-11 rounded-2xl glass-panel border border-[#2E7D32]/10 flex items-center justify-center hover:bg-[#2E7D32]/10 hover:border-[#2E7D32]/30 transition-all cursor-pointer">
+              <ChevronRight size={18} className={cn("text-[#2E7D32]/60", !isRTL && "rotate-180")} />
             </div>
           </Link>
           <div>
-            <h1 className="text-3xl font-black text-[#66BB6A] leading-tight">
+            <h1 className="text-3xl font-black text-[#2E7D32] leading-tight">
               {t("مقدمو الخدمات", "Prestataires")}
             </h1>
-            <p className="text-[#66BB6A]/30 text-sm mt-0.5 font-medium">
+            <p className="text-[#2E7D32]/30 text-sm mt-0.5 font-medium">
               {t("اختر الخدمة المناسبة لك", "Choisissez votre prestataire")}
             </p>
           </div>
@@ -111,8 +111,8 @@ export default function Services() {
                 className={cn(
                   "flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm border transition-all duration-300",
                   isAct
-                    ? "bg-[#66BB6A] text-black border-[#66BB6A] shadow-[0_0_22px_rgba(102,187,106,0.35)]"
-                    : "bg-[#66BB6A]/5 text-[#66BB6A]/50 border-[#66BB6A]/10 hover:text-[#66BB6A] hover:border-[#66BB6A]/25"
+                    ? "bg-[#2E7D32] text-black border-[#2E7D32] shadow-[0_0_22px_rgba(46,125,50,0.35)]"
+                    : "bg-[#2E7D32]/5 text-[#2E7D32]/50 border-[#2E7D32]/10 hover:text-[#2E7D32] hover:border-[#2E7D32]/25"
                 )}>
                 {Icon && <Icon size={14} className={isAct ? "text-black" : cat.iconColor} />}
                 <span>{lang === "ar" ? cat.ar : cat.fr}</span>
@@ -125,7 +125,7 @@ export default function Services() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {[1,2,3,4,5,6].map(i => (
-              <div key={i} className="glass-panel rounded-3xl h-56 animate-pulse border border-[#66BB6A]/5"
+              <div key={i} className="glass-panel rounded-3xl h-56 animate-pulse border border-[#2E7D32]/5"
                 style={{ animationDelay: `${i * 60}ms` }} />
             ))}
           </div>
@@ -134,16 +134,16 @@ export default function Services() {
             <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
               <AlertTriangle size={32} className="text-red-400" />
             </div>
-            <h3 className="text-xl font-black text-[#66BB6A] mb-2">{t("حدث خطأ", "Erreur de chargement")}</h3>
-            <p className="text-[#66BB6A]/30 text-sm">{t("حاول مرة أخرى", "Veuillez réessayer")}</p>
+            <h3 className="text-xl font-black text-[#2E7D32] mb-2">{t("حدث خطأ", "Erreur de chargement")}</h3>
+            <p className="text-[#2E7D32]/30 text-sm">{t("حاول مرة أخرى", "Veuillez réessayer")}</p>
           </div>
         ) : suppliers.length === 0 ? (
-          <div className="glass-panel rounded-3xl p-14 text-center flex flex-col items-center border border-[#66BB6A]/5 mt-4">
-            <div className="w-20 h-20 rounded-full bg-[#66BB6A]/10 flex items-center justify-center mb-4 border border-[#66BB6A]/20">
-              <Star size={32} className="text-[#66BB6A]/50" />
+          <div className="glass-panel rounded-3xl p-14 text-center flex flex-col items-center border border-[#2E7D32]/5 mt-4">
+            <div className="w-20 h-20 rounded-full bg-[#2E7D32]/10 flex items-center justify-center mb-4 border border-[#2E7D32]/20">
+              <Star size={32} className="text-[#2E7D32]/50" />
             </div>
-            <h3 className="text-xl font-black text-[#66BB6A] mb-2">{t("لا توجد نتائج", "Aucun résultat")}</h3>
-            <p className="text-[#66BB6A]/30 text-sm">{t("جرّب فئة أخرى", "Essayez une autre catégorie")}</p>
+            <h3 className="text-xl font-black text-[#2E7D32] mb-2">{t("لا توجد نتائج", "Aucun résultat")}</h3>
+            <p className="text-[#2E7D32]/30 text-sm">{t("جرّب فئة أخرى", "Essayez une autre catégorie")}</p>
           </div>
         ) : (
           <AnimatePresence mode="wait">
@@ -164,18 +164,18 @@ export default function Services() {
                         "relative rounded-[15px] p-5 flex flex-col h-full group border",
                         "card-hover",
                         avail
-                          ? "border-[#66BB6A]/30 cursor-pointer"
-                          : "border-[#66BB6A]/5 cursor-not-allowed opacity-55"
+                          ? "border-[#2E7D32]/30 cursor-pointer"
+                          : "border-[#2E7D32]/5 cursor-not-allowed opacity-55"
                       )} style={{ background: "#FFFDE7" }}>
                         {/* Gold shimmer on hover */}
                         {avail && (
                           <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                            style={{ background: "linear-gradient(135deg, rgba(102,187,106,0.04) 0%, transparent 60%)" }} />
+                            style={{ background: "linear-gradient(135deg, rgba(46,125,50,0.04) 0%, transparent 60%)" }} />
                         )}
 
                         {/* Top row: icon + status */}
                         <div className="flex justify-between items-start mb-4">
-                          <div className={cn("rounded-2xl flex items-center justify-center w-12 h-12 bg-gradient-to-br border border-[#66BB6A]/8", c.gradient)}>
+                          <div className={cn("rounded-2xl flex items-center justify-center w-12 h-12 bg-gradient-to-br border border-[#2E7D32]/8", c.gradient)}>
                             <Icon size={22} className={c.iconColor} />
                           </div>
                           <div className="flex flex-col items-end gap-1.5">
@@ -202,21 +202,21 @@ export default function Services() {
                         </div>
 
                         {/* Name */}
-                        <h3 className="text-lg font-black text-[#66BB6A] mb-0.5 leading-snug group-hover:text-[#66BB6A] transition-colors duration-300">
+                        <h3 className="text-lg font-black text-[#2E7D32] mb-0.5 leading-snug group-hover:text-[#2E7D32] transition-colors duration-300">
                           {lang === "ar" ? s.nameAr : (s.name || s.nameAr)}
                         </h3>
                         {lang === "fr" && s.name && (
-                          <p className="text-xs text-[#66BB6A]/20 mb-1.5 font-medium">{s.nameAr}</p>
+                          <p className="text-xs text-[#2E7D32]/20 mb-1.5 font-medium">{s.nameAr}</p>
                         )}
 
                         {/* Description */}
-                        <p className="text-sm text-[#66BB6A]/40 line-clamp-2 mb-3 flex-1 leading-relaxed">
+                        <p className="text-sm text-[#2E7D32]/40 line-clamp-2 mb-3 flex-1 leading-relaxed">
                           {lang === "ar" ? s.descriptionAr : (s.description || s.descriptionAr)}
                         </p>
 
                         {/* Address */}
-                        <div className="flex items-center gap-1.5 text-xs text-[#66BB6A]/25 mb-3">
-                          <MapPin size={11} className="text-[#66BB6A]/50 flex-shrink-0" />
+                        <div className="flex items-center gap-1.5 text-xs text-[#2E7D32]/25 mb-3">
+                          <MapPin size={11} className="text-[#2E7D32]/50 flex-shrink-0" />
                           <span className="truncate">{s.address}</span>
                         </div>
 
@@ -225,12 +225,12 @@ export default function Services() {
 
                         {/* CTA row */}
                         {avail && (
-                          <div className="mt-4 pt-3.5 border-t border-[#66BB6A]/5 flex items-center justify-between">
-                            <span className="text-xs font-black text-[#66BB6A]/60 tracking-wide">
+                          <div className="mt-4 pt-3.5 border-t border-[#2E7D32]/5 flex items-center justify-between">
+                            <span className="text-xs font-black text-[#2E7D32]/60 tracking-wide">
                               {s.category === "hotel" ? t("احجز الآن", "Réserver") : t("اطلب الآن", "Commander")}
                             </span>
-                            <div className="w-8 h-8 rounded-full border border-[#66BB6A]/25 bg-[#66BB6A]/8 flex items-center justify-center group-hover:bg-[#66BB6A] group-hover:border-[#66BB6A] transition-all duration-300">
-                              <ChevronRight size={14} className={cn("text-[#66BB6A] group-hover:text-black transition-colors", isRTL && "rotate-180")} />
+                            <div className="w-8 h-8 rounded-full border border-[#2E7D32]/25 bg-[#2E7D32]/8 flex items-center justify-center group-hover:bg-[#2E7D32] group-hover:border-[#2E7D32] transition-all duration-300">
+                              <ChevronRight size={14} className={cn("text-[#2E7D32] group-hover:text-black transition-colors", isRTL && "rotate-180")} />
                             </div>
                           </div>
                         )}

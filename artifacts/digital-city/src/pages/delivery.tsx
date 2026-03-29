@@ -95,34 +95,34 @@ export default function DeliveryDashboard() {
   /* ── Staff selection screen ── */
   if (!selected) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#FF8C00" }} dir={isRTL ? "rtl" : "ltr"}>
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#FFA500" }} dir={isRTL ? "rtl" : "ltr"}>
         <div className="w-full max-w-sm">
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-[#66BB6A]/15 border-2 border-[#66BB6A]/40 flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_-8px_rgba(102,187,106,0.4)]">
-              <Truck size={26} className="text-[#66BB6A]" />
+            <div className="w-16 h-16 rounded-2xl bg-[#2E7D32]/15 border-2 border-[#2E7D32]/40 flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_-8px_rgba(46,125,50,0.4)]">
+              <Truck size={26} className="text-[#2E7D32]" />
             </div>
-            <h1 className="text-3xl font-black text-[#66BB6A] mb-2">{t("لوحة التوصيل", "Tableau Livreur")}</h1>
-            <p className="text-[#66BB6A]/40">{t("اختر اسمك للدخول", "Sélectionnez votre profil")}</p>
+            <h1 className="text-3xl font-black text-[#2E7D32] mb-2">{t("لوحة التوصيل", "Tableau Livreur")}</h1>
+            <p className="text-[#2E7D32]/40">{t("اختر اسمك للدخول", "Sélectionnez votre profil")}</p>
           </motion.div>
           <div className="space-y-2">
             {staff.map((s, i) => (
               <motion.button key={s.id}
                 initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
                 onClick={() => selectStaff(s)}
-                className="w-full rounded-[15px] p-4 flex items-center justify-between gap-3 border border-[#66BB6A]/30 hover:border-[#66BB6A]/40 transition-all group card-hover"
+                className="w-full rounded-[15px] p-4 flex items-center justify-between gap-3 border border-[#2E7D32]/30 hover:border-[#2E7D32]/40 transition-all group card-hover"
                 style={{ background: "#FFFDE7" }}>
                 <div className="flex items-center gap-3">
                   <div className={cn("w-2.5 h-2.5 rounded-full", s.isAvailable ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" : "bg-red-400")} />
                   <div className="text-right">
-                    <p className="font-black text-[#66BB6A] group-hover:text-[#66BB6A] transition-colors">{s.nameAr}</p>
-                    {s.zone && <p className="text-xs text-[#66BB6A]/30">{s.zone}</p>}
+                    <p className="font-black text-[#2E7D32] group-hover:text-[#2E7D32] transition-colors">{s.nameAr}</p>
+                    {s.zone && <p className="text-xs text-[#2E7D32]/30">{s.zone}</p>}
                   </div>
                 </div>
-                <ChevronRight size={16} className={cn("text-[#66BB6A]/20 group-hover:text-[#66BB6A]", isRTL && "rotate-180")} />
+                <ChevronRight size={16} className={cn("text-[#2E7D32]/20 group-hover:text-[#2E7D32]", isRTL && "rotate-180")} />
               </motion.button>
             ))}
             {staff.length === 0 && (
-              <p className="text-center text-[#66BB6A]/20 py-8">{t("لم يتم إضافة سائقين بعد", "Aucun livreur configuré")}</p>
+              <p className="text-center text-[#2E7D32]/20 py-8">{t("لم يتم إضافة سائقين بعد", "Aucun livreur configuré")}</p>
             )}
           </div>
         </div>
@@ -135,44 +135,44 @@ export default function DeliveryDashboard() {
 
   /* ── Delivery Dashboard ── */
   return (
-    <div className="min-h-screen p-4 pb-8" style={{ background: "#FF8C00" }} dir={isRTL ? "rtl" : "ltr"}>
+    <div className="min-h-screen p-4 pb-8" style={{ background: "#FFA500" }} dir={isRTL ? "rtl" : "ltr"}>
       <div className="max-w-2xl mx-auto space-y-4">
 
         {/* Header */}
-        <div className="rounded-[15px] p-5 border border-[#66BB6A]/30" style={{ background: "#FFFDE7" }}>
+        <div className="rounded-[15px] p-5 border border-[#2E7D32]/30" style={{ background: "#FFFDE7" }}>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-xl font-black text-[#66BB6A]">{selected.nameAr}</h1>
-              <p className="text-xs text-[#66BB6A]/50">{selected.phone}</p>
-              {selected.zone && <p className="text-xs text-[#66BB6A]/30 mt-0.5">{selected.zone}</p>}
+              <h1 className="text-xl font-black text-[#2E7D32]">{selected.nameAr}</h1>
+              <p className="text-xs text-[#2E7D32]/50">{selected.phone}</p>
+              {selected.zone && <p className="text-xs text-[#2E7D32]/30 mt-0.5">{selected.zone}</p>}
             </div>
             <div className="flex gap-2">
               <button onClick={() => loadOrders(true)} disabled={refreshing}
-                className="p-2.5 rounded-xl border border-[#66BB6A]/10 text-[#66BB6A]/40 hover:text-[#66BB6A] transition-all">
+                className="p-2.5 rounded-xl border border-[#2E7D32]/10 text-[#2E7D32]/40 hover:text-[#2E7D32] transition-all">
                 <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
               </button>
               <button onClick={logout}
                 className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-black text-sm transition-all"
-                style={{ background: "#66BB6A", color: "#000" }}
+                style={{ background: "#2E7D32", color: "#000" }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#4CAF50")}
-                onMouseLeave={e => (e.currentTarget.style.background = "#66BB6A")}>
+                onMouseLeave={e => (e.currentTarget.style.background = "#2E7D32")}>
                 <LogOut size={14} />
                 <span>{t("خروج", "Déco.")}</span>
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#66BB6A]/5">
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#2E7D32]/5">
             <div className="text-center">
               <p className="text-2xl font-black text-blue-400">{poolOrders.length}</p>
-              <p className="text-xs text-[#66BB6A]/30">{t("متاح", "Disponible")}</p>
+              <p className="text-xs text-[#2E7D32]/30">{t("متاح", "Disponible")}</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-black text-[#66BB6A]">{myOrders.length}</p>
-              <p className="text-xs text-[#66BB6A]/30">{t("في الطريق", "En route")}</p>
+              <p className="text-2xl font-black text-[#2E7D32]">{myOrders.length}</p>
+              <p className="text-xs text-[#2E7D32]/30">{t("في الطريق", "En route")}</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-black text-emerald-400">{orders.filter(o => o.status === "delivered").length}</p>
-              <p className="text-xs text-[#66BB6A]/30">{t("منجز", "Livré")}</p>
+              <p className="text-xs text-[#2E7D32]/30">{t("منجز", "Livré")}</p>
             </div>
           </div>
         </div>
@@ -180,25 +180,25 @@ export default function DeliveryDashboard() {
         {/* My active deliveries */}
         {myOrders.length > 0 && (
           <div>
-            <p className="text-xs font-black text-[#66BB6A] uppercase tracking-widest mb-3">{t("في التوصيل الآن", "En cours de livraison")}</p>
+            <p className="text-xs font-black text-[#2E7D32] uppercase tracking-widest mb-3">{t("في التوصيل الآن", "En cours de livraison")}</p>
             <div className="space-y-3">
               {myOrders.map(order => (
                 <motion.div key={order.id} layout
-                  className="rounded-[15px] border border-[#66BB6A]/25 overflow-hidden"
+                  className="rounded-[15px] border border-[#2E7D32]/25 overflow-hidden"
                   style={{ background: "#FFFDE7" }}>
-                  <div className="px-4 py-2 border-b border-[#66BB6A]/10 flex items-center justify-between" style={{ background: "rgba(102,187,106,0.05)" }}>
-                    <span className="font-mono text-xs text-[#66BB6A]/25">#{order.id.toString().padStart(4, "0")}</span>
-                    <span className="text-xs font-black text-[#66BB6A]">{t("في الطريق", "En route")}</span>
+                  <div className="px-4 py-2 border-b border-[#2E7D32]/10 flex items-center justify-between" style={{ background: "rgba(46,125,50,0.05)" }}>
+                    <span className="font-mono text-xs text-[#2E7D32]/25">#{order.id.toString().padStart(4, "0")}</span>
+                    <span className="text-xs font-black text-[#2E7D32]">{t("في الطريق", "En route")}</span>
                   </div>
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-black text-[#66BB6A]">{order.customerName}</p>
+                        <p className="font-black text-[#2E7D32]">{order.customerName}</p>
                         <div className="flex items-center gap-1.5 mt-1">
-                          <MapPin size={10} className="text-[#66BB6A]/40" />
-                          <p className="text-sm text-[#66BB6A]/40">{order.customerAddress}</p>
+                          <MapPin size={10} className="text-[#2E7D32]/40" />
+                          <p className="text-sm text-[#2E7D32]/40">{order.customerAddress}</p>
                         </div>
-                        <p className="text-xs text-[#66BB6A]/50 mt-1">{order.serviceProviderName}</p>
+                        <p className="text-xs text-[#2E7D32]/50 mt-1">{order.serviceProviderName}</p>
                         {order.deliveryFee && order.deliveryFee > 0 && (
                           <p className="text-sm text-emerald-400 font-bold mt-1">{t("رسوم", "Frais")}: {order.deliveryFee} TND</p>
                         )}
@@ -213,7 +213,7 @@ export default function DeliveryDashboard() {
 
                     {/* GPS Map */}
                     <Suspense fallback={
-                      <div className="mt-3 h-10 rounded-[12px] border border-[#66BB6A]/20 flex items-center justify-center gap-2 text-[#66BB6A]/40 text-xs font-bold" style={{ background: "#FFFDE7" }}>
+                      <div className="mt-3 h-10 rounded-[12px] border border-[#2E7D32]/20 flex items-center justify-center gap-2 text-[#2E7D32]/40 text-xs font-bold" style={{ background: "#FFFDE7" }}>
                         <Map size={13} />{t("تحميل الخريطة...", "Chargement carte...")}
                       </div>
                     }>
@@ -246,12 +246,12 @@ export default function DeliveryDashboard() {
 
           {loading ? (
             <div className="flex justify-center py-12">
-              <div className="w-7 h-7 border-[3px] border-[#66BB6A] border-t-transparent rounded-full animate-spin" />
+              <div className="w-7 h-7 border-[3px] border-[#2E7D32] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : poolOrders.length === 0 ? (
-            <div className="text-center py-12 rounded-[15px] border border-[#66BB6A]/30" style={{ background: "#FFFDE7" }}>
-              <Package size={36} className="text-[#66BB6A]/10 mx-auto mb-3" />
-              <p className="text-[#66BB6A]/25 font-bold">{t("لا توجد طلبات جاهزة للتوصيل", "Aucune commande à livrer")}</p>
+            <div className="text-center py-12 rounded-[15px] border border-[#2E7D32]/30" style={{ background: "#FFFDE7" }}>
+              <Package size={36} className="text-[#2E7D32]/10 mx-auto mb-3" />
+              <p className="text-[#2E7D32]/25 font-bold">{t("لا توجد طلبات جاهزة للتوصيل", "Aucune commande à livrer")}</p>
             </div>
           ) : (
             <AnimatePresence>
@@ -262,25 +262,25 @@ export default function DeliveryDashboard() {
                     style={{ background: "#FFFDE7" }}>
                     <div className="px-4 py-2 border-b border-blue-400/10 flex items-center justify-between" style={{ background: "rgba(96,165,250,0.04)" }}>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-[#66BB6A]/25">#{order.id.toString().padStart(4, "0")}</span>
-                        <span className="text-xs text-[#66BB6A]/20">{timeAgo(order.createdAt, lang)}</span>
+                        <span className="font-mono text-xs text-[#2E7D32]/25">#{order.id.toString().padStart(4, "0")}</span>
+                        <span className="text-xs text-[#2E7D32]/20">{timeAgo(order.createdAt, lang)}</span>
                       </div>
                       <span className="text-xs font-black text-blue-400">{t("جاهز", "Prêt")}</span>
                     </div>
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-black text-[#66BB6A]">{order.customerName}</p>
+                          <p className="font-black text-[#2E7D32]">{order.customerName}</p>
                           <div className="flex items-center gap-1.5 mt-1">
                             <MapPin size={10} className="text-blue-400/40" />
-                            <p className="text-sm text-[#66BB6A]/40 truncate">{order.customerAddress}</p>
+                            <p className="text-sm text-[#2E7D32]/40 truncate">{order.customerAddress}</p>
                           </div>
-                          <p className="text-xs text-[#66BB6A]/50 mt-1">{order.serviceProviderName}</p>
+                          <p className="text-xs text-[#2E7D32]/50 mt-1">{order.serviceProviderName}</p>
                           {order.deliveryFee && order.deliveryFee > 0 && (
                             <p className="text-sm text-emerald-400 font-bold mt-1">{t("رسوم", "Frais")}: {order.deliveryFee} TND</p>
                           )}
                           {order.notes && (
-                            <p className="text-xs text-[#66BB6A]/25 mt-1 line-clamp-1">{order.notes}</p>
+                            <p className="text-xs text-[#2E7D32]/25 mt-1 line-clamp-1">{order.notes}</p>
                           )}
                         </div>
                         {order.customerPhone && (
@@ -291,7 +291,7 @@ export default function DeliveryDashboard() {
                         )}
                       </div>
                       <button onClick={() => updateStatus(order.id, "in_delivery", selected.id)}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#66BB6A]/10 text-[#66BB6A] border border-[#66BB6A]/20 font-black text-sm hover:bg-[#66BB6A]/20 transition-all">
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#2E7D32]/10 text-[#2E7D32] border border-[#2E7D32]/20 font-black text-sm hover:bg-[#2E7D32]/20 transition-all">
                         <Truck size={15} />{t("تسلم هذا الطلب", "Prendre en charge")}
                       </button>
                     </div>

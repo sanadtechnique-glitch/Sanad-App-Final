@@ -18,7 +18,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ## Project: سند · Sanad
 
-A premium delivery app for Ben Guerdane. **App name**: سند (Sanad). **Slogan**: "سندك في التوصيل.. لباب الدار". **Theme**: Vibrant Orange (#FF8C00) page/nav backgrounds, Light Green (#66BB6A) text/icons, Orange→Yellow gradient (#FF8C00→#FFD700) action buttons with bold green text, White (#FFFFFF) input backgrounds with Orange (#FF8C00) borders, Yellow (#FFD700) tab indicators, Cream (#FFFDE7) cards. Arabic/French bilingual RTL.
+A premium delivery app for Ben Guerdane. **App name**: سند (Sanad). **Slogan**: "سندك في التوصيل.. لباب الدار". **Theme**: Golden Orange (#FFA500) page/nav backgrounds, Forest Green (#2E7D32) text/icons/slogans, Orange→Yellow gradient (#FFA500→#FFD700) action buttons with bold dark-green text, White (#FFFFFF) input backgrounds with Orange (#FFA500) borders, Yellow (#FFD700) tab indicators. **Logo**: Arabic "سند" in orange (#FFA500) with dark green map pin replacing ن's dot + "Sanad" with green map pin above 'n'. Arabic/French bilingual RTL.
 
 ### Architecture
 

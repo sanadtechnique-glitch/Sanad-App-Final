@@ -18,14 +18,14 @@ interface Staff      { id: number; name: string; nameAr: string; phone: string; 
 type ProfileOption = { value: Role; labelAr: string; labelFr: string; color: string };
 
 const LOGIN_PROFILES: ProfileOption[] = [
-  { value: "client",   labelAr: "عميل",       labelFr: "Client",      color: "#66BB6A" },
+  { value: "client",   labelAr: "عميل",       labelFr: "Client",      color: "#2E7D32" },
   { value: "provider", labelAr: "مزود خدمة",  labelFr: "Fournisseur", color: "#4CAF50" },
   { value: "delivery", labelAr: "سائق توصيل", labelFr: "Livreur",     color: "#388E3C" },
   { value: "admin",    labelAr: "مسؤول",       labelFr: "Admin",       color: "#1B5E20" },
 ];
 
 const SIGNUP_PROFILES: ProfileOption[] = [
-  { value: "client",   labelAr: "عميل",       labelFr: "Client",      color: "#66BB6A" },
+  { value: "client",   labelAr: "عميل",       labelFr: "Client",      color: "#2E7D32" },
   { value: "provider", labelAr: "مزود خدمة",  labelFr: "Fournisseur", color: "#4CAF50" },
   { value: "delivery", labelAr: "سائق توصيل", labelFr: "Livreur",     color: "#388E3C" },
 ];
@@ -76,7 +76,7 @@ const DEFAULT_DELIVERY_FEE = 5;
 // ─────────────────────────────────────────────────────────────────────────────
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label className="block text-[11px] font-black text-[#66BB6A]/50 uppercase tracking-widest mb-2">
+    <label className="block text-[11px] font-black text-[#2E7D32]/50 uppercase tracking-widest mb-2">
       {children}
     </label>
   );
@@ -93,16 +93,16 @@ function TextInput({
 }) {
   return (
     <div className="relative">
-      <Icon size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#66BB6A]/30" />
+      <Icon size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#2E7D32]/30" />
       <input
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full ps-10 pe-4 py-3.5 rounded-xl border text-[#66BB6A] font-bold outline-none transition-all placeholder:text-[#66BB6A]/20 text-right"
+        className="w-full ps-10 pe-4 py-3.5 rounded-xl border text-[#2E7D32] font-bold outline-none transition-all placeholder:text-[#2E7D32]/20 text-right"
         style={{
           background: "#FFFFFF",
-          borderColor: hasValue ? "#FF8C00" : "rgba(255,140,0,0.3)",
+          borderColor: hasValue ? "#FFA500" : "rgba(255,165,0,0.3)",
         }}
       />
     </div>
@@ -120,22 +120,22 @@ function PasswordInput({
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
-      <Lock size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#66BB6A]/30" />
+      <Lock size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#2E7D32]/30" />
       <input
         type={show ? "text" : "password"}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full ps-10 pe-11 py-3.5 rounded-xl border text-[#66BB6A] font-bold outline-none transition-all placeholder:text-[#66BB6A]/20 text-right"
+        className="w-full ps-10 pe-11 py-3.5 rounded-xl border text-[#2E7D32] font-bold outline-none transition-all placeholder:text-[#2E7D32]/20 text-right"
         style={{
           background: "#FFFFFF",
-          borderColor: hasValue ? "rgba(102,187,106,0.8)" : "rgba(102,187,106,0.18)",
+          borderColor: hasValue ? "rgba(46,125,50,0.8)" : "rgba(46,125,50,0.18)",
         }}
       />
       <button
         type="button"
         onClick={() => setShow(v => !v)}
-        className="absolute top-1/2 -translate-y-1/2 end-3.5 text-[#66BB6A]/30 hover:text-[#66BB6A]/60 transition-colors"
+        className="absolute top-1/2 -translate-y-1/2 end-3.5 text-[#2E7D32]/30 hover:text-[#2E7D32]/60 transition-colors"
       >
         {show ? <EyeOff size={15} /> : <Eye size={15} />}
       </button>
@@ -157,24 +157,24 @@ function RoleDropdown({
     <div className="relative">
       <ChevronDown
         size={15}
-        className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#66BB6A]/30 pointer-events-none"
+        className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#2E7D32]/30 pointer-events-none"
       />
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full ps-9 pe-4 py-3.5 rounded-xl border transition-all outline-none text-right font-bold text-[#66BB6A] flex items-center justify-between"
+        className="w-full ps-9 pe-4 py-3.5 rounded-xl border transition-all outline-none text-right font-bold text-[#2E7D32] flex items-center justify-between"
         style={{
           background: "#FFFFFF",
-          borderColor: open ? "#FF8C00" : "rgba(255,140,0,0.3)",
+          borderColor: open ? "#FFA500" : "rgba(255,165,0,0.3)",
         }}
       >
         <ChevronDown
           size={14}
-          className={cn("text-[#66BB6A]/25 transition-transform", open && "rotate-180")}
+          className={cn("text-[#2E7D32]/25 transition-transform", open && "rotate-180")}
         />
         <span>
           {selected.labelAr}
-          <span className="text-[#66BB6A]/30 font-normal"> · {selected.labelFr}</span>
+          <span className="text-[#2E7D32]/30 font-normal"> · {selected.labelFr}</span>
         </span>
       </button>
       <AnimatePresence>
@@ -185,7 +185,7 @@ function RoleDropdown({
             exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
             transition={{ duration: 0.14 }}
             className="absolute top-full mt-1 w-full rounded-xl border z-50 overflow-hidden shadow-xl"
-            style={{ background: "#FF8C00", borderColor: "rgba(102,187,106,0.3)" }}
+            style={{ background: "#FFA500", borderColor: "rgba(46,125,50,0.3)" }}
           >
             {options.map(p => (
               <button
@@ -194,12 +194,12 @@ function RoleDropdown({
                 onClick={() => { onChange(p.value); setOpen(false); }}
                 className={cn(
                   "w-full px-4 py-3 flex items-center justify-end gap-3 text-right transition-colors",
-                  value === p.value ? "bg-[#66BB6A]/6" : "hover:bg-[#66BB6A]/4"
+                  value === p.value ? "bg-[#2E7D32]/6" : "hover:bg-[#2E7D32]/4"
                 )}
               >
-                <span className="font-bold text-[#66BB6A] text-sm">
+                <span className="font-bold text-[#2E7D32] text-sm">
                   {p.labelAr}
-                  <span className="text-[#66BB6A]/30 font-normal"> · {p.labelFr}</span>
+                  <span className="text-[#2E7D32]/30 font-normal"> · {p.labelFr}</span>
                 </span>
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
               </button>
@@ -346,10 +346,10 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         disabled={!canSubmit}
         className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-black text-base transition-all disabled:opacity-30"
         style={{
-          background: "linear-gradient(135deg, #FF8C00, #FFD700)",
-          color: "#66BB6A",
+          background: "linear-gradient(135deg, #FFA500, #FFD700)",
+          color: "#2E7D32",
           textShadow: "0 1px 2px rgba(0,0,0,0.15)",
-          boxShadow: canSubmit ? "0 4px 20px rgba(255,140,0,0.45)" : "none",
+          boxShadow: canSubmit ? "0 4px 20px rgba(255,165,0,0.45)" : "none",
         }}
       >
         {loading ? (
@@ -366,7 +366,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       </button>
 
       {(role === "provider" || role === "delivery") && (
-        <p className="text-center text-[#66BB6A]/25 text-xs">
+        <p className="text-center text-[#2E7D32]/25 text-xs">
           {role === "provider"
             ? "أدخل اسمك كما هو مسجل في قائمة المزودين"
             : "أدخل اسمك كما هو مسجل في قائمة السائقين"}
@@ -519,13 +519,13 @@ function SignUpForm() {
       >
         <div
           className="w-16 h-16 rounded-full flex items-center justify-center"
-          style={{ background: "rgba(102,187,106,0.2)", border: "2px solid #66BB6A" }}
+          style={{ background: "rgba(46,125,50,0.2)", border: "2px solid #2E7D32" }}
         >
-          <CheckCircle size={32} className="text-[#66BB6A]" />
+          <CheckCircle size={32} className="text-[#2E7D32]" />
         </div>
-        <p className="font-black text-[#66BB6A] text-lg text-center">تم إنشاء الحساب!</p>
-        <p className="text-[#66BB6A]/40 text-sm text-center">Compte créé avec succès</p>
-        <div className="w-5 h-5 rounded-full border-2 border-[#66BB6A] border-t-transparent animate-spin mt-2" />
+        <p className="font-black text-[#2E7D32] text-lg text-center">تم إنشاء الحساب!</p>
+        <p className="text-[#2E7D32]/40 text-sm text-center">Compte créé avec succès</p>
+        <div className="w-5 h-5 rounded-full border-2 border-[#2E7D32] border-t-transparent animate-spin mt-2" />
       </motion.div>
     );
   }
@@ -543,12 +543,12 @@ function SignUpForm() {
           setOpen={setDropOpen}
         />
         {role === "provider" && (
-          <p className="text-[11px] text-[#66BB6A]/35 mt-1.5 text-right">
+          <p className="text-[11px] text-[#2E7D32]/35 mt-1.5 text-right">
             سيُضاف كمزود خدمة · Vous serez ajouté comme fournisseur
           </p>
         )}
         {role === "delivery" && (
-          <p className="text-[11px] text-[#66BB6A]/35 mt-1.5 text-right">
+          <p className="text-[11px] text-[#2E7D32]/35 mt-1.5 text-right">
             سيُضاف كسائق توصيل · Vous serez ajouté comme livreur
           </p>
         )}
@@ -558,19 +558,19 @@ function SignUpForm() {
       <div>
         <FieldLabel>المعتمدية · Délégation</FieldLabel>
         <div className="relative">
-          <MapPin size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#66BB6A]/30 pointer-events-none z-10" />
+          <MapPin size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#2E7D32]/30 pointer-events-none z-10" />
           <button
             type="button"
             onClick={() => { setDelegationOpen(o => !o); setDelegationSearch(""); }}
-            className="w-full ps-10 pe-4 py-3.5 rounded-xl border transition-all outline-none text-right font-bold text-[#66BB6A] flex items-center justify-between"
+            className="w-full ps-10 pe-4 py-3.5 rounded-xl border transition-all outline-none text-right font-bold text-[#2E7D32] flex items-center justify-between"
             style={{
               background: "#FFFFFF",
-              borderColor: delegationOpen ? "#FF8C00" : delegationName ? "rgba(255,140,0,0.8)" : "rgba(255,140,0,0.3)",
+              borderColor: delegationOpen ? "#FFA500" : delegationName ? "rgba(255,165,0,0.8)" : "rgba(255,165,0,0.3)",
             }}
           >
-            <ChevronDown size={14} className={cn("text-[#66BB6A]/25 transition-transform flex-shrink-0", delegationOpen && "rotate-180")} />
+            <ChevronDown size={14} className={cn("text-[#2E7D32]/25 transition-transform flex-shrink-0", delegationOpen && "rotate-180")} />
             <span className="truncate">
-              {delegationName || <span className="text-[#66BB6A]/30 font-normal">اختر منطقتك · Choisissez votre zone</span>}
+              {delegationName || <span className="text-[#2E7D32]/30 font-normal">اختر منطقتك · Choisissez votre zone</span>}
             </span>
           </button>
           <AnimatePresence>
@@ -581,20 +581,20 @@ function SignUpForm() {
                 exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
                 transition={{ duration: 0.14 }}
                 className="absolute top-full mt-1 w-full rounded-xl border z-50 shadow-2xl overflow-hidden"
-                style={{ background: "#FFFFFF", borderColor: "#FF8C00" }}
+                style={{ background: "#FFFFFF", borderColor: "#FFA500" }}
               >
                 {/* Search bar */}
-                <div className="px-3 py-2 border-b" style={{ borderColor: "rgba(255,140,0,0.3)", background: "#FF8C00" }}>
+                <div className="px-3 py-2 border-b" style={{ borderColor: "rgba(255,165,0,0.3)", background: "#FFA500" }}>
                   <div className="relative">
-                    <Search size={13} className="absolute top-1/2 -translate-y-1/2 start-2.5 text-[#66BB6A]/40 pointer-events-none" />
+                    <Search size={13} className="absolute top-1/2 -translate-y-1/2 start-2.5 text-[#2E7D32]/40 pointer-events-none" />
                     <input
                       type="text"
                       autoFocus
                       value={delegationSearch}
                       onChange={e => setDelegationSearch(e.target.value)}
                       placeholder="ابحث عن معتمديتك..."
-                      className="w-full ps-8 pe-3 py-2 rounded-lg text-sm font-bold text-[#66BB6A] outline-none placeholder:text-[#66BB6A]/30 text-right"
-                      style={{ background: "rgba(255,253,231,0.9)", border: "1px solid rgba(102,187,106,0.4)" }}
+                      className="w-full ps-8 pe-3 py-2 rounded-lg text-sm font-bold text-[#2E7D32] outline-none placeholder:text-[#2E7D32]/30 text-right"
+                      style={{ background: "rgba(255,253,231,0.9)", border: "1px solid rgba(46,125,50,0.4)" }}
                       onClick={e => e.stopPropagation()}
                     />
                   </div>
@@ -602,12 +602,12 @@ function SignUpForm() {
                 {/* Scrollable list grouped by governorate */}
                 <div className="max-h-56 overflow-y-auto">
                   {filteredDelegations.length === 0 && (
-                    <div className="px-4 py-4 text-sm text-[#66BB6A]/40 text-center">لا توجد نتائج</div>
+                    <div className="px-4 py-4 text-sm text-[#2E7D32]/40 text-center">لا توجد نتائج</div>
                   )}
                   {filteredDelegations.map(group => (
                     <div key={group.gov}>
-                      <div className="px-4 py-1.5 text-[10px] font-black text-[#66BB6A]/35 uppercase tracking-widest text-right sticky top-0"
-                           style={{ background: "rgba(255,140,0,0.12)" }}>
+                      <div className="px-4 py-1.5 text-[10px] font-black text-[#2E7D32]/35 uppercase tracking-widest text-right sticky top-0"
+                           style={{ background: "rgba(255,165,0,0.12)" }}>
                         ولاية {group.gov}
                       </div>
                       {group.delegations.map(d => (
@@ -618,11 +618,11 @@ function SignUpForm() {
                           className={cn(
                             "w-full px-5 py-2.5 flex items-center justify-between text-right transition-colors",
                             delegationName === d
-                              ? "bg-[#66BB6A]/15 text-[#66BB6A]"
-                              : "hover:bg-[#66BB6A]/5 text-[#66BB6A]/80"
+                              ? "bg-[#2E7D32]/15 text-[#2E7D32]"
+                              : "hover:bg-[#2E7D32]/5 text-[#2E7D32]/80"
                           )}
                         >
-                          <div className={cn("w-2 h-2 rounded-full flex-shrink-0", delegationName === d ? "bg-[#66BB6A]" : "bg-transparent")} />
+                          <div className={cn("w-2 h-2 rounded-full flex-shrink-0", delegationName === d ? "bg-[#2E7D32]" : "bg-transparent")} />
                           <span className="font-bold text-sm">{d}</span>
                         </button>
                       ))}
@@ -634,7 +634,7 @@ function SignUpForm() {
           </AnimatePresence>
         </div>
         {delegationName && (
-          <p className="text-[11px] text-[#66BB6A] font-bold mt-1.5 text-right flex items-center justify-end gap-1">
+          <p className="text-[11px] text-[#2E7D32] font-bold mt-1.5 text-right flex items-center justify-end gap-1">
             <MapPin size={10} />
             {delegationName}
           </p>
@@ -701,7 +701,7 @@ function SignUpForm() {
           {confirm.length > 0 && password.length > 0 && (
             <div className="absolute top-1/2 -translate-y-1/2 start-10 pointer-events-none">
               {confirm === password ? (
-                <CheckCircle size={14} className="text-[#66BB6A]" />
+                <CheckCircle size={14} className="text-[#2E7D32]" />
               ) : (
                 <AlertCircle size={14} className="text-red-400" />
               )}
@@ -721,10 +721,10 @@ function SignUpForm() {
         disabled={!canSubmit}
         className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-black text-base transition-all disabled:opacity-30 mt-1"
         style={{
-          background: "linear-gradient(135deg, #FF8C00, #FFD700)",
-          color: "#66BB6A",
+          background: "linear-gradient(135deg, #FFA500, #FFD700)",
+          color: "#2E7D32",
           textShadow: "0 1px 2px rgba(0,0,0,0.15)",
-          boxShadow: canSubmit ? "0 4px 20px rgba(255,140,0,0.45)" : "none",
+          boxShadow: canSubmit ? "0 4px 20px rgba(255,165,0,0.45)" : "none",
         }}
       >
         {loading ? (
@@ -740,7 +740,7 @@ function SignUpForm() {
         )}
       </button>
 
-      <p className="text-center text-[#66BB6A]/20 text-[11px]">
+      <p className="text-center text-[#2E7D32]/20 text-[11px]">
         Admin يُنشأ فقط من قِبل قاعدة البيانات · Admin created by DB only
       </p>
     </form>
@@ -756,7 +756,7 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-4"
-      style={{ background: "#FF8C00" }}
+      style={{ background: "#FFA500" }}
       dir="rtl"
     >
       {/* Background glow */}
@@ -764,7 +764,7 @@ export default function LoginPage() {
         className="fixed inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(102,187,106,0.07) 0%, transparent 70%)",
+            "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(46,125,50,0.07) 0%, transparent 70%)",
         }}
       />
 
@@ -779,15 +779,15 @@ export default function LoginPage() {
           className="rounded-[26px] border overflow-hidden"
           style={{
             background: "#FFFFFF",
-            borderColor: "#FF8C00",
+            borderColor: "#FFA500",
             boxShadow:
-              "0 0 60px -15px rgba(255,140,0,0.4), 0 8px 32px rgba(255,140,0,0.15)",
+              "0 0 60px -15px rgba(255,165,0,0.4), 0 8px 32px rgba(255,165,0,0.15)",
           }}
         >
           {/* ── Header ── */}
           <div
             className="px-8 pt-7 pb-5 border-b"
-            style={{ borderColor: "rgba(102,187,106,0.12)" }}
+            style={{ borderColor: "rgba(46,125,50,0.12)" }}
           >
             <div className="flex flex-col items-center gap-2">
               {/* Logo Image */}
@@ -795,7 +795,7 @@ export default function LoginPage() {
                 className="w-[108px] h-[108px] rounded-2xl overflow-hidden flex items-center justify-center p-1"
                 style={{
                   background: "rgba(255,253,231,1)",
-                  boxShadow: "0 6px 28px -6px rgba(255,140,0,0.6), 0 0 0 2.5px rgba(102,187,106,0.4)",
+                  boxShadow: "0 6px 28px -6px rgba(255,165,0,0.6), 0 0 0 2.5px rgba(46,125,50,0.4)",
                 }}
               >
                 <img
@@ -809,11 +809,11 @@ export default function LoginPage() {
               <div className="text-center mt-0.5">
                 <h1
                   className="text-[1.6rem] font-black tracking-tight leading-tight"
-                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "#FF8C00", textShadow: "0 1px 0 rgba(102,187,106,0.18)" }}
+                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "#FFA500", textShadow: "0 1px 0 rgba(46,125,50,0.18)" }}
                 >
                   سند
                 </h1>
-                <p className="text-[#66BB6A]/70 text-sm mt-0.5 font-bold" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                <p className="text-[#2E7D32]/70 text-sm mt-0.5 font-bold" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
                   سندك في التوصيل.. لباب الدار
                 </p>
               </div>
@@ -823,7 +823,7 @@ export default function LoginPage() {
           {/* ── Tab Switcher ── */}
           <div
             className="flex border-b"
-            style={{ borderColor: "rgba(102,187,106,0.15)", background: "rgba(102,187,106,0.04)" }}
+            style={{ borderColor: "rgba(46,125,50,0.15)", background: "rgba(46,125,50,0.04)" }}
           >
             <button
               type="button"
@@ -831,8 +831,8 @@ export default function LoginPage() {
               className={cn(
                 "flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-black transition-all relative",
                 tab === "login"
-                  ? "text-[#66BB6A]"
-                  : "text-[#66BB6A]/35 hover:text-[#66BB6A]/60"
+                  ? "text-[#2E7D32]"
+                  : "text-[#2E7D32]/35 hover:text-[#2E7D32]/60"
               )}
             >
               <LogIn size={15} />
@@ -845,15 +845,15 @@ export default function LoginPage() {
                 />
               )}
             </button>
-            <div className="w-px my-3" style={{ background: "rgba(102,187,106,0.2)" }} />
+            <div className="w-px my-3" style={{ background: "rgba(46,125,50,0.2)" }} />
             <button
               type="button"
               onClick={() => setTab("signup")}
               className={cn(
                 "flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-black transition-all relative",
                 tab === "signup"
-                  ? "text-[#66BB6A]"
-                  : "text-[#66BB6A]/35 hover:text-[#66BB6A]/60"
+                  ? "text-[#2E7D32]"
+                  : "text-[#2E7D32]/35 hover:text-[#2E7D32]/60"
               )}
             >
               <UserPlus size={15} />
@@ -897,7 +897,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[#66BB6A]/20 text-xs mt-5 font-medium" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+        <p className="text-center text-[#2E7D32]/20 text-xs mt-5 font-medium" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
           سند · Sanad — بن قردان، تونس
         </p>
       </motion.div>

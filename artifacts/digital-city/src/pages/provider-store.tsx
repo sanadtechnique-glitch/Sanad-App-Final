@@ -59,7 +59,7 @@ export default function ProviderStore() {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-2 border-[#66BB6A] border-t-transparent animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-[#2E7D32] border-t-transparent animate-spin" />
         </div>
       </Layout>
     );
@@ -70,9 +70,9 @@ export default function ProviderStore() {
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
-            <p className="text-[#66BB6A]/40 mb-4">{t("المزود غير موجود", "Fournisseur introuvable")}</p>
+            <p className="text-[#2E7D32]/40 mb-4">{t("المزود غير موجود", "Fournisseur introuvable")}</p>
             <Link href="/services">
-              <button className="text-[#66BB6A] text-sm underline">{t("العودة", "Retour")}</button>
+              <button className="text-[#2E7D32] text-sm underline">{t("العودة", "Retour")}</button>
             </Link>
           </div>
         </div>
@@ -86,7 +86,7 @@ export default function ProviderStore() {
 
         {/* Back button */}
         <Link href="/services">
-          <button className="flex items-center gap-2 text-[#66BB6A]/40 hover:text-[#66BB6A] transition-colors mb-6 text-sm font-bold">
+          <button className="flex items-center gap-2 text-[#2E7D32]/40 hover:text-[#2E7D32] transition-colors mb-6 text-sm font-bold">
             {isRTL ? <ChevronLeft size={16} /> : <ArrowRight size={16} className="rotate-180" />}
             <span>{t("العودة للخدمات", "Retour aux services")}</span>
           </button>
@@ -95,35 +95,35 @@ export default function ProviderStore() {
         {/* Supplier header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-[20px] p-5 mb-8 border border-[#66BB6A]/20 flex items-center gap-4"
+          className="rounded-[20px] p-5 mb-8 border border-[#2E7D32]/20 flex items-center gap-4"
           style={{ background: "#FFFFFF" }}>
           <div
-            className="w-16 h-16 rounded-2xl border-2 border-[#66BB6A]/40 flex items-center justify-center flex-shrink-0 overflow-hidden"
+            className="w-16 h-16 rounded-2xl border-2 border-[#2E7D32]/40 flex items-center justify-center flex-shrink-0 overflow-hidden"
             style={{ background: "#FFFFFF" }}>
             {supplier.photoUrl
               ? <img src={supplier.photoUrl} alt="" className="w-full h-full object-cover" />
-              : <Package size={26} className="text-[#66BB6A]" />}
+              : <Package size={26} className="text-[#2E7D32]" />}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-black text-[#66BB6A] truncate">
+            <h1 className="text-xl font-black text-[#2E7D32] truncate">
               {lang === "ar" ? supplier.nameAr : supplier.name}
             </h1>
             {supplier.rating && (
               <div className="flex items-center gap-0.5 mt-1">
                 {[1, 2, 3, 4, 5].map(i => (
                   <Star key={i} size={11}
-                    className={i <= Math.round(supplier.rating!) ? "text-[#66BB6A] fill-[#66BB6A]" : "text-[#66BB6A]/20"} />
+                    className={i <= Math.round(supplier.rating!) ? "text-[#2E7D32] fill-[#2E7D32]" : "text-[#2E7D32]/20"} />
                 ))}
-                <span className="text-xs text-[#66BB6A]/40 ms-1">{supplier.rating.toFixed(1)}</span>
+                <span className="text-xs text-[#2E7D32]/40 ms-1">{supplier.rating.toFixed(1)}</span>
               </div>
             )}
-            <p className="text-xs text-[#66BB6A]/30 mt-1 leading-relaxed truncate">
+            <p className="text-xs text-[#2E7D32]/30 mt-1 leading-relaxed truncate">
               {lang === "ar" ? supplier.descriptionAr : supplier.description}
             </p>
           </div>
           {articles.length === 0 && (
             <Link href={`/order/${supplier.id}`}>
-              <button className="px-4 py-2 rounded-xl bg-[#66BB6A] text-black font-black text-sm hover:bg-[#4CAF50] transition-all flex-shrink-0">
+              <button className="px-4 py-2 rounded-xl bg-[#2E7D32] text-black font-black text-sm hover:bg-[#4CAF50] transition-all flex-shrink-0">
                 {t("اطلب", "Commander")}
               </button>
             </Link>
@@ -133,19 +133,19 @@ export default function ProviderStore() {
         {/* Section title */}
         {articles.length > 0 && (
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-1 h-6 rounded-full bg-[#66BB6A]" />
-            <h2 className="text-lg font-black text-[#66BB6A]">{t("المنتجات المتاحة", "Produits disponibles")}</h2>
-            <span className="text-xs text-[#66BB6A]/30 px-2 py-0.5 rounded-full border border-[#66BB6A]/10">{articles.length}</span>
+            <div className="w-1 h-6 rounded-full bg-[#2E7D32]" />
+            <h2 className="text-lg font-black text-[#2E7D32]">{t("المنتجات المتاحة", "Produits disponibles")}</h2>
+            <span className="text-xs text-[#2E7D32]/30 px-2 py-0.5 rounded-full border border-[#2E7D32]/10">{articles.length}</span>
           </div>
         )}
 
         {/* Product grid */}
         {articles.length === 0 ? (
           <div className="text-center py-20">
-            <Package size={48} className="text-[#66BB6A]/10 mx-auto mb-4" />
-            <p className="text-[#66BB6A]/30 mb-6">{t("لا توجد منتجات متاحة", "Aucun produit disponible")}</p>
+            <Package size={48} className="text-[#2E7D32]/10 mx-auto mb-4" />
+            <p className="text-[#2E7D32]/30 mb-6">{t("لا توجد منتجات متاحة", "Aucun produit disponible")}</p>
             <Link href={`/order/${supplier.id}`}>
-              <button className="px-6 py-3 rounded-xl bg-[#66BB6A] text-black font-black hover:bg-[#4CAF50] transition-all">
+              <button className="px-6 py-3 rounded-xl bg-[#2E7D32] text-black font-black hover:bg-[#4CAF50] transition-all">
                 {t("اطلب مباشرة", "Commander directement")}
               </button>
             </Link>
@@ -163,23 +163,23 @@ export default function ProviderStore() {
                   className={cn(
                     "rounded-[15px] border overflow-hidden flex flex-col transition-all duration-300",
                     qty > 0
-                      ? "border-[#66BB6A]/60 shadow-[0_0_20px_rgba(102,187,106,0.12)]"
-                      : "border-[#66BB6A]/20 hover:border-[#66BB6A]/45"
+                      ? "border-[#2E7D32]/60 shadow-[0_0_20px_rgba(46,125,50,0.12)]"
+                      : "border-[#2E7D32]/20 hover:border-[#2E7D32]/45"
                   )}
                   style={{ background: "#FFFFFF" }}>
 
                   {/* 1:1 image */}
                   <div className="relative w-full" style={{ paddingBottom: "100%" }}>
-                    <div className="absolute inset-0 border-b border-[#66BB6A]/15" style={{ background: "#FF8C00" }}>
+                    <div className="absolute inset-0 border-b border-[#2E7D32]/15" style={{ background: "#FFA500" }}>
                       {article.photoUrl ? (
                         <img src={article.photoUrl} alt={article.nameAr} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Package size={32} className="text-[#66BB6A]/15" />
+                          <Package size={32} className="text-[#2E7D32]/15" />
                         </div>
                       )}
                       {qty > 0 && (
-                        <div className="absolute top-2 end-2 w-5 h-5 rounded-full bg-[#66BB6A] flex items-center justify-center">
+                        <div className="absolute top-2 end-2 w-5 h-5 rounded-full bg-[#2E7D32] flex items-center justify-center">
                           <span className="text-black text-[10px] font-black">{qty}</span>
                         </div>
                       )}
@@ -188,37 +188,37 @@ export default function ProviderStore() {
 
                   {/* Info */}
                   <div className="p-3 flex flex-col flex-1">
-                    <p className="text-sm font-black text-[#66BB6A] leading-tight mb-1">
+                    <p className="text-sm font-black text-[#2E7D32] leading-tight mb-1">
                       {lang === "ar" ? article.nameAr : article.nameFr}
                     </p>
                     {(lang === "ar" ? article.descriptionAr : article.descriptionFr) && (
-                      <p className="text-[11px] text-[#66BB6A]/30 leading-tight line-clamp-2 mb-2">
+                      <p className="text-[11px] text-[#2E7D32]/30 leading-tight line-clamp-2 mb-2">
                         {lang === "ar" ? article.descriptionAr : article.descriptionFr}
                       </p>
                     )}
                     <div className="mt-auto space-y-2">
-                      <p className="text-[#66BB6A] font-black text-base">{article.price.toFixed(2)} DT</p>
+                      <p className="text-[#2E7D32] font-black text-base">{article.price.toFixed(2)} DT</p>
                       {article.originalPrice && article.originalPrice > article.price && (
-                        <p className="text-[#66BB6A]/25 text-xs line-through -mt-1">{article.originalPrice.toFixed(2)} DT</p>
+                        <p className="text-[#2E7D32]/25 text-xs line-through -mt-1">{article.originalPrice.toFixed(2)} DT</p>
                       )}
                       {qty > 0 ? (
                         <div className="flex items-center justify-between gap-2">
                           <button
                             onClick={() => updateQty(article.id, qty - 1)}
-                            className="w-8 h-8 rounded-xl bg-[#66BB6A]/5 border border-[#66BB6A]/10 flex items-center justify-center hover:border-red-400/30 hover:text-red-400 transition-all text-[#66BB6A]/60">
+                            className="w-8 h-8 rounded-xl bg-[#2E7D32]/5 border border-[#2E7D32]/10 flex items-center justify-center hover:border-red-400/30 hover:text-red-400 transition-all text-[#2E7D32]/60">
                             <Minus size={12} />
                           </button>
-                          <span className="text-[#66BB6A] font-black text-sm flex-1 text-center">{qty}</span>
+                          <span className="text-[#2E7D32] font-black text-sm flex-1 text-center">{qty}</span>
                           <button
                             onClick={() => updateQty(article.id, qty + 1)}
-                            className="w-8 h-8 rounded-xl bg-[#66BB6A]/20 border border-[#66BB6A]/40 flex items-center justify-center hover:bg-[#66BB6A]/30 transition-all text-[#66BB6A]">
+                            className="w-8 h-8 rounded-xl bg-[#2E7D32]/20 border border-[#2E7D32]/40 flex items-center justify-center hover:bg-[#2E7D32]/30 transition-all text-[#2E7D32]">
                             <Plus size={12} />
                           </button>
                         </div>
                       ) : (
                         <button
                           onClick={() => handleAdd(article)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#66BB6A]/15 border border-[#66BB6A]/30 text-[#66BB6A] text-xs font-black hover:bg-[#66BB6A]/25 transition-all">
+                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#2E7D32]/15 border border-[#2E7D32]/30 text-[#2E7D32] text-xs font-black hover:bg-[#2E7D32]/25 transition-all">
                           <Plus size={12} />
                           {t("إضافة للسلة", "Ajouter")}
                         </button>

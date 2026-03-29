@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 /* ─── Jumia-Inspired Design System ───────────────────────────────────────────
-   BG:      #FF8C00  Mustard Yellow  — main background
-   PANEL:   #FF8C00  Dark Mustard    — panels, sidebar, nav
+   BG:      #FFA500  Mustard Yellow  — main background
+   PANEL:   #FFA500  Dark Mustard    — panels, sidebar, nav
    CARD:    #FFFDE7  Cream           — product/service cards
-   ACCENT:  #66BB6A  Light Green     — buttons, borders, icons, stars, panier
+   ACCENT:  #2E7D32  Light Green     — buttons, borders, icons, stars, panier
    TEXT:    #004D40  Dark Green      — body text & labels
    MUTED:   rgba(0,77,64,.55)        — muted text
    ─────────────────────────────────────────────────────────────────────────── */
@@ -14,10 +14,10 @@
   --font-display: 'Cairo', 'Tajawal', sans-serif;
   --font-latin:   'Outfit', 'Cairo', sans-serif;
 
-  --color-gold:        #66BB6A;
+  --color-gold:        #2E7D32;
   --color-gold-light:  #C8E6C9;
   --color-gold-dark:   #388E3C;
-  --color-dark-grey:   #FF8C00;
+  --color-dark-grey:   #FFA500;
   --color-input-bg:    #D4A800;
 
   --color-background: hsl(var(--background));
@@ -40,15 +40,15 @@
 
 /* ─── Colour tokens ────────────────────────────────────────────────────────── */
 :root {
-  /* Mustard Yellow background #FF8C00  ≈ hsl(46 100% 44%) */
+  /* Mustard Yellow background #FFA500  ≈ hsl(46 100% 44%) */
   --background: 46 100% 44%;
   --foreground: 172 100% 15%;      /* #004D40 dark green */
 
-  /* Light Green primary = #66BB6A */
+  /* Light Green primary = #2E7D32 */
   --primary: 123 36% 57%;
   --primary-foreground: 0 0% 100%;
 
-  /* Dark Mustard panels = #FF8C00 */
+  /* Dark Mustard panels = #FFA500 */
   --secondary: 46 100% 39%;
   --secondary-foreground: 172 100% 15%;
   --card: 0 0% 100%;               /* white cards */
@@ -74,22 +74,22 @@
 
   html {
     direction: rtl;
-    background-color: #FF8C00;
+    background-color: #FFA500;
   }
 
   body {
     font-family: 'Cairo', 'Tajawal', sans-serif;
-    background-color: #FF8C00;
+    background-color: #FFA500;
     color: #004D40;
     direction: rtl;
     overflow-x: hidden;
-    @apply antialiased selection:bg-[#66BB6A]/25 selection:text-[#004D40];
+    @apply antialiased selection:bg-[#2E7D32]/25 selection:text-[#004D40];
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Cairo', 'Tajawal', sans-serif;
     font-weight: 700;
-    color: #66BB6A;
+    color: #2E7D32;
   }
 
   h1 { font-weight: 900; }
@@ -98,14 +98,14 @@
 
   /* Green-tinted scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: #FF8C00; }
-  ::-webkit-scrollbar-thumb { background: #66BB6A; border-radius: 3px; }
+  ::-webkit-scrollbar-track { background: #FFA500; }
+  ::-webkit-scrollbar-thumb { background: #2E7D32; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: #388E3C; }
 
   /* Inputs on mustard background */
   input, select, textarea {
     background: #FFFDE7;
-    border: 1px solid #66BB6A;
+    border: 1px solid #2E7D32;
     color: #004D40;
     border-radius: 8px;
     text-align: right;
@@ -118,7 +118,7 @@
   textarea:focus {
     border-color: #388E3C;
     outline: none;
-    box-shadow: 0 0 0 2px rgba(102,187,106,0.25);
+    box-shadow: 0 0 0 2px rgba(46,125,50,0.25);
   }
 }
 
@@ -127,14 +127,14 @@
   background: rgba(255,253,231,0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(102,187,106,0.25);
+  border: 1px solid rgba(46,125,50,0.25);
   box-shadow: 0 4px 24px rgba(0,77,64,0.15);
 }
 
 /* ─── Provider card ─────────────────────────────────────────────────────────── */
 .provider-card {
   background: #FFFDE7;
-  border: 1px solid rgba(102,187,106,0.3);
+  border: 1px solid rgba(46,125,50,0.3);
   border-radius: 15px;
   padding: 15px;
   text-align: center;
@@ -143,9 +143,9 @@
   color: #004D40;
 }
 .provider-card:hover {
-  border-color: #66BB6A;
+  border-color: #2E7D32;
   transform: translateY(-5px);
-  box-shadow: 0 5px 15px rgba(102,187,106,0.3);
+  box-shadow: 0 5px 15px rgba(46,125,50,0.3);
 }
 
 /* ─── Card hover lift ───────────────────────────────────────────────────────── */
@@ -154,13 +154,13 @@
 }
 .card-hover:hover {
   transform: translateY(-5px);
-  box-shadow: 0 5px 20px rgba(102,187,106,0.25);
-  border-color: rgba(102,187,106,0.5) !important;
+  box-shadow: 0 5px 20px rgba(46,125,50,0.25);
+  border-color: rgba(46,125,50,0.5) !important;
 }
 
 /* ─── Green button (formerly gold-btn) ──────────────────────────────────────── */
 .gold-btn {
-  background: #66BB6A;
+  background: #2E7D32;
   color: #ffffff;
   border: none;
   padding: 10px 20px;
@@ -174,7 +174,7 @@
 }
 .gold-btn:hover {
   background: #4CAF50;
-  box-shadow: 0 4px 15px rgba(102,187,106,0.4);
+  box-shadow: 0 4px 15px rgba(46,125,50,0.4);
 }
 .gold-btn:disabled {
   opacity: 0.5;
@@ -192,13 +192,13 @@
   font-weight: 600;
   font-family: 'Cairo', sans-serif;
 }
-.status-open   { background: #66BB6A; color: white; }
+.status-open   { background: #2E7D32; color: white; }
 .status-closed { background: #e74c3c; color: white; }
 
 /* ─── Header — mustard with green border ─────────────────────────────────────── */
 .dc-header {
-  background: #FF8C00;
-  border-bottom: 2px solid #66BB6A;
+  background: #FFA500;
+  border-bottom: 2px solid #2E7D32;
   position: sticky;
   top: 0;
   z-index: 1000;
@@ -206,15 +206,15 @@
 
 /* ─── Glow utilities ─────────────────────────────────────────────────────────── */
 .gold-glow {
-  box-shadow: 0 0 20px -5px rgba(102,187,106,0.4);
+  box-shadow: 0 0 20px -5px rgba(46,125,50,0.4);
 }
 .gold-glow-strong {
-  box-shadow: 0 0 30px -5px rgba(102,187,106,0.6);
+  box-shadow: 0 0 30px -5px rgba(46,125,50,0.6);
 }
 
 /* ─── Green gradient text ────────────────────────────────────────────────────── */
 .text-gradient-gold {
-  background: linear-gradient(90deg, #66BB6A, #C8E6C9, #388E3C);
+  background: linear-gradient(90deg, #2E7D32, #C8E6C9, #388E3C);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -226,7 +226,7 @@
   100% { background-position:  200% center; }
 }
 .gold-shimmer {
-  background: linear-gradient(90deg, #66BB6A 0%, #C8E6C9 40%, #66BB6A 60%, #388E3C 100%);
+  background: linear-gradient(90deg, #2E7D32 0%, #C8E6C9 40%, #2E7D32 60%, #388E3C 100%);
   background-size: 200% auto;
   animation: shimmer 3s linear infinite;
   -webkit-background-clip: text;
@@ -253,7 +253,7 @@
 /* ─── Order form ─────────────────────────────────────────────────────────────── */
 .order-form {
   background: #FFFDE7;
-  border: 1px solid #66BB6A;
+  border: 1px solid #2E7D32;
   padding: 25px;
   border-radius: 20px;
   max-width: 500px;

@@ -68,21 +68,21 @@ function NotFound() {
   return (
     <div
       className="min-h-screen flex items-center justify-center flex-col gap-6"
-      style={{ background: "#FF8C00" }}
+      style={{ background: "#FFA500" }}
       dir="rtl"
     >
       <div
-        className="rounded-3xl p-10 text-center shadow-xl border border-[#66BB6A]/30"
+        className="rounded-3xl p-10 text-center shadow-xl border border-[#2E7D32]/30"
         style={{ background: "#FFFDE7" }}
       >
-        <p className="text-7xl font-black text-[#66BB6A] mb-3">404</p>
+        <p className="text-7xl font-black text-[#2E7D32] mb-3">404</p>
         <p className="text-[#004D40] font-bold text-lg mb-6">
           الصفحة غير موجودة · Page introuvable
         </p>
         <button
           onClick={() => navigate("/login")}
           className="px-6 py-3 rounded-xl font-black text-black text-sm"
-          style={{ background: "#66BB6A" }}
+          style={{ background: "#2E7D32" }}
         >
           العودة للرئيسية · Retour
         </button>
