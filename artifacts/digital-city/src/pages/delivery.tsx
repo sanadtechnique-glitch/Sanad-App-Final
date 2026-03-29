@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSession, clearSession } from "@/lib/auth";
-import { Truck, CheckCircle, MapPin, RefreshCw, ChevronRight, MessageCircle, LogOut, Check, Package, X } from "lucide-react";
+import { Truck, CheckCircle, MapPin, RefreshCw, ChevronRight, MessageCircle, LogOut, Check, Package, X, Map } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { get, patch } from "@/lib/admin-api";
+
+const DeliveryMap = lazy(() => import("@/components/delivery-map"));
 
 interface Staff { id: number; name: string; nameAr: string; phone: string; zone?: string; isAvailable: boolean; }
 interface Order {
@@ -187,7 +189,7 @@ export default function DeliveryDashboard() {
                         <p className="font-black text-white">{order.customerName}</p>
                         <div className="flex items-center gap-1.5 mt-1">
                           <MapPin size={10} className="text-purple-400/40" />
-                          <p className="text-sm text-white/40 truncate">{order.customerAddress}</p>
+                          <p className="text-sm text-white/40">{order.customerAddress}</p>
                         </div>
                         <p className="text-xs text-[#D4AF37]/50 mt-1">{order.serviceProviderName}</p>
                         {order.deliveryFee && order.deliveryFee > 0 && (
@@ -201,7 +203,17 @@ export default function DeliveryDashboard() {
                         </button>
                       )}
                     </div>
-                    <div className="flex gap-2">
+
+                    {/* GPS Map */}
+                    <Suspense fallback={
+                      <div className="mt-3 h-10 rounded-[12px] border border-purple-400/15 flex items-center justify-center gap-2 text-purple-400/40 text-xs font-bold" style={{ background: "#0d0d0d" }}>
+                        <Map size={13} />{t("تحميل الخريطة...", "Chargement carte...")}
+                      </div>
+                    }>
+                      <DeliveryMap address={order.customerAddress} customerName={order.customerName} />
+                    </Suspense>
+
+                    <div className="flex gap-2 mt-3">
                       <button onClick={() => updateStatus(order.id, "delivered")}
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black text-sm hover:bg-emerald-500/20 transition-all">
                         <Check size={15} />{t("تم التوصيل ✓", "Livré ✓")}
