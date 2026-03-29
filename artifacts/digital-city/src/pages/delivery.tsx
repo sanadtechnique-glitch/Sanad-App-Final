@@ -6,6 +6,7 @@ import { Truck, CheckCircle, MapPin, RefreshCw, ChevronRight, MessageCircle, Log
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { get, patch } from "@/lib/admin-api";
+import { pushNotification } from "@/lib/notifications";
 
 const DeliveryMap = lazy(() => import("@/components/delivery-map"));
 
@@ -69,6 +70,12 @@ export default function DeliveryDashboard() {
     await patch(`/orders/${orderId}`, body);
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
     if (status === "delivered") {
+      pushNotification({
+        type: "delivered",
+        orderId,
+        messageAr: `تم توصيل طلبك رقم #${orderId.toString().padStart(4, "0")} 🎉`,
+        messageFr: `Votre commande #${orderId.toString().padStart(4, "0")} a été livrée 🎉`,
+      });
       setTimeout(() => setOrders(prev => prev.filter(o => o.id !== orderId)), 3000);
     }
   };

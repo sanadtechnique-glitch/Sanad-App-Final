@@ -49,19 +49,36 @@ All API routes are mounted at `/api` prefix. In `main.tsx`, `setBaseUrl("/api")`
 **ALL routes are protected.** Unauthenticated users are redirected to `/login` from any URL (enforced via `ProtectedRoute` in `App.tsx`).
 
 - `/login` — Public. If already logged in, auto-redirects to role home.
-- **Admin**: username `admin` (any password) → `/admin`
+- **Admin**: username `admin` (case-insensitive), password `Abc1234` (exact) → `/admin`
 - **Provider**: username matches supplier nameAr or name in DB → `/provider`
 - **Delivery**: username matches delivery staff nameAr or name in DB → `/delivery`
 - **Client**: any name + any password → `/` (home)
-- Session: `DcSession { role, name, supplierId?, staffId? }` in `localStorage` key `dc_session` via `src/lib/auth.ts`.
+- Session: `DcSession { role, name, supplierId?, staffId?, delegationId?, delegationFee?, delegationName? }` in `localStorage` key `dc_session` via `src/lib/auth.ts`.
 - Logout button in layout (desktop sidebar + mobile bottom nav) clears session → `/login`.
+
+### Notification System (Client)
+
+`src/lib/notifications.tsx` — `NotificationsProvider` + `useNotifications()` hook. Stores in `localStorage` key `dc_notifications`. Polls every 2.5s for cross-page updates.
+- **Bell icon** in client layout header (desktop + mobile), shows green badge with unread count
+- Click bell → dropdown showing up to 30 recent notifications; marks all as read
+- **Trigger 1**: Provider accepts order → `pushNotification({type:"accepted",...})` written to `dc_notifications`
+- **Trigger 2**: Delivery marks as delivered → `pushNotification({type:"delivered",...})` written
+- Client bell picks up notifications on next poll cycle (max 2.5s delay)
+
+### Delegation in Sign-Up
+
+Sign-up form fetches `GET /api/admin/delegations`. Shows a **المعتمدية** dropdown (styled Jumia theme, cream background, green border on select). Default: auto-selects **بنقردان / Ben Gardane** (or first in list). Shows delivery fee in DT below the dropdown.
+On signup: `delegationId`, `delegationFee`, `delegationName` saved to `DcSession` in localStorage.
+Seeded delegations (7): Ben Gardane 3 DT, Zarzis 5 DT, Médenine 6 DT, Djerba Houmt Souk 8 DT, Djerba Midoun 8 DT, Sidi Makhlouf 4.5 DT, Béni Khedache 7 DT.
 
 ### Global Cart (Customer)
 
 `src/lib/cart.tsx` — React Context wrapping all routes (via `App.tsx` CartProvider). Cart persists in `localStorage` key `dc_cart`.
 - `CartState { supplierId, supplierName, items[], deliveryFee }`
 - Cart button shown in BOTH mobile and desktop **top header bars** (top-right position). On desktop there is also a sticky top header (dark mustard) with the cart button showing total price + item count badge.
-- Cart drawer slides in from the side with item list, qty controls, subtotal + delivery fee + total
+- Cart drawer uses `session.delegationFee` for delivery fee if set (overrides `cart.deliveryFee`). Shows delegation name badge next to "التوصيل" row.
+- Cart is **automatically cleared** after a successful order placement (`clearCart()` called in `order.tsx` `onSubmit`)
+- Order form pre-fills `delegationId` from `session.delegationId` (via `setValue`) and `customerName` from `session.name`
 - "Passer la commande" → navigates to `/order/:supplierId?notes=<cart_summary>`
 - Adding item from a different supplier clears the old cart
 

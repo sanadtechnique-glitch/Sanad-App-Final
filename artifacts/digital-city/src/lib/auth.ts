@@ -5,6 +5,9 @@ export interface DcSession {
   name: string;
   supplierId?: number;
   staffId?: number;
+  delegationId?: number;
+  delegationFee?: number;
+  delegationName?: string;
 }
 
 const KEY = "dc_session";

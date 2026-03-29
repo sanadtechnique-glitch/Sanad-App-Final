@@ -7,10 +7,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout";
 import { useLang } from "@/lib/language";
 import { get, post } from "@/lib/admin-api";
+import { useCart } from "@/lib/cart";
+import { getSession } from "@/lib/auth";
 import {
   ChevronRight, CheckCircle2, MapPin, User, StickyNote,
   Phone, Loader2, AlertTriangle, Star, Building2, Hash,
-  Camera, Upload, X,
+  Camera, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +49,8 @@ export default function Order() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { lang, t, isRTL } = useLang();
+  const { clearCart } = useCart();
+  const session = getSession();
 
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [delegations, setDelegations] = useState<Delegation[]>([]);
@@ -57,6 +61,15 @@ export default function Order() {
   const [orderId, setOrderId] = useState<number | null>(null);
   const [prescriptionPhoto, setPrescriptionPhoto] = useState<string | null>(null);
 
+  const prefilledNotes = decodeURIComponent(new URLSearchParams(window.location.search).get("notes") || "");
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      notes: prefilledNotes || undefined,
+      customerName: session?.name || "",
+    },
+  });
+
   useEffect(() => {
     Promise.all([
       get<Supplier[]>("/services"),
@@ -66,15 +79,22 @@ export default function Order() {
       if (!found) { setNotFound(true); setLoadingProvider(false); return; }
       setSupplier(found);
       setDelegations(dels);
+      // Pre-fill delegation from session or default to Ben Gardane
+      const sessionDelId = session?.delegationId;
+      if (sessionDelId) {
+        const match = dels.find(d => d.id === sessionDelId);
+        if (match) setValue("delegationId", match.id.toString());
+      } else {
+        const benGardane = dels.find(d =>
+          d.nameAr?.includes("بنقردان") || d.nameAr?.includes("بن قردان") ||
+          d.name?.toLowerCase().includes("ben gard")
+        );
+        if (benGardane) setValue("delegationId", benGardane.id.toString());
+        else if (dels.length > 0) setValue("delegationId", dels[0].id.toString());
+      }
       setLoadingProvider(false);
     }).catch(() => { setNotFound(true); setLoadingProvider(false); });
   }, [id]);
-
-  const prefilledNotes = decodeURIComponent(new URLSearchParams(window.location.search).get("notes") || "");
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { notes: prefilledNotes || undefined },
-  });
 
   const selectedDelegationId = watch("delegationId");
   const selectedDelegation = delegations.find(d => d.id.toString() === selectedDelegationId);
@@ -105,6 +125,7 @@ export default function Order() {
       const res = await post<{ id: number }>("/orders", payload);
       setOrderId(res.id);
       setSuccess(true);
+      clearCart();
       setTimeout(() => setLocation("/services"), 4000);
     } catch {
       setSubmitting(false);

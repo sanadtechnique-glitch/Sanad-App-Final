@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { get, patch } from "@/lib/admin-api";
+import { pushNotification } from "@/lib/notifications";
 
 interface Supplier { id: number; name: string; nameAr: string; category: string; isAvailable: boolean; shift?: string; rating?: number; phone?: string; }
 interface Order { id: number; customerName: string; customerPhone?: string; customerAddress: string; notes?: string; status: string; createdAt: string; deliveryFee?: number; photoUrl?: string; }
@@ -92,6 +93,14 @@ export default function ProviderDashboard() {
     await patch(`/orders/${orderId}`, { status });
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
     if (["accepted", "cancelled"].includes(status)) setPendingCount(prev => Math.max(0, prev - 1));
+    if (status === "accepted") {
+      pushNotification({
+        type: "accepted",
+        orderId,
+        messageAr: `تم قبول طلبك رقم #${orderId.toString().padStart(4, "0")} ✅`,
+        messageFr: `Votre commande #${orderId.toString().padStart(4, "0")} a été acceptée ✅`,
+      });
+    }
   };
 
   const toggleAvailability = async () => {

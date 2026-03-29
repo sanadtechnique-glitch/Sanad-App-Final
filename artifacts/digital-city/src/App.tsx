@@ -3,6 +3,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageProvider } from "@/lib/language";
 import { CartProvider } from "@/lib/cart";
+import { NotificationsProvider } from "@/lib/notifications";
 import { getSession, type Role } from "@/lib/auth";
 
 import Home         from "./pages/home";
@@ -93,10 +94,8 @@ function NotFound() {
 function Router() {
   return (
     <Switch>
-      {/* Public */}
       <Route path="/login" component={LoginRoute} />
 
-      {/* Client-only routes */}
       <Route path="/">
         {() => <ProtectedRoute component={Home}         roles={["client"]} />}
       </Route>
@@ -113,7 +112,6 @@ function Router() {
         {() => <ProtectedRoute component={HotelBooking} roles={["client"]} />}
       </Route>
 
-      {/* Role-specific dashboards */}
       <Route path="/admin">
         {() => <ProtectedRoute component={Admin}    roles={["admin"]} />}
       </Route>
@@ -134,9 +132,11 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <CartProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
+          <NotificationsProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+          </NotificationsProvider>
         </CartProvider>
       </LanguageProvider>
     </QueryClientProvider>

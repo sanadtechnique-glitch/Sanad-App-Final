@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertCircle, Eye, EyeOff, ChevronDown, LogIn,
-  UserPlus, Phone, Lock, User, CheckCircle,
+  UserPlus, Phone, Lock, User, CheckCircle, MapPin,
 } from "lucide-react";
 import { get, post } from "@/lib/admin-api";
 import { setSession, type Role } from "@/lib/auth";
@@ -12,8 +12,9 @@ import { cn } from "@/lib/utils";
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-interface Supplier { id: number; name: string; nameAr: string; }
-interface Staff    { id: number; name: string; nameAr: string; phone: string; }
+interface Supplier   { id: number; name: string; nameAr: string; }
+interface Staff      { id: number; name: string; nameAr: string; phone: string; }
+interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
 
 type ProfileOption = { value: Role; labelAr: string; labelFr: string; color: string };
 
@@ -348,11 +349,29 @@ function SignUpForm() {
   const [loading, setLoading]   = useState(false);
   const [success, setSuccess]   = useState(false);
 
+  const [delegations, setDelegations]         = useState<Delegation[]>([]);
+  const [delegationId, setDelegationId]       = useState<number | null>(null);
+  const [delegationOpen, setDelegationOpen]   = useState(false);
+
+  useEffect(() => {
+    get<Delegation[]>("/admin/delegations").then(list => {
+      setDelegations(list);
+      const ben = list.find(d =>
+        d.nameAr?.includes("بنقردان") || d.nameAr?.includes("بن قردان") ||
+        d.name?.toLowerCase().includes("ben gard")
+      );
+      setDelegationId(ben?.id ?? list[0]?.id ?? null);
+    }).catch(() => {});
+  }, []);
+
+  const selectedDelegation = delegations.find(d => d.id === delegationId);
+
   const needsPhone = role === "provider" || role === "delivery";
   const canSubmit  =
     username.trim() !== "" &&
     password.trim() !== "" &&
     confirm.trim()  !== "" &&
+    delegationId !== null &&
     (!needsPhone || phone.trim() !== "") &&
     !loading;
 
@@ -378,7 +397,13 @@ function SignUpForm() {
       const pseudo = username.trim();
 
       if (role === "client") {
-        setSession({ role: "client", name: pseudo });
+        setSession({
+          role: "client",
+          name: pseudo,
+          delegationId:   delegationId ?? undefined,
+          delegationFee:  selectedDelegation?.deliveryFee ?? 0,
+          delegationName: selectedDelegation?.nameAr ?? selectedDelegation?.name ?? "",
+        });
         setSuccess(true);
         setTimeout(() => navigate("/"), 900);
         return;
@@ -404,7 +429,14 @@ function SignUpForm() {
           phone: phone.trim(),
           isAvailable: true,
         });
-        setSession({ role: "provider", name: newSupplier.nameAr, supplierId: newSupplier.id });
+        setSession({
+          role: "provider",
+          name: newSupplier.nameAr,
+          supplierId: newSupplier.id,
+          delegationId:   delegationId ?? undefined,
+          delegationFee:  selectedDelegation?.deliveryFee ?? 0,
+          delegationName: selectedDelegation?.nameAr ?? selectedDelegation?.name ?? "",
+        });
         setSuccess(true);
         setTimeout(() => navigate("/provider"), 900);
         return;
@@ -426,7 +458,14 @@ function SignUpForm() {
           phone: phone.trim(),
           isAvailable: true,
         });
-        setSession({ role: "delivery", name: newStaff.nameAr, staffId: newStaff.id });
+        setSession({
+          role: "delivery",
+          name: newStaff.nameAr,
+          staffId: newStaff.id,
+          delegationId:   delegationId ?? undefined,
+          delegationFee:  selectedDelegation?.deliveryFee ?? 0,
+          delegationName: selectedDelegation?.nameAr ?? selectedDelegation?.name ?? "",
+        });
         setSuccess(true);
         setTimeout(() => navigate("/delivery"), 900);
         return;
@@ -478,6 +517,71 @@ function SignUpForm() {
         {role === "delivery" && (
           <p className="text-[11px] text-[#004D40]/35 mt-1.5 text-right">
             سيُضاف كسائق توصيل · Vous serez ajouté comme livreur
+          </p>
+        )}
+      </div>
+
+      {/* Delegation */}
+      <div>
+        <FieldLabel>المعتمدية · Délégation</FieldLabel>
+        <div className="relative">
+          <MapPin size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#004D40]/30 pointer-events-none" />
+          <button
+            type="button"
+            onClick={() => setDelegationOpen(o => !o)}
+            className="w-full ps-10 pe-4 py-3.5 rounded-xl border transition-all outline-none text-right font-bold text-[#004D40] flex items-center justify-between"
+            style={{
+              background: "#FFFDE7",
+              borderColor: delegationOpen ? "#66BB6A" : selectedDelegation ? "rgba(102,187,106,0.8)" : "rgba(0,77,64,0.18)",
+            }}
+          >
+            <ChevronDown size={14} className={cn("text-[#004D40]/25 transition-transform", delegationOpen && "rotate-180")} />
+            <span>
+              {selectedDelegation
+                ? <>{selectedDelegation.nameAr}<span className="text-[#004D40]/30 font-normal"> — {selectedDelegation.deliveryFee} DT</span></>
+                : <span className="text-[#004D40]/30 font-normal">اختر منطقتك · Choisissez votre zone</span>
+              }
+            </span>
+          </button>
+          <AnimatePresence>
+            {delegationOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scaleY: 0.9 }}
+                animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                transition={{ duration: 0.14 }}
+                className="absolute top-full mt-1 w-full rounded-xl border z-50 overflow-hidden shadow-xl max-h-52 overflow-y-auto"
+                style={{ background: "#E1AD01", borderColor: "rgba(102,187,106,0.3)" }}
+              >
+                {delegations.length === 0 && (
+                  <div className="px-4 py-3 text-sm text-[#004D40]/40 text-right">جاري التحميل...</div>
+                )}
+                {delegations.map(d => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => { setDelegationId(d.id); setDelegationOpen(false); setError(null); }}
+                    className={cn(
+                      "w-full px-4 py-3 flex items-center justify-end gap-3 text-right transition-colors",
+                      delegationId === d.id ? "bg-[#004D40]/8" : "hover:bg-[#004D40]/4"
+                    )}
+                  >
+                    <span className="font-bold text-[#004D40] text-sm">
+                      {d.nameAr}
+                      <span className="text-[#004D40]/40 font-normal text-xs"> — {d.deliveryFee} DT</span>
+                    </span>
+                    {delegationId === d.id && (
+                      <div className="w-2 h-2 rounded-full bg-[#66BB6A] flex-shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        {selectedDelegation && (
+          <p className="text-[11px] text-[#66BB6A]/70 font-bold mt-1.5 text-right">
+            رسوم التوصيل: {selectedDelegation.deliveryFee} DT · Frais de livraison
           </p>
         )}
       </div>

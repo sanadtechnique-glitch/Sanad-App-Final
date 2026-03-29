@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut } from "lucide-react";
+import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut, Bell, CheckCheck, Bike } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
 import { getSession, clearSession } from "@/lib/auth";
+import { useNotifications } from "@/lib/notifications";
 import { motion, AnimatePresence } from "framer-motion";
 
 function LangToggle() {
@@ -61,19 +62,168 @@ function CartButton({ onClick, large }: { onClick: () => void; large?: boolean }
   );
 }
 
+function NotificationBell() {
+  const { lang } = useLang();
+  const { notifications, unreadCount, markAllRead, clearAll } = useNotifications();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const timeAgo = (ts: number) => {
+    const diff = Math.floor((Date.now() - ts) / 60000);
+    if (diff < 1) return lang === "ar" ? "الآن" : "Maintenant";
+    if (diff < 60) return lang === "ar" ? `${diff} د` : `${diff}min`;
+    if (diff < 1440) return lang === "ar" ? `${Math.floor(diff / 60)} س` : `${Math.floor(diff / 60)}h`;
+    return lang === "ar" ? `${Math.floor(diff / 1440)} ي` : `${Math.floor(diff / 1440)}j`;
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => { setOpen(o => !o); if (!open && unreadCount > 0) markAllRead(); }}
+        className={cn(
+          "relative p-2.5 rounded-xl border transition-all",
+          unreadCount > 0
+            ? "border-[#66BB6A]/50 bg-[#66BB6A]/20 hover:bg-[#66BB6A]/30"
+            : "border-[#004D40]/10 bg-[#004D40]/5 hover:bg-[#004D40]/10"
+        )}
+      >
+        <Bell size={18} className={unreadCount > 0 ? "text-[#66BB6A]" : "text-[#004D40]/40"} />
+        {unreadCount > 0 && (
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-black"
+            style={{ background: "#66BB6A" }}
+          >
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </motion.span>
+        )}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-full mt-2 w-80 rounded-2xl shadow-2xl border z-[80] overflow-hidden"
+            style={{
+              background: "#C99900",
+              borderColor: "rgba(102,187,106,0.3)",
+              insetInlineEnd: 0,
+            }}
+            dir="rtl"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#004D40]/8">
+              <div className="flex items-center gap-2">
+                <Bell size={15} className="text-[#66BB6A]" />
+                <span className="font-black text-[#004D40] text-sm">
+                  {lang === "ar" ? "الإشعارات" : "Notifications"}
+                </span>
+                {notifications.length > 0 && (
+                  <span className="text-[10px] font-bold text-[#004D40]/40">({notifications.length})</span>
+                )}
+              </div>
+              {notifications.length > 0 && (
+                <button
+                  onClick={clearAll}
+                  className="text-[10px] font-bold text-red-400/60 hover:text-red-400 transition-colors"
+                >
+                  {lang === "ar" ? "مسح الكل" : "Effacer"}
+                </button>
+              )}
+            </div>
+
+            {/* List */}
+            <div className="max-h-72 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#004D40]/5 border border-[#004D40]/8 flex items-center justify-center">
+                    <Bell size={20} className="text-[#004D40]/20" />
+                  </div>
+                  <p className="text-[#004D40]/30 text-sm font-bold text-center">
+                    {lang === "ar" ? "لا توجد إشعارات" : "Aucune notification"}
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-[#004D40]/5">
+                  {notifications.map(n => (
+                    <motion.div
+                      key={n.id}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className={cn(
+                        "px-4 py-3 flex items-start gap-3 transition-colors",
+                        !n.read ? "bg-[#66BB6A]/8" : ""
+                      )}
+                    >
+                      <div className={cn(
+                        "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5",
+                        n.type === "accepted" ? "bg-blue-400/15 border border-blue-400/20" : "bg-emerald-400/15 border border-emerald-400/20"
+                      )}>
+                        {n.type === "accepted"
+                          ? <CheckCheck size={15} className="text-blue-400" />
+                          : <Bike size={15} className="text-emerald-400" />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-[#004D40] leading-snug">
+                          {lang === "ar" ? n.messageAr : n.messageFr}
+                        </p>
+                        <p className="text-[10px] text-[#004D40]/30 mt-0.5">{timeAgo(n.timestamp)}</p>
+                      </div>
+                      {!n.read && (
+                        <div className="w-2 h-2 rounded-full bg-[#66BB6A] flex-shrink-0 mt-1.5" />
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {notifications.length > 0 && (
+              <div className="px-4 py-2 border-t border-[#004D40]/5 text-center">
+                <p className="text-[10px] text-[#004D40]/25">
+                  {lang === "ar" ? "إشعارات حالة طلباتك" : "Statut de vos commandes"}
+                </p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t, lang, isRTL } = useLang();
-  const { cart, removeItem, updateQty, clearCart, total, itemCount } = useCart();
+  const { cart, removeItem, updateQty, clearCart, itemCount } = useCart();
   const [, navigate] = useLocation();
+  const session = getSession();
+
+  const subTotal = cart.items.reduce((s, i) => s + i.price * i.qty, 0);
+  const deliveryFee = (session?.role === "client" && session?.delegationFee !== undefined && session.delegationFee > 0)
+    ? session.delegationFee
+    : cart.deliveryFee;
+  const total = subTotal + deliveryFee;
 
   const placeOrder = () => {
     if (!cart.supplierId || cart.items.length === 0) return;
     const lines = cart.items
       .map(i => `${lang === "ar" ? i.nameAr : i.name} x${i.qty} — ${(i.price * i.qty).toFixed(2)} DT`)
       .join("\n");
-    const subTotal = cart.items.reduce((s, i) => s + i.price * i.qty, 0);
     const notes = encodeURIComponent(
-      `🛒 ${t("المنتجات", "Produits")}:\n${lines}\n\n💰 ${t("المجموع", "Sous-total")}: ${subTotal.toFixed(2)} DT\n🚗 ${t("التوصيل", "Livraison")}: ${cart.deliveryFee.toFixed(2)} DT\n✅ ${t("الإجمالي", "Total")}: ${total.toFixed(2)} DT`
+      `🛒 ${t("المنتجات", "Produits")}:\n${lines}\n\n💰 ${t("المجموع", "Sous-total")}: ${subTotal.toFixed(2)} DT\n🚗 ${t("التوصيل", "Livraison")}: ${deliveryFee.toFixed(2)} DT\n✅ ${t("الإجمالي", "Total")}: ${total.toFixed(2)} DT`
     );
     onClose();
     navigate(`/order/${cart.supplierId}?notes=${notes}`);
@@ -197,16 +347,20 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                 <div className="rounded-[12px] p-3 space-y-2 border border-[#66BB6A]/20" style={{ background: "#FFFDE7" }}>
                   <div className="flex justify-between text-sm">
                     <span className="text-[#004D40]/50">{t("المنتجات", "Produits")}</span>
-                    <span className="text-[#004D40] font-bold">
-                      {cart.items.reduce((s, i) => s + i.price * i.qty, 0).toFixed(2)} DT
-                    </span>
+                    <span className="text-[#004D40] font-bold">{subTotal.toFixed(2)} DT</span>
                   </div>
-                  {cart.deliveryFee > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#004D40]/50">{t("التوصيل", "Livraison")}</span>
-                      <span className="text-[#004D40] font-bold">{cart.deliveryFee.toFixed(2)} DT</span>
-                    </div>
-                  )}
+                  {/* Delegation-based delivery fee */}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#004D40]/50 flex items-center gap-1">
+                      {t("التوصيل", "Livraison")}
+                      {session?.delegationName && (
+                        <span className="text-[10px] text-[#66BB6A]/70 font-bold px-1.5 py-0.5 rounded-full bg-[#66BB6A]/10">
+                          {session.delegationName}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[#004D40] font-bold">{deliveryFee.toFixed(2)} DT</span>
+                  </div>
                   <div className="flex justify-between pt-2 border-t border-[#66BB6A]/30">
                     <span className="font-black text-[#004D40]">{t("الإجمالي", "Total")}</span>
                     <span className="font-black text-xl" style={{ color: "#66BB6A" }}>{total.toFixed(2)} DT</span>
@@ -324,7 +478,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         )}
         style={{ background: "#C99900" }}
       >
-        {/* Left/Right side: greeting + session name */}
+        {/* Greeting + session name */}
         <div className="flex items-center gap-3" dir={isRTL ? "rtl" : "ltr"}>
           {session && (
             <span className="text-[#004D40]/60 text-sm font-bold">
@@ -333,10 +487,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           )}
         </div>
 
-        {/* Right side: Cart (PROMINENT) + Lang */}
+        {/* Cart + Notifications + Lang */}
         <div className="flex items-center gap-3">
-          {/* Large cart button with total price */}
           <CartButton onClick={() => setCartOpen(true)} large />
+          <NotificationBell />
           <LangToggle />
         </div>
       </header>
@@ -349,9 +503,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="w-9 h-9 rounded-full bg-[#66BB6A]/20 flex items-center justify-center border border-[#66BB6A]/30">
           <span className="font-black text-[#66BB6A] text-sm">DC</span>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Cart button with price on mobile too */}
+        <div className="flex items-center gap-2">
           <CartButton onClick={() => setCartOpen(true)} large />
+          <NotificationBell />
           <LangToggle />
         </div>
       </header>
