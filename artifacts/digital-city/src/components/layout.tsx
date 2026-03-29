@@ -11,14 +11,14 @@ import { motion, AnimatePresence } from "framer-motion";
 function LangToggle() {
   const { lang, setLang } = useLang();
   return (
-    <div className="flex items-center gap-1 p-1 rounded-full bg-[#004D40]/8 border border-[#004D40]/12">
+    <div className="flex items-center gap-1 p-1 rounded-full bg-[#66BB6A]/8 border border-[#66BB6A]/12">
       <button
         onClick={() => setLang("ar")}
         className={cn(
           "px-3 py-1 rounded-full text-xs font-bold transition-all duration-300",
           lang === "ar"
             ? "bg-[#66BB6A] text-black shadow-[0_0_10px_rgba(102,187,106,0.4)]"
-            : "text-[#004D40]/50 hover:text-[#004D40]"
+            : "text-[#66BB6A]/50 hover:text-[#66BB6A]"
         )}
       >AR</button>
       <button
@@ -27,7 +27,7 @@ function LangToggle() {
           "px-3 py-1 rounded-full text-xs font-bold transition-all duration-300",
           lang === "fr"
             ? "bg-[#66BB6A] text-black shadow-[0_0_10px_rgba(102,187,106,0.4)]"
-            : "text-[#004D40]/50 hover:text-[#004D40]"
+            : "text-[#66BB6A]/50 hover:text-[#66BB6A]"
         )}
       >FR</button>
     </div>
@@ -46,8 +46,8 @@ function CartButton({ onClick, large }: { onClick: () => void; large?: boolean }
     >
       <ShoppingCart size={large ? 20 : 19} className="text-[#66BB6A] group-hover:scale-110 transition-transform" />
       {large && itemCount > 0 && (
-        <span className="text-[#004D40] font-black text-sm">
-          {total.toFixed(2)} <span className="text-[10px] font-bold text-[#004D40]/60">DT</span>
+        <span className="text-[#66BB6A] font-black text-sm">
+          {total.toFixed(2)} <span className="text-[10px] font-bold text-[#66BB6A]/60">DT</span>
         </span>
       )}
       {itemCount > 0 && (
@@ -92,10 +92,10 @@ function NotificationBell() {
           "relative p-2.5 rounded-xl border transition-all",
           unreadCount > 0
             ? "border-[#66BB6A]/50 bg-[#66BB6A]/20 hover:bg-[#66BB6A]/30"
-            : "border-[#004D40]/10 bg-[#004D40]/5 hover:bg-[#004D40]/10"
+            : "border-[#66BB6A]/10 bg-[#66BB6A]/5 hover:bg-[#66BB6A]/10"
         )}
       >
-        <Bell size={18} className={unreadCount > 0 ? "text-[#66BB6A]" : "text-[#004D40]/40"} />
+        <Bell size={18} className={unreadCount > 0 ? "text-[#66BB6A]" : "text-[#66BB6A]/40"} />
         {unreadCount > 0 && (
           <motion.span
             initial={{ scale: 0 }}
@@ -117,21 +117,21 @@ function NotificationBell() {
             transition={{ duration: 0.15 }}
             className="absolute top-full mt-2 w-80 rounded-2xl shadow-2xl border z-[80] overflow-hidden"
             style={{
-              background: "#C99900",
+              background: "#FF8C00",
               borderColor: "rgba(102,187,106,0.3)",
               insetInlineEnd: 0,
             }}
             dir="rtl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#004D40]/8">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#66BB6A]/8">
               <div className="flex items-center gap-2">
                 <Bell size={15} className="text-[#66BB6A]" />
-                <span className="font-black text-[#004D40] text-sm">
+                <span className="font-black text-[#66BB6A] text-sm">
                   {lang === "ar" ? "الإشعارات" : "Notifications"}
                 </span>
                 {notifications.length > 0 && (
-                  <span className="text-[10px] font-bold text-[#004D40]/40">({notifications.length})</span>
+                  <span className="text-[10px] font-bold text-[#66BB6A]/40">({notifications.length})</span>
                 )}
               </div>
               {notifications.length > 0 && (
@@ -148,15 +148,15 @@ function NotificationBell() {
             <div className="max-h-72 overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-[#004D40]/5 border border-[#004D40]/8 flex items-center justify-center">
-                    <Bell size={20} className="text-[#004D40]/20" />
+                  <div className="w-12 h-12 rounded-2xl bg-[#66BB6A]/5 border border-[#66BB6A]/8 flex items-center justify-center">
+                    <Bell size={20} className="text-[#66BB6A]/20" />
                   </div>
-                  <p className="text-[#004D40]/30 text-sm font-bold text-center">
+                  <p className="text-[#66BB6A]/30 text-sm font-bold text-center">
                     {lang === "ar" ? "لا توجد إشعارات" : "Aucune notification"}
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-[#004D40]/5">
+                <div className="divide-y divide-[#66BB6A]/5">
                   {notifications.map(n => (
                     <motion.div
                       key={n.id}
@@ -177,10 +177,10 @@ function NotificationBell() {
                         }
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-[#004D40] leading-snug">
+                        <p className="text-sm font-bold text-[#66BB6A] leading-snug">
                           {lang === "ar" ? n.messageAr : n.messageFr}
                         </p>
-                        <p className="text-[10px] text-[#004D40]/30 mt-0.5">{timeAgo(n.timestamp)}</p>
+                        <p className="text-[10px] text-[#66BB6A]/30 mt-0.5">{timeAgo(n.timestamp)}</p>
                       </div>
                       {!n.read && (
                         <div className="w-2 h-2 rounded-full bg-[#66BB6A] flex-shrink-0 mt-1.5" />
@@ -192,8 +192,8 @@ function NotificationBell() {
             </div>
 
             {notifications.length > 0 && (
-              <div className="px-4 py-2 border-t border-[#004D40]/5 text-center">
-                <p className="text-[10px] text-[#004D40]/25">
+              <div className="px-4 py-2 border-t border-[#66BB6A]/5 text-center">
+                <p className="text-[10px] text-[#66BB6A]/25">
                   {lang === "ar" ? "إشعارات حالة طلباتك" : "Statut de vos commandes"}
                 </p>
               </div>
@@ -235,7 +235,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
         <>
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-[#E1AD01]/60 backdrop-blur-sm z-[60]"
+            className="fixed inset-0 bg-[#FF8C00]/60 backdrop-blur-sm z-[60]"
             onClick={onClose}
           />
           <motion.div
@@ -245,7 +245,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
             className={cn("fixed top-0 h-full w-full max-w-sm z-[70] flex flex-col", isRTL ? "left-0" : "right-0")}
             style={{
-              background: "#C99900",
+              background: "#FF8C00",
               borderLeft:  isRTL ? "none" : "2px solid #66BB6A",
               borderRight: isRTL ? "2px solid #66BB6A" : "none",
             }}
@@ -255,7 +255,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#66BB6A]/20">
               <div className="flex items-center gap-2">
                 <ShoppingCart size={18} className="text-[#66BB6A]" />
-                <h2 className="font-black text-[#004D40] text-lg">{t("سلة التسوق", "Mon Panier")}</h2>
+                <h2 className="font-black text-[#66BB6A] text-lg">{t("سلة التسوق", "Mon Panier")}</h2>
                 {itemCount > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-xs font-black text-black" style={{ background: "#66BB6A" }}>
                     {itemCount}
@@ -273,7 +273,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                 )}
                 <button
                   onClick={onClose}
-                  className="p-2 rounded-xl text-[#004D40]/40 hover:text-[#004D40] border border-[#004D40]/10 hover:bg-[#004D40]/5 transition-all"
+                  className="p-2 rounded-xl text-[#66BB6A]/40 hover:text-[#66BB6A] border border-[#66BB6A]/10 hover:bg-[#66BB6A]/5 transition-all"
                 >
                   <X size={16} />
                 </button>
@@ -282,7 +282,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 
             {/* Supplier tag */}
             {cart.supplierName && (
-              <div className="px-5 py-2 border-b border-[#004D40]/5">
+              <div className="px-5 py-2 border-b border-[#66BB6A]/5">
                 <p className="text-xs text-[#66BB6A]/60 font-bold">{cart.supplierName}</p>
               </div>
             )}
@@ -294,7 +294,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                   <div className="w-16 h-16 rounded-2xl bg-[#66BB6A]/10 border border-[#66BB6A]/20 flex items-center justify-center">
                     <ShoppingCart size={28} className="text-[#66BB6A]/40" />
                   </div>
-                  <p className="text-[#004D40]/30 font-bold text-center">{t("السلة فارغة", "Panier vide")}</p>
+                  <p className="text-[#66BB6A]/30 font-bold text-center">{t("السلة فارغة", "Panier vide")}</p>
                 </div>
               ) : (
                 cart.items.map(item => (
@@ -312,11 +312,11 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-[#004D40] text-sm truncate">
+                      <p className="font-black text-[#66BB6A] text-sm truncate">
                         {lang === "ar" ? item.nameAr : item.name}
                       </p>
                       <p className="text-[#66BB6A] font-bold text-sm mt-0.5">{(item.price * item.qty).toFixed(2)} DT</p>
-                      <p className="text-[#004D40]/30 text-xs">{item.price.toFixed(2)} DT × {item.qty}</p>
+                      <p className="text-[#66BB6A]/30 text-xs">{item.price.toFixed(2)} DT × {item.qty}</p>
                     </div>
                     <div className="flex flex-col items-center gap-1 flex-shrink-0">
                       <button
@@ -325,7 +325,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                       >
                         <Plus size={12} />
                       </button>
-                      <span className="text-[#004D40] font-black text-sm">{item.qty}</span>
+                      <span className="text-[#66BB6A] font-black text-sm">{item.qty}</span>
                       <button
                         onClick={() => updateQty(item.id, item.qty - 1)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center border border-red-400/20 bg-red-400/5 hover:bg-red-400/10 text-red-400 transition-all"
@@ -346,12 +346,12 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
               <div className="p-4 border-t border-[#66BB6A]/20 space-y-3">
                 <div className="rounded-[12px] p-3 space-y-2 border border-[#66BB6A]/20" style={{ background: "#FFFDE7" }}>
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#004D40]/50">{t("المنتجات", "Produits")}</span>
-                    <span className="text-[#004D40] font-bold">{subTotal.toFixed(2)} DT</span>
+                    <span className="text-[#66BB6A]/50">{t("المنتجات", "Produits")}</span>
+                    <span className="text-[#66BB6A] font-bold">{subTotal.toFixed(2)} DT</span>
                   </div>
                   {/* Delegation-based delivery fee */}
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#004D40]/50 flex items-center gap-1">
+                    <span className="text-[#66BB6A]/50 flex items-center gap-1">
                       {t("التوصيل", "Livraison")}
                       {session?.delegationName && (
                         <span className="text-[10px] text-[#66BB6A]/70 font-bold px-1.5 py-0.5 rounded-full bg-[#66BB6A]/10">
@@ -359,19 +359,19 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                         </span>
                       )}
                     </span>
-                    <span className="text-[#004D40] font-bold">{deliveryFee.toFixed(2)} DT</span>
+                    <span className="text-[#66BB6A] font-bold">{deliveryFee.toFixed(2)} DT</span>
                   </div>
                   <div className="flex justify-between pt-2 border-t border-[#66BB6A]/30">
-                    <span className="font-black text-[#004D40]">{t("الإجمالي", "Total")}</span>
+                    <span className="font-black text-[#66BB6A]">{t("الإجمالي", "Total")}</span>
                     <span className="font-black text-xl" style={{ color: "#66BB6A" }}>{total.toFixed(2)} DT</span>
                   </div>
                 </div>
                 <button
                   onClick={placeOrder}
-                  className="w-full py-3.5 rounded-[12px] font-black text-black text-base flex items-center justify-center gap-2 transition-all active:scale-95"
-                  style={{ background: "#66BB6A" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#4CAF50")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#66BB6A")}
+                  className="w-full py-3.5 rounded-[12px] font-black text-base flex items-center justify-center gap-2 transition-all active:scale-95"
+                  style={{ background: "linear-gradient(135deg, #FF8C00, #FFD700)", color: "#66BB6A", textShadow: "0 1px 2px rgba(0,0,0,0.12)", boxShadow: "0 4px 16px rgba(255,140,0,0.35)" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "linear-gradient(135deg, #FFD700, #FF8C00)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "linear-gradient(135deg, #FF8C00, #FFD700)")}
                 >
                   <ShoppingCart size={18} />
                   {t("تأكيد الطلب", "Passer la commande")}
@@ -416,10 +416,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
             ? "right-0 border-l-2 border-l-[#66BB6A]"
             : "left-0 border-r-2 border-r-[#66BB6A]"
         )}
-        style={{ background: "#C99900" }}
+        style={{ background: "#FF8C00" }}
       >
         {/* Logo */}
-        <div className="w-11 h-11 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#004D40]/20 shadow-[0_0_14px_-4px_rgba(225,173,1,0.5)] flex items-center justify-center">
+        <div className="w-11 h-11 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#66BB6A]/20 shadow-[0_0_14px_-4px_rgba(255,140,0,0.5)] flex items-center justify-center">
           <img src="/logo.png" alt="سند" className="w-full h-full object-contain p-0.5" draggable={false} />
         </div>
 
@@ -440,7 +440,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     "p-2.5 rounded-xl transition-all duration-300",
                     isActive
                       ? "bg-[#66BB6A] text-black shadow-[0_0_14px_rgba(102,187,106,0.45)]"
-                      : "text-[#004D40]/40 group-hover:text-[#66BB6A] group-hover:bg-[#66BB6A]/10"
+                      : "text-[#66BB6A]/40 group-hover:text-[#66BB6A] group-hover:bg-[#66BB6A]/10"
                   )}
                 >
                   <item.icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
@@ -448,7 +448,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <span
                   className={cn(
                     "text-[9px] font-bold transition-colors duration-300 text-center",
-                    isActive ? "text-[#66BB6A]" : "text-[#004D40]/40 group-hover:text-[#66BB6A]"
+                    isActive ? "text-[#66BB6A]" : "text-[#66BB6A]/40 group-hover:text-[#66BB6A]"
                   )}
                 >
                   {item.label}
@@ -462,7 +462,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {session && (
           <button
             onClick={handleLogout}
-            className="p-2.5 rounded-xl text-[#004D40]/30 hover:text-red-400 hover:bg-red-400/10 transition-all"
+            className="p-2.5 rounded-xl text-[#66BB6A]/30 hover:text-red-400 hover:bg-red-400/10 transition-all"
             title={t("تسجيل الخروج", "Déconnexion")}
           >
             <LogOut size={18} />
@@ -476,13 +476,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           "hidden md:flex items-center justify-between px-6 py-3 sticky top-0 z-40 border-b-2 border-[#66BB6A]",
           isRTL ? "md:pr-24" : "md:pl-24"
         )}
-        style={{ background: "#C99900" }}
+        style={{ background: "#FF8C00" }}
       >
         {/* Greeting + session name */}
         <div className="flex items-center gap-3" dir={isRTL ? "rtl" : "ltr"}>
           {session && (
-            <span className="text-[#004D40]/60 text-sm font-bold">
-              {t("أهلاً،", "Bonjour,")} <span className="text-[#004D40]">{session.name}</span>
+            <span className="text-[#66BB6A]/60 text-sm font-bold">
+              {t("أهلاً،", "Bonjour,")} <span className="text-[#66BB6A]">{session.name}</span>
             </span>
           )}
         </div>
@@ -498,9 +498,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Mobile Top Bar ── */}
       <header
         className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b-2 border-[#66BB6A] sticky top-0 z-50"
-        style={{ background: "#C99900" }}
+        style={{ background: "#FF8C00" }}
       >
-        <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#004D40]/20 flex items-center justify-center shadow-[0_0_10px_-3px_rgba(225,173,1,0.45)]">
+        <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#66BB6A]/20 flex items-center justify-center shadow-[0_0_10px_-3px_rgba(255,140,0,0.45)]">
           <img src="/logo.png" alt="سند" className="w-full h-full object-contain p-0.5" draggable={false} />
         </div>
         <div className="flex items-center gap-2">
@@ -517,8 +517,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Mobile Bottom Navigation ── */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 w-full border-t-2 border-[#66BB6A] px-6 py-3 z-50 flex justify-around items-center rounded-t-2xl"
-        style={{ background: "#C99900" }}
+        className="md:hidden fixed bottom-0 left-0 w-full border-t-2 border-[#FFD700] px-6 py-3 z-50 flex justify-around items-center rounded-t-2xl"
+        style={{ background: "#FF8C00" }}
       >
         {navItems.map(item => {
           const isActive =
@@ -533,7 +533,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <div
                 className={cn(
                   "relative p-2 rounded-xl transition-all duration-300",
-                  isActive ? "text-[#66BB6A]" : "text-[#004D40]/40"
+                  isActive ? "text-[#66BB6A]" : "text-[#66BB6A]/40"
                 )}
               >
                 {isActive && (
@@ -547,7 +547,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <span
                 className={cn(
                   "text-[10px] font-bold",
-                  isActive ? "text-[#66BB6A]" : "text-[#004D40]/40"
+                  isActive ? "text-[#66BB6A]" : "text-[#66BB6A]/40"
                 )}
               >
                 {item.label}
@@ -561,10 +561,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
             onClick={handleLogout}
             className="flex flex-col items-center justify-center gap-1 w-16"
           >
-            <div className="p-2 rounded-xl text-[#004D40]/30 hover:text-red-400 transition-all">
+            <div className="p-2 rounded-xl text-[#66BB6A]/30 hover:text-red-400 transition-all">
               <LogOut className="w-6 h-6" />
             </div>
-            <span className="text-[10px] font-bold text-[#004D40]/30">
+            <span className="text-[10px] font-bold text-[#66BB6A]/30">
               {t("خروج", "Sortir")}
             </span>
           </button>

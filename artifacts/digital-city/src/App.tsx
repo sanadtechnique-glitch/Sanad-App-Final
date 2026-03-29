@@ -68,7 +68,7 @@ function NotFound() {
   return (
     <div
       className="min-h-screen flex items-center justify-center flex-col gap-6"
-      style={{ background: "#E1AD01" }}
+      style={{ background: "#FF8C00" }}
       dir="rtl"
     >
       <div

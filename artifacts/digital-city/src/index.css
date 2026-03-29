@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /* ─── Jumia-Inspired Design System ───────────────────────────────────────────
-   BG:      #E1AD01  Mustard Yellow  — main background
-   PANEL:   #C99900  Dark Mustard    — panels, sidebar, nav
+   BG:      #FF8C00  Mustard Yellow  — main background
+   PANEL:   #FF8C00  Dark Mustard    — panels, sidebar, nav
    CARD:    #FFFDE7  Cream           — product/service cards
    ACCENT:  #66BB6A  Light Green     — buttons, borders, icons, stars, panier
    TEXT:    #004D40  Dark Green      — body text & labels
@@ -17,7 +17,7 @@
   --color-gold:        #66BB6A;
   --color-gold-light:  #C8E6C9;
   --color-gold-dark:   #388E3C;
-  --color-dark-grey:   #C99900;
+  --color-dark-grey:   #FF8C00;
   --color-input-bg:    #D4A800;
 
   --color-background: hsl(var(--background));
@@ -40,7 +40,7 @@
 
 /* ─── Colour tokens ────────────────────────────────────────────────────────── */
 :root {
-  /* Mustard Yellow background #E1AD01  ≈ hsl(46 100% 44%) */
+  /* Mustard Yellow background #FF8C00  ≈ hsl(46 100% 44%) */
   --background: 46 100% 44%;
   --foreground: 172 100% 15%;      /* #004D40 dark green */
 
@@ -48,7 +48,7 @@
   --primary: 123 36% 57%;
   --primary-foreground: 0 0% 100%;
 
-  /* Dark Mustard panels = #C99900 */
+  /* Dark Mustard panels = #FF8C00 */
   --secondary: 46 100% 39%;
   --secondary-foreground: 172 100% 15%;
   --card: 0 0% 100%;               /* white cards */
@@ -74,12 +74,12 @@
 
   html {
     direction: rtl;
-    background-color: #E1AD01;
+    background-color: #FF8C00;
   }
 
   body {
     font-family: 'Cairo', 'Tajawal', sans-serif;
-    background-color: #E1AD01;
+    background-color: #FF8C00;
     color: #004D40;
     direction: rtl;
     overflow-x: hidden;
@@ -98,7 +98,7 @@
 
   /* Green-tinted scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: #C99900; }
+  ::-webkit-scrollbar-track { background: #FF8C00; }
   ::-webkit-scrollbar-thumb { background: #66BB6A; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: #388E3C; }
 
@@ -197,7 +197,7 @@
 
 /* ─── Header — mustard with green border ─────────────────────────────────────── */
 .dc-header {
-  background: #C99900;
+  background: #FF8C00;
   border-bottom: 2px solid #66BB6A;
   position: sticky;
   top: 0;

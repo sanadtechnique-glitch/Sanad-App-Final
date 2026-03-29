@@ -18,7 +18,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ## Project: سند · Sanad
 
-A premium delivery app for Ben Guerdane. **App name**: سند (Sanad). **Slogan**: "سندك الرسمي ... من السوق للدار". **Jumia-inspired theme**: Mustard Yellow (#E1AD01) background, Light Green (#66BB6A) accent/buttons, Dark Green (#004D40) text, Cream (#FFFDE7) cards, Dark Mustard (#C99900) panels/nav/sidebar. Arabic/French bilingual RTL.
+A premium delivery app for Ben Guerdane. **App name**: سند (Sanad). **Slogan**: "سندك في التوصيل.. لباب الدار". **Theme**: Vibrant Orange (#FF8C00) page/nav backgrounds, Light Green (#66BB6A) text/icons, Orange→Yellow gradient (#FF8C00→#FFD700) action buttons with bold green text, White (#FFFFFF) input backgrounds with Orange (#FF8C00) borders, Yellow (#FFD700) tab indicators, Cream (#FFFDE7) cards. Arabic/French bilingual RTL.
 
 ### Architecture
 

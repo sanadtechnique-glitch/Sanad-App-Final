@@ -70,7 +70,7 @@ export default function DeliveryMap({ address, customerName }: Props) {
           </div>
           <button
             onClick={openGoogleMaps}
-            className="w-full flex items-center justify-center gap-2 py-2.5 font-black text-sm text-[#004D40] hover:text-[#66BB6A] border-t border-[#66BB6A]/30 transition-all hover:bg-[#66BB6A]/8"
+            className="w-full flex items-center justify-center gap-2 py-2.5 font-black text-sm text-[#66BB6A] hover:text-[#66BB6A] border-t border-[#66BB6A]/30 transition-all hover:bg-[#66BB6A]/8"
             style={{ background: "#FFFDE7" }}
             dir={isRTL ? "rtl" : "ltr"}>
             <Navigation size={15} />

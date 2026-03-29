@@ -70,7 +70,7 @@ export default function ProviderStore() {
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
-            <p className="text-[#004D40]/40 mb-4">{t("المزود غير موجود", "Fournisseur introuvable")}</p>
+            <p className="text-[#66BB6A]/40 mb-4">{t("المزود غير موجود", "Fournisseur introuvable")}</p>
             <Link href="/services">
               <button className="text-[#66BB6A] text-sm underline">{t("العودة", "Retour")}</button>
             </Link>
@@ -86,7 +86,7 @@ export default function ProviderStore() {
 
         {/* Back button */}
         <Link href="/services">
-          <button className="flex items-center gap-2 text-[#004D40]/40 hover:text-[#66BB6A] transition-colors mb-6 text-sm font-bold">
+          <button className="flex items-center gap-2 text-[#66BB6A]/40 hover:text-[#66BB6A] transition-colors mb-6 text-sm font-bold">
             {isRTL ? <ChevronLeft size={16} /> : <ArrowRight size={16} className="rotate-180" />}
             <span>{t("العودة للخدمات", "Retour aux services")}</span>
           </button>
@@ -96,28 +96,28 @@ export default function ProviderStore() {
         <motion.div
           initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
           className="rounded-[20px] p-5 mb-8 border border-[#66BB6A]/20 flex items-center gap-4"
-          style={{ background: "#FFFDE7" }}>
+          style={{ background: "#FFFFFF" }}>
           <div
             className="w-16 h-16 rounded-2xl border-2 border-[#66BB6A]/40 flex items-center justify-center flex-shrink-0 overflow-hidden"
-            style={{ background: "#FFFDE7" }}>
+            style={{ background: "#FFFFFF" }}>
             {supplier.photoUrl
               ? <img src={supplier.photoUrl} alt="" className="w-full h-full object-cover" />
               : <Package size={26} className="text-[#66BB6A]" />}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-black text-[#004D40] truncate">
+            <h1 className="text-xl font-black text-[#66BB6A] truncate">
               {lang === "ar" ? supplier.nameAr : supplier.name}
             </h1>
             {supplier.rating && (
               <div className="flex items-center gap-0.5 mt-1">
                 {[1, 2, 3, 4, 5].map(i => (
                   <Star key={i} size={11}
-                    className={i <= Math.round(supplier.rating!) ? "text-[#66BB6A] fill-[#66BB6A]" : "text-[#004D40]/20"} />
+                    className={i <= Math.round(supplier.rating!) ? "text-[#66BB6A] fill-[#66BB6A]" : "text-[#66BB6A]/20"} />
                 ))}
-                <span className="text-xs text-[#004D40]/40 ms-1">{supplier.rating.toFixed(1)}</span>
+                <span className="text-xs text-[#66BB6A]/40 ms-1">{supplier.rating.toFixed(1)}</span>
               </div>
             )}
-            <p className="text-xs text-[#004D40]/30 mt-1 leading-relaxed truncate">
+            <p className="text-xs text-[#66BB6A]/30 mt-1 leading-relaxed truncate">
               {lang === "ar" ? supplier.descriptionAr : supplier.description}
             </p>
           </div>
@@ -134,16 +134,16 @@ export default function ProviderStore() {
         {articles.length > 0 && (
           <div className="flex items-center gap-3 mb-5">
             <div className="w-1 h-6 rounded-full bg-[#66BB6A]" />
-            <h2 className="text-lg font-black text-[#004D40]">{t("المنتجات المتاحة", "Produits disponibles")}</h2>
-            <span className="text-xs text-[#004D40]/30 px-2 py-0.5 rounded-full border border-[#004D40]/10">{articles.length}</span>
+            <h2 className="text-lg font-black text-[#66BB6A]">{t("المنتجات المتاحة", "Produits disponibles")}</h2>
+            <span className="text-xs text-[#66BB6A]/30 px-2 py-0.5 rounded-full border border-[#66BB6A]/10">{articles.length}</span>
           </div>
         )}
 
         {/* Product grid */}
         {articles.length === 0 ? (
           <div className="text-center py-20">
-            <Package size={48} className="text-[#004D40]/10 mx-auto mb-4" />
-            <p className="text-[#004D40]/30 mb-6">{t("لا توجد منتجات متاحة", "Aucun produit disponible")}</p>
+            <Package size={48} className="text-[#66BB6A]/10 mx-auto mb-4" />
+            <p className="text-[#66BB6A]/30 mb-6">{t("لا توجد منتجات متاحة", "Aucun produit disponible")}</p>
             <Link href={`/order/${supplier.id}`}>
               <button className="px-6 py-3 rounded-xl bg-[#66BB6A] text-black font-black hover:bg-[#4CAF50] transition-all">
                 {t("اطلب مباشرة", "Commander directement")}
@@ -166,11 +166,11 @@ export default function ProviderStore() {
                       ? "border-[#66BB6A]/60 shadow-[0_0_20px_rgba(102,187,106,0.12)]"
                       : "border-[#66BB6A]/20 hover:border-[#66BB6A]/45"
                   )}
-                  style={{ background: "#FFFDE7" }}>
+                  style={{ background: "#FFFFFF" }}>
 
                   {/* 1:1 image */}
                   <div className="relative w-full" style={{ paddingBottom: "100%" }}>
-                    <div className="absolute inset-0 border-b border-[#66BB6A]/15" style={{ background: "#E1AD01" }}>
+                    <div className="absolute inset-0 border-b border-[#66BB6A]/15" style={{ background: "#FF8C00" }}>
                       {article.photoUrl ? (
                         <img src={article.photoUrl} alt={article.nameAr} className="w-full h-full object-cover" />
                       ) : (
@@ -188,27 +188,27 @@ export default function ProviderStore() {
 
                   {/* Info */}
                   <div className="p-3 flex flex-col flex-1">
-                    <p className="text-sm font-black text-[#004D40] leading-tight mb-1">
+                    <p className="text-sm font-black text-[#66BB6A] leading-tight mb-1">
                       {lang === "ar" ? article.nameAr : article.nameFr}
                     </p>
                     {(lang === "ar" ? article.descriptionAr : article.descriptionFr) && (
-                      <p className="text-[11px] text-[#004D40]/30 leading-tight line-clamp-2 mb-2">
+                      <p className="text-[11px] text-[#66BB6A]/30 leading-tight line-clamp-2 mb-2">
                         {lang === "ar" ? article.descriptionAr : article.descriptionFr}
                       </p>
                     )}
                     <div className="mt-auto space-y-2">
                       <p className="text-[#66BB6A] font-black text-base">{article.price.toFixed(2)} DT</p>
                       {article.originalPrice && article.originalPrice > article.price && (
-                        <p className="text-[#004D40]/25 text-xs line-through -mt-1">{article.originalPrice.toFixed(2)} DT</p>
+                        <p className="text-[#66BB6A]/25 text-xs line-through -mt-1">{article.originalPrice.toFixed(2)} DT</p>
                       )}
                       {qty > 0 ? (
                         <div className="flex items-center justify-between gap-2">
                           <button
                             onClick={() => updateQty(article.id, qty - 1)}
-                            className="w-8 h-8 rounded-xl bg-[#004D40]/5 border border-[#004D40]/10 flex items-center justify-center hover:border-red-400/30 hover:text-red-400 transition-all text-[#004D40]/60">
+                            className="w-8 h-8 rounded-xl bg-[#66BB6A]/5 border border-[#66BB6A]/10 flex items-center justify-center hover:border-red-400/30 hover:text-red-400 transition-all text-[#66BB6A]/60">
                             <Minus size={12} />
                           </button>
-                          <span className="text-[#004D40] font-black text-sm flex-1 text-center">{qty}</span>
+                          <span className="text-[#66BB6A] font-black text-sm flex-1 text-center">{qty}</span>
                           <button
                             onClick={() => updateQty(article.id, qty + 1)}
                             className="w-8 h-8 rounded-xl bg-[#66BB6A]/20 border border-[#66BB6A]/40 flex items-center justify-center hover:bg-[#66BB6A]/30 transition-all text-[#66BB6A]">
