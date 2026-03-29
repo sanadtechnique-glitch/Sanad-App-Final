@@ -982,7 +982,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
             <LayoutDashboard size={28} className="text-[#66BB6A]" />
           </div>
           <h1 className="text-3xl font-black text-[#004D40] mb-1">لوحة التحكم</h1>
-          <p className="text-[#004D40]/30 text-sm">Admin Panel · المدينة الرقمية</p>
+          <p className="text-[#004D40]/30 text-sm">Admin Panel · سند</p>
         </div>
 
         {/* Form */}
@@ -1050,7 +1050,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
         </form>
 
         <p className="text-center text-[#004D40]/15 text-xs mt-8">
-          المدينة الرقمية — Digital City · بن قردان
+          سند — Sanad · بن قردان
         </p>
       </motion.div>
     </div>
@@ -1081,8 +1081,8 @@ export default function Admin() {
       )}>
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-[#004D40]/5">
-          <div className="w-9 h-9 rounded-xl bg-[#66BB6A]/20 border border-[#66BB6A]/30 flex items-center justify-center flex-shrink-0">
-            <span className="font-black text-[#66BB6A] text-sm">DC</span>
+          <div className="w-9 h-9 rounded-xl bg-[#004D40]/12 border border-[#004D40]/25 flex items-center justify-center flex-shrink-0">
+            <span className="font-black text-[#004D40] text-xs leading-none" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>سند</span>
           </div>
           <div className="hidden md:block overflow-hidden">
             <p className="text-xs font-black text-[#004D40] leading-tight">{t("لوحة التحكم","Admin Panel")}</p>

@@ -16,9 +16,9 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
-## Project: المدينة الرقمية (Digital City)
+## Project: سند · Sanad
 
-A premium delivery app for Ben Guerdane. **Jumia-inspired theme**: Mustard Yellow (#E1AD01) background, Light Green (#66BB6A) accent/buttons, Dark Green (#004D40) text, Cream (#FFFDE7) cards, Dark Mustard (#C99900) panels/nav/sidebar. Arabic/French bilingual RTL.
+A premium delivery app for Ben Guerdane. **App name**: سند (Sanad). **Slogan**: "سندك الرسمي ... من السوق للدار". **Jumia-inspired theme**: Mustard Yellow (#E1AD01) background, Light Green (#66BB6A) accent/buttons, Dark Green (#004D40) text, Cream (#FFFDE7) cards, Dark Mustard (#C99900) panels/nav/sidebar. Arabic/French bilingual RTL.
 
 ### Architecture
 

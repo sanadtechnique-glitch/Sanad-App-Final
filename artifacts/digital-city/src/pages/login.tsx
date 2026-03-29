@@ -734,22 +734,29 @@ export default function LoginPage() {
           >
             <div className="flex flex-col items-center gap-3">
               <div
-                className="w-[60px] h-[60px] rounded-2xl flex items-center justify-center text-xl font-black"
+                className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center"
                 style={{
-                  background: "rgba(102,187,106,0.12)",
-                  border: "2px solid rgba(102,187,106,0.45)",
-                  color: "#66BB6A",
-                  boxShadow: "0 0 30px -8px rgba(102,187,106,0.55)",
+                  background: "rgba(0,77,64,0.07)",
+                  border: "2.5px solid rgba(0,77,64,0.25)",
+                  boxShadow: "0 0 32px -8px rgba(0,77,64,0.30)",
                 }}
               >
-                DC
+                <span
+                  className="font-black text-[#004D40] text-2xl leading-none"
+                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}
+                >
+                  سند
+                </span>
               </div>
               <div className="text-center">
-                <h1 className="text-xl font-black text-[#004D40] tracking-tight">
-                  المدينة الرقمية
+                <h1
+                  className="text-2xl font-black text-[#004D40] tracking-tight leading-tight"
+                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}
+                >
+                  سند
                 </h1>
-                <p className="text-[#004D40]/30 text-xs mt-0.5 font-medium">
-                  Digital City · بن قردان، تونس
+                <p className="text-[#004D40]/60 text-sm mt-1 font-bold" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                  سندك الرسمي ... من السوق للدار
                 </p>
               </div>
             </div>
@@ -832,8 +839,8 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[#004D40]/15 text-xs mt-5 font-medium">
-          المدينة الرقمية — Digital City · بن قردان، تونس
+        <p className="text-center text-[#004D40]/20 text-xs mt-5 font-medium" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+          سند · Sanad — بن قردان، تونس
         </p>
       </motion.div>
     </div>

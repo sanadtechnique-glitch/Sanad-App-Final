@@ -80,29 +80,16 @@ export default function Home() {
 
             {/* Title */}
             <h1 dir={isRTL ? "rtl" : "ltr"}
-              className="text-5xl md:text-7xl font-black text-[#004D40] mb-3 leading-tight"
-              style={{ fontFamily: isRTL ? "'Tajawal','Cairo',sans-serif" : "'Outfit',sans-serif" }}>
-              {isRTL ? (
-                <bdi dir="rtl">
-                  {"المدينة "}
-                  <span className="bg-clip-text text-transparent"
-                    style={{ backgroundImage: "linear-gradient(90deg,#66BB6A,#C8E6C9,#4CAF50)" }}>
-                    الرقمية
-                  </span>
-                </bdi>
-              ) : (
-                <>
-                  {"Ville "}
-                  <span className="bg-clip-text text-transparent"
-                    style={{ backgroundImage: "linear-gradient(90deg,#66BB6A,#C8E6C9,#4CAF50)" }}>
-                    Digitale
-                  </span>
-                </>
-              )}
+              className="text-6xl md:text-8xl font-black text-[#004D40] mb-3 leading-tight"
+              style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+              <span className="bg-clip-text text-transparent"
+                style={{ backgroundImage: "linear-gradient(135deg,#004D40,#66BB6A,#004D40)" }}>
+                سند
+              </span>
             </h1>
 
-            <p className="text-lg text-[#004D40]/50 font-light tracking-widest">
-              {t("توصيل بريميوم · Digital City", "Livraison Premium · Digital City")}
+            <p className="text-base md:text-lg text-[#004D40]/70 font-bold tracking-wide" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+              {t("سندك الرسمي ... من السوق للدار", "Sanad — De la source à votre porte")}
             </p>
           </motion.div>
         </section>

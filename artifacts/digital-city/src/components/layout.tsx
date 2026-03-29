@@ -419,8 +419,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ background: "#C99900" }}
       >
         {/* Logo */}
-        <div className="w-11 h-11 rounded-full bg-[#66BB6A]/20 flex items-center justify-center border border-[#66BB6A]/35 shadow-[0_0_18px_-4px_rgba(102,187,106,0.45)]">
-          <span className="font-black text-[#66BB6A] text-base">DC</span>
+        <div className="w-11 h-11 rounded-full bg-[#004D40]/15 flex items-center justify-center border border-[#004D40]/30 shadow-[0_0_18px_-4px_rgba(0,77,64,0.35)]">
+          <span className="font-black text-[#004D40] text-sm leading-none" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>سند</span>
         </div>
 
         {/* Nav icons */}
@@ -500,8 +500,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b-2 border-[#66BB6A] sticky top-0 z-50"
         style={{ background: "#C99900" }}
       >
-        <div className="w-9 h-9 rounded-full bg-[#66BB6A]/20 flex items-center justify-center border border-[#66BB6A]/30">
-          <span className="font-black text-[#66BB6A] text-sm">DC</span>
+        <div className="w-9 h-9 rounded-full bg-[#004D40]/15 flex items-center justify-center border border-[#004D40]/30">
+          <span className="font-black text-[#004D40] text-xs leading-none" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>سند</span>
         </div>
         <div className="flex items-center gap-2">
           <CartButton onClick={() => setCartOpen(true)} large />
