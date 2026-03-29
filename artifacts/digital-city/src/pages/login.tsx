@@ -13,7 +13,7 @@ type ProfileOption = { value: Role; labelAr: string; labelFr: string; color: str
 
 const PROFILES: ProfileOption[] = [
   { value: "client",   labelAr: "عميل",         labelFr: "Client",        color: "#60a5fa" },
-  { value: "provider", labelAr: "مزود خدمة",    labelFr: "Fournisseur",   color: "#D4AF37" },
+  { value: "provider", labelAr: "مزود خدمة",    labelFr: "Fournisseur",   color: "#66BB6A" },
   { value: "delivery", labelAr: "سائق توصيل",   labelFr: "Livreur",       color: "#a78bfa" },
   { value: "admin",    labelAr: "مسؤول",         labelFr: "Admin",         color: "#34d399" },
 ];
@@ -95,14 +95,14 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-4"
-      style={{ background: "#000" }}
+      style={{ background: "#E1AD01" }}
       dir="rtl">
 
       {/* Background glow */}
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse 60% 40% at 50% 50%, rgba(212,175,55,0.06) 0%, transparent 70%)`,
+          background: `radial-gradient(ellipse 60% 40% at 50% 50%, rgba(102,187,106,0.06) 0%, transparent 70%)`,
         }} />
 
       <motion.div
@@ -115,29 +115,29 @@ export default function LoginPage() {
         <div
           className="rounded-[24px] border overflow-hidden"
           style={{
-            background: "#0a0a0a",
-            borderColor: "rgba(212,175,55,0.35)",
-            boxShadow: "0 0 60px -15px rgba(212,175,55,0.25), inset 0 1px 0 rgba(212,175,55,0.1)",
+            background: "#FFFDE7",
+            borderColor: "#66BB6A",
+            boxShadow: "0 0 60px -15px rgba(102,187,106,0.35), 0 8px 32px rgba(0,77,64,0.1)",
           }}>
 
           {/* Header stripe */}
           <div
             className="px-8 pt-8 pb-6 border-b"
-            style={{ borderColor: "rgba(212,175,55,0.12)" }}>
+            style={{ borderColor: "rgba(102,187,106,0.12)" }}>
             <div className="flex flex-col items-center gap-3">
               <div
                 className="w-[68px] h-[68px] rounded-2xl flex items-center justify-center text-2xl font-black"
                 style={{
-                  background: "rgba(212,175,55,0.12)",
-                  border: "2px solid rgba(212,175,55,0.45)",
-                  color: "#D4AF37",
-                  boxShadow: "0 0 35px -8px rgba(212,175,55,0.55)",
+                  background: "rgba(102,187,106,0.12)",
+                  border: "2px solid rgba(102,187,106,0.45)",
+                  color: "#66BB6A",
+                  boxShadow: "0 0 35px -8px rgba(102,187,106,0.55)",
                 }}>
                 DC
               </div>
               <div className="text-center">
-                <h1 className="text-2xl font-black text-white tracking-tight">المدينة الرقمية</h1>
-                <p className="text-white/30 text-xs mt-0.5 font-medium">Digital City · نظام الدخول الموحد</p>
+                <h1 className="text-2xl font-black text-[#004D40] tracking-tight">المدينة الرقمية</h1>
+                <p className="text-[#004D40]/30 text-xs mt-0.5 font-medium">Digital City · نظام الدخول الموحد</p>
               </div>
             </div>
           </div>
@@ -147,7 +147,7 @@ export default function LoginPage() {
 
             {/* Role dropdown */}
             <div className="space-y-2">
-              <label className="block text-[11px] font-black text-white/40 uppercase tracking-widest">
+              <label className="block text-[11px] font-black text-[#004D40]/40 uppercase tracking-widest">
                 الدور · Profil
               </label>
               <div className="relative">
@@ -156,15 +156,15 @@ export default function LoginPage() {
                   onClick={() => setDropOpen(o => !o)}
                   className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border transition-all outline-none text-right"
                   style={{
-                    background: "#111",
-                    borderColor: dropOpen ? "#D4AF37" : "rgba(255,255,255,0.1)",
+                    background: "#FFFDE7",
+                    borderColor: dropOpen ? "#66BB6A" : "rgba(0,77,64,0.2)",
                   }}>
                   <ChevronDown
                     size={16}
-                    className={cn("text-white/30 transition-transform", dropOpen && "rotate-180")} />
-                  <span className="font-bold text-white">
+                    className={cn("text-[#004D40]/30 transition-transform", dropOpen && "rotate-180")} />
+                  <span className="font-bold text-[#004D40]">
                     {profile.labelAr}
-                    <span className="text-white/30 font-normal"> · {profile.labelFr}</span>
+                    <span className="text-[#004D40]/30 font-normal"> · {profile.labelFr}</span>
                   </span>
                 </button>
 
@@ -176,7 +176,7 @@ export default function LoginPage() {
                       exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
                       transition={{ duration: 0.15 }}
                       className="absolute top-full mt-1 w-full rounded-xl border z-50 overflow-hidden"
-                      style={{ background: "#161616", borderColor: "rgba(212,175,55,0.25)" }}>
+                      style={{ background: "#D4A800", borderColor: "rgba(102,187,106,0.25)" }}>
                       {PROFILES.map(p => (
                         <button
                           key={p.value}
@@ -184,11 +184,11 @@ export default function LoginPage() {
                           onClick={() => { setRole(p.value); setDropOpen(false); setError(null); }}
                           className={cn(
                             "w-full px-4 py-3 flex items-center justify-end gap-3 text-right transition-colors",
-                            role === p.value ? "bg-white/5" : "hover:bg-white/3"
+                            role === p.value ? "bg-[#004D40]/5" : "hover:bg-[#004D40]/3"
                           )}>
-                          <span className="font-bold text-white text-sm">
+                          <span className="font-bold text-[#004D40] text-sm">
                             {p.labelAr}
-                            <span className="text-white/30 font-normal"> · {p.labelFr}</span>
+                            <span className="text-[#004D40]/30 font-normal"> · {p.labelFr}</span>
                           </span>
                           <div
                             className="w-2 h-2 rounded-full flex-shrink-0"
@@ -203,7 +203,7 @@ export default function LoginPage() {
 
             {/* Username */}
             <div className="space-y-2">
-              <label className="block text-[11px] font-black text-white/40 uppercase tracking-widest">
+              <label className="block text-[11px] font-black text-[#004D40]/40 uppercase tracking-widest">
                 اسم المستخدم · Pseudo
               </label>
               <input
@@ -217,17 +217,17 @@ export default function LoginPage() {
                   role === "delivery" ? "اسم السائق" :
                   "اسمك"
                 }
-                className="w-full px-4 py-3.5 rounded-xl border text-white font-bold outline-none transition-all placeholder:text-white/20 text-right"
+                className="w-full px-4 py-3.5 rounded-xl border text-[#004D40] font-bold outline-none transition-all placeholder:text-[#004D40]/20 text-right"
                 style={{
-                  background: "#111",
-                  borderColor: username ? "#D4AF37" : "rgba(255,255,255,0.1)",
+                  background: "#FFFDE7",
+                  borderColor: username ? "#66BB6A" : "rgba(0,77,64,0.2)",
                 }}
               />
             </div>
 
             {/* Password */}
             <div className="space-y-2">
-              <label className="block text-[11px] font-black text-white/40 uppercase tracking-widest">
+              <label className="block text-[11px] font-black text-[#004D40]/40 uppercase tracking-widest">
                 كلمة المرور · Mot de passe
               </label>
               <div className="relative">
@@ -237,16 +237,16 @@ export default function LoginPage() {
                   onChange={e => { setPassword(e.target.value); setError(null); }}
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="w-full px-4 py-3.5 rounded-xl border text-white font-bold outline-none transition-all placeholder:text-white/20 text-right pe-11"
+                  className="w-full px-4 py-3.5 rounded-xl border text-[#004D40] font-bold outline-none transition-all placeholder:text-[#004D40]/20 text-right pe-11"
                   style={{
-                    background: "#111",
-                    borderColor: password ? "rgba(212,175,55,0.5)" : "rgba(255,255,255,0.1)",
+                    background: "#FFFDE7",
+                    borderColor: password ? "rgba(102,187,106,0.8)" : "rgba(0,77,64,0.2)",
                   }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw(v => !v)}
-                  className="absolute top-1/2 -translate-y-1/2 start-3.5 text-white/30 hover:text-white/60 transition-colors">
+                  className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#004D40]/30 hover:text-[#004D40]/60 transition-colors">
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
@@ -272,8 +272,8 @@ export default function LoginPage() {
               disabled={!canSubmit}
               className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-black text-black text-base transition-all disabled:opacity-30 mt-2"
               style={{
-                background: "#D4AF37",
-                boxShadow: canSubmit ? "0 0 30px rgba(212,175,55,0.35)" : "none",
+                background: "#66BB6A",
+                boxShadow: canSubmit ? "0 0 30px rgba(102,187,106,0.35)" : "none",
               }}>
               {loading ? (
                 <>
@@ -293,7 +293,7 @@ export default function LoginPage() {
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-center text-white/20 text-xs">
+                className="text-center text-[#004D40]/20 text-xs">
                 {role === "provider"
                   ? "أدخل اسمك كما هو مسجل في النظام"
                   : "أدخل اسمك كما هو مسجل في قائمة السائقين"}
@@ -303,7 +303,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-white/12 text-xs mt-6 font-medium">
+        <p className="text-center text-[#004D40]/12 text-xs mt-6 font-medium">
           المدينة الرقمية — Digital City · بن قردان، تونس
         </p>
       </motion.div>

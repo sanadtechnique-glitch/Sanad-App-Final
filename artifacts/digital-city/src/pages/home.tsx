@@ -54,7 +54,7 @@ export default function Home() {
       <div className="relative pb-28" dir={isRTL ? "rtl" : "ltr"}>
 
         {/* ── Hero Section ── */}
-        <section className="relative h-[44vh] min-h-[320px] w-full flex items-center justify-center overflow-hidden rounded-b-[2.5rem] border-b border-white/8">
+        <section className="relative h-[44vh] min-h-[320px] w-full flex items-center justify-center overflow-hidden rounded-b-[2.5rem] border-b border-[#004D40]/8">
           <img
             src={`${import.meta.env.BASE_URL}images/hero-bg.png`}
             alt="" aria-hidden="true"
@@ -62,31 +62,31 @@ export default function Home() {
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
           {/* Gradient overlays */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/30 to-background" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#C99900]/80 via-[#E1AD01]/40 to-[#E1AD01]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#C99900]/40 via-transparent to-[#C99900]/40" />
           {/* Animated gold particle */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full"
-              style={{ background: "radial-gradient(circle, rgba(212,175,55,0.08) 0%, transparent 70%)", animation: "pulse 6s ease-in-out infinite" }} />
+              style={{ background: "radial-gradient(circle, rgba(102,187,106,0.08) 0%, transparent 70%)", animation: "pulse 6s ease-in-out infinite" }} />
           </div>
 
           <motion.div initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: "easeOut" }}
             className="relative z-10 text-center px-4">
             {/* Badge */}
             <motion.span initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
-              className="inline-block mb-5 px-4 py-1.5 rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-black tracking-[0.25em] uppercase">
+              className="inline-block mb-5 px-4 py-1.5 rounded-full border border-[#66BB6A]/40 bg-[#66BB6A]/10 text-[#66BB6A] text-xs font-black tracking-[0.25em] uppercase">
               {t("بن قردان · تونس", "Ben Guerdane · Tunisie")}
             </motion.span>
 
             {/* Title */}
             <h1 dir={isRTL ? "rtl" : "ltr"}
-              className="text-5xl md:text-7xl font-black text-white mb-3 leading-tight"
+              className="text-5xl md:text-7xl font-black text-[#004D40] mb-3 leading-tight"
               style={{ fontFamily: isRTL ? "'Tajawal','Cairo',sans-serif" : "'Outfit',sans-serif" }}>
               {isRTL ? (
                 <bdi dir="rtl">
                   {"المدينة "}
                   <span className="bg-clip-text text-transparent"
-                    style={{ backgroundImage: "linear-gradient(90deg,#D4AF37,#F3E5AB,#C9A227)" }}>
+                    style={{ backgroundImage: "linear-gradient(90deg,#66BB6A,#C8E6C9,#4CAF50)" }}>
                     الرقمية
                   </span>
                 </bdi>
@@ -94,14 +94,14 @@ export default function Home() {
                 <>
                   {"Ville "}
                   <span className="bg-clip-text text-transparent"
-                    style={{ backgroundImage: "linear-gradient(90deg,#D4AF37,#F3E5AB,#C9A227)" }}>
+                    style={{ backgroundImage: "linear-gradient(90deg,#66BB6A,#C8E6C9,#4CAF50)" }}>
                     Digitale
                   </span>
                 </>
               )}
             </h1>
 
-            <p className="text-lg text-white/50 font-light tracking-widest">
+            <p className="text-lg text-[#004D40]/50 font-light tracking-widest">
               {t("توصيل بريميوم · Digital City", "Livraison Premium · Digital City")}
             </p>
           </motion.div>
@@ -109,21 +109,21 @@ export default function Home() {
 
         {/* ── Stats Bar ── */}
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
-          className="flex items-center justify-center gap-6 py-4 border-b border-white/5 text-sm text-white/45">
+          className="flex items-center justify-center gap-6 py-4 border-b border-[#004D40]/5 text-sm text-[#004D40]/45">
           <span className="flex items-center gap-1.5">
-            <Star size={13} className="text-[#D4AF37] fill-[#D4AF37]" />
+            <Star size={13} className="text-[#66BB6A] fill-[#66BB6A]" />
             {t("تقييم ممتاز", "Service excellent")}
           </span>
-          <span className="w-px h-4 bg-white/10" />
+          <span className="w-px h-4 bg-[#004D40]/10" />
           <span className="flex items-center gap-1.5">
-            <Zap size={13} className="text-[#D4AF37]" />
+            <Zap size={13} className="text-[#66BB6A]" />
             {supplierCount != null
               ? t(`${supplierCount} مزود خدمة`, `${supplierCount} prestataires`)
               : t("مزودو الخدمات", "Nos prestataires")}
           </span>
-          <span className="w-px h-4 bg-white/10" />
+          <span className="w-px h-4 bg-[#004D40]/10" />
           <span className="flex items-center gap-1.5">
-            <Clock size={13} className="text-[#D4AF37]" />
+            <Clock size={13} className="text-[#66BB6A]" />
             {t("توصيل سريع", "Livraison rapide")}
           </span>
         </motion.div>
@@ -133,14 +133,14 @@ export default function Home() {
           <section className="px-4 sm:px-6 lg:px-8 mt-7">
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
               className="relative overflow-hidden rounded-2xl min-h-[80px] cursor-pointer"
-              style={{ background: banners[bannerIndex]?.bgColor ? `${banners[bannerIndex].bgColor}18` : "rgba(212,175,55,0.08)", border: `1px solid ${banners[bannerIndex]?.bgColor || "#D4AF37"}30` }}
+              style={{ background: banners[bannerIndex]?.bgColor ? `${banners[bannerIndex].bgColor}18` : "rgba(102,187,106,0.08)", border: `1px solid ${banners[bannerIndex]?.bgColor || "#66BB6A"}30` }}
               onClick={() => banners[bannerIndex]?.link && window.open(banners[bannerIndex].link, "_blank")}>
               {/* Glow blob */}
               <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl pointer-events-none"
-                style={{ background: `${banners[bannerIndex]?.bgColor || "#D4AF37"}20` }} />
+                style={{ background: `${banners[bannerIndex]?.bgColor || "#66BB6A"}20` }} />
               <div className="relative z-10 px-5 py-4 flex items-center justify-between gap-4">
                 <div>
-                  <p className="font-black text-white text-lg leading-tight">
+                  <p className="font-black text-[#004D40] text-lg leading-tight">
                     {lang === "ar" ? banners[bannerIndex]?.titleAr : banners[bannerIndex]?.titleFr}
                   </p>
                   {banners.length > 1 && (
@@ -148,13 +148,13 @@ export default function Home() {
                       {banners.map((_, i) => (
                         <button key={i} onClick={e => { e.stopPropagation(); setBannerIndex(i); }}
                           className="w-1.5 h-1.5 rounded-full transition-all"
-                          style={{ background: i === bannerIndex ? "#D4AF37" : "rgba(255,255,255,0.2)" }} />
+                          style={{ background: i === bannerIndex ? "#66BB6A" : "rgba(255,255,255,0.2)" }} />
                       ))}
                     </div>
                   )}
                 </div>
                 {banners[bannerIndex]?.link && (
-                  <ChevronRight size={18} className={`text-[#D4AF37]/60 flex-shrink-0 ${isRTL ? "rotate-180" : ""}`} />
+                  <ChevronRight size={18} className={`text-[#66BB6A]/60 flex-shrink-0 ${isRTL ? "rotate-180" : ""}`} />
                 )}
               </div>
             </motion.div>
@@ -164,10 +164,10 @@ export default function Home() {
         {/* ── Services Grid ── */}
         <section className="px-4 sm:px-6 lg:px-8 mt-9">
           <div className={`mb-7 ${isRTL ? "text-right" : "text-left"}`}>
-            <h2 className="text-2xl font-black text-white mb-1">
+            <h2 className="text-2xl font-black text-[#004D40] mb-1">
               {t("خدماتنا", "Nos Services")}
             </h2>
-            <p className="text-white/35 text-sm">
+            <p className="text-[#004D40]/35 text-sm">
               {t("اختر الخدمة المناسبة", "Choisissez votre service")}
             </p>
           </div>
@@ -183,15 +183,15 @@ export default function Home() {
                   <Link href={`/services?category=${cat.id}`}>
                     <div className={[
                       "rounded-[15px] p-4 flex flex-col items-center text-center cursor-pointer",
-                      "card-hover group border border-[#333]",
-                    ].join(" ")} style={{ background: "#121212" }}>
-                      <div className={`w-13 h-13 w-12 h-12 rounded-2xl flex items-center justify-center mb-3 bg-gradient-to-br border border-white/6 ${cat.color}`}>
+                      "card-hover group border border-[#66BB6A]/30",
+                    ].join(" ")} style={{ background: "#FFFDE7" }}>
+                      <div className={`w-13 h-13 w-12 h-12 rounded-2xl flex items-center justify-center mb-3 bg-gradient-to-br border border-[#004D40]/6 ${cat.color}`}>
                         <Icon size={22} className={`${cat.iconColor} group-hover:scale-110 transition-transform duration-300`} />
                       </div>
-                      <p className="font-black text-white text-sm leading-snug group-hover:text-[#D4AF37] transition-colors">
+                      <p className="font-black text-[#004D40] text-sm leading-snug group-hover:text-[#66BB6A] transition-colors">
                         {label}
                       </p>
-                      <p className="text-[11px] text-white/30 mt-1 leading-tight">{desc}</p>
+                      <p className="text-[11px] text-[#004D40]/30 mt-1 leading-tight">{desc}</p>
                     </div>
                   </Link>
                 </motion.div>
@@ -211,12 +211,12 @@ export default function Home() {
             ].map(badge => {
               const Icon = badge.icon;
               return (
-                <div key={badge.ar} className="glass-panel rounded-2xl p-4 flex flex-col items-center text-center border border-white/5">
-                  <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center mb-2">
-                    <Icon size={16} className="text-[#D4AF37]" />
+                <div key={badge.ar} className="glass-panel rounded-2xl p-4 flex flex-col items-center text-center border border-[#004D40]/5">
+                  <div className="w-9 h-9 rounded-xl bg-[#66BB6A]/10 border border-[#66BB6A]/20 flex items-center justify-center mb-2">
+                    <Icon size={16} className="text-[#66BB6A]" />
                   </div>
-                  <p className="text-xs font-black text-white leading-tight">{lang === "ar" ? badge.ar : badge.fr}</p>
-                  <p className="text-[10px] text-white/25 mt-0.5 leading-tight">{lang === "ar" ? badge.sub.ar : badge.sub.fr}</p>
+                  <p className="text-xs font-black text-[#004D40] leading-tight">{lang === "ar" ? badge.ar : badge.fr}</p>
+                  <p className="text-[10px] text-[#004D40]/25 mt-0.5 leading-tight">{lang === "ar" ? badge.sub.ar : badge.sub.fr}</p>
                 </div>
               );
             })}
@@ -226,22 +226,22 @@ export default function Home() {
         {/* ── CTA Banner ── */}
         <section className="px-4 sm:px-6 lg:px-8 mt-7">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
-            className="relative overflow-hidden rounded-2xl p-6 border border-[#D4AF37]/20"
-            style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(0,0,0,0) 60%)" }}>
+            className="relative overflow-hidden rounded-2xl p-6 border border-[#66BB6A]/20"
+            style={{ background: "linear-gradient(135deg, rgba(102,187,106,0.08) 0%, rgba(0,0,0,0) 60%)" }}>
             <div className="absolute top-0 right-0 w-52 h-52 rounded-full blur-3xl pointer-events-none"
-              style={{ background: "rgba(212,175,55,0.07)" }} />
+              style={{ background: "rgba(102,187,106,0.07)" }} />
             <div className={`relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 ${isRTL ? "sm:flex-row" : "sm:flex-row-reverse"}`}>
               <div className={isRTL ? "text-right" : "text-left"}>
-                <h3 className="text-xl font-black text-white mb-1">
+                <h3 className="text-xl font-black text-[#004D40] mb-1">
                   {t("هل تحتاج مساعدة؟", "Besoin d'aide ?")}
                 </h3>
-                <p className="text-sm text-white/40">
+                <p className="text-sm text-[#004D40]/40">
                   {t("تصفح كل مقدمي الخدمة في منطقتك", "Parcourez tous les prestataires")}
                 </p>
               </div>
               <Link href="/services">
                 <button className="flex-shrink-0 flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm text-black transition-all hover:opacity-90 active:scale-95"
-                  style={{ background: "linear-gradient(135deg,#D4AF37,#B8962E)", boxShadow: "0 0 20px -5px rgba(212,175,55,0.4)" }}>
+                  style={{ background: "linear-gradient(135deg,#66BB6A,#388E3C)", boxShadow: "0 0 20px -5px rgba(102,187,106,0.4)" }}>
                   {t("تصفح الخدمات", "Voir les services")}
                   <ChevronRight size={15} className={isRTL ? "rotate-180" : ""} />
                 </button>

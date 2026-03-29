@@ -48,10 +48,10 @@ export default function DeliveryMap({ address, customerName }: Props) {
   };
 
   return (
-    <div className="mt-3 rounded-[12px] overflow-hidden border border-purple-400/20" style={{ direction: "ltr" }}>
+    <div className="mt-3 rounded-[12px] overflow-hidden border border-[#66BB6A]/30" style={{ direction: "ltr" }}>
       {geocoding ? (
-        <div className="h-40 flex items-center justify-center bg-[#0d0d0d]">
-          <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+        <div className="h-40 flex items-center justify-center bg-[#FFFDE7]">
+          <div className="w-6 h-6 border-2 border-[#66BB6A] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : coords ? (
         <>
@@ -70,8 +70,8 @@ export default function DeliveryMap({ address, customerName }: Props) {
           </div>
           <button
             onClick={openGoogleMaps}
-            className="w-full flex items-center justify-center gap-2 py-2.5 font-black text-sm text-purple-300 hover:text-purple-100 border-t border-purple-400/20 transition-all hover:bg-purple-400/5"
-            style={{ background: "#0d0d0d" }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 font-black text-sm text-[#004D40] hover:text-[#66BB6A] border-t border-[#66BB6A]/30 transition-all hover:bg-[#66BB6A]/8"
+            style={{ background: "#FFFDE7" }}
             dir={isRTL ? "rtl" : "ltr"}>
             <Navigation size={15} />
             {t("التنقل إلى العميل", "Naviguer vers le client")}
@@ -81,8 +81,8 @@ export default function DeliveryMap({ address, customerName }: Props) {
       ) : (
         <button
           onClick={openGoogleMaps}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] text-purple-400 border border-purple-400/20 font-black text-sm hover:bg-purple-400/10 transition-all"
-          style={{ background: "#0d0d0d" }}>
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] text-[#66BB6A] border border-[#66BB6A]/30 font-black text-sm hover:bg-[#66BB6A]/10 transition-all"
+          style={{ background: "#FFFDE7" }}>
           <Navigation size={15} />
           {t("فتح الخريطة", "Ouvrir la carte")}
         </button>
