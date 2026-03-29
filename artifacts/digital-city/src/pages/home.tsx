@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import { Layout } from "@/components/layout";
+import { SanadBrand } from "@/components/sanad-brand";
 import { useLang } from "@/lib/language";
 import { get } from "@/lib/admin-api";
 import {
@@ -82,13 +83,14 @@ export default function Home() {
             <h1 dir={isRTL ? "rtl" : "ltr"}
               className="text-6xl md:text-8xl font-black text-[#2E7D32] mb-3 leading-tight"
               style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-              <span style={{ color: "#2E7D32" }}>
-                سںد
-              </span>
+              <SanadBrand color="#2E7D32" innerColor="#FFA500" />
             </h1>
 
             <p className="text-base md:text-lg text-[#2E7D32]/70 font-bold tracking-wide" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-              {t("سںدك في التوصيل.. لباب الدار", "Sanad — Livraison jusqu'à votre porte")}
+              {isRTL
+                ? <><SanadBrand color="#2E7D32" innerColor="#FFA500" />{"ك في التوصيل.. لباب الدار"}</>
+                : "Sanad — Livraison jusqu'à votre porte"
+              }
             </p>
           </motion.div>
         </section>
