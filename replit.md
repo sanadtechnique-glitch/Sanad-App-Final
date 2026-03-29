@@ -18,7 +18,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ## Project: المدينة الرقمية (Digital City)
 
-A premium delivery app for Ben Guerdane with forced dark mode + gold (#D4AF37) accent theme.
+A premium delivery app for Ben Guerdane. **Jumia-inspired theme**: Mustard Yellow (#E1AD01) background, Light Green (#66BB6A) accent/buttons, Dark Green (#004D40) text, Cream (#FFFDE7) cards, Dark Mustard (#C99900) panels/nav/sidebar. Arabic/French bilingual RTL.
 
 ### Architecture
 
@@ -44,21 +44,23 @@ All API routes are mounted at `/api` prefix. In `main.tsx`, `setBaseUrl("/api")`
 | `/provider` | Provider dashboard — name-select login, gold logout button |
 | `/delivery` | Delivery staff dashboard — name-select login, gold logout button |
 
-### Login/Auth (Unified)
+### Login/Auth (Unified) — ENFORCED
 
-All roles use `/login` — single page with role dropdown + username + password.
-- **Admin**: username `admin` (any password) → `/admin`. Session guard: unauthenticated visits redirect to `/login`.
-- **Provider**: username matches supplier name in DB → `/provider`. Auto-selects the matched supplier on mount.
-- **Delivery**: username matches delivery staff name in DB → `/delivery`. Auto-selects staff on mount.
-- **Client**: any name → `/` (home).
-- Session: `DcSession { role, name, supplierId?, staffId? }` stored in `localStorage` key `dc_session` via `src/lib/auth.ts`.
-- Logout clears session + navigates to `/login` in all dashboards.
+**ALL routes are protected.** Unauthenticated users are redirected to `/login` from any URL (enforced via `ProtectedRoute` in `App.tsx`).
+
+- `/login` — Public. If already logged in, auto-redirects to role home.
+- **Admin**: username `admin` (any password) → `/admin`
+- **Provider**: username matches supplier nameAr or name in DB → `/provider`
+- **Delivery**: username matches delivery staff nameAr or name in DB → `/delivery`
+- **Client**: any name + any password → `/` (home)
+- Session: `DcSession { role, name, supplierId?, staffId? }` in `localStorage` key `dc_session` via `src/lib/auth.ts`.
+- Logout button in layout (desktop sidebar + mobile bottom nav) clears session → `/login`.
 
 ### Global Cart (Customer)
 
 `src/lib/cart.tsx` — React Context wrapping all routes (via `App.tsx` CartProvider). Cart persists in `localStorage` key `dc_cart`.
 - `CartState { supplierId, supplierName, items[], deliveryFee }`
-- Cart icon with badge shown in Layout sidebar (desktop) and top bar (mobile)
+- Cart button shown in BOTH mobile and desktop **top header bars** (top-right position). On desktop there is also a sticky top header (dark mustard) with the cart button showing total price + item count badge.
 - Cart drawer slides in from the side with item list, qty controls, subtotal + delivery fee + total
 - "Passer la commande" → navigates to `/order/:supplierId?notes=<cart_summary>`
 - Adding item from a different supplier clears the old cart
@@ -85,8 +87,8 @@ All roles use `/login` — single page with role dropdown + username + password.
 ### Key Rules
 
 - **NEVER show phone numbers** in the customer-facing app (`/`, `/services`, `/order`). Phones are only for admin/provider/delivery WhatsApp integration.
-- Dark mode is FORCED — no light mode toggle.
-- Gold accent: `#D4AF37`. Fonts: Tajawal (Arabic) + Outfit (French/Latin).
+- **Jumia color palette**: BG `#E1AD01` (mustard), panels `#C99900` (dark mustard), cards `#FFFDE7` (cream), accent `#66BB6A` (green), text `#004D40` (dark green).
+- Fonts: Tajawal (Arabic) + Outfit (French/Latin).
 - Language: AR/FR toggle in localStorage, RTL layout switches via `document.documentElement.dir`.
 
 ### Order Status Flow
