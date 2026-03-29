@@ -39,7 +39,7 @@ const fontSize  = 64;
 const textY     = 125;          // Arabic text baseline
 const pinCX     = 112;          // x center of noon position
 const pinCY     = textY - 22;   // y of pin circle (noon body center)
-const pinSize   = 58;           // size — fills noon's visual space
+const pinSize   = 38;           // smaller pin
 
 // Sanad label y (below pin tip)
 const pinTipY   = pinCY + 13 * (pinSize / 24);
@@ -66,7 +66,7 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
   <circle
     cx="${pinCX}"
     cy="${pinCY - 9 * (pinSize / 24) - 10}"
-    r="5.5"
+    r="3.5"
     fill="#2E7D32"
   />
 
