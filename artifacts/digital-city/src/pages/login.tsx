@@ -758,14 +758,6 @@ export default function LoginPage() {
       style={{ background: "#FFA500" }}
       dir="rtl"
     >
-      {/* Background glow */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(46,125,50,0.07) 0%, transparent 70%)",
-        }}
-      />
 
       <motion.div
         initial={{ opacity: 0, y: 30, scale: 0.97 }}
@@ -802,8 +794,8 @@ export default function LoginPage() {
 
           {/* ── Tab Switcher ── */}
           <div
-            className="flex border-b"
-            style={{ borderColor: "rgba(46,125,50,0.15)", background: "rgba(46,125,50,0.04)" }}
+            className="flex border-b mx-4 rounded-xl overflow-hidden mb-1"
+            style={{ borderColor: "rgba(46,125,50,0.25)", background: "rgba(46,125,50,0.10)" }}
           >
             <button
               type="button"
