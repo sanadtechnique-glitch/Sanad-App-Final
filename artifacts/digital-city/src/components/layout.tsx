@@ -420,7 +420,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       >
         {/* Logo */}
         <div className="w-11 h-11 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#2E7D32]/20 shadow-[0_0_14px_-4px_rgba(255,165,0,0.5)] flex items-center justify-center">
-          <img src="/logo.png" alt="سند" className="w-full h-full object-contain p-0.5" draggable={false} />
+          <img src="/logo.png" alt="سںد" className="w-full h-full object-contain p-0.5" draggable={false} />
         </div>
 
         {/* Nav icons */}
@@ -501,7 +501,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ background: "#FFA500" }}
       >
         <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#2E7D32]/20 flex items-center justify-center shadow-[0_0_10px_-3px_rgba(255,165,0,0.45)]">
-          <img src="/logo.png" alt="سند" className="w-full h-full object-contain p-0.5" draggable={false} />
+          <img src="/logo.png" alt="سںد" className="w-full h-full object-contain p-0.5" draggable={false} />
         </div>
         <div className="flex items-center gap-2">
           <CartButton onClick={() => setCartOpen(true)} large />

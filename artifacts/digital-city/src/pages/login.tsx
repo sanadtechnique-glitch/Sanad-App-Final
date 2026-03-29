@@ -798,7 +798,7 @@ export default function LoginPage() {
               >
                 <img
                   src="/logo.png"
-                  alt="سند - Sanad Logo"
+                  alt="سںد - Sanad Logo"
                   className="w-full h-full object-contain"
                   draggable={false}
                 />
@@ -809,10 +809,10 @@ export default function LoginPage() {
                   className="text-[1.6rem] font-black tracking-tight leading-tight"
                   style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "#2E7D32" }}
                 >
-                  سند
+                  سںد
                 </h1>
                 <p className="text-[#2E7D32]/70 text-sm mt-0.5 font-bold" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-                  سندك في التوصيل.. لباب الدار
+                  سںدك في التوصيل.. لباب الدار
                 </p>
               </div>
             </div>
@@ -896,7 +896,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-[#2E7D32]/20 text-xs mt-5 font-medium" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-          سند · Sanad — بن قردان، تونس
+          سںد · Sanad — بن قردان، تونس
         </p>
       </motion.div>
     </div>

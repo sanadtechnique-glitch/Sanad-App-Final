@@ -83,12 +83,12 @@ export default function Home() {
               className="text-6xl md:text-8xl font-black text-[#2E7D32] mb-3 leading-tight"
               style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
               <span style={{ color: "#2E7D32" }}>
-                سند
+                سںد
               </span>
             </h1>
 
             <p className="text-base md:text-lg text-[#2E7D32]/70 font-bold tracking-wide" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-              {t("سندك في التوصيل.. لباب الدار", "Sanad — Livraison jusqu'à votre porte")}
+              {t("سںدك في التوصيل.. لباب الدار", "Sanad — Livraison jusqu'à votre porte")}
             </p>
           </motion.div>
         </section>

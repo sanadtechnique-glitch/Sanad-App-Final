@@ -60,7 +60,7 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
     font-size="58"
     fill="#2E7D32"
     direction="rtl"
-  >سند</text>
+  >س&#x06BA;د</text>
 
   <!-- Latin "Sanad" at bottom -->
   <text

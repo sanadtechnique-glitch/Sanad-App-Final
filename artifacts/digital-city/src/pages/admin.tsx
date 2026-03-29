@@ -982,7 +982,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
             <LayoutDashboard size={28} className="text-[#2E7D32]" />
           </div>
           <h1 className="text-3xl font-black text-[#2E7D32] mb-1">لوحة التحكم</h1>
-          <p className="text-[#2E7D32]/30 text-sm">Admin Panel · سند</p>
+          <p className="text-[#2E7D32]/30 text-sm">Admin Panel · سںد</p>
         </div>
 
         {/* Form */}
@@ -1050,7 +1050,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
         </form>
 
         <p className="text-center text-[#2E7D32]/15 text-xs mt-8">
-          سند — Sanad · بن قردان
+          سںد — Sanad · بن قردان
         </p>
       </motion.div>
     </div>
@@ -1082,7 +1082,7 @@ export default function Admin() {
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-[#2E7D32]/5">
           <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#2E7D32]/20 flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_-3px_rgba(255,165,0,0.4)]">
-            <img src="/logo.png" alt="سند" className="w-full h-full object-contain p-0.5" draggable={false} />
+            <img src="/logo.png" alt="سںد" className="w-full h-full object-contain p-0.5" draggable={false} />
           </div>
           <div className="hidden md:block overflow-hidden">
             <p className="text-xs font-black text-[#2E7D32] leading-tight">{t("لوحة التحكم","Admin Panel")}</p>
