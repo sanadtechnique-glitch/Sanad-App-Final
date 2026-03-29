@@ -525,6 +525,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Main Content ── */}
       <main className="flex-1 w-full max-w-7xl mx-auto pb-20 md:pb-4">
         {children}
+
+        {/* ── Footer ── */}
+        <footer className="mt-8 mb-4 flex flex-col items-center gap-1 select-none">
+          <p
+            className="text-[11px] font-bold tracking-wide"
+            style={{ color: "rgba(27,94,32,0.55)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+          >
+            جميع الحقوق محفوظة © سند · Sanad
+          </p>
+          <p
+            className="text-[12px] font-black tracking-widest"
+            style={{ color: "rgba(27,94,32,0.70)", fontFamily: "'Outfit',sans-serif", letterSpacing: "0.12em" }}
+          >
+            27 777 589
+          </p>
+        </footer>
       </main>
 
       {/* ── Mobile Bottom Navigation ── */}
