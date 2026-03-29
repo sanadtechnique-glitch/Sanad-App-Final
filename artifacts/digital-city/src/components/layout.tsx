@@ -369,9 +369,9 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                 <button
                   onClick={placeOrder}
                   className="w-full py-3.5 rounded-[12px] font-black text-base flex items-center justify-center gap-2 transition-all active:scale-95"
-                  style={{ background: "linear-gradient(135deg, #FFA500, #FFD700)", color: "#2E7D32", textShadow: "0 1px 2px rgba(0,0,0,0.12)", boxShadow: "0 4px 16px rgba(255,165,0,0.35)" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "linear-gradient(135deg, #FFD700, #FFA500)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "linear-gradient(135deg, #FFA500, #FFD700)")}
+                  style={{ background: "#2E7D32", color: "white", boxShadow: "0 4px 16px rgba(46,125,50,0.4)" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#1B5E20")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#2E7D32")}
                 >
                   <ShoppingCart size={18} />
                   {t("تأكيد الطلب", "Passer la commande")}

@@ -346,15 +346,14 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         disabled={!canSubmit}
         className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-black text-base transition-all disabled:opacity-30"
         style={{
-          background: "linear-gradient(135deg, #FFA500, #FFD700)",
-          color: "#2E7D32",
-          textShadow: "0 1px 2px rgba(0,0,0,0.15)",
-          boxShadow: canSubmit ? "0 4px 20px rgba(255,165,0,0.45)" : "none",
+          background: "#2E7D32",
+          color: "white",
+          boxShadow: canSubmit ? "0 4px 20px rgba(46,125,50,0.45)" : "none",
         }}
       >
         {loading ? (
           <>
-            <span className="w-4 h-4 rounded-full border-2 border-black/30 border-t-black animate-spin" />
+            <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
             <span>جاري التحقق...</span>
           </>
         ) : (
@@ -721,15 +720,14 @@ function SignUpForm() {
         disabled={!canSubmit}
         className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-black text-base transition-all disabled:opacity-30 mt-1"
         style={{
-          background: "linear-gradient(135deg, #FFA500, #FFD700)",
-          color: "#2E7D32",
-          textShadow: "0 1px 2px rgba(0,0,0,0.15)",
-          boxShadow: canSubmit ? "0 4px 20px rgba(255,165,0,0.45)" : "none",
+          background: "#2E7D32",
+          color: "white",
+          boxShadow: canSubmit ? "0 4px 20px rgba(46,125,50,0.45)" : "none",
         }}
       >
         {loading ? (
           <>
-            <span className="w-4 h-4 rounded-full border-2 border-black/30 border-t-black animate-spin" />
+            <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
             <span>جاري إنشاء الحساب...</span>
           </>
         ) : (
@@ -809,7 +807,7 @@ export default function LoginPage() {
               <div className="text-center mt-0.5">
                 <h1
                   className="text-[1.6rem] font-black tracking-tight leading-tight"
-                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "#FFA500", textShadow: "0 1px 0 rgba(46,125,50,0.18)" }}
+                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "#2E7D32" }}
                 >
                   سند
                 </h1>

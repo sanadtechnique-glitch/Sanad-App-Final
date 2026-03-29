@@ -242,7 +242,7 @@ export default function HotelBooking() {
                 {/* Submit */}
                 <button type="submit" disabled={submitting}
                   className="w-full h-14 rounded-2xl font-black text-base text-black flex items-center justify-center gap-3 transition-all disabled:opacity-50"
-                  style={{ background: submitting ? "rgba(255,165,0,0.4)" : "linear-gradient(135deg,#FFA500,#FFD700)", color: "#2E7D32", textShadow: "0 1px 2px rgba(0,0,0,0.12)", boxShadow: submitting ? "none" : "0 0 30px -8px rgba(255,165,0,0.5)" }}>
+                  style={{ background: submitting ? "rgba(46,125,50,0.5)" : "#2E7D32", color: "white", boxShadow: submitting ? "none" : "0 0 30px -8px rgba(46,125,50,0.5)" }}>
                   {submitting
                     ? <><Loader2 size={20} className="animate-spin" />{t("جاري الإرسال...", "Envoi...")}</>
                     : <><Hotel size={20} />{t("تأكيد الحجز", "Confirmer la réservation")}</>}

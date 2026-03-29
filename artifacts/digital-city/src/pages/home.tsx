@@ -82,8 +82,7 @@ export default function Home() {
             <h1 dir={isRTL ? "rtl" : "ltr"}
               className="text-6xl md:text-8xl font-black text-[#2E7D32] mb-3 leading-tight"
               style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-              <span className="bg-clip-text text-transparent"
-                style={{ backgroundImage: "linear-gradient(135deg,#FFA500,#FFD700)" }}>
+              <span style={{ color: "#2E7D32" }}>
                 سند
               </span>
             </h1>
@@ -228,7 +227,7 @@ export default function Home() {
               </div>
               <Link href="/services">
                 <button className="flex-shrink-0 flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm transition-all hover:opacity-90 active:scale-95"
-                  style={{ background: "linear-gradient(135deg,#FFA500,#FFD700)", color: "#2E7D32", textShadow: "0 1px 2px rgba(0,0,0,0.12)", boxShadow: "0 0 20px -5px rgba(255,165,0,0.5)" }}>
+                  style={{ background: "#2E7D32", color: "white", boxShadow: "0 0 20px -5px rgba(46,125,50,0.5)" }}>
                   {t("تصفح الخدمات", "Voir les services")}
                   <ChevronRight size={15} className={isRTL ? "rotate-180" : ""} />
                 </button>
