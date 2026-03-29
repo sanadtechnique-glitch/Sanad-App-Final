@@ -169,17 +169,17 @@ export default function Home() {
                 <motion.div key={cat.id} variants={itemAnim}>
                   <Link href={`/services?category=${cat.id}`}>
                     <div className="flex flex-col items-center text-center gap-2.5 cursor-pointer group">
-                      {/* Circle — transparent bg, green border */}
+                      {/* Circle — transparent bg, dark border */}
                       <div className={[
                         "w-16 h-16 rounded-full flex items-center justify-center",
-                        "border-2 border-[#2E7D32]/35",
-                        "bg-transparent",
-                        "group-hover:border-[#2E7D32] group-hover:bg-[#2E7D32]/8 transition-all duration-200",
+                        "border-2 border-[#1B5E20]/80",
+                        "bg-white/15",
+                        "group-hover:border-[#1B5E20] group-hover:bg-white/25 transition-all duration-200",
                       ].join(" ")}>
-                        <Icon size={26} className={`${cat.iconColor} group-hover:scale-110 transition-transform duration-300`} />
+                        <Icon size={27} className="text-[#1B5E20] group-hover:scale-110 transition-transform duration-300" />
                       </div>
                       {/* Label below circle */}
-                      <p className="font-black text-[#2E7D32] text-xs leading-snug">
+                      <p className="font-black text-[#1B5E20] text-xs leading-snug">
                         {label}
                       </p>
                     </div>
