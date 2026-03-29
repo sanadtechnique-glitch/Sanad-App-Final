@@ -66,7 +66,7 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
   <circle
     cx="${pinCX}"
     cy="${pinCY - 9 * (pinSize / 24) - 10}"
-    r="3.5"
+    r="5.5"
     fill="#2E7D32"
   />
 
