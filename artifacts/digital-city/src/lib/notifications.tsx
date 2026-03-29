@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from "react";
+import { playSanadSound, unlockAudio } from "./notification-sound";
 
 export interface Notification {
   id: string;
@@ -27,10 +28,34 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     catch { return []; }
   });
 
+  const prevIdsRef = useRef<Set<string>>(
+    new Set((notifications).map(n => n.id))
+  );
+
+  useEffect(() => {
+    const unlock = () => { unlockAudio(); };
+    window.addEventListener("click",      unlock, { once: true });
+    window.addEventListener("touchstart", unlock, { once: true });
+    return () => {
+      window.removeEventListener("click",      unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+  }, []);
+
   useEffect(() => {
     const poll = setInterval(() => {
       try {
         const stored: Notification[] = JSON.parse(localStorage.getItem(KEY) || "[]");
+
+        const newUnread = stored.filter(
+          n => !n.read && !prevIdsRef.current.has(n.id)
+        );
+
+        if (newUnread.length > 0) {
+          playSanadSound();
+          newUnread.forEach(n => prevIdsRef.current.add(n.id));
+        }
+
         setNotifications(prev => {
           if (stored.length !== prev.length || stored[0]?.id !== prev[0]?.id) return stored;
           return prev;

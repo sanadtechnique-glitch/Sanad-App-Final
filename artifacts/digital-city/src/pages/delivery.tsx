@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { get, patch } from "@/lib/admin-api";
 import { pushNotification } from "@/lib/notifications";
+import { playSanadSound, unlockAudio } from "@/lib/notification-sound";
 
 const DeliveryMap = lazy(() => import("@/components/delivery-map"));
 
@@ -32,8 +33,19 @@ export default function DeliveryDashboard() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevOrderCountRef = useRef<number>(-1);
 
   const [, navigate] = useLocation();
+
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    window.addEventListener("click",      unlock, { once: true });
+    window.addEventListener("touchstart", unlock, { once: true });
+    return () => {
+      window.removeEventListener("click",      unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+  }, []);
 
   useEffect(() => {
     get<Staff[]>("/admin/delivery-staff").then(list => {
@@ -50,6 +62,11 @@ export default function DeliveryDashboard() {
     if (!silent) setLoading(true); else setRefreshing(true);
     try {
       const data = await get<Order[]>("/delivery/orders");
+      const activeCount = data.filter(o => o.status === "accepted" || o.status === "prepared").length;
+      if (prevOrderCountRef.current >= 0 && activeCount > prevOrderCountRef.current) {
+        playSanadSound();
+      }
+      prevOrderCountRef.current = activeCount;
       setOrders(data);
     } catch {}
     if (!silent) setLoading(false); else setRefreshing(false);

@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { get, patch } from "@/lib/admin-api";
 import { pushNotification } from "@/lib/notifications";
+import { playSanadSound, unlockAudio } from "@/lib/notification-sound";
 
 interface Supplier { id: number; name: string; nameAr: string; category: string; isAvailable: boolean; shift?: string; rating?: number; phone?: string; }
 interface Order { id: number; customerName: string; customerPhone?: string; customerAddress: string; notes?: string; status: string; createdAt: string; deliveryFee?: number; photoUrl?: string; }
@@ -46,6 +47,16 @@ export default function ProviderDashboard() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
+    const unlock = () => unlockAudio();
+    window.addEventListener("click",      unlock, { once: true });
+    window.addEventListener("touchstart", unlock, { once: true });
+    return () => {
+      window.removeEventListener("click",      unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+  }, []);
+
+  useEffect(() => {
     get<Supplier[]>("/admin/suppliers").then(list => {
       setProviders(list);
       const session = getSession();
@@ -73,7 +84,11 @@ export default function ProviderDashboard() {
       try {
         const { count } = await get<{ count: number }>(`/provider/${provider.id}/pending-count`);
         setPendingCount(prev => {
-          if (count > prev) { setHasNewOrder(true); setTimeout(() => setHasNewOrder(false), 4000); }
+          if (count > prev) {
+            setHasNewOrder(true);
+            setTimeout(() => setHasNewOrder(false), 4000);
+            playSanadSound();
+          }
           return count;
         });
         await loadOrders(provider, true);
