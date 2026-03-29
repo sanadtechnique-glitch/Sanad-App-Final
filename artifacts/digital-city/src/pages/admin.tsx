@@ -1081,8 +1081,8 @@ export default function Admin() {
       )}>
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-[#004D40]/5">
-          <div className="w-9 h-9 rounded-xl bg-[#004D40]/12 border border-[#004D40]/25 flex items-center justify-center flex-shrink-0">
-            <span className="font-black text-[#004D40] text-xs leading-none" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>سند</span>
+          <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#004D40]/20 flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_-3px_rgba(225,173,1,0.4)]">
+            <img src="/logo.png" alt="سند" className="w-full h-full object-contain p-0.5" draggable={false} />
           </div>
           <div className="hidden md:block overflow-hidden">
             <p className="text-xs font-black text-[#004D40] leading-tight">{t("لوحة التحكم","Admin Panel")}</p>

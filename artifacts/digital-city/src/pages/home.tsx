@@ -89,7 +89,7 @@ export default function Home() {
             </h1>
 
             <p className="text-base md:text-lg text-[#004D40]/70 font-bold tracking-wide" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-              {t("سندك الرقمي.. من المحل للدار", "Sanad — De la boutique à votre porte")}
+              {t("سندك في التوصيل.. لباب الدار", "Sanad — Livraison jusqu'à votre porte")}
             </p>
           </motion.div>
         </section>

@@ -788,28 +788,29 @@ export default function LoginPage() {
             <div className="flex flex-col items-center gap-2">
               {/* Logo Image */}
               <div
-                className="w-[100px] h-[100px] rounded-full overflow-hidden flex items-center justify-center"
+                className="w-[108px] h-[108px] rounded-2xl overflow-hidden flex items-center justify-center p-1"
                 style={{
-                  boxShadow: "0 4px 24px -6px rgba(225,173,1,0.55), 0 0 0 3px rgba(102,187,106,0.35)",
+                  background: "rgba(255,253,231,1)",
+                  boxShadow: "0 6px 28px -6px rgba(225,173,1,0.6), 0 0 0 2.5px rgba(102,187,106,0.4)",
                 }}
               >
                 <img
                   src="/logo.png"
                   alt="سند - Sanad Logo"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   draggable={false}
                 />
               </div>
-              {/* App name */}
-              <div className="text-center mt-1">
+              {/* App name + slogan */}
+              <div className="text-center mt-0.5">
                 <h1
-                  className="text-2xl font-black text-[#004D40] tracking-tight leading-tight"
-                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}
+                  className="text-[1.6rem] font-black tracking-tight leading-tight"
+                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "#E1AD01", textShadow: "0 1px 0 rgba(0,77,64,0.18)" }}
                 >
                   سند
                 </h1>
-                <p className="text-[#004D40]/65 text-sm mt-0.5 font-bold" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-                  سندك الرقمي.. من المحل للدار
+                <p className="text-[#004D40]/70 text-sm mt-0.5 font-bold" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                  سندك في التوصيل.. لباب الدار
                 </p>
               </div>
             </div>
