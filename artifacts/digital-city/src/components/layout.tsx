@@ -419,7 +419,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ background: "#FFA500" }}
       >
         {/* Logo */}
-        <div className="flex items-center justify-center bg-white rounded-full border-2 border-[#1B5E20] shadow-[0_2px_10px_rgba(27,94,32,0.25)]"
+        <div className="flex items-center justify-center bg-transparent rounded-full border-2 border-[#1B5E20] shadow-[0_2px_10px_rgba(27,94,32,0.25)]"
           style={{ width: 54, height: 38 }}>
           <img src="/logo.png" alt="سند" className="w-11 h-8 object-contain" draggable={false} />
         </div>
@@ -501,7 +501,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b-2 border-[#2E7D32] sticky top-0 z-50"
         style={{ background: "#FFA500" }}
       >
-        <div className="flex items-center justify-center bg-white rounded-full border-2 border-[#1B5E20] shadow-[0_2px_8px_rgba(27,94,32,0.22)]"
+        <div className="flex items-center justify-center bg-transparent rounded-full border-2 border-[#1B5E20] shadow-[0_2px_8px_rgba(27,94,32,0.22)]"
           style={{ width: 50, height: 34 }}>
           <img src="/logo.png" alt="سند" className="w-10 h-7 object-contain" draggable={false} />
         </div>
