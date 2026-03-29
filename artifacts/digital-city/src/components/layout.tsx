@@ -419,8 +419,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ background: "#FFA500" }}
       >
         {/* Logo */}
-        <div className="flex items-center justify-center bg-transparent rounded-full border-2 border-[#1B5E20] shadow-[0_2px_10px_rgba(27,94,32,0.25)]"
-          style={{ width: 54, height: 38 }}>
+        <div className="flex items-center justify-center rounded-full"
+          style={{
+            width: 54, height: 38,
+            background: "radial-gradient(circle at 35% 28%, rgba(255,245,130,0.7) 0%, rgba(255,165,0,0.95) 45%, rgba(195,108,0,0.88) 100%)",
+            boxShadow: "inset 0 3px 8px rgba(255,255,255,0.5), inset 0 -4px 10px rgba(0,0,0,0.2), 0 6px 18px rgba(27,94,32,0.45), 0 2px 6px rgba(0,0,0,0.22)",
+            border: "2px solid rgba(27,94,32,0.72)",
+          }}>
           <img src="/logo.png" alt="سند" className="w-11 h-8 object-contain" draggable={false} />
         </div>
 
@@ -501,8 +506,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b-2 border-[#2E7D32] sticky top-0 z-50"
         style={{ background: "#FFA500" }}
       >
-        <div className="flex items-center justify-center bg-transparent rounded-full border-2 border-[#1B5E20] shadow-[0_2px_8px_rgba(27,94,32,0.22)]"
-          style={{ width: 50, height: 34 }}>
+        <div className="flex items-center justify-center rounded-full"
+          style={{
+            width: 50, height: 34,
+            background: "radial-gradient(circle at 35% 28%, rgba(255,245,130,0.7) 0%, rgba(255,165,0,0.95) 45%, rgba(195,108,0,0.88) 100%)",
+            boxShadow: "inset 0 3px 7px rgba(255,255,255,0.5), inset 0 -4px 9px rgba(0,0,0,0.2), 0 5px 14px rgba(27,94,32,0.42), 0 2px 5px rgba(0,0,0,0.2)",
+            border: "2px solid rgba(27,94,32,0.72)",
+          }}>
           <img src="/logo.png" alt="سند" className="w-10 h-7 object-contain" draggable={false} />
         </div>
         <div className="flex items-center gap-2">

@@ -770,26 +770,51 @@ export default function LoginPage() {
           {/* ── Header ── */}
           <div className="px-8 pt-8 pb-6">
             <div className="flex flex-col items-center gap-2">
-              {/* Logo — white oval with dark green border */}
-              <div className="flex items-center justify-center bg-transparent rounded-full border-[3px] border-[#1B5E20] shadow-[0_4px_18px_rgba(27,94,32,0.28)]"
-                style={{ width: 148, height: 96 }}>
+              {/* ── 3D sphere: logo + name + slogan ── */}
+              <div style={{
+                width: 224,
+                height: 224,
+                borderRadius: "50%",
+                background: [
+                  "radial-gradient(circle at 36% 28%,",
+                  "  rgba(255,245,130,0.72) 0%,",
+                  "  rgba(255,165,0,0.93)   42%,",
+                  "  rgba(195,108,0,0.85)   100%)",
+                ].join(""),
+                boxShadow: [
+                  "inset 0 5px 16px rgba(255,255,255,0.55)",
+                  "inset 0 -7px 22px rgba(0,0,0,0.22)",
+                  "0 14px 48px rgba(27,94,32,0.52)",
+                  "0 5px 18px rgba(0,0,0,0.28)",
+                  "0 1px 4px rgba(0,0,0,0.12)",
+                ].join(", "),
+                border: "3px solid rgba(27,94,32,0.75)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 3,
+                overflow: "hidden",
+                flexShrink: 0,
+              }}>
                 <img
                   src="/logo.png"
                   alt="سند - Sanad Logo"
-                  className="w-24 h-20 object-contain"
+                  className="object-contain"
+                  style={{ width: 80, height: 70 }}
                   draggable={false}
                 />
-              </div>
-              {/* App name + slogan */}
-              <div className="text-center mt-1">
                 <h1
-                  className="text-[1.7rem] font-black tracking-tight leading-tight"
-                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "#2E7D32" }}
+                  className="font-black tracking-tight leading-none"
+                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "#1B5E20", fontSize: "1.35rem" }}
                 >
-                  <SanadBrand color="#2E7D32" innerColor="#FFA500" />
+                  <SanadBrand color="#1B5E20" innerColor="#FFA500" />
                 </h1>
-                <p className="text-[#2E7D32]/80 text-sm mt-0.5 font-bold" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-                  <SanadBrand color="#2E7D32" innerColor="#FFA500" style={{ opacity: 0.8 }} />{"ك في التوصيل.. لباب الدار"}
+                <p
+                  className="font-bold text-center leading-snug px-4"
+                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "rgba(27,94,32,0.82)", fontSize: "0.62rem" }}
+                >
+                  <SanadBrand color="#1B5E20" innerColor="#FFA500" style={{ opacity: 0.85 }} />{"ك في التوصيل.. لباب الدار"}
                 </p>
               </div>
             </div>
