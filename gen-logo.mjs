@@ -48,8 +48,7 @@ const sanadY    = pinTipY + 30;
 const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
 
-  <!-- Cream background -->
-  <rect x="0" y="0" width="${W}" height="${H}" rx="28" ry="28" fill="#FFF3E0"/>
+  <!-- Transparent background (no fill) -->
 
   <!-- "سـد" — seen + tatweel + dal — noon letter removed, pin replaces it -->
   <text
