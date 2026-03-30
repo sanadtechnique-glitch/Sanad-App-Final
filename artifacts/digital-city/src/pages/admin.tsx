@@ -9,6 +9,7 @@ import {
   X, Check, Clock, CheckCircle, AlertCircle, Star,
   ChevronRight, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
   UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
+  Image, Calendar, MousePointer, ToggleLeft, ToggleRight,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
@@ -1433,6 +1434,196 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// ── Ads Section ───────────────────────────────────────────────────────────────
+interface AdRow { id: number; title: string; imageUrl?: string; isActive: boolean; expiresAt?: string; clickCount: number; createdAt: string; }
+
+function AdsSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const [ads, setAds]           = useState<AdRow[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing]   = useState<AdRow | null>(null);
+  const [form, setForm]         = useState({ title: "", imageUrl: "", expiresAt: "", isActive: true });
+  const [saving, setSaving]     = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try { setAds(await get<AdRow[]>("/admin/ads")); } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const openAdd  = () => { setEditing(null); setForm({ title: "", imageUrl: "", expiresAt: "", isActive: true }); setShowForm(true); };
+  const openEdit = (a: AdRow) => {
+    setEditing(a);
+    setForm({
+      title: a.title, imageUrl: a.imageUrl || "",
+      expiresAt: a.expiresAt ? a.expiresAt.slice(0, 10) : "",
+      isActive: a.isActive,
+    });
+    setShowForm(true);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload = { ...form, expiresAt: form.expiresAt || null };
+      if (editing) await patch(`/admin/ads/${editing.id}`, payload);
+      else await post("/admin/ads", payload);
+      await load();
+      setShowForm(false);
+    } finally { setSaving(false); }
+  };
+
+  const toggle = async (a: AdRow) => {
+    await patch(`/admin/ads/${a.id}`, { isActive: !a.isActive });
+    await load();
+  };
+
+  const remove = async (id: number) => {
+    if (!confirm(t("هل أنت متأكد؟", "Confirmer la suppression?"))) return;
+    await del(`/admin/ads/${id}`);
+    await load();
+  };
+
+  const isExpired = (a: AdRow) => a.expiresAt && new Date(a.expiresAt) < new Date();
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-lg font-black text-[#2E7D32]">{t("إدارة الإعلانات", "Gestion des publicités")}</h2>
+          <p className="text-xs text-[#2E7D32]/40">{t("إضافة وتعديل الإعلانات البانورامية", "Gérer les publicités panoramiques")}</p>
+        </div>
+        <button onClick={openAdd}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-black transition-all hover:opacity-90"
+          style={{ background: "#2E7D32" }}>
+          <Plus size={15} /> {t("إضافة إعلان", "Ajouter")}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><RefreshCw size={20} className="animate-spin text-[#2E7D32]/30" /></div>
+      ) : ads.length === 0 ? (
+        <div className="text-center py-16">
+          <Image size={36} className="mx-auto mb-3 text-[#2E7D32]/20" />
+          <p className="font-black text-[#2E7D32]/30">{t("لا توجد إعلانات", "Aucune publicité")}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {ads.map(a => (
+            <motion.div key={a.id} layout
+              className="rounded-2xl border p-4 flex items-start gap-4"
+              style={{ background: "#FFFDE7", borderColor: isExpired(a) ? "#FCA5A5" : "rgba(46,125,50,0.12)" }}>
+              {/* Image preview */}
+              <div className="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden border border-[#2E7D32]/10 bg-[#2E7D32]/5 flex items-center justify-center">
+                {a.imageUrl
+                  ? <img src={a.imageUrl} alt={a.title} className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display="none")} />
+                  : <Image size={20} className="text-[#2E7D32]/20" />
+                }
+              </div>
+              {/* Info */}
+              <div className="flex-1 min-w-0" dir="rtl">
+                <p className="font-black text-[#2E7D32] text-sm truncate">{a.title}</p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  {/* Status badge */}
+                  <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-full", a.isActive && !isExpired(a) ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600")}>
+                    {isExpired(a) ? t("منتهية الصلاحية","Expirée") : a.isActive ? t("نشط","Actif") : t("معطّل","Inactif")}
+                  </span>
+                  {/* Expiry */}
+                  {a.expiresAt && (
+                    <span className="flex items-center gap-1 text-[10px] text-[#2E7D32]/40 font-bold">
+                      <Calendar size={10} />
+                      {new Date(a.expiresAt).toLocaleDateString("ar-TN")}
+                    </span>
+                  )}
+                  {/* Clicks */}
+                  <span className="flex items-center gap-1 text-[10px] text-[#2E7D32]/40 font-bold">
+                    <MousePointer size={10} />
+                    {a.clickCount} {t("نقرة","clics")}
+                  </span>
+                </div>
+              </div>
+              {/* Actions */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button onClick={() => toggle(a)} title={a.isActive ? t("تعطيل","Désactiver") : t("تفعيل","Activer")}
+                  className="p-2 rounded-lg transition-all hover:bg-[#2E7D32]/10">
+                  {a.isActive ? <ToggleRight size={18} className="text-green-600" /> : <ToggleLeft size={18} className="text-[#2E7D32]/30" />}
+                </button>
+                <button onClick={() => openEdit(a)} className="p-2 rounded-lg hover:bg-[#2E7D32]/10 transition-all">
+                  <Pencil size={14} className="text-[#2E7D32]/50" />
+                </button>
+                <button onClick={() => remove(a.id)} className="p-2 rounded-lg hover:bg-red-50 transition-all">
+                  <Trash2 size={14} className="text-red-400" />
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.5)" }}
+            onClick={() => setShowForm(false)}>
+            <motion.div initial={{ scale: 0.93, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.93, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl p-6 shadow-2xl"
+              style={{ background: "#FFF3E0" }}
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4" dir="rtl">
+                <h3 className="font-black text-[#2E7D32]">
+                  {editing ? t("تعديل الإعلان","Modifier") : t("إعلان جديد","Nouvelle publicité")}
+                </h3>
+                <button onClick={() => setShowForm(false)}><X size={18} className="text-[#2E7D32]/40" /></button>
+              </div>
+              <div className="space-y-3" dir="rtl">
+                <div>
+                  <label className="text-xs font-black text-[#2E7D32]/60 block mb-1">{t("عنوان الإعلان","Titre *")}</label>
+                  <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder={t("مثال: عرض رمضان الحصري","Ex: Offre exclusive")}
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#2E7D32]/20 bg-white text-sm font-bold text-[#2E7D32] outline-none focus:border-[#2E7D32]/60" />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-[#2E7D32]/60 block mb-1">{t("رابط الصورة (URL)","URL de l'image")}</label>
+                  <input value={form.imageUrl} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#2E7D32]/20 bg-white text-sm font-bold text-[#2E7D32] outline-none focus:border-[#2E7D32]/60" />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-[#2E7D32]/60 block mb-1">{t("تاريخ الانتهاء","Date d'expiration")}</label>
+                  <input type="date" value={form.expiresAt} onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#2E7D32]/20 bg-white text-sm font-bold text-[#2E7D32] outline-none focus:border-[#2E7D32]/60" />
+                </div>
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-sm font-black text-[#2E7D32]">{t("نشط","Actif")}</span>
+                  <button onClick={() => setForm(f => ({ ...f, isActive: !f.isActive }))}>
+                    {form.isActive
+                      ? <ToggleRight size={26} className="text-green-600" />
+                      : <ToggleLeft size={26} className="text-[#2E7D32]/30" />
+                    }
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-5">
+                <button onClick={save} disabled={saving || !form.title}
+                  className="flex-1 py-2.5 rounded-xl text-white font-black text-sm transition-all hover:opacity-90 disabled:opacity-40"
+                  style={{ background: "#2E7D32" }}>
+                  {saving ? <RefreshCw size={14} className="animate-spin mx-auto" /> : t("حفظ","Enregistrer")}
+                </button>
+                <button onClick={() => setShowForm(false)}
+                  className="px-4 py-2.5 rounded-xl text-sm font-black text-[#2E7D32]/50 border border-[#2E7D32]/15 hover:bg-[#2E7D32]/5">
+                  {t("إلغاء","Annuler")}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // Broadcast Section
 // ──────────────────────────────────────────────────────────────────────────────
 interface BroadcastRow { id: number; message: string; messageAr?: string; targetRole: string; createdBy: string; createdAt: string; }
@@ -1638,13 +1829,14 @@ function BroadcastSection({ t, lang }: { t: (ar: string, fr: string) => string; 
 // ──────────────────────────────────────────────────────────────────────────────
 // Main Admin Page
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast";
+type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads";
 
 const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean }[] = [
   { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",       fr: "Tableau de bord" },
   { id: "orders",        icon: Package,          ar: "الطلبات",         fr: "Commandes" },
   { id: "hotelBookings", icon: Hotel,            ar: "حجوزات الفنادق",  fr: "Réservations Hôtel" },
   { id: "banners",       icon: Megaphone,        ar: "الإعلانات",       fr: "Publicités" },
+  { id: "ads",           icon: Image,            ar: "إعلانات متقدمة",  fr: "Ads avancées" },
   { id: "broadcast",     icon: Radio,            ar: "بث إشعار",        fr: "Diffusion" },
   { id: "categories",    icon: Tag,              ar: "الفئات",          fr: "Catégories",    superOnly: true },
   { id: "suppliers",     icon: Users,            ar: "المزودون",        fr: "Fournisseurs",  superOnly: true },
@@ -1874,6 +2066,7 @@ export default function Admin() {
             {active === "orders"        && <OrdersSection t={t} lang={lang} />}
             {active === "hotelBookings" && <HotelBookingsSection t={t} lang={lang} />}
             {active === "banners"       && <BannersSection t={t} />}
+            {active === "ads"           && <AdsSection t={t} />}
             {active === "broadcast"     && <BroadcastSection t={t} lang={lang} />}
             {active === "categories"    && isSuper && <CategoriesSection t={t} />}
             {active === "suppliers"     && isSuper && <SuppliersSection t={t} lang={lang} />}

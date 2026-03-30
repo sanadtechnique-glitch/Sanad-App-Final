@@ -11,6 +11,7 @@ import {
   Car, Hotel, LogIn, UserCircle, ChevronLeft, ChevronRight,
   MapPin, Truck, Eye, Grid, LogOut, Clock, CheckCircle, XCircle,
   Package, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Bike,
+  Percent, Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -591,6 +592,49 @@ export default function Home() {
           </div>
         </motion.section>
       )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          DEALS BUTTON — منتجات في التخفيض
+      ══════════════════════════════════════════════════════════════════════ */}
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+        className="px-4 sm:px-6 lg:px-10 mt-5"
+      >
+        <Link href="/deals">
+          <motion.div
+            whileTap={{ scale: 0.98 }}
+            className="relative overflow-hidden rounded-2xl flex items-center gap-4 px-5 py-4 cursor-pointer"
+            style={{
+              background: "linear-gradient(135deg, #B91C1C 0%, #991B1B 100%)",
+              boxShadow: "0 6px 24px rgba(185,28,28,0.35)",
+            }}
+          >
+            {/* Background decoration */}
+            <div className="absolute inset-0 opacity-10"
+              style={{ backgroundImage: "radial-gradient(circle at 80% 50%, rgba(255,255,255,0.4) 0%, transparent 60%)" }} />
+
+            {/* Icon */}
+            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <Percent size={22} className="text-white" />
+            </div>
+
+            {/* Text */}
+            <div className="flex-1" dir="rtl">
+              <p className="text-white font-black text-base">
+                {t("منتجات في التخفيض", "Produits en promotion")}
+              </p>
+              <p className="text-white/70 text-xs font-bold mt-0.5">
+                {t("أفضل العروض من جميع المزودين", "Meilleures offres de tous les fournisseurs")}
+              </p>
+            </div>
+
+            {/* Tag icon */}
+            <Tag size={18} className="text-white/50 flex-shrink-0" />
+          </motion.div>
+        </Link>
+      </motion.section>
 
       {/* ══════════════════════════════════════════════════════════════════════
           SERVICES GRID

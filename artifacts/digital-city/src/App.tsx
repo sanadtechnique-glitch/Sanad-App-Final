@@ -17,6 +17,7 @@ import Provider     from "./pages/provider";
 import Delivery     from "./pages/delivery";
 import Login        from "./pages/login";
 import OrderHistory from "./pages/order-history";
+import Deals        from "./pages/deals";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -152,6 +153,9 @@ function Router() {
       <Route path="/orders/history">
         {() => <ProtectedRoute component={OrderHistory} roles={["client", "provider", "delivery"]} />}
       </Route>
+
+      {/* ── Deals / promotions (public) ── */}
+      <Route path="/deals" component={Deals} />
 
       {/* ── Role dashboards ── */}
       <Route path="/admin">

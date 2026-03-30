@@ -5,11 +5,12 @@ import { getSession, clearSession } from "@/lib/auth";
 import {
   Power, Clock, Truck, Star, RefreshCw, MessageCircle, ChevronRight,
   Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon, History,
+  Plus, Trash2, Pencil, Tag, ToggleLeft, ToggleRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { NotificationBell } from "@/components/notification-bell";
-import { get, patch } from "@/lib/admin-api";
+import { get, patch, post, del } from "@/lib/admin-api";
 import { pushNotification, readNotifKey, markNotifKeyRead, providerKey, type Notification } from "@/lib/notifications";
 import { playSanadSound, unlockAudio } from "@/lib/notification-sound";
 
@@ -33,6 +34,229 @@ function timeAgo(dateStr: string, lang: string) {
   return lang === "ar" ? `${Math.floor(diff / 60)} س` : `${Math.floor(diff / 60)}h`;
 }
 
+// ── Product type ──────────────────────────────────────────────────────────────
+interface Product { id: number; providerId: number; title: string; description?: string; imageUrl?: string; category?: string; originalPrice?: string; salePrice?: string; isAvailable: boolean; createdAt: string; }
+
+// ── Products Management Component ─────────────────────────────────────────────
+function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: string, fr: string) => string; lang: string }) {
+  const [products, setProducts]   = useState<Product[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [showForm, setShowForm]   = useState(false);
+  const [editing, setEditing]     = useState<Product | null>(null);
+  const [saving, setSaving]       = useState(false);
+  const EMPTY = { title: "", description: "", imageUrl: "", category: "", originalPrice: "", salePrice: "", isAvailable: true };
+  const [form, setForm]           = useState(EMPTY);
+
+  const load = async () => {
+    setLoading(true);
+    try { setProducts(await get<Product[]>(`/provider/${providerId}/products`)); } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, [providerId]);
+
+  const openAdd  = () => { setEditing(null); setForm(EMPTY); setShowForm(true); };
+  const openEdit = (p: Product) => {
+    setEditing(p);
+    setForm({ title: p.title, description: p.description || "", imageUrl: p.imageUrl || "", category: p.category || "", originalPrice: p.originalPrice || "", salePrice: p.salePrice || "", isAvailable: p.isAvailable });
+    setShowForm(true);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload = { ...form, originalPrice: form.originalPrice ? Number(form.originalPrice) : null, salePrice: form.salePrice ? Number(form.salePrice) : null };
+      if (editing) await patch(`/provider/${providerId}/products/${editing.id}`, payload);
+      else await post(`/provider/${providerId}/products`, payload);
+      await load(); setShowForm(false);
+    } finally { setSaving(false); }
+  };
+
+  const remove = async (id: number) => {
+    if (!confirm(t("حذف المنتج؟", "Supprimer le produit?"))) return;
+    await del(`/provider/${providerId}/products/${id}`); await load();
+  };
+
+  const toggleAvail = async (p: Product) => {
+    await patch(`/provider/${providerId}/products/${p.id}`, { isAvailable: !p.isAvailable });
+    await load();
+  };
+
+  const hasSale = (p: Product) => {
+    const o = parseFloat(p.originalPrice ?? "0");
+    const s = parseFloat(p.salePrice ?? "0");
+    return o > 0 && s > 0 && s < o;
+  };
+
+  const pct = (p: Product) => {
+    const o = parseFloat(p.originalPrice ?? "0");
+    const s = parseFloat(p.salePrice ?? "0");
+    return o > 0 && s > 0 ? Math.round(((o - s) / o) * 100) : 0;
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-black text-[#2E7D32]">{t("منتجاتي", "Mes produits")}</h3>
+          <p className="text-xs text-[#2E7D32]/40">{products.length} {t("منتج", "produit(s)")}</p>
+        </div>
+        <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-black" style={{ background: "#2E7D32" }}>
+          <Plus size={13} /> {t("إضافة", "Ajouter")}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-[#2E7D32] border-t-transparent rounded-full animate-spin" /></div>
+      ) : products.length === 0 ? (
+        <div className="text-center py-12">
+          <Package size={32} className="mx-auto mb-2 text-[#2E7D32]/20" />
+          <p className="text-sm font-black text-[#2E7D32]/30">{t("لم تضف منتجات بعد", "Aucun produit")}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {products.map(p => (
+            <motion.div key={p.id} layout className="rounded-2xl border overflow-hidden" style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.15)" }}>
+              <div className="flex gap-3 p-3" dir="rtl">
+                {/* Image */}
+                <div className="w-14 h-14 rounded-xl flex-shrink-0 border border-[#2E7D32]/10 bg-[#2E7D32]/5 flex items-center justify-center overflow-hidden relative">
+                  {p.imageUrl
+                    ? <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
+                    : <ImageIcon size={18} className="text-[#2E7D32]/20" />
+                  }
+                  {hasSale(p) && (
+                    <span className="absolute top-0 right-0 bg-red-500 text-white text-[8px] font-black px-1 py-0.5 rounded-bl-lg rounded-tr-lg">
+                      -{pct(p)}%
+                    </span>
+                  )}
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-1">
+                    <p className="font-black text-sm text-[#2E7D32] truncate flex-1">{p.title}</p>
+                  </div>
+                  {p.category && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#2E7D32]/40 bg-[#2E7D32]/5 px-1.5 py-0.5 rounded-full">
+                      <Tag size={8} />{p.category}
+                    </span>
+                  )}
+                  {/* Prices */}
+                  <div className="flex items-center gap-2 mt-1.5">
+                    {p.salePrice && (
+                      <span className="text-sm font-black text-[#2E7D32]">{parseFloat(p.salePrice).toFixed(3)} TND</span>
+                    )}
+                    {p.originalPrice && hasSale(p) && (
+                      <span className="text-xs font-bold line-through" style={{ color: "#9CA3AF" }}>{parseFloat(p.originalPrice).toFixed(3)}</span>
+                    )}
+                    {p.originalPrice && !hasSale(p) && !p.salePrice && (
+                      <span className="text-sm font-black text-[#2E7D32]">{parseFloat(p.originalPrice).toFixed(3)} TND</span>
+                    )}
+                  </div>
+                </div>
+                {/* Actions */}
+                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                  <button onClick={() => toggleAvail(p)}>
+                    {p.isAvailable
+                      ? <ToggleRight size={20} className="text-green-500" />
+                      : <ToggleLeft size={20} className="text-[#2E7D32]/20" />
+                    }
+                  </button>
+                  <button onClick={() => openEdit(p)} className="p-1 rounded-lg hover:bg-[#2E7D32]/10 transition-all">
+                    <Pencil size={13} className="text-[#2E7D32]/40" />
+                  </button>
+                  <button onClick={() => remove(p.id)} className="p-1 rounded-lg hover:bg-red-50 transition-all">
+                    <Trash2 size={13} className="text-red-400" />
+                  </button>
+                </div>
+              </div>
+              {p.description && (
+                <p className="px-3 pb-3 text-xs text-[#2E7D32]/50 font-bold leading-relaxed border-t border-[#2E7D32]/5 pt-2" dir="rtl">
+                  {p.description}
+                </p>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Form Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.5)" }}
+            onClick={() => setShowForm(false)}>
+            <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto"
+              style={{ background: "#FFF3E0" }}
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4" dir="rtl">
+                <h3 className="font-black text-[#2E7D32]">{editing ? t("تعديل المنتج", "Modifier") : t("منتج جديد", "Nouveau produit")}</h3>
+                <button onClick={() => setShowForm(false)}><X size={18} className="text-[#2E7D32]/40" /></button>
+              </div>
+              <div className="space-y-3" dir="rtl">
+                {[
+                  { key: "title", label: t("اسم المنتج *", "Nom *"), ph: t("مثال: برغر لحم", "Ex: Burger boeuf") },
+                  { key: "description", label: t("الوصف", "Description"), ph: t("وصف مختصر...", "Description courte...") },
+                  { key: "imageUrl", label: t("رابط الصورة", "URL image"), ph: "https://..." },
+                  { key: "category", label: t("الفئة", "Catégorie"), ph: t("مثال: مأكولات", "Ex: Alimentaire") },
+                ].map(({ key, label, ph }) => (
+                  <div key={key}>
+                    <label className="text-xs font-black text-[#2E7D32]/60 block mb-1">{label}</label>
+                    <input value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                      placeholder={ph}
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#2E7D32]/20 bg-white text-sm font-bold text-[#2E7D32] outline-none focus:border-[#2E7D32]/50" />
+                  </div>
+                ))}
+                {/* Prices */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-black text-[#2E7D32]/60 block mb-1">{t("الثمن القديم (TND)", "Prix original")}</label>
+                    <input type="number" step="0.001" value={form.originalPrice} onChange={e => setForm(f => ({ ...f, originalPrice: e.target.value }))}
+                      placeholder="0.000"
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#2E7D32]/20 bg-white text-sm font-bold text-[#2E7D32] outline-none focus:border-[#2E7D32]/50" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black text-[#2E7D32]/60 block mb-1">{t("الثمن الجديد (TND)", "Prix soldé")}</label>
+                    <input type="number" step="0.001" value={form.salePrice} onChange={e => setForm(f => ({ ...f, salePrice: e.target.value }))}
+                      placeholder="0.000"
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#2E7D32]/20 bg-white text-sm font-bold text-[#2E7D32] outline-none focus:border-[#2E7D32]/50" />
+                  </div>
+                </div>
+                {/* Sale preview */}
+                {form.originalPrice && form.salePrice && parseFloat(form.salePrice) < parseFloat(form.originalPrice) && (
+                  <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-red-50 border border-red-100">
+                    <span className="text-sm font-black text-red-600">-{Math.round(((parseFloat(form.originalPrice) - parseFloat(form.salePrice)) / parseFloat(form.originalPrice)) * 100)}%</span>
+                    <span className="text-sm font-bold line-through text-gray-400">{parseFloat(form.originalPrice).toFixed(3)}</span>
+                    <span className="text-base font-black text-[#2E7D32]">{parseFloat(form.salePrice).toFixed(3)} TND</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-sm font-black text-[#2E7D32]">{t("متاح للبيع", "Disponible")}</span>
+                  <button onClick={() => setForm(f => ({ ...f, isAvailable: !f.isAvailable }))}>
+                    {form.isAvailable
+                      ? <ToggleRight size={26} className="text-green-500" />
+                      : <ToggleLeft size={26} className="text-[#2E7D32]/20" />
+                    }
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button onClick={save} disabled={saving || !form.title}
+                  className="flex-1 py-2.5 rounded-xl text-white font-black text-sm disabled:opacity-40"
+                  style={{ background: "#2E7D32" }}>
+                  {saving ? <RefreshCw size={14} className="animate-spin mx-auto" /> : t("حفظ المنتج", "Enregistrer")}
+                </button>
+                <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-xl text-sm font-black text-[#2E7D32]/50 border border-[#2E7D32]/15">
+                  {t("إلغاء", "Annuler")}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function ProviderDashboard() {
   const { lang, t, isRTL } = useLang();
   const [providers, setProviders] = useState<Supplier[]>([]);
@@ -43,7 +267,7 @@ export default function ProviderDashboard() {
   const [pendingCount, setPendingCount] = useState(0);
   const [hasNewOrder, setHasNewOrder] = useState(false);
   const [photoModal, setPhotoModal] = useState<string | null>(null);
-  const [tab, setTab] = useState<"pending" | "all">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "products">("pending");
   const [driverNotif, setDriverNotif] = useState<Notification | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const providerNotifPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -320,21 +544,28 @@ export default function ProviderDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 p-1 rounded-xl" style={{ background: "#FFFDE7" }}>
-          {(["pending", "all"] as const).map(tb => (
+        <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: "#FFFDE7" }}>
+          {(["pending", "all", "products"] as const).map(tb => (
             <button key={tb} onClick={() => setTab(tb)}
-              className={cn("flex-1 py-2.5 rounded-lg font-black text-sm transition-all flex items-center justify-center gap-2",
+              className={cn("flex-1 py-2 rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1.5",
                 tab === tb ? "bg-[#2E7D32] text-black" : "text-[#2E7D32]/40 hover:text-[#2E7D32]")}>
               {tb === "pending"
-                ? <>{t("جديد", "Nouvelles")} {pendingOrders.length > 0 && <span className={cn("px-1.5 py-0.5 rounded-full text-xs", tab === tb ? "bg-[#FFA500]/20 text-black" : "bg-amber-400/20 text-amber-400")}>{pendingOrders.length}</span>}</>
-                : t("كل الطلبات", "Toutes")
+                ? <>{t("جديد", "Nouv.")} {pendingOrders.length > 0 && <span className={cn("px-1.5 py-0.5 rounded-full text-xs", tab === tb ? "bg-[#FFA500]/20 text-black" : "bg-amber-400/20 text-amber-400")}>{pendingOrders.length}</span>}</>
+                : tb === "all"
+                  ? t("الطلبات", "Commandes")
+                  : <><Package size={11} />{t("المنتجات", "Produits")}</>
               }
             </button>
           ))}
         </div>
 
+        {/* Products Manager */}
+        {tab === "products" && (
+          <ProductsManager providerId={selected.id} t={t} lang={lang} />
+        )}
+
         {/* Orders */}
-        {loading ? (
+        {tab !== "products" && (loading ? (
           <div className="flex justify-center py-16">
             <div className="w-7 h-7 border-[3px] border-[#2E7D32] border-t-transparent rounded-full animate-spin" />
           </div>
@@ -427,7 +658,7 @@ export default function ProviderDashboard() {
               })}
             </div>
           </AnimatePresence>
-        )}
+        ))}
       </div>
     </div>
   );

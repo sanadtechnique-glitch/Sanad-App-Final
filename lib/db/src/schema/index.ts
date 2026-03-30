@@ -9,3 +9,5 @@ export * from "./ratings";
 export * from "./hotelBookings";
 export * from "./users";
 export * from "./broadcasts";
+export * from "./ads";
+export * from "./products";
