@@ -1,19 +1,21 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { SanadBrand } from "@/components/sanad-brand";
 import { AdBanner } from "@/components/ad-banner";
 import { useLang } from "@/lib/language";
 import { getSession, clearSession } from "@/lib/auth";
+import { get } from "@/lib/admin-api";
 import {
   Utensils, Pill, Scale, ShoppingCart, Wrench, Stethoscope,
   Car, Hotel, LogIn, UserCircle, ChevronLeft, ChevronRight,
-  MapPin, Truck, Eye, Grid, LogOut,
+  MapPin, Truck, Eye, Grid, LogOut, Clock, CheckCircle, XCircle,
+  Package, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Bike,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PANORAMIC PROMO SLIDES
-// Admin: Edit this array to update the advertising slider on the homepage.
 // ─────────────────────────────────────────────────────────────────────────────
 const PROMO_SLIDES = [
   {
@@ -66,6 +68,284 @@ const CATEGORIES = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// STATUS CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+const ONGOING_STATUSES = ["pending", "accepted", "prepared", "driver_accepted", "in_delivery"];
+
+function statusConfig(status: string, t: (ar: string, fr: string) => string) {
+  const map: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+    pending:        { label: t("في الانتظار",     "En attente"),     color: "#92400E", bg: "#FEF3C7", icon: <Clock size={11} /> },
+    accepted:       { label: t("مقبول",           "Accepté"),        color: "#1D4ED8", bg: "#DBEAFE", icon: <CheckCircle size={11} /> },
+    prepared:       { label: t("جاهز",            "Prêt"),           color: "#6D28D9", bg: "#EDE9FE", icon: <Package size={11} /> },
+    driver_accepted:{ label: t("السائق في الطريق","Livreur en route"),color: "#0369A1", bg: "#E0F2FE", icon: <Bike size={11} /> },
+    in_delivery:    { label: t("في التوصيل",      "En livraison"),   color: "#0369A1", bg: "#E0F2FE", icon: <Truck size={11} /> },
+    delivered:      { label: t("تم التوصيل",      "Livré"),          color: "#166534", bg: "#DCFCE7", icon: <CheckCircle size={11} /> },
+    cancelled:      { label: t("ملغي",            "Annulé"),         color: "#991B1B", bg: "#FEE2E2", icon: <XCircle size={11} /> },
+  };
+  return map[status] ?? { label: status, color: "#6B7280", bg: "#F3F4F6", icon: <AlertCircle size={11} /> };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORDER CARD (compact for home page)
+// ─────────────────────────────────────────────────────────────────────────────
+interface Order {
+  id: number;
+  customerName: string;
+  customerPhone?: string;
+  customerAddress: string;
+  notes?: string;
+  serviceType: string;
+  status: string;
+  serviceProviderId: number;
+  serviceProviderName: string;
+  deliveryFee?: number;
+  photoUrl?: string;
+  createdAt: string;
+}
+
+function OrderCard({ order, t, expanded, onToggle }: {
+  order: Order;
+  t: (ar: string, fr: string) => string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const cfg = statusConfig(order.status, t);
+  const date = new Date(order.createdAt).toLocaleDateString("ar-TN", {
+    day: "numeric", month: "short", year: "numeric",
+  });
+
+  return (
+    <motion.div
+      layout
+      className="rounded-2xl border overflow-hidden cursor-pointer"
+      style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.15)" }}
+      onClick={onToggle}
+      whileTap={{ scale: 0.99 }}
+    >
+      {/* Main row */}
+      <div className="flex items-center gap-3 px-4 py-3" dir="rtl">
+        {/* Status dot */}
+        <div
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ background: cfg.color }}
+        />
+        {/* Provider + service */}
+        <div className="flex-1 min-w-0">
+          <p className="font-black text-sm text-[#2E7D32] truncate">
+            {order.serviceProviderName}
+          </p>
+          <p className="text-[10px] font-bold text-[#2E7D32]/50 truncate">
+            {order.serviceType} · {date}
+          </p>
+        </div>
+        {/* Status badge */}
+        <span
+          className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black flex-shrink-0"
+          style={{ background: cfg.bg, color: cfg.color }}
+        >
+          {cfg.icon}
+          {cfg.label}
+        </span>
+        {/* Order ID + expand arrow */}
+        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+          <span className="text-[10px] font-black text-[#2E7D32]/30">#{order.id}</span>
+          {expanded
+            ? <ChevronUp size={14} className="text-[#2E7D32]/30" />
+            : <ChevronDown size={14} className="text-[#2E7D32]/30" />
+          }
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="overflow-hidden"
+          >
+            <div
+              className="px-4 pb-4 pt-1 space-y-2 border-t"
+              style={{ borderColor: "rgba(46,125,50,0.08)" }}
+              dir="rtl"
+            >
+              <div className="grid grid-cols-2 gap-2">
+                {order.customerAddress && (
+                  <div className="flex items-start gap-1.5">
+                    <MapPin size={12} className="text-[#2E7D32]/40 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-[9px] font-bold text-[#2E7D32]/40">{t("العنوان","Adresse")}</p>
+                      <p className="text-xs font-black text-[#2E7D32]/70">{order.customerAddress}</p>
+                    </div>
+                  </div>
+                )}
+                {order.deliveryFee !== undefined && (
+                  <div className="flex items-start gap-1.5">
+                    <Truck size={12} className="text-[#2E7D32]/40 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-[9px] font-bold text-[#2E7D32]/40">{t("رسوم التوصيل","Livraison")}</p>
+                      <p className="text-xs font-black text-[#2E7D32]/70">{order.deliveryFee} TND</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {order.notes && (
+                <div className="flex items-start gap-1.5">
+                  <Package size={12} className="text-[#2E7D32]/40 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-[9px] font-bold text-[#2E7D32]/40">{t("ملاحظات","Notes")}</p>
+                    <p className="text-xs font-black text-[#2E7D32]/70">{order.notes}</p>
+                  </div>
+                </div>
+              )}
+              {order.photoUrl && (
+                <a href={order.photoUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[10px] font-black text-blue-600 hover:underline"
+                  onClick={e => e.stopPropagation()}
+                >
+                  {t("عرض الصورة","Voir photo")}
+                </a>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MY ORDERS SECTION (embedded in home page)
+// ─────────────────────────────────────────────────────────────────────────────
+function MyOrdersSection({ name, t }: { name: string; t: (ar: string, fr: string) => string }) {
+  const [orders, setOrders]       = useState<Order[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [showAll, setShowAll]     = useState(false);
+
+  const load = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      const data = await get<Order[]>(`/orders/customer?name=${encodeURIComponent(name)}`);
+      setOrders(Array.isArray(data) ? data : []);
+    } catch {
+      setOrders([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [name]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const ongoing  = orders.filter(o => ONGOING_STATUSES.includes(o.status));
+  const history  = orders.filter(o => !ONGOING_STATUSES.includes(o.status));
+  const shown    = showAll ? history : history.slice(0, 3);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <RefreshCw size={20} className="animate-spin text-[#2E7D32]/40" />
+      </div>
+    );
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="text-center py-8" dir="rtl">
+        <ShoppingCart size={32} className="mx-auto mb-2 text-[#2E7D32]/20" />
+        <p className="text-sm font-black text-[#2E7D32]/30">
+          {t("لا توجد طلبات بعد", "Aucune commande pour l'instant")}
+        </p>
+        <p className="text-xs text-[#2E7D32]/20 mt-1">
+          {t("ستظهر طلباتك هنا بمجرد إرسالها", "Vos commandes apparaîtront ici")}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4" dir="rtl">
+      {/* Refresh button */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-[#2E7D32]/40">
+          {orders.length} {t("طلب", "commande(s)")}
+        </span>
+        <button
+          onClick={() => load(true)}
+          disabled={refreshing}
+          className="flex items-center gap-1 text-xs font-bold text-[#2E7D32]/50 hover:text-[#2E7D32] transition-all"
+        >
+          <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
+          {t("تحديث", "Actualiser")}
+        </button>
+      </div>
+
+      {/* ONGOING */}
+      {ongoing.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-xs font-black text-amber-600">
+              {t("جارية الآن", "En cours")} ({ongoing.length})
+            </span>
+          </div>
+          <div className="space-y-2">
+            {ongoing.map(o => (
+              <OrderCard
+                key={o.id}
+                order={o}
+                t={t}
+                expanded={expandedId === o.id}
+                onToggle={() => setExpandedId(expandedId === o.id ? null : o.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* HISTORY */}
+      {history.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Clock size={12} className="text-[#2E7D32]/40" />
+            <span className="text-xs font-black text-[#2E7D32]/50">
+              {t("السابقة", "Historique")} ({history.length})
+            </span>
+          </div>
+          <div className="space-y-2">
+            {shown.map(o => (
+              <OrderCard
+                key={o.id}
+                order={o}
+                t={t}
+                expanded={expandedId === o.id}
+                onToggle={() => setExpandedId(expandedId === o.id ? null : o.id)}
+              />
+            ))}
+          </div>
+          {history.length > 3 && (
+            <button
+              onClick={() => setShowAll(v => !v)}
+              className="w-full mt-2 py-2 rounded-xl text-xs font-black text-[#2E7D32]/50 hover:text-[#2E7D32] border border-[#2E7D32]/10 hover:border-[#2E7D32]/30 transition-all"
+            >
+              {showAll
+                ? t("عرض أقل", "Voir moins")
+                : t(`عرض الكل (${history.length})`, `Voir tout (${history.length})`)
+              }
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PANORAMIC SLIDER COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 function PromoSlider({ lang }: { lang: string }) {
@@ -107,17 +387,12 @@ function PromoSlider({ lang }: { lang: string }) {
             background: `linear-gradient(135deg, ${slide.bgFrom} 0%, ${slide.bgTo} 100%)`,
           }}
         >
-          {/* Background texture */}
           <div className="absolute inset-0 opacity-10"
             style={{
               backgroundImage: "radial-gradient(circle at 25% 50%, rgba(255,255,255,0.25) 0%, transparent 50%), radial-gradient(circle at 75% 50%, rgba(255,255,255,0.15) 0%, transparent 50%)",
             }} />
-
-          {/* Accent circle */}
           <div className="absolute right-6 top-1/2 -translate-y-1/2 w-32 h-32 rounded-full opacity-15"
             style={{ background: slide.accent }} />
-
-          {/* Content */}
           <div className="relative z-10 text-center" dir="rtl">
             <motion.p
               initial={{ opacity: 0, y: 8 }}
@@ -141,7 +416,6 @@ function PromoSlider({ lang }: { lang: string }) {
         </motion.div>
       </AnimatePresence>
 
-      {/* Prev / Next arrows */}
       <button
         onClick={() => goTo((active - 1 + PROMO_SLIDES.length) % PROMO_SLIDES.length)}
         className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/35 transition-all"
@@ -157,7 +431,6 @@ function PromoSlider({ lang }: { lang: string }) {
         <ChevronLeft size={16} className="text-white" />
       </button>
 
-      {/* Navigation dots */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-2">
         {PROMO_SLIDES.map((_, i) => (
           <button
@@ -204,7 +477,6 @@ export default function Home() {
           WebkitBackdropFilter: "blur(10px)",
         }}
       >
-        {/* Logo — right side in RTL */}
         <motion.div
           initial={{ opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
@@ -217,7 +489,6 @@ export default function Home() {
           </span>
         </motion.div>
 
-        {/* Right actions — left side in RTL layout */}
         <motion.div
           initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
@@ -226,7 +497,6 @@ export default function Home() {
         >
           {session ? (
             <>
-              {/* Services link for logged-in clients */}
               {session.role === "client" && (
                 <Link href="/services">
                   <button className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:bg-[#2E7D32]/10"
@@ -236,13 +506,11 @@ export default function Home() {
                   </button>
                 </Link>
               )}
-              {/* Profile pill */}
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#2E7D32]/30"
                 style={{ background: "#2E7D32", cursor: "default" }}>
                 <UserCircle size={15} className="text-white" />
                 <span className="text-white font-black text-xs">{session.username}</span>
               </div>
-              {/* Logout button */}
               <button
                 onClick={() => { clearSession(); navigate("/login"); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-400/30 bg-red-400/10 hover:bg-red-400/20 transition-all"
@@ -279,6 +547,50 @@ export default function Home() {
       >
         <PromoSlider lang={lang} />
       </motion.section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          MY ORDERS — shown only for logged-in clients, right after slider
+      ══════════════════════════════════════════════════════════════════════ */}
+      {session?.role === "client" && (
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.15 }}
+          className="px-4 sm:px-6 lg:px-10 mt-6"
+        >
+          {/* Section header */}
+          <div className="flex items-center justify-between mb-4" dir="rtl">
+            <div>
+              <h2 className="text-lg font-black text-[#2E7D32]">
+                {t("طلباتي", "Mes commandes")}
+              </h2>
+              <p className="text-xs font-bold text-[#2E7D32]/40">
+                {t("جميع طلباتك من كل المزودين", "Toutes vos commandes")}
+              </p>
+            </div>
+            <Link href="/services">
+              <button
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white transition-all hover:opacity-90"
+                style={{ background: "#2E7D32" }}
+              >
+                <ShoppingCart size={13} />
+                {t("طلب جديد", "Nouvelle commande")}
+              </button>
+            </Link>
+          </div>
+
+          {/* Card container */}
+          <div
+            className="rounded-2xl p-4"
+            style={{
+              background: "rgba(46,125,50,0.04)",
+              border: "1.5px solid rgba(46,125,50,0.12)",
+            }}
+          >
+            <MyOrdersSection name={session.name} t={t} />
+          </div>
+        </motion.section>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           SERVICES GRID
@@ -332,7 +644,7 @@ export default function Home() {
       </section>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          ABOUT US  —  "عن سند.. لماذا نحن هنا؟"
+          ABOUT US
       ══════════════════════════════════════════════════════════════════════ */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
@@ -340,14 +652,12 @@ export default function Home() {
         transition={{ delay: 0.35 }}
         className="px-4 sm:px-8 lg:px-16 mt-10 mb-6"
       >
-        {/* Divider */}
         <div className="flex items-center gap-4 mb-7">
           <div className="flex-1 h-px" style={{ background: "rgba(46,125,50,0.18)" }} />
           <MapPin size={18} style={{ color: "#2E7D32", flexShrink: 0 }} />
           <div className="flex-1 h-px" style={{ background: "rgba(46,125,50,0.18)" }} />
         </div>
 
-        {/* Heading */}
         <h2
           className="text-2xl font-black text-center mb-8"
           style={{ color: "#2E7D32", fontFamily: "'Cairo','Tajawal',sans-serif" }}
@@ -357,100 +667,34 @@ export default function Home() {
         </h2>
 
         <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-
-          {/* Section 1 — The Purpose */}
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="rounded-2xl p-5 text-center"
-            style={{
-              background: "rgba(46,125,50,0.06)",
-              border: "1.5px solid rgba(46,125,50,0.14)",
-            }}
-          >
-            <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
-              style={{ background: "#2E7D32" }}>
-              <Truck size={18} className="text-white" />
-            </div>
-            <p
-              className="font-black text-base mb-1"
-              style={{ color: "#2E7D32", fontFamily: "'Cairo','Tajawal',sans-serif" }}
-              dir="rtl"
+          {[
+            { icon: Truck, titleAr: "لماذا وضعناه على ذمتكم؟", bodyAr: "لأن وقتكم غالي، ولأننا نؤمن بضرورة تقريب المسافات وتسهيل حياتكم اليومية." },
+            { icon: Grid,  titleAr: "ما هو دورنا؟",            bodyAr: "نحن الرابط الذكي بينك وبين احتياجاتك؛ سواء كانت قضية من المغازة، طرد مستعجل، أو وجبة من مطعمك المفضل." },
+            { icon: Eye,   titleAr: "رؤيتنا",                   bodyAr: "أن نكون الخيار الأول والآمن لكل مواطن بفضل تكنولوجيا محلية تحترم خصوصيتكم وتلبي تطلعاتكم." },
+          ].map(({ icon: Icon, titleAr, bodyAr }, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 + idx * 0.08 }}
+              className="rounded-2xl p-5 text-center"
+              style={{
+                background: "rgba(46,125,50,0.06)",
+                border: "1.5px solid rgba(46,125,50,0.14)",
+              }}
             >
-              لماذا وضعناه على ذمتكم؟
-            </p>
-            <p
-              className="text-sm leading-relaxed"
-              style={{ color: "rgba(46,125,50,0.75)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
-              dir="rtl"
-            >
-              لأن وقتكم غالي، ولأننا نؤمن بضرورة تقريب المسافات وتسهيل حياتكم اليومية.
-            </p>
-          </motion.div>
-
-          {/* Section 2 — The Role */}
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.48 }}
-            className="rounded-2xl p-5 text-center"
-            style={{
-              background: "rgba(46,125,50,0.06)",
-              border: "1.5px solid rgba(46,125,50,0.14)",
-            }}
-          >
-            <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
-              style={{ background: "#2E7D32" }}>
-              <Grid size={18} className="text-white" />
-            </div>
-            <p
-              className="font-black text-base mb-1"
-              style={{ color: "#2E7D32", fontFamily: "'Cairo','Tajawal',sans-serif" }}
-              dir="rtl"
-            >
-              ما هو دورنا؟
-            </p>
-            <p
-              className="text-sm leading-relaxed"
-              style={{ color: "rgba(46,125,50,0.75)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
-              dir="rtl"
-            >
-              نحن الرابط الذكي بينك وبين احتياجاتك؛ سواء كانت قضية من المغازة، طرد مستعجل، أو وجبة من مطعمك المفضل.
-            </p>
-          </motion.div>
-
-          {/* Section 3 — Vision */}
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.56 }}
-            className="rounded-2xl p-5 text-center"
-            style={{
-              background: "rgba(46,125,50,0.06)",
-              border: "1.5px solid rgba(46,125,50,0.14)",
-            }}
-          >
-            <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
-              style={{ background: "#2E7D32" }}>
-              <Eye size={18} className="text-white" />
-            </div>
-            <p
-              className="font-black text-base mb-1"
-              style={{ color: "#2E7D32", fontFamily: "'Cairo','Tajawal',sans-serif" }}
-              dir="rtl"
-            >
-              رؤيتنا
-            </p>
-            <p
-              className="text-sm leading-relaxed"
-              style={{ color: "rgba(46,125,50,0.75)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
-              dir="rtl"
-            >
-              أن نكون الخيار الأول والآمن لكل مواطن بفضل تكنولوجيا محلية تحترم خصوصيتكم وتلبي تطلعاتكم.
-            </p>
-          </motion.div>
-
+              <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
+                style={{ background: "#2E7D32" }}>
+                <Icon size={18} className="text-white" />
+              </div>
+              <p className="font-black text-base mb-1" style={{ color: "#2E7D32", fontFamily: "'Cairo','Tajawal',sans-serif" }} dir="rtl">
+                {titleAr}
+              </p>
+              <p className="text-sm leading-relaxed" style={{ color: "rgba(46,125,50,0.75)", fontFamily: "'Cairo','Tajawal',sans-serif" }} dir="rtl">
+                {bodyAr}
+              </p>
+            </motion.div>
+          ))}
         </div>
       </motion.section>
 
