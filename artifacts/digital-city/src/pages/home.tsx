@@ -4,11 +4,11 @@ import { Link, useLocation } from "wouter";
 import { SanadBrand } from "@/components/sanad-brand";
 import { AdBanner } from "@/components/ad-banner";
 import { useLang } from "@/lib/language";
-import { getSession } from "@/lib/auth";
+import { getSession, clearSession } from "@/lib/auth";
 import {
   Utensils, Pill, Scale, ShoppingCart, Wrench, Stethoscope,
   Car, Hotel, LogIn, UserCircle, ChevronLeft, ChevronRight,
-  MapPin, Truck, Eye, Grid,
+  MapPin, Truck, Eye, Grid, LogOut,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -242,6 +242,15 @@ export default function Home() {
                 <UserCircle size={15} className="text-white" />
                 <span className="text-white font-black text-xs">{session.username}</span>
               </div>
+              {/* Logout button */}
+              <button
+                onClick={() => { clearSession(); navigate("/login"); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-400/30 bg-red-400/10 hover:bg-red-400/20 transition-all"
+                title={t("تسجيل الخروج", "Déconnexion")}
+              >
+                <LogOut size={14} className="text-red-500" />
+                <span className="hidden sm:inline text-xs font-bold text-red-500">{t("خروج", "Quitter")}</span>
+              </button>
             </>
           ) : (
             <button
