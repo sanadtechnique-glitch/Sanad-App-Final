@@ -7,3 +7,4 @@ export * from "./deliveryStaff";
 export * from "./promoBanners";
 export * from "./ratings";
 export * from "./hotelBookings";
+export * from "./users";

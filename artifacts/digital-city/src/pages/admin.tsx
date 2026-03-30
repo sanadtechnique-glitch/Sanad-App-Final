@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { getSession, clearSession } from "@/lib/auth";
+import { getSession, clearSession, isAdminRole, isSuperAdmin, ROLE_META, ROLE_SECTIONS, type AppRole } from "@/lib/auth";
 import { SanadBrand } from "@/components/sanad-brand";
 import {
   LayoutDashboard, Package, Tag, Users, ShoppingBag,
   Truck, Map, Megaphone, RefreshCw, Plus, Pencil, Trash2,
   X, Check, Clock, CheckCircle, AlertCircle, Star,
   ChevronRight, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
+  UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -987,20 +988,353 @@ function HotelBookingsSection({ t, lang }: { t: (a: string, f: string) => string
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Section: Users Management
+// ──────────────────────────────────────────────────────────────────────────────
+interface AppUser {
+  id: number; username: string; name: string; email?: string | null;
+  phone?: string | null; role: string; isActive: boolean; createdAt: string;
+}
+
+const ROLE_OPTIONS: { value: string; ar: string; fr: string; color: string }[] = [
+  { value: "super_admin", ar: "مدير عام",    fr: "Super Admin",  color: "#1B5E20" },
+  { value: "manager",     ar: "مسؤول",       fr: "Manager",      color: "#2E7D32" },
+  { value: "provider",    ar: "مزود / تاجر", fr: "Fournisseur",  color: "#4CAF50" },
+  { value: "driver",      ar: "موزع",        fr: "Livreur",      color: "#388E3C" },
+  { value: "customer",    ar: "زبون",        fr: "Client",       color: "#FFA500" },
+];
+
+function RoleBadge({ role }: { role: string }) {
+  const r = ROLE_OPTIONS.find(o => o.value === role);
+  if (!r) return <span className="text-xs text-[#2E7D32]/30">{role}</span>;
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black border"
+      style={{ color: r.color, borderColor: r.color + "44", background: r.color + "14" }}
+    >
+      {r.ar}
+    </span>
+  );
+}
+
+function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [modal, setModal] = useState<null | "add" | AppUser>(null);
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    username: "", name: "", email: "", phone: "",
+    role: "customer", password: "", isActive: true,
+  });
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const load = () => get<AppUser[]>("/admin/users").then(setUsers).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const openAdd = () => {
+    setForm({ username: "", name: "", email: "", phone: "", role: "customer", password: "", isActive: true });
+    setSaveError(null); setShowPw(false); setModal("add");
+  };
+  const openEdit = (u: AppUser) => {
+    setForm({ username: u.username, name: u.name, email: u.email || "", phone: u.phone || "", role: u.role, password: "", isActive: u.isActive });
+    setSaveError(null); setShowPw(false); setModal(u);
+  };
+
+  const save = async () => {
+    setSaveError(null);
+    if (!form.name.trim()) { setSaveError(t("الاسم مطلوب","Nom requis")); return; }
+    if (modal === "add" && !form.password.trim()) { setSaveError(t("كلمة المرور مطلوبة","Mot de passe requis")); return; }
+    if (modal === "add" && !form.username.trim()) { setSaveError(t("اسم المستخدم مطلوب","Identifiant requis")); return; }
+    setLoading(true);
+    try {
+      const payload = {
+        ...(modal === "add" ? { username: form.username.trim().toLowerCase() } : {}),
+        name: form.name.trim(), email: form.email.trim() || undefined,
+        phone: form.phone.trim() || undefined, role: form.role, isActive: form.isActive,
+        ...(form.password.trim() ? { password: form.password.trim() } : {}),
+      };
+      if (modal === "add") {
+        await post("/admin/users", { ...payload, password: form.password.trim() });
+      } else {
+        await patch(`/admin/users/${(modal as AppUser).id}`, payload);
+      }
+      setModal(null); load();
+    } catch (err: any) {
+      setSaveError(err?.message === "Username already exists"
+        ? t("اسم المستخدم موجود بالفعل","Identifiant déjà utilisé")
+        : t("حدث خطأ","Une erreur est survenue"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleActive = async (u: AppUser) => {
+    await patch(`/admin/users/${u.id}`, { isActive: !u.isActive });
+    setUsers(prev => prev.map(x => x.id === u.id ? { ...x, isActive: !u.isActive } : x));
+  };
+
+  const remove = async (u: AppUser) => {
+    if (!confirm(t(`حذف "${u.name}"؟`, `Supprimer "${u.name}" ?`))) return;
+    await del(`/admin/users/${u.id}`); load();
+  };
+
+  const filtered = users.filter(u => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
+    const matchRole = roleFilter === "all" || u.role === roleFilter;
+    return matchSearch && matchRole;
+  });
+
+  const fmt = (d: string) => { try { return new Date(d).toLocaleDateString("ar-TN", { day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl font-black text-[#2E7D32]">{t("إدارة المستخدمين","Gestion des Utilisateurs")}</h2>
+          <p className="text-[#2E7D32]/30 text-sm mt-0.5">{filtered.length} {t("مستخدم","utilisateur(s)")}</p>
+        </div>
+        <GoldBtn onClick={openAdd}>
+          <Plus size={14} />{t("إضافة مستخدم","Ajouter utilisateur")}
+        </GoldBtn>
+      </div>
+
+      {/* Role summary chips */}
+      <div className="flex flex-wrap gap-2">
+        {[{ value: "all", ar: "الكل", fr: "Tous" }, ...ROLE_OPTIONS].map(r => (
+          <button key={r.value} onClick={() => setRoleFilter(r.value)}
+            className={cn("px-3 py-1.5 rounded-full text-xs font-bold border transition-all",
+              roleFilter === r.value
+                ? "bg-[#2E7D32] text-black border-transparent"
+                : "border-[#2E7D32]/20 text-[#2E7D32]/50 hover:border-[#2E7D32]/40")}>
+            {r.ar}
+            <span className="ms-1.5 opacity-60">
+              {r.value === "all" ? users.length : users.filter(u => u.role === r.value).length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#2E7D32]/30 pointer-events-none" />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder={t("بحث بالاسم أو المعرّف...","Rechercher par nom ou identifiant...")}
+          className="w-full ps-10 pe-4 py-2.5 rounded-xl border border-[#2E7D32]/15 bg-[#FFA500]/20 text-sm text-[#2E7D32] placeholder:text-[#2E7D32]/25 outline-none focus:border-[#2E7D32]/40"
+          dir="rtl"
+        />
+      </div>
+
+      {/* Users table */}
+      <div className="rounded-2xl border border-[#2E7D32]/10 overflow-hidden">
+        {/* Table header — desktop */}
+        <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 px-5 py-3 bg-[#2E7D32]/5 border-b border-[#2E7D32]/8 text-xs font-black text-[#2E7D32]/40 uppercase tracking-wider" dir="rtl">
+          <span>{t("الاسم","Nom")}</span>
+          <span>{t("البريد / الهاتف","Email / Tél.")}</span>
+          <span>{t("الدور","Rôle")}</span>
+          <span>{t("تاريخ الإنشاء","Créé le")}</span>
+          <span>{t("إجراءات","Actions")}</span>
+        </div>
+
+        {filtered.length === 0 && (
+          <div className="p-12 text-center">
+            <UserCog size={32} className="mx-auto text-[#2E7D32]/15 mb-3" />
+            <p className="text-[#2E7D32]/30 text-sm">{t("لا يوجد مستخدمون","Aucun utilisateur trouvé")}</p>
+          </div>
+        )}
+
+        {filtered.map((u, idx) => (
+          <div
+            key={u.id}
+            className={cn("flex md:grid md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 px-4 md:px-5 py-4 items-center border-b border-[#2E7D32]/5 last:border-0 transition-colors hover:bg-[#2E7D32]/2",
+              !u.isActive && "opacity-50")}
+            dir="rtl"
+          >
+            {/* Name + username */}
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-[#2E7D32] text-sm truncate">{u.name}</p>
+              <p className="text-xs text-[#2E7D32]/35 font-mono mt-0.5">@{u.username}</p>
+            </div>
+
+            {/* Email / Phone */}
+            <div className="hidden md:block min-w-0">
+              {u.email && <p className="text-xs text-[#2E7D32]/60 truncate">{u.email}</p>}
+              {u.phone && <p className="text-xs text-[#2E7D32]/40 truncate">{u.phone}</p>}
+              {!u.email && !u.phone && <p className="text-xs text-[#2E7D32]/20">—</p>}
+            </div>
+
+            {/* Role */}
+            <div className="hidden md:block">
+              <RoleBadge role={u.role} />
+              {!u.isActive && (
+                <span className="ms-2 text-[10px] text-red-400/70 border border-red-400/20 px-1.5 py-0.5 rounded-full bg-red-400/8">
+                  {t("معطّل","Désactivé")}
+                </span>
+              )}
+            </div>
+
+            {/* Created at */}
+            <div className="hidden md:block">
+              <p className="text-xs text-[#2E7D32]/30">{fmt(u.createdAt)}</p>
+            </div>
+
+            {/* Mobile: role + status badges */}
+            <div className="flex md:hidden items-center gap-1.5 flex-wrap">
+              <RoleBadge role={u.role} />
+              {!u.isActive && <span className="text-[10px] text-red-400 border border-red-400/20 px-1.5 py-0.5 rounded-full">{t("معطّل","Désactivé")}</span>}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={() => toggleActive(u)}
+                title={u.isActive ? t("تعطيل","Désactiver") : t("تفعيل","Activer")}
+                className={cn("p-2 rounded-xl transition-all",
+                  u.isActive
+                    ? "text-emerald-500/60 bg-emerald-500/5 hover:bg-red-400/10 hover:text-red-400"
+                    : "text-red-400/50 bg-red-400/5 hover:bg-emerald-500/10 hover:text-emerald-500")}
+              >
+                {u.isActive ? <UserCheck size={14} /> : <UserX size={14} />}
+              </button>
+              <button
+                onClick={() => openEdit(u)}
+                className="p-2 rounded-xl text-[#2E7D32]/40 bg-[#2E7D32]/5 hover:text-[#2E7D32] hover:bg-[#2E7D32]/15 transition-all"
+              >
+                <Pencil size={13} />
+              </button>
+              <button
+                onClick={() => remove(u)}
+                className="p-2 rounded-xl text-red-400/40 bg-red-400/5 hover:text-red-400 hover:bg-red-400/15 transition-all"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add / Edit Modal */}
+      <Modal
+        open={!!modal}
+        onClose={() => setModal(null)}
+        title={modal === "add" ? t("إضافة مستخدم","Ajouter un utilisateur") : t("تعديل المستخدم","Modifier l'utilisateur")}
+      >
+        <div className="space-y-3" dir="rtl">
+          {/* Username — only on add */}
+          {modal === "add" && (
+            <Field label={t("اسم المستخدم (معرّف الدخول)","Identifiant de connexion")}>
+              <Input value={form.username} onChange={v => setForm(f => ({ ...f, username: v }))} placeholder="ex: ali.ben" />
+            </Field>
+          )}
+          {modal !== "add" && (
+            <div className="px-3 py-2 rounded-xl bg-[#2E7D32]/5 border border-[#2E7D32]/10">
+              <p className="text-[10px] text-[#2E7D32]/40 uppercase font-black">{t("المعرّف","Identifiant")}</p>
+              <p className="text-sm font-black text-[#2E7D32] font-mono">@{form.username}</p>
+            </div>
+          )}
+
+          {/* Full name */}
+          <Field label={t("الاسم الكامل","Nom complet")}>
+            <Input value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder={t("الاسم الكامل","Nom complet")} />
+          </Field>
+
+          {/* Email + Phone */}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("البريد الإلكتروني","Email")}>
+              <Input value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} placeholder="example@mail.com" />
+            </Field>
+            <Field label={t("رقم الهاتف","Téléphone")}>
+              <Input value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v }))} placeholder="+216..." />
+            </Field>
+          </div>
+
+          {/* Role */}
+          <Field label={t("الدور والصلاحيات","Rôle & Permissions")}>
+            <div className="grid grid-cols-1 gap-2">
+              {ROLE_OPTIONS.map(r => (
+                <label key={r.value}
+                  className={cn("flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all",
+                    form.role === r.value
+                      ? "border-[#2E7D32]/40 bg-[#2E7D32]/6"
+                      : "border-[#2E7D32]/10 hover:border-[#2E7D32]/20")}
+                  onClick={() => setForm(f => ({ ...f, role: r.value }))}
+                >
+                  <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                    style={{ borderColor: form.role === r.value ? r.color : "rgba(46,125,50,0.2)" }}>
+                    {form.role === r.value && <div className="w-2 h-2 rounded-full" style={{ background: r.color }} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-black text-sm text-[#2E7D32]">{r.ar}</span>
+                    <span className="text-[#2E7D32]/30 text-xs ms-2">· {r.fr}</span>
+                  </div>
+                  <Shield size={12} style={{ color: r.color }} className="flex-shrink-0" />
+                </label>
+              ))}
+            </div>
+          </Field>
+
+          {/* Password */}
+          <Field label={modal === "add" ? t("كلمة المرور","Mot de passe") : t("كلمة المرور الجديدة (اتركها فارغة للإبقاء عليها)","Nouveau mot de passe (vide = inchangé)")}>
+            <div className="relative">
+              <input
+                type={showPw ? "text" : "password"}
+                value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                placeholder={modal === "add" ? "••••••••" : t("اتركها فارغة","Laisser vide")}
+                className="w-full bg-[#FFA500]/50 border border-[#2E7D32]/10 rounded-xl px-3 py-2.5 pe-10 text-sm text-[#2E7D32] placeholder:text-[#2E7D32]/20 focus:outline-none focus:border-[#2E7D32]/50 transition-colors"
+              />
+              <button type="button" onClick={() => setShowPw(p => !p)}
+                className="absolute top-1/2 -translate-y-1/2 end-3 text-[#2E7D32]/30 hover:text-[#2E7D32]">
+                {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+          </Field>
+
+          {/* Active toggle */}
+          <Field label={t("حالة الحساب","État du compte")}>
+            <Toggle checked={form.isActive} onChange={v => setForm(f => ({ ...f, isActive: v }))}
+              label={form.isActive ? t("نشط","Actif") : t("معطّل","Désactivé")} />
+          </Field>
+
+          {/* Error */}
+          {saveError && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-red-500/25 bg-red-500/8">
+              <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
+              <p className="text-red-400 text-sm font-bold">{saveError}</p>
+            </div>
+          )}
+
+          <GoldBtn onClick={save} disabled={loading} className="w-full justify-center">
+            {loading
+              ? <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-full border-2 border-black/30 border-t-black animate-spin" />{t("جاري الحفظ...","Enregistrement...")}</span>
+              : t("حفظ التغييرات","Enregistrer")}
+          </GoldBtn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Main Admin Page
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings";
+type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings" | "users";
 
-const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string }[] = [
-  { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",    fr: "Tableau de bord" },
-  { id: "orders",        icon: Package,          ar: "الطلبات",      fr: "Commandes" },
-  { id: "hotelBookings", icon: Hotel,            ar: "حجوزات الفنادق", fr: "Réservations Hôtel" },
-  { id: "categories",    icon: Tag,              ar: "الفئات",       fr: "Catégories" },
-  { id: "suppliers",     icon: Users,            ar: "المزودون",     fr: "Fournisseurs" },
-  { id: "articles",      icon: ShoppingBag,      ar: "المنتجات",     fr: "Articles" },
-  { id: "staff",         icon: Truck,            ar: "السائقون",     fr: "Livreurs" },
-  { id: "delegations",   icon: Map,              ar: "المعتمديات",   fr: "Délégations" },
-  { id: "banners",       icon: Megaphone,        ar: "الإعلانات",    fr: "Publicités" },
+const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean }[] = [
+  { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",       fr: "Tableau de bord" },
+  { id: "orders",        icon: Package,          ar: "الطلبات",         fr: "Commandes" },
+  { id: "hotelBookings", icon: Hotel,            ar: "حجوزات الفنادق",  fr: "Réservations Hôtel" },
+  { id: "banners",       icon: Megaphone,        ar: "الإعلانات",       fr: "Publicités" },
+  { id: "categories",    icon: Tag,              ar: "الفئات",          fr: "Catégories",    superOnly: true },
+  { id: "suppliers",     icon: Users,            ar: "المزودون",        fr: "Fournisseurs",  superOnly: true },
+  { id: "articles",      icon: ShoppingBag,      ar: "المنتجات",        fr: "Articles",      superOnly: true },
+  { id: "staff",         icon: Truck,            ar: "السائقون",        fr: "Livreurs",      superOnly: true },
+  { id: "delegations",   icon: Map,              ar: "المعتمديات",      fr: "Délégations",   superOnly: true },
+  { id: "users",         icon: UserCog,          ar: "المستخدمون",      fr: "Utilisateurs",  superOnly: true },
 ];
 
 const ADMIN_USERNAME = "admin";
@@ -1130,11 +1464,20 @@ export default function Admin() {
   const [, navigate] = useLocation();
   const session = getSession();
 
+  // Role guard — allow admin, super_admin, manager only
   useEffect(() => {
-    if (!session || session.role !== "admin") navigate("/login");
+    if (!session || !isAdminRole(session.role as any)) {
+      navigate("/home");
+    }
   }, []);
 
-  const adminLogout = () => { clearSession(); navigate("/login"); };
+  // Whether the current user has full super-admin privileges
+  const isSuper = isSuperAdmin(session?.role as any);
+
+  // Filter nav items based on role
+  const visibleNav = NAV.filter(item => isSuper || !item.superOnly);
+
+  const adminLogout = () => { clearSession(); navigate("/home"); };
 
   return (
     <div className="min-h-screen bg-background flex" dir={isRTL ? "rtl" : "ltr"}>
@@ -1146,19 +1489,29 @@ export default function Admin() {
         sidebarOpen ? "w-56" : "w-16 md:w-56"
       )}>
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-[#2E7D32]/5">
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-[#2E7D32]/5">
           <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#2E7D32]/20 flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_-3px_rgba(255,165,0,0.4)]">
-            <img src="/logo.png" alt="سںد" className="w-full h-full object-contain p-0.5" draggable={false} />
+            <img src="/logo.png" alt="سند" className="w-full h-full object-contain p-0.5" draggable={false} />
           </div>
-          <div className="hidden md:block overflow-hidden">
+          <div className="hidden md:block overflow-hidden flex-1 min-w-0">
             <p className="text-xs font-black text-[#2E7D32] leading-tight">{t("لوحة التحكم","Admin Panel")}</p>
-            <p className="text-[10px] text-[#2E7D32] font-bold">{session?.name ?? "Admin"}</p>
+            <p className="text-[10px] text-[#2E7D32] font-bold truncate">{session?.name ?? "Admin"}</p>
+            {/* Role badge */}
+            {session?.role && (
+              <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[9px] font-black border"
+                style={(() => {
+                  const r = ROLE_OPTIONS.find(o => o.value === session.role) ?? ROLE_OPTIONS[0];
+                  return { color: r.color, borderColor: r.color + "40", background: r.color + "15" };
+                })()}>
+                {ROLE_OPTIONS.find(o => o.value === session.role)?.ar ?? session.role}
+              </span>
+            )}
           </div>
         </div>
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2">
-          {NAV.map(item => {
+          {visibleNav.map(item => {
             const Icon = item.icon;
             const isAct = active === item.id;
             return (
@@ -1194,7 +1547,7 @@ export default function Admin() {
           <button onClick={() => setSidebarOpen(o => !o)} className="p-2 rounded-xl bg-[#2E7D32]/5 text-[#2E7D32]/40">
             <LayoutDashboard size={18} />
           </button>
-          <p className="text-sm font-black text-[#2E7D32]">{lang === "ar" ? NAV.find(n=>n.id===active)?.ar : NAV.find(n=>n.id===active)?.fr}</p>
+          <p className="text-sm font-black text-[#2E7D32]">{lang === "ar" ? visibleNav.find(n=>n.id===active)?.ar : visibleNav.find(n=>n.id===active)?.fr}</p>
         </div>
 
         <AnimatePresence mode="wait">
@@ -1202,12 +1555,13 @@ export default function Admin() {
             {active === "overview"      && <OverviewSection t={t} />}
             {active === "orders"        && <OrdersSection t={t} lang={lang} />}
             {active === "hotelBookings" && <HotelBookingsSection t={t} lang={lang} />}
-            {active === "categories"    && <CategoriesSection t={t} />}
-            {active === "suppliers"     && <SuppliersSection t={t} lang={lang} />}
-            {active === "articles"      && <ArticlesSection t={t} lang={lang} />}
-            {active === "staff"         && <DeliveryStaffSection t={t} />}
-            {active === "delegations"   && <DelegationsSection t={t} />}
             {active === "banners"       && <BannersSection t={t} />}
+            {active === "categories"    && isSuper && <CategoriesSection t={t} />}
+            {active === "suppliers"     && isSuper && <SuppliersSection t={t} lang={lang} />}
+            {active === "articles"      && isSuper && <ArticlesSection t={t} lang={lang} />}
+            {active === "staff"         && isSuper && <DeliveryStaffSection t={t} />}
+            {active === "delegations"   && isSuper && <DelegationsSection t={t} />}
+            {active === "users"         && isSuper && <UsersSection t={t} />}
           </motion.div>
         </AnimatePresence>
       </main>

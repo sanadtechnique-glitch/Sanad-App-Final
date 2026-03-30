@@ -24,10 +24,14 @@ const queryClient = new QueryClient({
 });
 
 const ROLE_HOME: Record<Role, string> = {
-  client:   "/home",
-  admin:    "/admin",
-  provider: "/provider",
-  delivery: "/delivery",
+  client:      "/home",
+  admin:       "/admin",
+  super_admin: "/admin",
+  manager:     "/admin",
+  provider:    "/provider",
+  driver:      "/delivery",
+  delivery:    "/delivery",
+  customer:    "/home",
 };
 
 const SPLASH_KEY = "sanad_splash_seen";
@@ -145,7 +149,7 @@ function Router() {
 
       {/* ── Role dashboards ── */}
       <Route path="/admin">
-        {() => <ProtectedRoute component={Admin}    roles={["admin"]} />}
+        {() => <ProtectedRoute component={Admin}    roles={["admin", "super_admin", "manager"]} />}
       </Route>
       <Route path="/provider">
         {() => <ProtectedRoute component={Provider} roles={["provider"]} />}

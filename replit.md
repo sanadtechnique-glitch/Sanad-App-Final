@@ -27,6 +27,20 @@ A premium delivery app for Ben Guerdane. **App name**: سند (Sanad). **Slogan*
 - `lib/db` — Drizzle ORM schema + migrations
 - `lib/api-client-react` — Generated TanStack Query hooks (Orval codegen)
 
+### Role & Privilege System
+
+5 roles in the system (`lib/db/src/schema/users.ts` → `users` table):
+- `super_admin` — full access to all admin sections including user management
+- `manager` — access to overview, orders, hotel bookings, and banners only
+- `provider` — access to their own products (provider dashboard)
+- `driver` — access to assigned orders (delivery dashboard)
+- `customer` — standard browsing/ordering access
+
+Default admin user: username=`admin`, password=`Abc1234`, role=`super_admin`
+
+Admin login flow: POST `/api/auth/admin-login` → returns user (without password) → set session → navigate to `/admin`
+User CRUD API: `GET/POST /api/admin/users`, `PATCH/DELETE /api/admin/users/:id`
+
 ### API Base URL
 
 All API routes are mounted at `/api` prefix. In `main.tsx`, `setBaseUrl("/api")` is called so the generated client uses the correct prefix. The Vite proxy forwards `/api/*` → `http://localhost:8080`.

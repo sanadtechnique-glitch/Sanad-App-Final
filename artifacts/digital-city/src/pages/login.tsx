@@ -251,6 +251,29 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         return;
       }
       if (role === "admin") {
+        // Try DB-backed authentication first
+        try {
+          const res = await fetch(`${import.meta.env.BASE_URL}api/auth/admin-login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+          });
+          if (res.ok) {
+            const user = await res.json();
+            const adminRoles = ["super_admin", "manager", "admin"];
+            if (adminRoles.includes(user.role)) {
+              setSession({ role: user.role, name: user.name, userId: user.id });
+              navigate("/admin");
+              return;
+            } else {
+              setError("ليس لديك صلاحية الوصول للوحة التحكم · Accès refusé");
+              return;
+            }
+          }
+        } catch {
+          // API unreachable — fall through to hardcoded fallback
+        }
+        // Hardcoded fallback (for backward compat)
         if (username.trim().toLowerCase() !== "admin") {
           setError("اسم المستخدم غير صحيح · Identifiant incorrect");
           return;
