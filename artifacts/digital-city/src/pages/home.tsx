@@ -13,7 +13,22 @@ import {
   Package, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Bike,
   Percent, Tag,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROLE BADGE HELPER
+// ─────────────────────────────────────────────────────────────────────────────
+function getRoleBadge(role: string) {
+  const map: Record<string, { ar: string; fr: string; bg: string; border: string }> = {
+    super_admin: { ar: "مدير النظام", fr: "Super Admin",  bg: "#B91C1C", border: "#991B1B" },
+    admin:       { ar: "مدير النظام", fr: "Admin",        bg: "#B91C1C", border: "#991B1B" },
+    manager:     { ar: "مدير النظام", fr: "Gestionnaire", bg: "#B91C1C", border: "#991B1B" },
+    provider:    { ar: "مزود",        fr: "Fournisseur",  bg: "#2E7D32", border: "#1B5E20" },
+    delivery:    { ar: "سائق/موزع",   fr: "Livreur",      bg: "#1565C0", border: "#0D47A1" },
+    driver:      { ar: "سائق/موزع",   fr: "Livreur",      bg: "#1565C0", border: "#0D47A1" },
+    client:      { ar: "عميل",        fr: "Client",       bg: "#388E3C", border: "#2E7D32" },
+  };
+  return map[role] ?? map.client;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PANORAMIC PROMO SLIDES
@@ -497,42 +512,67 @@ export default function Home() {
           className="flex items-center gap-2"
         >
           {session ? (
-            <>
-              {session.role === "client" && (
-                <Link href="/services">
-                  <button className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:bg-[#2E7D32]/10"
-                    style={{ color: "#2E7D32" }}>
-                    <Grid size={14} />
-                    {t("الخدمات", "Services")}
-                  </button>
-                </Link>
-              )}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#2E7D32]/30"
-                style={{ background: "#2E7D32", cursor: "default" }}>
-                <UserCircle size={15} className="text-white" />
-                <span className="text-white font-black text-xs">{session.username}</span>
+            <div className="flex items-center gap-2">
+              {/* User info card */}
+              <div className="flex items-center gap-2" dir="rtl">
+                {/* Avatar circle */}
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-black text-white text-sm shadow-md"
+                  style={{ background: getRoleBadge(session.role).bg }}
+                >
+                  {session.name?.charAt(0)?.toUpperCase() || "؟"}
+                </div>
+                {/* Name + badge */}
+                <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-xs font-black leading-tight" style={{ color: "#2E7D32" }}>
+                    {t("مرحباً،", "Bonjour,")} {session.name}
+                  </span>
+                  <span
+                    className="text-[10px] font-black px-2 py-0.5 rounded-full mt-0.5"
+                    style={{
+                      background: getRoleBadge(session.role).bg,
+                      color: "#fff",
+                      border: `1px solid ${getRoleBadge(session.role).border}`,
+                    }}
+                  >
+                    {lang === "ar"
+                      ? getRoleBadge(session.role).ar
+                      : getRoleBadge(session.role).fr}
+                  </span>
+                </div>
               </div>
+
+              {/* Logout */}
               <button
-                onClick={() => { clearSession(); navigate("/login"); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-400/30 bg-red-400/10 hover:bg-red-400/20 transition-all"
+                onClick={() => { clearSession(); navigate("/auth"); }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-red-400/30 bg-red-400/10 hover:bg-red-400/20 transition-all"
                 title={t("تسجيل الخروج", "Déconnexion")}
               >
-                <LogOut size={14} className="text-red-500" />
+                <LogOut size={13} className="text-red-500" />
                 <span className="hidden sm:inline text-xs font-bold text-red-500">{t("خروج", "Quitter")}</span>
               </button>
-            </>
+            </div>
           ) : (
-            <button
-              onClick={() => navigate("/auth")}
-              className="flex items-center gap-2 px-5 py-2 rounded-full font-black text-sm text-white transition-all hover:opacity-90 active:scale-95"
-              style={{
-                background: "#2E7D32",
-                boxShadow: "0 3px 14px rgba(46,125,50,0.30)",
-              }}
-            >
-              <LogIn size={15} />
-              {t("دخول", "Connexion")}
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Guest label */}
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#2E7D32]/20"
+                style={{ background: "rgba(46,125,50,0.05)" }}>
+                <UserCircle size={14} className="text-[#2E7D32]/40" />
+                <span className="text-xs font-bold text-[#2E7D32]/50">{t("زائر", "Visiteur")}</span>
+              </div>
+              {/* Login button */}
+              <button
+                onClick={() => navigate("/auth")}
+                className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-sm text-white transition-all hover:opacity-90 active:scale-95"
+                style={{
+                  background: "#2E7D32",
+                  boxShadow: "0 3px 14px rgba(46,125,50,0.30)",
+                }}
+              >
+                <LogIn size={14} />
+                {t("دخول", "Connexion")}
+              </button>
+            </div>
           )}
         </motion.div>
       </header>

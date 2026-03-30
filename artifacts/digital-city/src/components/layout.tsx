@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut, Bell, CheckCheck, Bike, History } from "lucide-react";
+import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut, Bell, CheckCheck, Bike, History, UserCircle, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
@@ -8,6 +8,22 @@ import { getSession, clearSession } from "@/lib/auth";
 import { useNotifications } from "@/lib/notifications";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdBanner } from "@/components/ad-banner";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROLE BADGE HELPER
+// ─────────────────────────────────────────────────────────────────────────────
+function getRoleBadge(role: string) {
+  const map: Record<string, { ar: string; fr: string; bg: string; border: string }> = {
+    super_admin: { ar: "مدير النظام", fr: "Super Admin",  bg: "#B91C1C", border: "#991B1B" },
+    admin:       { ar: "مدير النظام", fr: "Admin",        bg: "#B91C1C", border: "#991B1B" },
+    manager:     { ar: "مدير النظام", fr: "Gestionnaire", bg: "#B91C1C", border: "#991B1B" },
+    provider:    { ar: "مزود",        fr: "Fournisseur",  bg: "#2E7D32", border: "#1B5E20" },
+    delivery:    { ar: "سائق/موزع",   fr: "Livreur",      bg: "#1565C0", border: "#0D47A1" },
+    driver:      { ar: "سائق/موزع",   fr: "Livreur",      bg: "#1565C0", border: "#0D47A1" },
+    client:      { ar: "عميل",        fr: "Client",       bg: "#388E3C", border: "#2E7D32" },
+  };
+  return map[role] ?? map.client;
+}
 
 function LangToggle() {
   const { lang, setLang } = useLang();
@@ -388,7 +404,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
-  const { t, isRTL } = useLang();
+  const { t, lang, isRTL } = useLang();
   const [cartOpen, setCartOpen] = useState(false);
   const session = getSession();
 
@@ -466,16 +482,53 @@ export function Layout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Logout */}
-        {session && (
-          <button
-            onClick={handleLogout}
-            className="p-2.5 rounded-xl text-[#2E7D32]/30 hover:text-red-400 hover:bg-red-400/10 transition-all"
-            title={t("تسجيل الخروج", "Déconnexion")}
-          >
-            <LogOut size={18} />
-          </button>
-        )}
+        {/* User profile + Logout */}
+        <div className="flex flex-col items-center gap-3">
+          {session ? (
+            <>
+              {/* Avatar with role color */}
+              <div className="flex flex-col items-center gap-1">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center font-black text-white text-base shadow-md ring-2 ring-white/30"
+                  style={{ background: getRoleBadge(session.role).bg }}
+                  title={session.name}
+                >
+                  {session.name?.charAt(0)?.toUpperCase() ?? "؟"}
+                </div>
+                {/* Role badge pill */}
+                <span
+                  className="text-[8px] font-black px-1.5 py-0.5 rounded-full text-white text-center leading-tight"
+                  style={{
+                    background: getRoleBadge(session.role).bg,
+                    border: `1px solid ${getRoleBadge(session.role).border}`,
+                    maxWidth: 60,
+                  }}
+                >
+                  {lang === "ar"
+                    ? getRoleBadge(session.role).ar
+                    : getRoleBadge(session.role).fr}
+                </span>
+              </div>
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                className="p-2.5 rounded-xl text-[#2E7D32]/30 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                title={t("تسجيل الخروج", "Déconnexion")}
+              >
+                <LogOut size={18} />
+              </button>
+            </>
+          ) : (
+            <Link href="/auth">
+              <button
+                className="p-2.5 rounded-xl text-[#2E7D32]/40 hover:text-[#2E7D32] hover:bg-[#2E7D32]/10 transition-all"
+                title={t("دخول", "Connexion")}
+              >
+                <LogIn size={18} />
+              </button>
+            </Link>
+          )}
+        </div>
       </aside>
 
       {/* ── Desktop Top Header (sticky) ── */}
@@ -486,12 +539,41 @@ export function Layout({ children }: { children: React.ReactNode }) {
         )}
         style={{ background: "#FFA500" }}
       >
-        {/* Greeting + session name */}
+        {/* Greeting + user info */}
         <div className="flex items-center gap-3" dir={isRTL ? "rtl" : "ltr"}>
-          {session && (
-            <span className="text-[#2E7D32]/60 text-sm font-bold">
-              {t("أهلاً،", "Bonjour,")} <span className="text-[#2E7D32]">{session.name}</span>
-            </span>
+          {session ? (
+            <div className="flex items-center gap-2.5" dir="rtl">
+              {/* Avatar */}
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center font-black text-white text-sm shadow"
+                style={{ background: getRoleBadge(session.role).bg }}
+              >
+                {session.name?.charAt(0)?.toUpperCase() ?? "؟"}
+              </div>
+              {/* Name + badge */}
+              <div className="flex flex-col items-end">
+                <span className="text-[#2E7D32] font-black text-sm leading-tight">
+                  {t("مرحباً،", "Bonjour,")} {session.name}
+                </span>
+                <span
+                  className="text-[10px] font-black px-2 py-0.5 rounded-full mt-0.5"
+                  style={{
+                    background: getRoleBadge(session.role).bg,
+                    color: "#fff",
+                    border: `1px solid ${getRoleBadge(session.role).border}`,
+                  }}
+                >
+                  {lang === "ar"
+                    ? getRoleBadge(session.role).ar
+                    : getRoleBadge(session.role).fr}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#2E7D32]/30 bg-[#2E7D32]/5">
+              <UserCircle size={15} className="text-[#2E7D32]/50" />
+              <span className="text-[#2E7D32]/60 text-sm font-bold">{t("زائر", "Visiteur")}</span>
+            </div>
           )}
         </div>
 
@@ -508,6 +590,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b-2 border-[#2E7D32] sticky top-0 z-50"
         style={{ background: "#FFA500" }}
       >
+        {/* Logo */}
         <div className="flex items-center justify-center rounded-full"
           style={{
             width: 50, height: 34,
@@ -517,6 +600,43 @@ export function Layout({ children }: { children: React.ReactNode }) {
           }}>
           <img src="/logo.png" alt="سند" className="w-10 h-7 object-contain" draggable={false} />
         </div>
+
+        {/* User greeting (mobile — center) */}
+        {session ? (
+          <div className="flex items-center gap-2" dir="rtl">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-sm shadow ring-2 ring-white/20"
+              style={{ background: getRoleBadge(session.role).bg }}
+            >
+              {session.name?.charAt(0)?.toUpperCase() ?? "؟"}
+            </div>
+            <div className="flex flex-col items-end leading-none">
+              <span className="text-[#2E7D32] font-black text-xs">
+                {session.name?.split(" ")[0]}
+              </span>
+              <span
+                className="text-[9px] font-black px-1.5 py-0.5 rounded-full mt-0.5 text-white"
+                style={{
+                  background: getRoleBadge(session.role).bg,
+                  border: `1px solid ${getRoleBadge(session.role).border}`,
+                }}
+              >
+                {lang === "ar"
+                  ? getRoleBadge(session.role).ar
+                  : getRoleBadge(session.role).fr}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <Link href="/auth">
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-[#2E7D32]/30 bg-[#2E7D32]/5 cursor-pointer">
+              <UserCircle size={14} className="text-[#2E7D32]/50" />
+              <span className="text-[#2E7D32]/60 text-xs font-bold">{t("زائر", "Visiteur")}</span>
+            </div>
+          </Link>
+        )}
+
+        {/* Actions */}
         <div className="flex items-center gap-2">
           <CartButton onClick={() => setCartOpen(true)} large />
           <NotificationBell />
