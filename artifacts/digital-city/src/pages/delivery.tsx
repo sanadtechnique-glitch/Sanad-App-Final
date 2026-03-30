@@ -2,20 +2,29 @@ import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSession, clearSession } from "@/lib/auth";
-import { Truck, CheckCircle, MapPin, RefreshCw, ChevronRight, MessageCircle, LogOut, Check, Package, X, Map } from "lucide-react";
+import {
+  Truck, CheckCircle, MapPin, RefreshCw, ChevronRight, MessageCircle,
+  LogOut, Check, Package, X, Map, Bell, Clock, AlertCircle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { get, patch } from "@/lib/admin-api";
-import { pushNotification } from "@/lib/notifications";
+import {
+  pushNotification, pushProviderNotif, pushAdminNotif,
+} from "@/lib/notifications";
 import { playSanadSound, unlockAudio } from "@/lib/notification-sound";
 
 const DeliveryMap = lazy(() => import("@/components/delivery-map"));
 
-interface Staff { id: number; name: string; nameAr: string; phone: string; zone?: string; isAvailable: boolean; }
+interface Staff {
+  id: number; name: string; nameAr: string; phone: string;
+  zone?: string; isAvailable: boolean;
+}
 interface Order {
   id: number; customerName: string; customerPhone?: string;
   customerAddress: string; serviceProviderName: string; serviceType: string;
   status: string; deliveryFee?: number; createdAt: string; notes?: string;
+  serviceProviderId?: number; deliveryStaffId?: number;
 }
 
 function timeAgo(dateStr: string, lang: string) {
@@ -25,6 +34,101 @@ function timeAgo(dateStr: string, lang: string) {
   return lang === "ar" ? `${Math.floor(diff / 60)} س` : `${Math.floor(diff / 60)}h`;
 }
 
+// ── Incoming order notification popup ────────────────────────────────────────
+function IncomingOrderPopup({
+  order, onAccept, onReject, lang,
+}: {
+  order: Order;
+  onAccept: () => void;
+  onReject: () => void;
+  lang: string;
+}) {
+  const t = (ar: string, fr: string) => lang === "ar" ? ar : fr;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
+    >
+      <motion.div
+        initial={{ scale: 0.85, y: 30 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.85, y: 30 }}
+        className="w-full max-w-sm rounded-[20px] overflow-hidden shadow-2xl"
+        style={{ background: "#FFFDE7" }}
+      >
+        {/* Header pulse */}
+        <div className="px-5 py-4 flex items-center gap-3" style={{ background: "#2E7D32" }}>
+          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+            <Bell size={18} className="text-white" />
+          </div>
+          <div>
+            <p className="text-white font-black text-base">{t("طلب جديد للتوصيل!", "Nouvelle commande!")}</p>
+            <p className="text-white/60 text-xs">{t("اختر القبول أو الرفض", "Accepter ou refuser")}</p>
+          </div>
+          <div className="mr-auto ml-0">
+            <span className="text-white/50 font-mono text-xs">#{order.id.toString().padStart(4, "0")}</span>
+          </div>
+        </div>
+
+        {/* Order details */}
+        <div className="p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-[#2E7D32]/10 flex items-center justify-center flex-shrink-0">
+              <Package size={14} className="text-[#2E7D32]" />
+            </div>
+            <div>
+              <p className="font-black text-[#2E7D32] text-sm">{order.customerName}</p>
+              <p className="text-xs text-[#2E7D32]/40">{order.serviceProviderName}</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2">
+            <MapPin size={14} className="text-[#FFA500] mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-[#2E7D32]/70">{order.customerAddress}</p>
+          </div>
+
+          {order.deliveryFee && order.deliveryFee > 0 && (
+            <div className="rounded-xl px-4 py-2.5 border border-emerald-400/30 bg-emerald-400/10">
+              <p className="text-emerald-600 font-black text-sm">
+                {t("رسوم التوصيل", "Frais livraison")}: {order.deliveryFee} TND
+              </p>
+            </div>
+          )}
+
+          {order.notes && (
+            <p className="text-xs text-[#2E7D32]/40 border border-[#2E7D32]/10 rounded-xl px-3 py-2">
+              {order.notes}
+            </p>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div className="px-5 pb-5 flex gap-3">
+          <button
+            onClick={onReject}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-red-400/30 bg-red-400/10 text-red-500 font-black text-sm hover:bg-red-400/20 transition-all"
+          >
+            <X size={16} />
+            {t("رفض", "Refuser")}
+          </button>
+          <button
+            onClick={onAccept}
+            className="flex-[2] flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm text-white transition-all"
+            style={{ background: "#2E7D32" }}
+          >
+            <Check size={16} />
+            {t("قبول الطلب", "Accepter")}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function DeliveryDashboard() {
   const { lang, t, isRTL } = useLang();
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -32,9 +136,13 @@ export default function DeliveryDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevOrderCountRef = useRef<number>(-1);
 
+  // Incoming notifications queue
+  const [incomingQueue, setIncomingQueue] = useState<Order[]>([]);
+  const seenPreparedIds = useRef<Set<number>>(new Set());
+  const rejectedIds = useRef<Set<number>>(new Set());
+
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [, navigate] = useLocation();
 
   useEffect(() => {
@@ -62,12 +170,22 @@ export default function DeliveryDashboard() {
     if (!silent) setLoading(true); else setRefreshing(true);
     try {
       const data = await get<Order[]>("/delivery/orders");
-      const activeCount = data.filter(o => o.status === "accepted" || o.status === "prepared").length;
-      if (prevOrderCountRef.current >= 0 && activeCount > prevOrderCountRef.current) {
-        playSanadSound();
-      }
-      prevOrderCountRef.current = activeCount;
       setOrders(data);
+
+      // Detect NEW prepared orders → show notification popup
+      const freshPrepared = data.filter(
+        o => o.status === "prepared"
+           && !seenPreparedIds.current.has(o.id)
+           && !rejectedIds.current.has(o.id)
+      );
+      if (freshPrepared.length > 0) {
+        playSanadSound();
+        freshPrepared.forEach(o => seenPreparedIds.current.add(o.id));
+        setIncomingQueue(prev => {
+          const existingIds = new Set(prev.map(o => o.id));
+          return [...prev, ...freshPrepared.filter(o => !existingIds.has(o.id))];
+        });
+      }
     } catch {}
     if (!silent) setLoading(false); else setRefreshing(false);
   }, []);
@@ -76,25 +194,100 @@ export default function DeliveryDashboard() {
     setSelected(member);
     await loadOrders();
     if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => loadOrders(true), 30000);
+    // Poll every 10s for faster notification delivery
+    pollRef.current = setInterval(() => loadOrders(true), 10000);
   };
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
-  const updateStatus = async (orderId: number, status: string, staffId?: number) => {
-    const body: Record<string, unknown> = { status };
-    if (staffId) body.deliveryStaffId = staffId;
-    await patch(`/orders/${orderId}`, body);
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
-    if (status === "delivered") {
-      pushNotification({
-        type: "delivered",
-        orderId,
-        messageAr: `تم توصيل طلبك رقم #${orderId.toString().padStart(4, "0")} 🎉`,
-        messageFr: `Votre commande #${orderId.toString().padStart(4, "0")} a été livrée 🎉`,
+  // ── Accept incoming order ──────────────────────────────────────────────────
+  const handleAcceptIncoming = async (order: Order) => {
+    if (!selected) return;
+    try {
+      await patch(`/orders/${order.id}`, {
+        status: "driver_accepted",
+        deliveryStaffId: selected.id,
       });
-      setTimeout(() => setOrders(prev => prev.filter(o => o.id !== orderId)), 3000);
+
+      // Update local state
+      setOrders(prev => prev.map(o =>
+        o.id === order.id ? { ...o, status: "driver_accepted", deliveryStaffId: selected.id } : o
+      ));
+      setIncomingQueue(prev => prev.filter(o => o.id !== order.id));
+
+      // ── Notify customer ──
+      pushNotification({
+        type: "driver_coming",
+        orderId: order.id,
+        messageAr: `السائق ${selected.nameAr} في طريقه لاستلام طلبك رقم #${order.id.toString().padStart(4, "0")} من المزود 🚗`,
+        messageFr: `Le livreur ${selected.name} est en route vers le prestataire pour votre commande #${order.id.toString().padStart(4, "0")} 🚗`,
+      });
+
+      // ── Notify provider ──
+      if (order.serviceProviderId) {
+        pushProviderNotif(order.serviceProviderId, {
+          type: "driver_coming",
+          orderId: order.id,
+          messageAr: `السائق ${selected.nameAr} في طريقه إليك لاستلام الطلب #${order.id.toString().padStart(4, "0")} 🚗`,
+          messageFr: `Le livreur ${selected.name} arrive chez vous pour la commande #${order.id.toString().padStart(4, "0")} 🚗`,
+        });
+      }
+
+      // ── Notify admin ──
+      pushAdminNotif({
+        type: "driver_accepted",
+        orderId: order.id,
+        messageAr: `السائق ${selected.nameAr} قبل الطلب #${order.id.toString().padStart(4, "0")} وفي الطريق لاستلامه`,
+        messageFr: `Le livreur ${selected.name} a accepté la commande #${order.id.toString().padStart(4, "0")}`,
+      });
+    } catch {
+      setIncomingQueue(prev => prev.filter(o => o.id !== order.id));
     }
+  };
+
+  // ── Reject incoming order ──────────────────────────────────────────────────
+  const handleRejectIncoming = (order: Order) => {
+    rejectedIds.current.add(order.id);
+    setIncomingQueue(prev => prev.filter(o => o.id !== order.id));
+  };
+
+  // ── Confirm physical pickup from provider ──────────────────────────────────
+  const confirmPickup = async (order: Order) => {
+    await patch(`/orders/${order.id}`, { status: "in_delivery" });
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: "in_delivery" } : o));
+
+    // ── Notify customer ──
+    pushNotification({
+      type: "driver_picked_up",
+      orderId: order.id,
+      messageAr: `السائق استلم طلبك رقم #${order.id.toString().padStart(4, "0")} وهو في طريقه إليك الآن 📦🚗`,
+      messageFr: `Le livreur a récupéré votre commande #${order.id.toString().padStart(4, "0")} et arrive chez vous 📦🚗`,
+    });
+
+    // ── Notify provider ──
+    if (order.serviceProviderId) {
+      pushProviderNotif(order.serviceProviderId, {
+        type: "driver_picked_up",
+        orderId: order.id,
+        messageAr: `السائق استلم الطلب #${order.id.toString().padStart(4, "0")} فعلياً من متجرك ✅`,
+        messageFr: `Le livreur a pris la commande #${order.id.toString().padStart(4, "0")} chez vous ✅`,
+      });
+    }
+  };
+
+  // ── Confirm delivery ───────────────────────────────────────────────────────
+  const confirmDelivery = async (order: Order) => {
+    await patch(`/orders/${order.id}`, { status: "delivered" });
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: "delivered" } : o));
+
+    pushNotification({
+      type: "delivered",
+      orderId: order.id,
+      messageAr: `تم توصيل طلبك رقم #${order.id.toString().padStart(4, "0")} بنجاح 🎉`,
+      messageFr: `Votre commande #${order.id.toString().padStart(4, "0")} a été livrée avec succès 🎉`,
+    });
+
+    setTimeout(() => setOrders(prev => prev.filter(o => o.id !== order.id)), 3000);
   };
 
   const openWhatsApp = (phone?: string) => {
@@ -109,7 +302,7 @@ export default function DeliveryDashboard() {
     navigate("/login");
   };
 
-  /* ── Staff selection screen ── */
+  // ── Staff selection screen ─────────────────────────────────────────────────
   if (!selected) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#FFA500" }} dir={isRTL ? "rtl" : "ltr"}>
@@ -147,157 +340,106 @@ export default function DeliveryDashboard() {
     );
   }
 
-  const poolOrders = orders.filter(o => o.status === "prepared");
-  const myOrders   = orders.filter(o => o.status === "in_delivery");
+  const waitingPickupOrders = orders.filter(o => o.status === "driver_accepted" && o.deliveryStaffId === selected.id);
+  const inDeliveryOrders   = orders.filter(o => o.status === "in_delivery"      && o.deliveryStaffId === selected.id);
+  const deliveredOrders    = orders.filter(o => o.status === "delivered"         && o.deliveryStaffId === selected.id);
+  const currentIncoming    = incomingQueue[0] ?? null;
 
-  /* ── Delivery Dashboard ── */
   return (
-    <div className="min-h-screen p-4 pb-8" style={{ background: "#FFA500" }} dir={isRTL ? "rtl" : "ltr"}>
-      <div className="max-w-2xl mx-auto space-y-4">
-
-        {/* Header */}
-        <div className="rounded-[15px] p-5 border border-[#2E7D32]/30" style={{ background: "#FFFDE7" }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-xl font-black text-[#2E7D32]">{selected.nameAr}</h1>
-              <p className="text-xs text-[#2E7D32]/50">{selected.phone}</p>
-              {selected.zone && <p className="text-xs text-[#2E7D32]/30 mt-0.5">{selected.zone}</p>}
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => loadOrders(true)} disabled={refreshing}
-                className="p-2.5 rounded-xl border border-[#2E7D32]/10 text-[#2E7D32]/40 hover:text-[#2E7D32] transition-all">
-                <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
-              </button>
-              <button onClick={logout}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-black text-sm transition-all"
-                style={{ background: "#2E7D32", color: "#000" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#4CAF50")}
-                onMouseLeave={e => (e.currentTarget.style.background = "#2E7D32")}>
-                <LogOut size={14} />
-                <span>{t("خروج", "Déco.")}</span>
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#2E7D32]/5">
-            <div className="text-center">
-              <p className="text-2xl font-black text-blue-400">{poolOrders.length}</p>
-              <p className="text-xs text-[#2E7D32]/30">{t("متاح", "Disponible")}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-black text-[#2E7D32]">{myOrders.length}</p>
-              <p className="text-xs text-[#2E7D32]/30">{t("في الطريق", "En route")}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-black text-emerald-400">{orders.filter(o => o.status === "delivered").length}</p>
-              <p className="text-xs text-[#2E7D32]/30">{t("منجز", "Livré")}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* My active deliveries */}
-        {myOrders.length > 0 && (
-          <div>
-            <p className="text-xs font-black text-[#2E7D32] uppercase tracking-widest mb-3">{t("في التوصيل الآن", "En cours de livraison")}</p>
-            <div className="space-y-3">
-              {myOrders.map(order => (
-                <motion.div key={order.id} layout
-                  className="rounded-[15px] border border-[#2E7D32]/25 overflow-hidden"
-                  style={{ background: "#FFFDE7" }}>
-                  <div className="px-4 py-2 border-b border-[#2E7D32]/10 flex items-center justify-between" style={{ background: "rgba(46,125,50,0.05)" }}>
-                    <span className="font-mono text-xs text-[#2E7D32]/25">#{order.id.toString().padStart(4, "0")}</span>
-                    <span className="text-xs font-black text-[#2E7D32]">{t("في الطريق", "En route")}</span>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black text-[#2E7D32]">{order.customerName}</p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <MapPin size={10} className="text-[#2E7D32]/40" />
-                          <p className="text-sm text-[#2E7D32]/40">{order.customerAddress}</p>
-                        </div>
-                        <p className="text-xs text-[#2E7D32]/50 mt-1">{order.serviceProviderName}</p>
-                        {order.deliveryFee && order.deliveryFee > 0 && (
-                          <p className="text-sm text-emerald-400 font-bold mt-1">{t("رسوم", "Frais")}: {order.deliveryFee} TND</p>
-                        )}
-                      </div>
-                      {order.customerPhone && (
-                        <button onClick={() => openWhatsApp(order.customerPhone)}
-                          className="p-2.5 rounded-xl bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 flex-shrink-0">
-                          <MessageCircle size={14} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* GPS Map */}
-                    <Suspense fallback={
-                      <div className="mt-3 h-10 rounded-[12px] border border-[#2E7D32]/20 flex items-center justify-center gap-2 text-[#2E7D32]/40 text-xs font-bold" style={{ background: "#FFFDE7" }}>
-                        <Map size={13} />{t("تحميل الخريطة...", "Chargement carte...")}
-                      </div>
-                    }>
-                      <DeliveryMap address={order.customerAddress} customerName={order.customerName} />
-                    </Suspense>
-
-                    <div className="flex gap-2 mt-3">
-                      <button onClick={() => updateStatus(order.id, "delivered")}
-                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black text-sm hover:bg-emerald-500/20 transition-all">
-                        <Check size={15} />{t("تم التوصيل ✓", "Livré ✓")}
-                      </button>
-                      <button onClick={() => updateStatus(order.id, "prepared")}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 font-black text-sm hover:bg-red-500/20 transition-all">
-                        <X size={14} />{t("رفض", "Refuser")}
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
+    <>
+      {/* ── Incoming order notification popup ── */}
+      <AnimatePresence>
+        {currentIncoming && (
+          <IncomingOrderPopup
+            key={currentIncoming.id}
+            order={currentIncoming}
+            lang={lang}
+            onAccept={() => handleAcceptIncoming(currentIncoming)}
+            onReject={() => handleRejectIncoming(currentIncoming)}
+          />
         )}
+      </AnimatePresence>
 
-        {/* Order pool — available to claim */}
-        <div>
-          <p className="text-xs font-black text-blue-400 uppercase tracking-widest mb-3">
-            {t("طلبات جاهزة للتوصيل", "Commandes prêtes à livrer")}
-            {poolOrders.length > 0 && <span className="mr-2 px-2 py-0.5 rounded-full bg-blue-400/10 text-blue-400">{poolOrders.length}</span>}
-          </p>
+      {/* ── Main dashboard ── */}
+      <div className="min-h-screen p-4 pb-8" style={{ background: "#FFA500" }} dir={isRTL ? "rtl" : "ltr"}>
+        <div className="max-w-2xl mx-auto space-y-4">
 
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-7 h-7 border-[3px] border-[#2E7D32] border-t-transparent rounded-full animate-spin" />
+          {/* Header */}
+          <div className="rounded-[15px] p-5 border border-[#2E7D32]/30" style={{ background: "#FFFDE7" }}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-xl font-black text-[#2E7D32]">{selected.nameAr}</h1>
+                <p className="text-xs text-[#2E7D32]/50">{selected.phone}</p>
+                {selected.zone && <p className="text-xs text-[#2E7D32]/30 mt-0.5">{selected.zone}</p>}
+              </div>
+              <div className="flex gap-2">
+                {incomingQueue.length > 0 && (
+                  <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/20">
+                    <Bell size={13} className="text-[#2E7D32] animate-bounce" />
+                    <span className="text-xs font-black text-[#2E7D32]">{incomingQueue.length}</span>
+                  </div>
+                )}
+                <button onClick={() => loadOrders(true)} disabled={refreshing}
+                  className="p-2.5 rounded-xl border border-[#2E7D32]/10 text-[#2E7D32]/40 hover:text-[#2E7D32] transition-all">
+                  <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+                </button>
+                <button onClick={logout}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-black text-sm text-white transition-all"
+                  style={{ background: "#2E7D32" }}>
+                  <LogOut size={14} />
+                  <span>{t("خروج", "Déco.")}</span>
+                </button>
+              </div>
             </div>
-          ) : poolOrders.length === 0 ? (
-            <div className="text-center py-12 rounded-[15px] border border-[#2E7D32]/30" style={{ background: "#FFFDE7" }}>
-              <Package size={36} className="text-[#2E7D32]/10 mx-auto mb-3" />
-              <p className="text-[#2E7D32]/25 font-bold">{t("لا توجد طلبات جاهزة للتوصيل", "Aucune commande à livrer")}</p>
+            <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#2E7D32]/5">
+              <div className="text-center">
+                <p className="text-2xl font-black text-amber-500">{waitingPickupOrders.length}</p>
+                <p className="text-xs text-[#2E7D32]/30">{t("انتظار الاستلام", "À récupérer")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-[#2E7D32]">{inDeliveryOrders.length}</p>
+                <p className="text-xs text-[#2E7D32]/30">{t("في الطريق", "En route")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-emerald-400">{deliveredOrders.length}</p>
+                <p className="text-xs text-[#2E7D32]/30">{t("منجز", "Livré")}</p>
+              </div>
             </div>
-          ) : (
-            <AnimatePresence>
+          </div>
+
+          {/* ── Section 1: Waiting for physical pickup ── */}
+          {waitingPickupOrders.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Clock size={13} className="text-amber-500" />
+                <p className="text-xs font-black text-amber-500 uppercase tracking-widest">
+                  {t("في انتظار الاستلام من المزود", "À récupérer chez le prestataire")}
+                </p>
+                <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-500 text-xs font-black">{waitingPickupOrders.length}</span>
+              </div>
               <div className="space-y-3">
-                {poolOrders.map(order => (
-                  <motion.div key={order.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} layout
-                    className="rounded-[15px] border border-blue-400/20 overflow-hidden"
+                {waitingPickupOrders.map(order => (
+                  <motion.div key={order.id} layout
+                    className="rounded-[15px] border border-amber-400/30 overflow-hidden"
                     style={{ background: "#FFFDE7" }}>
-                    <div className="px-4 py-2 border-b border-blue-400/10 flex items-center justify-between" style={{ background: "rgba(96,165,250,0.04)" }}>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-[#2E7D32]/25">#{order.id.toString().padStart(4, "0")}</span>
-                        <span className="text-xs text-[#2E7D32]/20">{timeAgo(order.createdAt, lang)}</span>
-                      </div>
-                      <span className="text-xs font-black text-blue-400">{t("جاهز", "Prêt")}</span>
+                    <div className="px-4 py-2 border-b border-amber-400/10 flex items-center justify-between" style={{ background: "rgba(251,191,36,0.06)" }}>
+                      <span className="font-mono text-xs text-[#2E7D32]/25">#{order.id.toString().padStart(4, "0")}</span>
+                      <span className="text-xs font-black text-amber-500">{t("في الطريق للمزود", "En route prestataire")}</span>
                     </div>
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-[#2E7D32]">{order.customerName}</p>
                           <div className="flex items-center gap-1.5 mt-1">
-                            <MapPin size={10} className="text-blue-400/40" />
-                            <p className="text-sm text-[#2E7D32]/40 truncate">{order.customerAddress}</p>
+                            <MapPin size={10} className="text-amber-500/60" />
+                            <p className="text-sm text-[#2E7D32]/40">{order.customerAddress}</p>
                           </div>
-                          <p className="text-xs text-[#2E7D32]/50 mt-1">{order.serviceProviderName}</p>
+                          <p className="text-xs text-[#2E7D32]/50 mt-1">{t("من", "De")} {order.serviceProviderName}</p>
                           {order.deliveryFee && order.deliveryFee > 0 && (
-                            <p className="text-sm text-emerald-400 font-bold mt-1">{t("رسوم", "Frais")}: {order.deliveryFee} TND</p>
+                            <p className="text-sm text-emerald-500 font-bold mt-1">{t("رسوم", "Frais")}: {order.deliveryFee} TND</p>
                           )}
                           {order.notes && (
-                            <p className="text-xs text-[#2E7D32]/25 mt-1 line-clamp-1">{order.notes}</p>
+                            <p className="text-xs text-[#2E7D32]/25 mt-1">{order.notes}</p>
                           )}
                         </div>
                         {order.customerPhone && (
@@ -307,18 +449,100 @@ export default function DeliveryDashboard() {
                           </button>
                         )}
                       </div>
-                      <button onClick={() => updateStatus(order.id, "in_delivery", selected.id)}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#2E7D32]/10 text-[#2E7D32] border border-[#2E7D32]/20 font-black text-sm hover:bg-[#2E7D32]/20 transition-all">
-                        <Truck size={15} />{t("تسلم هذا الطلب", "Prendre en charge")}
+                      <button onClick={() => confirmPickup(order)}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm text-white transition-all"
+                        style={{ background: "#FFA500" }}>
+                        <CheckCircle size={15} />
+                        {t("تأكيد الاستلام من المزود ✓", "Confirmer récupération ✓")}
                       </button>
                     </div>
                   </motion.div>
                 ))}
               </div>
-            </AnimatePresence>
+            </div>
           )}
+
+          {/* ── Section 2: In delivery (heading to customer) ── */}
+          {inDeliveryOrders.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Truck size={13} className="text-[#2E7D32]" />
+                <p className="text-xs font-black text-[#2E7D32] uppercase tracking-widest">
+                  {t("في التوصيل الآن", "En cours de livraison")}
+                </p>
+                <span className="px-2 py-0.5 rounded-full bg-[#2E7D32]/10 text-[#2E7D32] text-xs font-black">{inDeliveryOrders.length}</span>
+              </div>
+              <div className="space-y-3">
+                {inDeliveryOrders.map(order => (
+                  <motion.div key={order.id} layout
+                    className="rounded-[15px] border border-[#2E7D32]/25 overflow-hidden"
+                    style={{ background: "#FFFDE7" }}>
+                    <div className="px-4 py-2 border-b border-[#2E7D32]/10 flex items-center justify-between" style={{ background: "rgba(46,125,50,0.05)" }}>
+                      <span className="font-mono text-xs text-[#2E7D32]/25">#{order.id.toString().padStart(4, "0")}</span>
+                      <span className="text-xs font-black text-[#2E7D32]">{t("في الطريق للعميل", "En route client")}</span>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-[#2E7D32]">{order.customerName}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <MapPin size={10} className="text-[#2E7D32]/40" />
+                            <p className="text-sm text-[#2E7D32]/40">{order.customerAddress}</p>
+                          </div>
+                          <p className="text-xs text-[#2E7D32]/50 mt-1">{order.serviceProviderName}</p>
+                          {order.deliveryFee && order.deliveryFee > 0 && (
+                            <p className="text-sm text-emerald-500 font-bold mt-1">{t("رسوم", "Frais")}: {order.deliveryFee} TND</p>
+                          )}
+                        </div>
+                        {order.customerPhone && (
+                          <button onClick={() => openWhatsApp(order.customerPhone)}
+                            className="p-2.5 rounded-xl bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 flex-shrink-0">
+                            <MessageCircle size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* GPS Map */}
+                      <Suspense fallback={
+                        <div className="mt-3 h-10 rounded-[12px] border border-[#2E7D32]/20 flex items-center justify-center gap-2 text-[#2E7D32]/40 text-xs font-bold" style={{ background: "#FFFDE7" }}>
+                          <Map size={13} />{t("تحميل الخريطة...", "Chargement carte...")}
+                        </div>
+                      }>
+                        <DeliveryMap address={order.customerAddress} customerName={order.customerName} />
+                      </Suspense>
+
+                      <button onClick={() => confirmDelivery(order)}
+                        className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm border transition-all"
+                        style={{ background: "rgba(52,211,153,0.1)", color: "#10b981", borderColor: "rgba(52,211,153,0.3)" }}>
+                        <Check size={15} />
+                        {t("تم التسليم للعميل ✓", "Livré au client ✓")}
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Empty state ── */}
+          {waitingPickupOrders.length === 0 && inDeliveryOrders.length === 0 && !loading && (
+            <div className="text-center py-14 rounded-[15px] border border-[#2E7D32]/20" style={{ background: "#FFFDE7" }}>
+              <div className="w-16 h-16 rounded-2xl bg-[#2E7D32]/5 flex items-center justify-center mx-auto mb-4">
+                <Package size={28} className="text-[#2E7D32]/15" />
+              </div>
+              <p className="text-[#2E7D32]/20 font-bold text-sm">{t("لا توجد طلبات نشطة", "Aucune commande active")}</p>
+              <p className="text-[#2E7D32]/10 text-xs mt-1">{t("ستظهر إشعار عند وصول طلب جديد", "Une notification apparaîtra à la réception d'une commande")}</p>
+            </div>
+          )}
+
+          {loading && (
+            <div className="flex justify-center py-12">
+              <div className="w-7 h-7 border-[3px] border-[#2E7D32] border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
         </div>
       </div>
-    </div>
+    </>
   );
 }

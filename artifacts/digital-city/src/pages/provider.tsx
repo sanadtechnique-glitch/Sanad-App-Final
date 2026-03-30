@@ -9,19 +9,20 @@ import {
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { get, patch } from "@/lib/admin-api";
-import { pushNotification } from "@/lib/notifications";
+import { pushNotification, readNotifKey, markNotifKeyRead, providerKey, type Notification } from "@/lib/notifications";
 import { playSanadSound, unlockAudio } from "@/lib/notification-sound";
 
 interface Supplier { id: number; name: string; nameAr: string; category: string; isAvailable: boolean; shift?: string; rating?: number; phone?: string; }
 interface Order { id: number; customerName: string; customerPhone?: string; customerAddress: string; notes?: string; status: string; createdAt: string; deliveryFee?: number; photoUrl?: string; }
 
 const STATUS: Record<string, { ar: string; fr: string; color: string }> = {
-  pending:     { ar: "قيد الانتظار", fr: "En attente",       color: "text-amber-400 border-amber-400/30 bg-amber-400/10" },
-  accepted:    { ar: "مقبول",        fr: "Accepté",           color: "text-blue-400 border-blue-400/30 bg-blue-400/10" },
-  prepared:    { ar: "جاهز للتوصيل", fr: "Prêt à livrer",    color: "text-[#2E7D32] border-[#2E7D32]/30 bg-[#2E7D32]/10" },
-  in_delivery: { ar: "في التوصيل",  fr: "En livraison",      color: "text-purple-400 border-purple-400/30 bg-purple-400/10" },
-  delivered:   { ar: "تم التوصيل",  fr: "Livré",             color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" },
-  cancelled:   { ar: "ملغي",        fr: "Annulé",            color: "text-red-400 border-red-400/30 bg-red-400/10" },
+  pending:         { ar: "قيد الانتظار",       fr: "En attente",          color: "text-amber-400 border-amber-400/30 bg-amber-400/10" },
+  accepted:        { ar: "مقبول",              fr: "Accepté",             color: "text-blue-400 border-blue-400/30 bg-blue-400/10" },
+  prepared:        { ar: "جاهز للتوصيل",      fr: "Prêt à livrer",       color: "text-[#2E7D32] border-[#2E7D32]/30 bg-[#2E7D32]/10" },
+  driver_accepted: { ar: "سائق في الطريق",    fr: "Livreur en route",    color: "text-orange-400 border-orange-400/30 bg-orange-400/10" },
+  in_delivery:     { ar: "تم الاستلام · في الطريق", fr: "Récupéré · En route", color: "text-purple-400 border-purple-400/30 bg-purple-400/10" },
+  delivered:       { ar: "تم التوصيل",         fr: "Livré",               color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" },
+  cancelled:       { ar: "ملغي",               fr: "Annulé",              color: "text-red-400 border-red-400/30 bg-red-400/10" },
 };
 
 function timeAgo(dateStr: string, lang: string) {
@@ -42,7 +43,9 @@ export default function ProviderDashboard() {
   const [hasNewOrder, setHasNewOrder] = useState(false);
   const [photoModal, setPhotoModal] = useState<string | null>(null);
   const [tab, setTab] = useState<"pending" | "all">("pending");
+  const [driverNotif, setDriverNotif] = useState<Notification | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const providerNotifPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [, navigate] = useLocation();
 
@@ -96,12 +99,30 @@ export default function ProviderDashboard() {
     }, 30000);
   }, [loadOrders]);
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+  useEffect(() => () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (providerNotifPollRef.current) clearInterval(providerNotifPollRef.current);
+  }, []);
+
+  const startProviderNotifPolling = useCallback((provider: Supplier) => {
+    if (providerNotifPollRef.current) clearInterval(providerNotifPollRef.current);
+    providerNotifPollRef.current = setInterval(() => {
+      const notifs = readNotifKey(providerKey(provider.id));
+      const unread = notifs.filter(n => !n.read);
+      if (unread.length > 0) {
+        setDriverNotif(unread[0]);
+        playSanadSound();
+        markNotifKeyRead(providerKey(provider.id));
+        setTimeout(() => setDriverNotif(null), 6000);
+      }
+    }, 5000);
+  }, []);
 
   const selectProvider = async (provider: Supplier) => {
     setSelected(provider); setTab("pending");
     await loadOrders(provider);
     startPolling(provider);
+    startProviderNotifPolling(provider);
   };
 
   const updateStatus = async (orderId: number, status: string) => {
@@ -188,6 +209,25 @@ export default function ProviderDashboard() {
             style={{ background: "#D4A800" }}>
             <Bell size={18} className="text-[#2E7D32]" />
             <span className="text-[#2E7D32] font-black text-sm">{t("🔔 طلب جديد وصل!", "🔔 Nouvelle commande!")}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Driver notification toast */}
+      <AnimatePresence>
+        {driverNotif && (
+          <motion.div initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 60 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-sm w-full mx-4 flex items-start gap-3 px-4 py-3.5 rounded-2xl border shadow-xl"
+            style={{ background: "#FFFDE7", borderColor: "#FFA500" }}>
+            <Truck size={18} className="text-[#FFA500] mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[#2E7D32] font-black text-sm">
+                {lang === "ar" ? driverNotif.messageAr : driverNotif.messageFr}
+              </p>
+            </div>
+            <button onClick={() => setDriverNotif(null)} className="text-[#2E7D32]/30 hover:text-[#2E7D32] flex-shrink-0 mt-0.5">
+              <X size={14} />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

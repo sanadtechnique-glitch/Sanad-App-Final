@@ -37,13 +37,15 @@ interface PromoBanner { id: number; titleAr: string; titleFr: string; imageUrl?:
 // Status config
 // ──────────────────────────────────────────────────────────────────────────────
 const STATUS: Record<string, { ar: string; fr: string; color: string; icon: React.FC<any> }> = {
-  pending:     { ar: "قيد الانتظار", fr: "En attente",   color: "text-amber-400 bg-amber-400/10 border-amber-400/30",   icon: Clock },
-  accepted:    { ar: "مقبول",        fr: "Accepté",       color: "text-blue-400 bg-blue-400/10 border-blue-400/30",       icon: CheckCircle },
-  in_delivery: { ar: "في التوصيل",  fr: "En livraison",  color: "text-purple-400 bg-purple-400/10 border-purple-400/30", icon: Truck },
-  delivered:   { ar: "تم التوصيل",  fr: "Livré",         color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30", icon: Check },
-  cancelled:   { ar: "ملغي",        fr: "Annulé",        color: "text-red-400 bg-red-400/10 border-red-400/30",           icon: X },
-  confirmed:   { ar: "مؤكد",        fr: "Confirmé",      color: "text-blue-400 bg-blue-400/10 border-blue-400/30",       icon: CheckCircle },
-  in_progress: { ar: "جاري",        fr: "En cours",      color: "text-purple-400 bg-purple-400/10 border-purple-400/30", icon: Truck },
+  pending:         { ar: "قيد الانتظار",       fr: "En attente",        color: "text-amber-400 bg-amber-400/10 border-amber-400/30",     icon: Clock },
+  accepted:        { ar: "مقبول",              fr: "Accepté",           color: "text-blue-400 bg-blue-400/10 border-blue-400/30",         icon: CheckCircle },
+  prepared:        { ar: "جاهز للتوصيل",      fr: "Prêt à livrer",     color: "text-[#2E7D32] bg-[#2E7D32]/10 border-[#2E7D32]/30",     icon: Package },
+  driver_accepted: { ar: "سائق في الطريق",    fr: "Livreur en route",  color: "text-orange-400 bg-orange-400/10 border-orange-400/30",   icon: Truck },
+  in_delivery:     { ar: "تم الاستلام · في الطريق", fr: "Récupéré · En route", color: "text-purple-400 bg-purple-400/10 border-purple-400/30", icon: Truck },
+  delivered:       { ar: "تم التوصيل",         fr: "Livré",             color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30", icon: Check },
+  cancelled:       { ar: "ملغي",               fr: "Annulé",            color: "text-red-400 bg-red-400/10 border-red-400/30",             icon: X },
+  confirmed:       { ar: "مؤكد",               fr: "Confirmé",          color: "text-blue-400 bg-blue-400/10 border-blue-400/30",         icon: CheckCircle },
+  in_progress:     { ar: "جاري",               fr: "En cours",          color: "text-purple-400 bg-purple-400/10 border-purple-400/30",   icon: Truck },
 };
 
 const CATEGORY_LABELS: Record<string, { ar: string; fr: string }> = {

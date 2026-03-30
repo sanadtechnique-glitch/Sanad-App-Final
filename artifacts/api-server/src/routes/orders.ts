@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { ordersTable, serviceProvidersTable, deliveryStaffTable } from "@workspace/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
-import { sendSMS } from "../services/sms";
 
 const router: IRouter = Router();
 
@@ -49,13 +48,6 @@ router.post("/orders", async (req, res) => {
       status: "pending",
     }).returning();
 
-    // ── SMS Trigger 1: Notify provider of new order ──
-    if (provider.phone) {
-      sendSMS(provider.phone,
-        `🔔 طلب جديد #${order.id}\nالعميل: ${customerName}\nالعنوان: ${customerAddress}\nالخدمة: ${serviceType}${notes ? `\nملاحظة: ${notes}` : ""}`
-      ).catch(() => {});
-    }
-
     res.status(201).json(order);
   } catch (err) {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
@@ -67,12 +59,11 @@ router.patch("/orders/:id", async (req, res) => {
   if (isNaN(id)) { res.status(400).json({ message: "Invalid order ID" }); return; }
 
   const { status, deliveryStaffId, deliveryFee } = req.body;
-  const validStatuses = ["pending", "accepted", "prepared", "in_delivery", "delivered", "cancelled", "confirmed", "in_progress"];
+  const validStatuses = ["pending", "accepted", "prepared", "driver_accepted", "in_delivery", "delivered", "cancelled", "confirmed", "in_progress"];
   if (status && !validStatuses.includes(status)) {
     res.status(400).json({ message: `Invalid status.` }); return;
   }
   try {
-    // Fetch current order before update (needed for SMS context)
     const [currentOrder] = await db.select().from(ordersTable).where(eq(ordersTable.id, id));
     if (!currentOrder) { res.status(404).json({ message: "Order not found" }); return; }
 
@@ -83,29 +74,6 @@ router.patch("/orders/:id", async (req, res) => {
 
     const [order] = await db.update(ordersTable).set(updates as any).where(eq(ordersTable.id, id)).returning();
     res.json(order);
-
-    // ── SMS Trigger 2: Order prepared → notify all available delivery staff ──
-    if (status === "prepared") {
-      try {
-        const availableStaff = await db.select().from(deliveryStaffTable)
-          .where(eq(deliveryStaffTable.isAvailable, true));
-        for (const staff of availableStaff) {
-          if (staff.phone) {
-            sendSMS(staff.phone,
-              `🚀 طلب جاهز للتوصيل! #${id}\nالعميل: ${order.customerName}\nالعنوان: ${order.customerAddress}\nالمزود: ${order.serviceProviderName}`
-            ).catch(() => {});
-          }
-        }
-      } catch {}
-    }
-
-    // ── SMS Trigger 3: In delivery → notify customer ──
-    if (status === "in_delivery" && order.customerPhone) {
-      sendSMS(order.customerPhone,
-        `🚗 طلبك #${id} من ${order.serviceProviderName} في طريقه إليك الآن!\nسيصل قريباً. شكراً لاستخدامك المدينة الرقمية 🌟`
-      ).catch(() => {});
-    }
-
   } catch (err) {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
   }
@@ -137,11 +105,11 @@ router.get("/provider/:providerId/pending-count", async (req, res) => {
   }
 });
 
-// Delivery pool: prepared + in_delivery orders
+// Delivery pool: prepared + driver_accepted + in_delivery orders
 router.get("/delivery/orders", async (req, res) => {
   try {
     const orders = await db.select().from(ordersTable)
-      .where(inArray(ordersTable.status as any, ["prepared", "in_delivery"]));
+      .where(inArray(ordersTable.status as any, ["prepared", "driver_accepted", "in_delivery"]));
     res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
   } catch (err) {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
