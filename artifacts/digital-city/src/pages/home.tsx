@@ -834,7 +834,7 @@ export default function Home() {
         }}
       >
         <p className="text-xs font-bold" style={{ color: "rgba(46,125,50,0.55)", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-          جميع الحقوق محفوظة © سند · Sanad — بن قردان
+          جميع الحقوق محفوظة © سند · Sanad
         </p>
         <p className="text-xs mt-1" style={{ color: "rgba(46,125,50,0.4)", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
           📞 27 777 589
