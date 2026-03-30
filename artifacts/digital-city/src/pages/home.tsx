@@ -838,6 +838,7 @@ export default function Home() {
         </p>
         <a
           href="tel:27777589"
+          dir="ltr"
           className="inline-flex items-center gap-1.5 mt-1 group"
           style={{ fontFamily: "'Outfit',sans-serif" }}
         >

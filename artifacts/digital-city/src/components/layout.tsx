@@ -663,6 +663,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </p>
           <a
             href="tel:27777589"
+            dir="ltr"
             className="inline-flex items-center gap-1.5 group"
             style={{ fontFamily: "'Outfit',sans-serif" }}
           >
