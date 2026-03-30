@@ -1,5 +1,8 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { db } from "@workspace/db";
+import { usersTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 
 const rawPort = process.env["PORT"];
 
@@ -15,11 +18,34 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
+async function seedDefaultAdmin() {
+  try {
+    const existing = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.username, "admin"))
+      .limit(1);
+    if (existing.length === 0) {
+      await db.insert(usersTable).values({
+        username: "admin",
+        name: "مدير النظام",
+        role: "super_admin",
+        password: "Abc1234",
+        isActive: true,
+      });
+      logger.info("Default admin user created (admin / Abc1234)");
+    }
+  } catch (err) {
+    logger.warn({ err }, "Could not seed default admin — table may not exist yet");
+  }
+}
+
+app.listen(port, async (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
   }
 
   logger.info({ port }, "Server listening");
+  await seedDefaultAdmin();
 });

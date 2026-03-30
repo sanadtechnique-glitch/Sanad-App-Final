@@ -1023,13 +1023,21 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [modal, setModal] = useState<null | "add" | AppUser>(null);
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
   const [form, setForm] = useState({
     username: "", name: "", email: "", phone: "",
     role: "customer", password: "", isActive: true,
   });
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const load = () => get<AppUser[]>("/admin/users").then(setUsers).catch(() => {});
+  const load = () => {
+    setListLoading(true);
+    setListError(null);
+    get<AppUser[]>("/admin/users")
+      .then(data => { setUsers(data); setListLoading(false); })
+      .catch(err => { setListError(err?.message || t("تعذّر تحميل المستخدمين","Impossible de charger les utilisateurs")); setListLoading(false); });
+  };
   useEffect(() => { load(); }, []);
 
   const openAdd = () => {
@@ -1087,6 +1095,25 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
   });
 
   const fmt = (d: string) => { try { return new Date(d).toLocaleDateString("ar-TN", { day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
+
+  if (listLoading) return (
+    <div className="flex items-center justify-center py-20 text-[#2E7D32]/40 gap-3">
+      <div className="w-6 h-6 rounded-full border-2 border-[#2E7D32]/30 border-t-[#2E7D32] animate-spin" />
+      <span className="text-sm font-bold">{t("جارٍ التحميل…","Chargement…")}</span>
+    </div>
+  );
+
+  if (listError) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-4">
+      <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center">
+        <span className="text-red-400 text-2xl">!</span>
+      </div>
+      <p className="text-red-500 font-bold text-sm text-center">{listError}</p>
+      <button onClick={load}
+        className="px-5 py-2 rounded-xl bg-[#2E7D32] text-white text-sm font-bold"
+      >{t("إعادة المحاولة","Réessayer")}</button>
+    </div>
+  );
 
   return (
     <div className="space-y-5">

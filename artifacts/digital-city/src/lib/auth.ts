@@ -32,17 +32,27 @@ export interface DcSession {
   delegationId?: number;
   delegationFee?: number;
   delegationName?: string;
+  expiresAt?: number;
 }
 
 const KEY = "dc_session";
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 export const getSession = (): DcSession | null => {
-  try { return JSON.parse(localStorage.getItem(KEY) || "null"); }
-  catch { return null; }
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const s: DcSession = JSON.parse(raw);
+    if (!s.expiresAt || Date.now() > s.expiresAt) {
+      localStorage.removeItem(KEY);
+      return null;
+    }
+    return s;
+  } catch { return null; }
 };
 
 export const setSession = (s: DcSession): void => {
-  localStorage.setItem(KEY, JSON.stringify(s));
+  localStorage.setItem(KEY, JSON.stringify({ ...s, expiresAt: Date.now() + SESSION_TTL_MS }));
 };
 
 export const clearSession = (): void => {
