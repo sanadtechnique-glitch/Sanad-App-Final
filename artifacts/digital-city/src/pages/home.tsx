@@ -11,7 +11,7 @@ import {
   Car, Hotel, LogIn, UserCircle, ChevronLeft, ChevronRight,
   MapPin, Truck, Eye, Grid, LogOut, Clock, CheckCircle, XCircle,
   Package, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Bike,
-  Percent, Tag,
+  Percent, Tag, Phone,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -836,9 +836,19 @@ export default function Home() {
         <p className="text-xs font-bold" style={{ color: "rgba(46,125,50,0.55)", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
           جميع الحقوق محفوظة © سند · Sanad
         </p>
-        <p className="text-xs mt-1" style={{ color: "rgba(46,125,50,0.4)", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-          📞 27 777 589
-        </p>
+        <a
+          href="tel:27777589"
+          className="inline-flex items-center gap-1.5 mt-1 group"
+          style={{ fontFamily: "'Outfit',sans-serif" }}
+        >
+          <Phone size={12} style={{ color: "#2E7D32" }} />
+          <span
+            className="text-xs font-black tracking-widest group-hover:underline"
+            style={{ color: "rgba(46,125,50,0.65)", letterSpacing: "0.10em" }}
+          >
+            27 777 589
+          </span>
+        </a>
       </footer>
 
     </div>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut, Bell, CheckCheck, Bike, History, UserCircle, LogIn } from "lucide-react";
+import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut, Bell, CheckCheck, Bike, History, UserCircle, LogIn, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
@@ -661,12 +661,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
           >
             جميع الحقوق محفوظة © سند · Sanad
           </p>
-          <p
-            className="text-[12px] font-black tracking-widest"
-            style={{ color: "rgba(27,94,32,0.70)", fontFamily: "'Outfit',sans-serif", letterSpacing: "0.12em" }}
+          <a
+            href="tel:27777589"
+            className="inline-flex items-center gap-1.5 group"
+            style={{ fontFamily: "'Outfit',sans-serif" }}
           >
-            27 777 589
-          </p>
+            <Phone size={12} style={{ color: "#2E7D32" }} />
+            <span
+              className="text-[12px] font-black tracking-widest group-hover:underline"
+              style={{ color: "rgba(27,94,32,0.70)", letterSpacing: "0.12em" }}
+            >
+              27 777 589
+            </span>
+          </a>
         </footer>
       </main>
 
