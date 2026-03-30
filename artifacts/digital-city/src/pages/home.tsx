@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import { SanadBrand } from "@/components/sanad-brand";
 import { useLang } from "@/lib/language";
 import { get } from "@/lib/admin-api";
+import { getSession } from "@/lib/auth";
 import {
   Utensils, Pill, Scale, ShoppingCart, Wrench, Stethoscope,
-  ChevronRight, Star, Car, Hotel, Zap, Clock, Shield,
+  ChevronRight, Star, Car, Hotel, Zap, Clock, Shield, UserCircle, LogIn,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -30,6 +31,8 @@ const itemAnim  = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, tra
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
   const { lang, t, isRTL } = useLang();
+  const [, navigate] = useLocation();
+  const session = getSession();
   const [supplierCount, setSupplierCount] = useState<number | null>(null);
   const [banners, setBanners] = useState<PromoBanner[]>([]);
   const [bannerIndex, setBannerIndex] = useState(0);
@@ -56,6 +59,34 @@ export default function Home() {
 
         {/* ── Hero Section ── */}
         <section className="relative h-[44vh] min-h-[320px] w-full flex items-center justify-center overflow-hidden rounded-b-[2.5rem] border-b border-[#2E7D32]/8">
+
+          {/* ── Login / Profile button — top right ── */}
+          <motion.div
+            initial={{ opacity: 0, x: isRTL ? 24 : -24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.35, duration: 0.45 }}
+            className="absolute top-4 left-4 z-20"
+          >
+            {session ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#1B5E20]/50 bg-[#1B5E20]/12"
+                style={{ backdropFilter: "blur(6px)" }}>
+                <UserCircle size={17} className="text-[#1B5E20]" />
+                <span className="text-[#1B5E20] font-black text-xs" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                  {session.username}
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={() => navigate("/login")}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full font-black text-xs text-white transition-all hover:scale-105 active:scale-95"
+                style={{ background: "#1B5E20", boxShadow: "0 3px 12px rgba(27,94,32,0.35)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+              >
+                <LogIn size={14} />
+                {t("دخول", "Connexion")}
+              </button>
+            )}
+          </motion.div>
+
           <img
             src={`${import.meta.env.BASE_URL}images/hero-bg.png`}
             alt="" aria-hidden="true"
