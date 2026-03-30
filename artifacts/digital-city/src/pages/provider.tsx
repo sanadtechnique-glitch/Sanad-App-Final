@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
+import { NotificationBell } from "@/components/notification-bell";
 import { get, patch } from "@/lib/admin-api";
 import { pushNotification, readNotifKey, markNotifKeyRead, providerKey, type Notification } from "@/lib/notifications";
 import { playSanadSound, unlockAudio } from "@/lib/notification-sound";
@@ -265,7 +266,8 @@ export default function ProviderDashboard() {
                 </div>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              <NotificationBell lang={lang} role="provider" providerId={selected.id} />
               <button onClick={() => loadOrders(selected, true)} disabled={refreshing}
                 className="p-2.5 rounded-xl border border-[#2E7D32]/10 text-[#2E7D32]/40 hover:text-[#2E7D32] transition-all">
                 <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />

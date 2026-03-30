@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
+import { NotificationBell } from "@/components/notification-bell";
 import { get, patch } from "@/lib/admin-api";
 import {
   pushNotification, pushProviderNotif, pushAdminNotif,
@@ -372,7 +373,8 @@ export default function DeliveryDashboard() {
                 <p className="text-xs text-[#2E7D32]/50">{selected.phone}</p>
                 {selected.zone && <p className="text-xs text-[#2E7D32]/30 mt-0.5">{selected.zone}</p>}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                <NotificationBell lang={lang} role="delivery" />
                 {incomingQueue.length > 0 && (
                   <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/20">
                     <Bell size={13} className="text-[#2E7D32] animate-bounce" />

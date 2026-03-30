@@ -8,6 +8,7 @@ import {
 import { get, post } from "@/lib/admin-api";
 import { SanadBrand } from "@/components/sanad-brand";
 import { setSession, type Role } from "@/lib/auth";
+import { requestNotificationPermission } from "@/lib/push-notifications";
 import { cn } from "@/lib/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -244,6 +245,8 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    // Request browser notification permission (non-blocking)
+    requestNotificationPermission().catch(() => {});
     try {
       if (role === "client") {
         setSession({ role: "client", name: username.trim() });

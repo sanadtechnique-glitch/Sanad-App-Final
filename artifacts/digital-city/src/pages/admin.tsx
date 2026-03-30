@@ -8,8 +8,9 @@ import {
   Truck, Map, Megaphone, RefreshCw, Plus, Pencil, Trash2,
   X, Check, Clock, CheckCircle, AlertCircle, Star,
   ChevronRight, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
-  UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX,
+  UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
 } from "lucide-react";
+import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { get, post, patch, del } from "@/lib/admin-api";
@@ -1432,15 +1433,219 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Broadcast Section
+// ──────────────────────────────────────────────────────────────────────────────
+interface BroadcastRow { id: number; message: string; messageAr?: string; targetRole: string; createdBy: string; createdAt: string; }
+
+const BROADCAST_ROLE_OPTIONS = [
+  { value: "all",      labelAr: "الجميع",        labelFr: "Tous" },
+  { value: "client",   labelAr: "العملاء",       labelFr: "Clients" },
+  { value: "provider", labelAr: "المزودون",      labelFr: "Fournisseurs" },
+  { value: "delivery", labelAr: "السائقون",      labelFr: "Livreurs" },
+  { value: "admin",    labelAr: "المديرون",      labelFr: "Admins" },
+];
+
+function BroadcastSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
+  const [message, setMessage] = useState("");
+  const [messageAr, setMessageAr] = useState("");
+  const [targetRole, setTargetRole] = useState("all");
+  const [sending, setSending] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [broadcasts, setBroadcasts] = useState<BroadcastRow[]>([]);
+  const [deleting, setDeleting] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    try { setBroadcasts(await get<BroadcastRow[]>("/admin/broadcasts")); } catch {}
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const send = async () => {
+    if (!message.trim()) return;
+    setSending(true);
+    try {
+      await post("/admin/broadcast", {
+        message: message.trim(),
+        messageAr: messageAr.trim() || message.trim(),
+        targetRole,
+        createdBy: "admin",
+      });
+      setMessage("");
+      setMessageAr("");
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+      await load();
+    } catch {}
+    setSending(false);
+  };
+
+  const remove = async (id: number) => {
+    setDeleting(id);
+    try { await del(`/admin/broadcast/${id}`); await load(); } catch {}
+    setDeleting(null);
+  };
+
+  const roleLabel = (role: string) => {
+    const opt = BROADCAST_ROLE_OPTIONS.find(r => r.value === role);
+    return lang === "ar" ? (opt?.labelAr || role) : (opt?.labelFr || role);
+  };
+
+  return (
+    <div className="space-y-6" dir={lang === "ar" ? "rtl" : "ltr"}>
+      <div>
+        <h2 className="text-2xl font-black text-[#2E7D32] mb-1">{t("بث إشعار", "Diffuser une notification")}</h2>
+        <p className="text-[#2E7D32]/40 text-sm">{t("أرسل إشعاراً فورياً لجميع المستخدمين أو لفئة محددة", "Envoyez une notification instantanée à tous les utilisateurs ou à un rôle ciblé")}</p>
+      </div>
+
+      {/* Compose */}
+      <div className="glass-panel rounded-2xl p-6 border border-[#2E7D32]/10 space-y-4" style={{ background: "#FFFDE7" }}>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-[#FFA500]/20 border border-[#FFA500]/30 flex items-center justify-center">
+            <Radio size={17} className="text-[#FFA500]" />
+          </div>
+          <h3 className="font-black text-[#2E7D32]">{t("رسالة جديدة", "Nouveau message")}</h3>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-[#2E7D32]/50 mb-1 uppercase tracking-wide">
+            {t("الرسالة (عربي)", "Message (Arabe)")}
+          </label>
+          <textarea
+            value={messageAr}
+            onChange={e => setMessageAr(e.target.value)}
+            placeholder={t("أدخل الرسالة بالعربية...", "Entrez le message en arabe...")}
+            rows={3}
+            dir="rtl"
+            className="w-full bg-[#FFA500]/30 border border-[#2E7D32]/10 rounded-xl px-3 py-2.5 text-sm text-[#2E7D32] placeholder:text-[#2E7D32]/20 focus:outline-none focus:border-[#2E7D32]/50 transition-colors resize-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-[#2E7D32]/50 mb-1 uppercase tracking-wide">
+            {t("الرسالة (فرنسي)", "Message (Français)")} <span className="text-red-400">*</span>
+          </label>
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            placeholder={t("أدخل الرسالة بالفرنسية...", "Entrez le message en français...")}
+            rows={3}
+            dir="ltr"
+            className="w-full bg-[#FFA500]/30 border border-[#2E7D32]/10 rounded-xl px-3 py-2.5 text-sm text-[#2E7D32] placeholder:text-[#2E7D32]/20 focus:outline-none focus:border-[#2E7D32]/50 transition-colors resize-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-[#2E7D32]/50 mb-1 uppercase tracking-wide">
+            {t("المستهدفون", "Destinataires")}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {BROADCAST_ROLE_OPTIONS.map(r => (
+              <button
+                key={r.value}
+                onClick={() => setTargetRole(r.value)}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-black border transition-all",
+                  targetRole === r.value
+                    ? "bg-[#2E7D32] text-white border-[#2E7D32]"
+                    : "bg-transparent text-[#2E7D32] border-[#2E7D32]/20 hover:border-[#2E7D32]/50"
+                )}
+              >
+                {lang === "ar" ? r.labelAr : r.labelFr}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={send}
+          disabled={!message.trim() || sending}
+          className={cn(
+            "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm transition-all w-full justify-center",
+            !message.trim() || sending
+              ? "bg-[#2E7D32]/20 text-[#2E7D32]/30 cursor-not-allowed"
+              : "bg-[#2E7D32] text-white hover:bg-[#388E3C] shadow-[0_4px_12px_-2px_rgba(46,125,50,0.3)]"
+          )}
+        >
+          {sending ? (
+            <RefreshCw size={14} className="animate-spin" />
+          ) : (
+            <Send size={14} />
+          )}
+          {t("إرسال الإشعار", "Envoyer la notification")}
+        </button>
+
+        {success && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-400/10 border border-emerald-400/30"
+          >
+            <CheckCircle size={14} className="text-emerald-400" />
+            <span className="text-sm font-bold text-emerald-400">
+              {t("تم إرسال الإشعار بنجاح!", "Notification envoyée avec succès!")}
+            </span>
+          </motion.div>
+        )}
+      </div>
+
+      {/* History */}
+      {broadcasts.length > 0 && (
+        <div>
+          <h3 className="font-black text-[#2E7D32] mb-3 flex items-center gap-2">
+            <Bell size={16} className="text-[#2E7D32]/40" />
+            {t("الإشعارات المرسلة", "Historique des notifications")}
+          </h3>
+          <div className="space-y-2">
+            {broadcasts.map(b => (
+              <motion.div
+                key={b.id}
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="glass-panel rounded-xl p-4 border border-[#2E7D32]/10 flex items-start gap-3"
+                style={{ background: "#FFFDE7" }}
+              >
+                <div className="w-8 h-8 rounded-xl bg-[#FFA500]/20 border border-[#FFA500]/30 flex items-center justify-center flex-shrink-0">
+                  <Radio size={13} className="text-[#FFA500]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[#FFA500] bg-[#FFA500]/10 border border-[#FFA500]/20 px-2 py-0.5 rounded-full">
+                      {roleLabel(b.targetRole)}
+                    </span>
+                    <span className="text-[10px] text-[#2E7D32]/30">
+                      {new Date(b.createdAt).toLocaleString(lang === "ar" ? "ar-TN" : "fr-TN")}
+                    </span>
+                  </div>
+                  {b.messageAr && <p className="text-sm font-bold text-[#2E7D32] leading-snug" dir="rtl">{b.messageAr}</p>}
+                  <p className="text-xs text-[#2E7D32]/50 leading-snug mt-0.5" dir="ltr">{b.message}</p>
+                </div>
+                <button
+                  onClick={() => remove(b.id)}
+                  disabled={deleting === b.id}
+                  className="p-1.5 rounded-lg text-red-400/40 hover:text-red-400 hover:bg-red-400/5 transition-all flex-shrink-0"
+                >
+                  {deleting === b.id ? <RefreshCw size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                </button>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Main Admin Page
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings" | "users";
+type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast";
 
 const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean }[] = [
   { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",       fr: "Tableau de bord" },
   { id: "orders",        icon: Package,          ar: "الطلبات",         fr: "Commandes" },
   { id: "hotelBookings", icon: Hotel,            ar: "حجوزات الفنادق",  fr: "Réservations Hôtel" },
   { id: "banners",       icon: Megaphone,        ar: "الإعلانات",       fr: "Publicités" },
+  { id: "broadcast",     icon: Radio,            ar: "بث إشعار",        fr: "Diffusion" },
   { id: "categories",    icon: Tag,              ar: "الفئات",          fr: "Catégories",    superOnly: true },
   { id: "suppliers",     icon: Users,            ar: "المزودون",        fr: "Fournisseurs",  superOnly: true },
   { id: "articles",      icon: ShoppingBag,      ar: "المنتجات",        fr: "Articles",      superOnly: true },
@@ -1660,6 +1865,7 @@ export default function Admin() {
             <LayoutDashboard size={18} />
           </button>
           <p className="text-sm font-black text-[#2E7D32]">{lang === "ar" ? visibleNav.find(n=>n.id===active)?.ar : visibleNav.find(n=>n.id===active)?.fr}</p>
+          <NotificationBell lang={lang} role={session?.role as any || "admin"} />
         </div>
 
         <AnimatePresence mode="wait">
@@ -1668,6 +1874,7 @@ export default function Admin() {
             {active === "orders"        && <OrdersSection t={t} lang={lang} />}
             {active === "hotelBookings" && <HotelBookingsSection t={t} lang={lang} />}
             {active === "banners"       && <BannersSection t={t} />}
+            {active === "broadcast"     && <BroadcastSection t={t} lang={lang} />}
             {active === "categories"    && isSuper && <CategoriesSection t={t} />}
             {active === "suppliers"     && isSuper && <SuppliersSection t={t} lang={lang} />}
             {active === "articles"      && isSuper && <ArticlesSection t={t} lang={lang} />}

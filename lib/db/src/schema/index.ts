@@ -8,3 +8,4 @@ export * from "./promoBanners";
 export * from "./ratings";
 export * from "./hotelBookings";
 export * from "./users";
+export * from "./broadcasts";

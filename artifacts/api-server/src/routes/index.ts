@@ -11,6 +11,7 @@ import promoBannersRouter from "./promoBanners";
 import ratingsRouter from "./ratings";
 import hotelBookingsRouter from "./hotelBookings";
 import usersRouter from "./users";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(promoBannersRouter);
 router.use(ratingsRouter);
 router.use(hotelBookingsRouter);
 router.use(usersRouter);
+router.use(notificationsRouter);
 
 export default router;

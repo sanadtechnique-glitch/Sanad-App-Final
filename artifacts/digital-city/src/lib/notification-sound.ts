@@ -68,9 +68,33 @@ export function playSanadSound() {
 
     const now = c.currentTime;
 
-    bell(c, 523.25, now,       0.30, 0.55);
-    bell(c, 783.99, now + 0.14, 0.25, 0.70);
-    bell(c, 659.25, now + 0.26, 0.18, 0.90);
-    bell(c, 1046.5, now + 0.36, 0.22, 1.10);
+    bell(c, 523.25, now,        0.35, 0.55);
+    bell(c, 783.99, now + 0.14, 0.30, 0.70);
+    bell(c, 659.25, now + 0.26, 0.22, 0.90);
+    bell(c, 1046.5, now + 0.36, 0.28, 1.10);
+  } catch {}
+}
+
+// Short urgent ping for incoming driver orders
+export function playAlertSound() {
+  try {
+    const c = ctx();
+    if (c.state === "suspended") c.resume();
+    const now = c.currentTime;
+    bell(c, 880,  now,        0.50, 0.35);
+    bell(c, 1320, now + 0.12, 0.40, 0.55);
+    bell(c, 1760, now + 0.22, 0.35, 0.80);
+  } catch {}
+}
+
+// Distinct tone for admin broadcast messages
+export function playBroadcastSound() {
+  try {
+    const c = ctx();
+    if (c.state === "suspended") c.resume();
+    const now = c.currentTime;
+    bell(c, 440, now,        0.30, 0.40);
+    bell(c, 554, now + 0.10, 0.25, 0.50);
+    bell(c, 659, now + 0.20, 0.30, 0.70);
   } catch {}
 }
