@@ -590,56 +590,12 @@ export default function Home() {
       </motion.section>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          MY ORDERS — shown only for logged-in clients, right after slider
-      ══════════════════════════════════════════════════════════════════════ */}
-      {session?.role === "client" && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.15 }}
-          className="px-4 sm:px-6 lg:px-10 mt-6"
-        >
-          {/* Section header */}
-          <div className="flex items-center justify-between mb-4" dir="rtl">
-            <div>
-              <h2 className="text-lg font-black text-[#2E7D32]">
-                {t("طلباتي", "Mes commandes")}
-              </h2>
-              <p className="text-xs font-bold text-[#2E7D32]/40">
-                {t("جميع طلباتك من كل المزودين", "Toutes vos commandes")}
-              </p>
-            </div>
-            <Link href="/services">
-              <button
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white transition-all hover:opacity-90"
-                style={{ background: "#2E7D32" }}
-              >
-                <ShoppingCart size={13} />
-                {t("طلب جديد", "Nouvelle commande")}
-              </button>
-            </Link>
-          </div>
-
-          {/* Card container */}
-          <div
-            className="rounded-2xl p-4"
-            style={{
-              background: "rgba(46,125,50,0.04)",
-              border: "1.5px solid rgba(46,125,50,0.12)",
-            }}
-          >
-            <MyOrdersSection name={session.name} t={t} />
-          </div>
-        </motion.section>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          DEALS BUTTON — منتجات في التخفيض
+          1. DEALS BUTTON — منتجات في التخفيض
       ══════════════════════════════════════════════════════════════════════ */}
       <motion.section
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.2 }}
+        transition={{ duration: 0.4, delay: 0.15 }}
         className="px-4 sm:px-6 lg:px-10 mt-5"
       >
         <Link href="/deals">
@@ -677,7 +633,7 @@ export default function Home() {
       </motion.section>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          SERVICES GRID
+          2. SERVICES GRID
       ══════════════════════════════════════════════════════════════════════ */}
       <section className="px-4 sm:px-6 lg:px-10 mt-8">
         <motion.div
@@ -726,6 +682,50 @@ export default function Home() {
           })}
         </div>
       </section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          3. MY ORDERS — shown only for logged-in clients
+      ══════════════════════════════════════════════════════════════════════ */}
+      {session?.role === "client" && (
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.25 }}
+          className="px-4 sm:px-6 lg:px-10 mt-8"
+        >
+          {/* Section header */}
+          <div className="flex items-center justify-between mb-4" dir="rtl">
+            <div>
+              <h2 className="text-lg font-black text-[#2E7D32]">
+                {t("طلباتي", "Mes commandes")}
+              </h2>
+              <p className="text-xs font-bold text-[#2E7D32]/40">
+                {t("جميع طلباتك من كل المزودين", "Toutes vos commandes")}
+              </p>
+            </div>
+            <Link href="/services">
+              <button
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white transition-all hover:opacity-90"
+                style={{ background: "#2E7D32" }}
+              >
+                <ShoppingCart size={13} />
+                {t("طلب جديد", "Nouvelle commande")}
+              </button>
+            </Link>
+          </div>
+
+          {/* Card container */}
+          <div
+            className="rounded-2xl p-4"
+            style={{
+              background: "rgba(46,125,50,0.04)",
+              border: "1.5px solid rgba(46,125,50,0.12)",
+            }}
+          >
+            <MyOrdersSection name={session.name} t={t} />
+          </div>
+        </motion.section>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           ABOUT US
