@@ -3,13 +3,13 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
-const rawPort = process.env.PORT;
-if (!rawPort) throw new Error("PORT environment variable is required.");
-const port = Number(rawPort);
-if (Number.isNaN(port) || port <= 0) throw new Error(`Invalid PORT value: "${rawPort}"`);
+const isBuild = process.argv.includes("build");
 
-const basePath = process.env.BASE_PATH;
-if (!basePath) throw new Error("BASE_PATH environment variable is required.");
+const rawPort = process.env.PORT;
+if (!isBuild && !rawPort) throw new Error("PORT environment variable is required.");
+const port = rawPort ? Number(rawPort) : 3000;
+
+const basePath = process.env.BASE_PATH ?? "/";
 
 const API_PORT = 8080;
 
@@ -32,7 +32,6 @@ export default defineConfig({
     headers: { "Cache-Control": "no-store" },
     fs: { strict: false },
     proxy: {
-      // All /api/* requests go to the API server
       "/api": {
         target: `http://localhost:${API_PORT}`,
         changeOrigin: true,

@@ -18,9 +18,16 @@ localPort = 19377
 run = "pnpm --filter @workspace/digital-city run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/digital-city", "run", "build" ]
 publicDir = "artifacts/digital-city/dist/public"
 serve = "static"
+
+[services.production.build]
+args = [ "pnpm", "--filter", "@workspace/digital-city", "run", "build" ]
+
+[services.production.build.env]
+PORT = "3000"
+BASE_PATH = "/"
+NODE_ENV = "production"
 
 [[services.production.rewrites]]
 from = "/*"
