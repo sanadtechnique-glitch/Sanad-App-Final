@@ -5,6 +5,7 @@ import { getSession, clearSession } from "@/lib/auth";
 import {
   Truck, CheckCircle, MapPin, RefreshCw, ChevronRight, MessageCircle,
   LogOut, Check, Package, X, Map, Bell, Clock, AlertCircle, History,
+  CalendarCheck, Banknote, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -137,6 +138,10 @@ export default function DeliveryDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab] = useState<"active" | "history">("active");
+  const [history, setHistory] = useState<Order[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [expandedHistId, setExpandedHistId] = useState<number | null>(null);
 
   // Incoming notifications queue
   const [incomingQueue, setIncomingQueue] = useState<Order[]>([]);
@@ -191,9 +196,19 @@ export default function DeliveryDashboard() {
     if (!silent) setLoading(false); else setRefreshing(false);
   }, []);
 
+  const loadHistory = useCallback(async (staffId: number) => {
+    setHistoryLoading(true);
+    try {
+      const data = await get<Order[]>(`/delivery/staff/${staffId}/orders`);
+      setHistory(data.filter(o => o.status === "delivered"));
+    } catch {}
+    setHistoryLoading(false);
+  }, []);
+
   const selectStaff = async (member: Staff) => {
     setSelected(member);
     await loadOrders();
+    loadHistory(member.id);
     if (pollRef.current) clearInterval(pollRef.current);
     // Poll every 10s for faster notification delivery
     pollRef.current = setInterval(() => loadOrders(true), 10000);
@@ -279,7 +294,14 @@ export default function DeliveryDashboard() {
   // ── Confirm delivery ───────────────────────────────────────────────────────
   const confirmDelivery = async (order: Order) => {
     await patch(`/orders/${order.id}`, { status: "delivered" });
-    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: "delivered" } : o));
+    const deliveredOrder = { ...order, status: "delivered" };
+    setOrders(prev => prev.map(o => o.id === order.id ? deliveredOrder : o));
+
+    // Add immediately to history list
+    setHistory(prev => {
+      const exists = prev.some(o => o.id === order.id);
+      return exists ? prev : [deliveredOrder, ...prev];
+    });
 
     pushNotification({
       type: "delivered",
@@ -375,13 +397,6 @@ export default function DeliveryDashboard() {
               </div>
               <div className="flex gap-2 items-center">
                 <NotificationBell lang={lang} role="delivery" />
-                <button
-                  onClick={() => navigate("/orders/history")}
-                  className="p-2.5 rounded-xl border border-[#2E7D32]/20 text-[#2E7D32]/50 hover:text-[#2E7D32] hover:border-[#2E7D32]/50 transition-all"
-                  title={t("سجل التوصيلات", "Historique")}
-                >
-                  <History size={14} />
-                </button>
                 {incomingQueue.length > 0 && (
                   <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/20">
                     <Bell size={13} className="text-[#2E7D32] animate-bounce" />
@@ -410,11 +425,64 @@ export default function DeliveryDashboard() {
                 <p className="text-xs text-[#2E7D32]/30">{t("في الطريق", "En route")}</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-black text-emerald-400">{deliveredOrders.length}</p>
+                <p className="text-2xl font-black text-emerald-400">{history.length}</p>
                 <p className="text-xs text-[#2E7D32]/30">{t("منجز", "Livré")}</p>
               </div>
             </div>
           </div>
+
+          {/* ── Tab bar ── */}
+          <div className="flex rounded-[14px] p-1 gap-1" style={{ background: "rgba(46,125,50,0.10)" }}>
+            <button
+              onClick={() => setTab("active")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[10px] font-black text-sm transition-all",
+                tab === "active"
+                  ? "text-white shadow-sm"
+                  : "text-[#2E7D32]/50 hover:text-[#2E7D32]"
+              )}
+              style={tab === "active" ? { background: "#2E7D32" } : {}}
+            >
+              <Truck size={14} />
+              {t("الطلبات النشطة", "Commandes actives")}
+              {(waitingPickupOrders.length + inDeliveryOrders.length) > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black"
+                  style={{
+                    background: tab === "active" ? "rgba(255,255,255,0.25)" : "rgba(46,125,50,0.15)",
+                    color: tab === "active" ? "#fff" : "#2E7D32",
+                  }}>
+                  {waitingPickupOrders.length + inDeliveryOrders.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => { setTab("history"); if (selected) loadHistory(selected.id); }}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[10px] font-black text-sm transition-all",
+                tab === "history"
+                  ? "text-white shadow-sm"
+                  : "text-[#2E7D32]/50 hover:text-[#2E7D32]"
+              )}
+              style={tab === "history" ? { background: "#2E7D32" } : {}}
+            >
+              <History size={14} />
+              {t("سجل التوصيلات", "Historique livraisons")}
+              {history.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black"
+                  style={{
+                    background: tab === "history" ? "rgba(255,255,255,0.25)" : "rgba(46,125,50,0.15)",
+                    color: tab === "history" ? "#fff" : "#2E7D32",
+                  }}>
+                  {history.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* ══════════════════════════════════════════════
+              TAB: ACTIVE ORDERS
+          ══════════════════════════════════════════════ */}
+          {tab === "active" && (<>
 
           {/* ── Section 1: Waiting for physical pickup ── */}
           {waitingPickupOrders.length > 0 && (
@@ -547,6 +615,159 @@ export default function DeliveryDashboard() {
           {loading && (
             <div className="flex justify-center py-12">
               <div className="w-7 h-7 border-[3px] border-[#2E7D32] border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          </>)}
+
+          {/* ══════════════════════════════════════════════
+              TAB: DELIVERY HISTORY
+          ══════════════════════════════════════════════ */}
+          {tab === "history" && (
+            <div>
+              {/* Summary bar */}
+              {history.length > 0 && (
+                <div
+                  className="rounded-[14px] px-4 py-3 mb-4 flex items-center justify-between"
+                  style={{ background: "rgba(46,125,50,0.10)", border: "1px solid rgba(46,125,50,0.15)" }}
+                >
+                  <div className="flex items-center gap-2" dir="rtl">
+                    <CalendarCheck size={15} className="text-[#2E7D32]" />
+                    <span className="text-sm font-black text-[#2E7D32]">
+                      {t(`إجمالي التوصيلات: ${history.length}`, `Total livraisons: ${history.length}`)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-emerald-600">
+                    <Banknote size={14} />
+                    <span className="text-sm font-black">
+                      {history.reduce((sum, o) => sum + (o.deliveryFee ?? 0), 0).toFixed(2)} TND
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* History loading */}
+              {historyLoading && (
+                <div className="flex justify-center py-12">
+                  <div className="w-7 h-7 border-[3px] border-[#2E7D32] border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
+              {/* Empty history */}
+              {!historyLoading && history.length === 0 && (
+                <div className="text-center py-14 rounded-[15px] border border-[#2E7D32]/20" style={{ background: "#FFFDE7" }}>
+                  <div className="w-16 h-16 rounded-2xl bg-[#2E7D32]/5 flex items-center justify-center mx-auto mb-4">
+                    <History size={28} className="text-[#2E7D32]/15" />
+                  </div>
+                  <p className="text-[#2E7D32]/30 font-bold text-sm">{t("لا يوجد سجل توصيلات بعد", "Aucun historique de livraison")}</p>
+                  <p className="text-[#2E7D32]/15 text-xs mt-1">{t("ستظهر هنا توصيلاتك المنجزة", "Vos livraisons effectuées apparaîtront ici")}</p>
+                </div>
+              )}
+
+              {/* History list */}
+              {!historyLoading && history.length > 0 && (
+                <AnimatePresence>
+                  <div className="space-y-2">
+                    {history.map((order, idx) => {
+                      const isExpanded = expandedHistId === order.id;
+                      const dateStr = new Date(order.createdAt).toLocaleDateString(
+                        lang === "ar" ? "ar-TN" : "fr-TN",
+                        { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }
+                      );
+                      return (
+                        <motion.div
+                          key={order.id}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.03 }}
+                          className="rounded-[14px] border border-emerald-400/25 overflow-hidden"
+                          style={{ background: "#FFFDE7" }}
+                        >
+                          {/* Row — always visible */}
+                          <button
+                            className="w-full flex items-center gap-3 px-4 py-3 text-right"
+                            dir="rtl"
+                            onClick={() => setExpandedHistId(isExpanded ? null : order.id)}
+                          >
+                            {/* Green check badge */}
+                            <div className="w-9 h-9 rounded-xl bg-emerald-400/15 flex items-center justify-center flex-shrink-0">
+                              <CheckCircle size={16} className="text-emerald-500" />
+                            </div>
+
+                            {/* Info */}
+                            <div className="flex-1 min-w-0 text-right">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-black text-[#2E7D32] text-sm truncate">{order.customerName}</span>
+                                <span className="font-mono text-[10px] text-[#2E7D32]/25 flex-shrink-0">
+                                  #{order.id.toString().padStart(4, "0")}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2 mt-0.5">
+                                <span className="text-xs text-[#2E7D32]/40 truncate">{order.serviceProviderName}</span>
+                                {order.deliveryFee && order.deliveryFee > 0 && (
+                                  <span className="text-xs font-black text-emerald-500 flex-shrink-0">
+                                    +{order.deliveryFee} TND
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-[#2E7D32]/25 mt-0.5">{dateStr}</p>
+                            </div>
+
+                            {/* Expand chevron */}
+                            {isExpanded
+                              ? <ChevronUp size={14} className="text-[#2E7D32]/30 flex-shrink-0" />
+                              : <ChevronDown size={14} className="text-[#2E7D32]/30 flex-shrink-0" />}
+                          </button>
+
+                          {/* Expanded details */}
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden"
+                              >
+                                <div
+                                  className="px-4 pb-4 pt-1 space-y-2 border-t border-[#2E7D32]/8"
+                                  dir="rtl"
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <MapPin size={12} className="text-[#2E7D32]/30 mt-0.5 flex-shrink-0" />
+                                    <p className="text-sm text-[#2E7D32]/50">{order.customerAddress}</p>
+                                  </div>
+                                  {order.notes && (
+                                    <div className="rounded-lg px-3 py-2 text-xs text-[#2E7D32]/40 border border-[#2E7D32]/8"
+                                      style={{ background: "rgba(46,125,50,0.03)" }}>
+                                      {order.notes}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black text-white"
+                                      style={{ background: "#388E3C" }}>
+                                      {t("تم التسليم", "Livré")} ✓
+                                    </span>
+                                    {order.customerPhone && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); openWhatsApp(order.customerPhone); }}
+                                        className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-black text-white bg-green-500"
+                                      >
+                                        <MessageCircle size={9} />
+                                        WhatsApp
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </AnimatePresence>
+              )}
             </div>
           )}
 
