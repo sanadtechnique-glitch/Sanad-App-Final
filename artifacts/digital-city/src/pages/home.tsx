@@ -39,8 +39,8 @@ const PROMO_SLIDES = [
     imageUrl: "",
     titleAr: "عروض رمضان الحصرية",
     titleFr: "Offres exclusives Ramadan",
-    subtitleAr: "أفضل العروض من مطاعم ومحلات بن قردان",
-    subtitleFr: "Les meilleures offres des restaurants de Ben Guerdane",
+    subtitleAr: "أفضل العروض من مطاعم ومحلات المدينة",
+    subtitleFr: "Les meilleures offres des restaurants de la ville",
     bgFrom: "#2E7D32",
     bgTo: "#1B5E20",
     accent: "#FFA500",
@@ -388,8 +388,16 @@ function PromoSlider({ lang }: { lang: string }) {
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl shadow-lg"
-      style={{ aspectRatio: "21/9", minHeight: 140, maxHeight: 320 }}>
+    <div
+      className="relative w-full overflow-hidden rounded-2xl"
+      style={{
+        aspectRatio: "16/7",
+        minHeight: 130,
+        maxHeight: 260,
+        border: "1.5px solid rgba(46,125,50,0.22)",
+        boxShadow: "0 6px 28px rgba(46,125,50,0.18), 0 1px 4px rgba(0,0,0,0.08)",
+      }}
+    >
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -398,24 +406,42 @@ function PromoSlider({ lang }: { lang: string }) {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -40 }}
           transition={{ duration: 0.45, ease: "easeInOut" }}
-          className="absolute inset-0 flex items-center justify-center px-8 sm:px-14"
+          className="absolute inset-0 flex items-center justify-center px-10 sm:px-16"
           style={{
             background: `linear-gradient(135deg, ${slide.bgFrom} 0%, ${slide.bgTo} 100%)`,
           }}
         >
+          {/* Subtle pattern overlay */}
           <div className="absolute inset-0 opacity-10"
             style={{
-              backgroundImage: "radial-gradient(circle at 25% 50%, rgba(255,255,255,0.25) 0%, transparent 50%), radial-gradient(circle at 75% 50%, rgba(255,255,255,0.15) 0%, transparent 50%)",
+              backgroundImage:
+                "radial-gradient(circle at 20% 50%, rgba(255,255,255,0.30) 0%, transparent 52%), " +
+                "radial-gradient(circle at 80% 50%, rgba(255,255,255,0.18) 0%, transparent 52%)",
             }} />
-          <div className="absolute right-6 top-1/2 -translate-y-1/2 w-32 h-32 rounded-full opacity-15"
-            style={{ background: slide.accent }} />
-          <div className="relative z-10 text-center" dir="rtl">
+
+          {/* Accent circle decoration */}
+          <div
+            className="absolute right-5 top-1/2 -translate-y-1/2 w-24 h-24 rounded-full opacity-15"
+            style={{ background: slide.accent }}
+          />
+          <div
+            className="absolute left-5 bottom-2 w-14 h-14 rounded-full opacity-8"
+            style={{ background: slide.accent }}
+          />
+
+          {/* Text block */}
+          <div className="relative z-10 text-center w-full" dir="rtl">
             <motion.p
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-sm font-bold mb-1 opacity-80"
-              style={{ color: slide.accent, fontFamily: "'Cairo','Tajawal',sans-serif" }}
+              className="text-xs sm:text-sm font-black mb-1.5 leading-snug"
+              style={{
+                color: slide.accent,
+                fontFamily: "'Cairo','Tajawal',sans-serif",
+                opacity: 0.95,
+                textShadow: "0 1px 4px rgba(0,0,0,0.2)",
+              }}
             >
               {lang === "ar" ? slide.subtitleAr : slide.subtitleFr}
             </motion.p>
@@ -423,8 +449,11 @@ function PromoSlider({ lang }: { lang: string }) {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-2xl sm:text-3xl font-black text-white leading-snug"
-              style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}
+              className="text-xl sm:text-2xl font-black text-white leading-snug"
+              style={{
+                fontFamily: "'Cairo','Tajawal',sans-serif",
+                textShadow: "0 2px 8px rgba(0,0,0,0.25)",
+              }}
             >
               {lang === "ar" ? slide.titleAr : slide.titleFr}
             </motion.h2>
@@ -432,31 +461,36 @@ function PromoSlider({ lang }: { lang: string }) {
         </motion.div>
       </AnimatePresence>
 
+      {/* Nav arrows */}
       <button
         onClick={() => goTo((active - 1 + PROMO_SLIDES.length) % PROMO_SLIDES.length)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/35 transition-all"
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all"
+        style={{ background: "rgba(46,125,50,0.35)", backdropFilter: "blur(4px)" }}
         aria-label="Previous"
       >
-        <ChevronRight size={16} className="text-white" />
+        <ChevronRight size={14} className="text-white" />
       </button>
       <button
         onClick={() => goTo((active + 1) % PROMO_SLIDES.length)}
-        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/35 transition-all"
+        className="absolute left-2.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all"
+        style={{ background: "rgba(46,125,50,0.35)", backdropFilter: "blur(4px)" }}
         aria-label="Next"
       >
-        <ChevronLeft size={16} className="text-white" />
+        <ChevronLeft size={14} className="text-white" />
       </button>
 
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+      {/* Dot indicators */}
+      <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
         {PROMO_SLIDES.map((_, i) => (
           <button
             key={i}
             onClick={() => goTo(i)}
             className="rounded-full transition-all duration-300"
             style={{
-              width: i === active ? 20 : 8,
-              height: 8,
-              background: i === active ? "#2E7D32" : "rgba(255,255,255,0.5)",
+              width: i === active ? 18 : 6,
+              height: 6,
+              background: i === active ? "#fff" : "rgba(255,255,255,0.45)",
+              border: i === active ? "1px solid rgba(46,125,50,0.5)" : "none",
             }}
             aria-label={`Slide ${i + 1}`}
           />
