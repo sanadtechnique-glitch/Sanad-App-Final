@@ -62,10 +62,10 @@ export default function Home() {
 
           {/* ── Login / Profile button — top right ── */}
           <motion.div
-            initial={{ opacity: 0, x: isRTL ? 24 : -24 }}
+            initial={{ opacity: 0, x: isRTL ? -24 : 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.35, duration: 0.45 }}
-            className="absolute top-4 left-4 z-20"
+            className="absolute top-4 right-4 z-20"
           >
             {session ? (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#1B5E20]/50 bg-[#1B5E20]/12"
@@ -77,9 +77,9 @@ export default function Home() {
               </div>
             ) : (
               <button
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/auth")}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-full font-black text-xs text-white transition-all hover:scale-105 active:scale-95"
-                style={{ background: "#1B5E20", boxShadow: "0 3px 12px rgba(27,94,32,0.35)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+                style={{ background: "#2E7D32", boxShadow: "0 3px 12px rgba(46,125,50,0.40)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
               >
                 <LogIn size={14} />
                 {t("دخول", "Connexion")}

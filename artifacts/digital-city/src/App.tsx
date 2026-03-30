@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageProvider } from "@/lib/language";
@@ -24,11 +24,35 @@ const queryClient = new QueryClient({
 });
 
 const ROLE_HOME: Record<Role, string> = {
-  client:   "/",
+  client:   "/home",
   admin:    "/admin",
   provider: "/provider",
   delivery: "/delivery",
 };
+
+const SPLASH_KEY = "sanad_splash_seen";
+
+// ─── Splash Route ─────────────────────────────────────────────────────────────
+// Shows animated splash once per session, then redirects to /home.
+function SplashRoute() {
+  const [, navigate] = useLocation();
+  const alreadySeen = !!sessionStorage.getItem(SPLASH_KEY);
+
+  useEffect(() => {
+    if (alreadySeen) {
+      navigate("/home");
+    }
+  }, []);
+
+  if (alreadySeen) return null;
+
+  const handleDone = () => {
+    sessionStorage.setItem(SPLASH_KEY, "1");
+    navigate("/home");
+  };
+
+  return <Splash onDone={handleDone} />;
+}
 
 function ProtectedRoute({
   component: Comp,
@@ -42,7 +66,7 @@ function ProtectedRoute({
 
   useEffect(() => {
     if (!session) {
-      navigate("/login");
+      navigate("/auth");
     } else if (!roles.includes(session.role)) {
       navigate(ROLE_HOME[session.role]);
     }
@@ -95,24 +119,31 @@ function NotFound() {
 function Router() {
   return (
     <Switch>
+      {/* ── Entry: splash (once per session) then /home ── */}
+      <Route path="/" component={SplashRoute} />
+
+      {/* ── Public home — visible with or without login ── */}
+      <Route path="/home" component={Home} />
+
+      {/* ── Auth pages ── */}
+      <Route path="/auth"  component={LoginRoute} />
       <Route path="/login" component={LoginRoute} />
 
-      <Route path="/">
-        {() => <ProtectedRoute component={Home}         roles={["client"]} />}
-      </Route>
+      {/* ── Client protected pages ── */}
       <Route path="/services">
-        {() => <ProtectedRoute component={Services}     roles={["client"]} />}
+        {() => <ProtectedRoute component={Services}      roles={["client"]} />}
       </Route>
       <Route path="/order/:id">
-        {() => <ProtectedRoute component={Order}        roles={["client"]} />}
+        {() => <ProtectedRoute component={Order}         roles={["client"]} />}
       </Route>
       <Route path="/store/:id">
         {() => <ProtectedRoute component={ProviderStore} roles={["client"]} />}
       </Route>
       <Route path="/hotel/:id">
-        {() => <ProtectedRoute component={HotelBooking} roles={["client"]} />}
+        {() => <ProtectedRoute component={HotelBooking}  roles={["client"]} />}
       </Route>
 
+      {/* ── Role dashboards ── */}
       <Route path="/admin">
         {() => <ProtectedRoute component={Admin}    roles={["admin"]} />}
       </Route>
@@ -128,30 +159,15 @@ function Router() {
   );
 }
 
-const SPLASH_KEY = "sanad_splash_seen";
-
 export default function App() {
-  const [showSplash, setShowSplash] = useState(
-    () => !sessionStorage.getItem(SPLASH_KEY)
-  );
-
-  const handleSplashDone = () => {
-    sessionStorage.setItem(SPLASH_KEY, "1");
-    setShowSplash(false);
-  };
-
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <CartProvider>
           <NotificationsProvider>
-            {showSplash ? (
-              <Splash onDone={handleSplashDone} />
-            ) : (
-              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                <Router />
-              </WouterRouter>
-            )}
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
           </NotificationsProvider>
         </CartProvider>
       </LanguageProvider>

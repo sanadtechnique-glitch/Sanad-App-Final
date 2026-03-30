@@ -397,7 +397,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const navItems = [
-    { href: "/",         icon: Home, label: t("الرئيسية", "Accueil")  },
+    { href: "/home",     icon: Home, label: t("الرئيسية", "Accueil")  },
     { href: "/services", icon: Grid, label: t("الخدمات",  "Services") },
   ];
 
