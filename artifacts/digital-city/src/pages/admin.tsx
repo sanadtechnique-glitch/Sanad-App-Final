@@ -995,6 +995,18 @@ interface AppUser {
   phone?: string | null; role: string; isActive: boolean; createdAt: string;
 }
 
+interface AnyUser {
+  id: number; username: string | null; name: string; phone?: string | null;
+  role: string; isActive: boolean; createdAt: string;
+  source: "users" | "providers" | "drivers";
+}
+
+const SOURCE_LABEL: Record<"users" | "providers" | "drivers", { ar: string; color: string }> = {
+  users:     { ar: "نظام",     color: "#1B5E20" },
+  providers: { ar: "مزودون",  color: "#4CAF50" },
+  drivers:   { ar: "سائقون",  color: "#388E3C" },
+};
+
 const ROLE_OPTIONS: { value: string; ar: string; fr: string; color: string }[] = [
   { value: "super_admin", ar: "مدير عام",    fr: "Super Admin",  color: "#1B5E20" },
   { value: "manager",     ar: "مسؤول",       fr: "Manager",      color: "#2E7D32" },
@@ -1017,7 +1029,9 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const [viewMode, setViewMode] = useState<"system" | "all">("all");
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [allUsers, setAllUsers] = useState<AnyUser[]>([]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [modal, setModal] = useState<null | "add" | AppUser>(null);
@@ -1034,9 +1048,19 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
   const load = () => {
     setListLoading(true);
     setListError(null);
-    get<AppUser[]>("/admin/users")
-      .then(data => { setUsers(data); setListLoading(false); })
-      .catch(err => { setListError(err?.message || t("تعذّر تحميل المستخدمين","Impossible de charger les utilisateurs")); setListLoading(false); });
+    Promise.all([
+      get<AppUser[]>("/admin/users"),
+      get<AnyUser[]>("/admin/all-users"),
+    ])
+      .then(([sysUsers, anyUsers]) => {
+        setUsers(sysUsers);
+        setAllUsers(anyUsers);
+        setListLoading(false);
+      })
+      .catch(err => {
+        setListError(err?.message || t("تعذّر تحميل المستخدمين","Impossible de charger les utilisateurs"));
+        setListLoading(false);
+      });
   };
   useEffect(() => { load(); }, []);
 
@@ -1087,12 +1111,26 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
     await del(`/admin/users/${u.id}`); load();
   };
 
-  const filtered = users.filter(u => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
-    const matchRole = roleFilter === "all" || u.role === roleFilter;
-    return matchSearch && matchRole;
-  });
+  const displayList: AnyUser[] = viewMode === "all"
+    ? allUsers.filter(u => {
+        const q = search.toLowerCase();
+        const matchSearch = !q || u.name.toLowerCase().includes(q) || (u.username || "").toLowerCase().includes(q);
+        const matchRole = roleFilter === "all" || u.role === roleFilter;
+        return matchSearch && matchRole;
+      })
+    : users
+        .filter(u => {
+          const q = search.toLowerCase();
+          const matchSearch = !q || u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
+          const matchRole = roleFilter === "all" || u.role === roleFilter;
+          return matchSearch && matchRole;
+        })
+        .map(u => ({ ...u, source: "users" as const }));
+
+  const countFor = (role: string) =>
+    viewMode === "all"
+      ? (role === "all" ? allUsers.length : allUsers.filter(u => u.role === role).length)
+      : (role === "all" ? users.length : users.filter(u => u.role === role).length);
 
   const fmt = (d: string) => { try { return new Date(d).toLocaleDateString("ar-TN", { day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
 
@@ -1121,12 +1159,41 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-black text-[#2E7D32]">{t("إدارة المستخدمين","Gestion des Utilisateurs")}</h2>
-          <p className="text-[#2E7D32]/30 text-sm mt-0.5">{filtered.length} {t("مستخدم","utilisateur(s)")}</p>
+          <p className="text-[#2E7D32]/30 text-sm mt-0.5">{displayList.length} {t("مستخدم","utilisateur(s)")}</p>
         </div>
         <GoldBtn onClick={openAdd}>
           <Plus size={14} />{t("إضافة مستخدم","Ajouter utilisateur")}
         </GoldBtn>
       </div>
+
+      {/* View mode tabs */}
+      <div className="flex gap-2 p-1 rounded-2xl bg-[#2E7D32]/5 border border-[#2E7D32]/8 w-fit">
+        {([["all", t("جميع المستخدمين","Tous les utilisateurs"), allUsers.length], ["system", t("مستخدمو النظام","Utilisateurs système"), users.length]] as [string, string, number][]).map(([mode, label, count]) => (
+          <button key={mode} onClick={() => setViewMode(mode as "all" | "system")}
+            className={cn("px-4 py-2 rounded-xl text-xs font-black transition-all",
+              viewMode === mode
+                ? "bg-[#2E7D32] text-white shadow-sm"
+                : "text-[#2E7D32]/50 hover:text-[#2E7D32]")}>
+            {label}
+            <span className={cn("ms-1.5 px-1.5 py-0.5 rounded-full text-[10px]",
+              viewMode === mode ? "bg-white/20" : "bg-[#2E7D32]/10")}>
+              {count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Source legend for "all" mode */}
+      {viewMode === "all" && (
+        <div className="flex gap-3 flex-wrap">
+          {(Object.entries(SOURCE_LABEL) as [keyof typeof SOURCE_LABEL, { ar: string; color: string }][]).map(([src, meta]) => (
+            <div key={src} className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full" style={{ background: meta.color }} />
+              <span className="text-[11px] text-[#2E7D32]/50 font-bold">{meta.ar}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Role summary chips */}
       <div className="flex flex-wrap gap-2">
@@ -1134,12 +1201,10 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
           <button key={r.value} onClick={() => setRoleFilter(r.value)}
             className={cn("px-3 py-1.5 rounded-full text-xs font-bold border transition-all",
               roleFilter === r.value
-                ? "bg-[#2E7D32] text-black border-transparent"
+                ? "bg-[#2E7D32] text-white border-transparent"
                 : "border-[#2E7D32]/20 text-[#2E7D32]/50 hover:border-[#2E7D32]/40")}>
             {r.ar}
-            <span className="ms-1.5 opacity-60">
-              {r.value === "all" ? users.length : users.filter(u => u.role === r.value).length}
-            </span>
+            <span className="ms-1.5 opacity-60">{countFor(r.value)}</span>
           </button>
         ))}
       </div>
@@ -1161,37 +1226,46 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
         {/* Table header — desktop */}
         <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 px-5 py-3 bg-[#2E7D32]/5 border-b border-[#2E7D32]/8 text-xs font-black text-[#2E7D32]/40 uppercase tracking-wider" dir="rtl">
           <span>{t("الاسم","Nom")}</span>
-          <span>{t("البريد / الهاتف","Email / Tél.")}</span>
+          <span>{t("الهاتف","Téléphone")}</span>
           <span>{t("الدور","Rôle")}</span>
           <span>{t("تاريخ الإنشاء","Créé le")}</span>
           <span>{t("إجراءات","Actions")}</span>
         </div>
 
-        {filtered.length === 0 && (
+        {displayList.length === 0 && (
           <div className="p-12 text-center">
             <UserCog size={32} className="mx-auto text-[#2E7D32]/15 mb-3" />
             <p className="text-[#2E7D32]/30 text-sm">{t("لا يوجد مستخدمون","Aucun utilisateur trouvé")}</p>
           </div>
         )}
 
-        {filtered.map((u, idx) => (
+        {displayList.map((u) => {
+          const isSystem = u.source === "users";
+          const srcMeta = SOURCE_LABEL[u.source];
+          return (
           <div
-            key={u.id}
+            key={`${u.source}-${u.id}`}
             className={cn("flex md:grid md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 px-4 md:px-5 py-4 items-center border-b border-[#2E7D32]/5 last:border-0 transition-colors hover:bg-[#2E7D32]/2",
               !u.isActive && "opacity-50")}
             dir="rtl"
           >
-            {/* Name + username */}
+            {/* Name + username / source */}
             <div className="flex-1 min-w-0">
               <p className="font-black text-[#2E7D32] text-sm truncate">{u.name}</p>
-              <p className="text-xs text-[#2E7D32]/35 font-mono mt-0.5">@{u.username}</p>
+              {isSystem
+                ? <p className="text-xs text-[#2E7D32]/35 font-mono mt-0.5">@{u.username}</p>
+                : <span className="inline-flex items-center gap-1 mt-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: srcMeta.color }} />
+                    <span className="text-[10px] font-bold" style={{ color: srcMeta.color }}>{srcMeta.ar}</span>
+                  </span>
+              }
             </div>
 
-            {/* Email / Phone */}
+            {/* Phone */}
             <div className="hidden md:block min-w-0">
-              {u.email && <p className="text-xs text-[#2E7D32]/60 truncate">{u.email}</p>}
-              {u.phone && <p className="text-xs text-[#2E7D32]/40 truncate">{u.phone}</p>}
-              {!u.email && !u.phone && <p className="text-xs text-[#2E7D32]/20">—</p>}
+              {u.phone
+                ? <p className="text-xs text-[#2E7D32]/50 truncate">{u.phone}</p>
+                : <p className="text-xs text-[#2E7D32]/20">—</p>}
             </div>
 
             {/* Role */}
@@ -1209,7 +1283,7 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
               <p className="text-xs text-[#2E7D32]/30">{fmt(u.createdAt)}</p>
             </div>
 
-            {/* Mobile: role + status badges */}
+            {/* Mobile badges */}
             <div className="flex md:hidden items-center gap-1.5 flex-wrap">
               <RoleBadge role={u.role} />
               {!u.isActive && <span className="text-[10px] text-red-400 border border-red-400/20 px-1.5 py-0.5 rounded-full">{t("معطّل","Désactivé")}</span>}
@@ -1217,31 +1291,40 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
 
             {/* Actions */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              <button
-                onClick={() => toggleActive(u)}
-                title={u.isActive ? t("تعطيل","Désactiver") : t("تفعيل","Activer")}
-                className={cn("p-2 rounded-xl transition-all",
-                  u.isActive
-                    ? "text-emerald-500/60 bg-emerald-500/5 hover:bg-red-400/10 hover:text-red-400"
-                    : "text-red-400/50 bg-red-400/5 hover:bg-emerald-500/10 hover:text-emerald-500")}
-              >
-                {u.isActive ? <UserCheck size={14} /> : <UserX size={14} />}
-              </button>
-              <button
-                onClick={() => openEdit(u)}
-                className="p-2 rounded-xl text-[#2E7D32]/40 bg-[#2E7D32]/5 hover:text-[#2E7D32] hover:bg-[#2E7D32]/15 transition-all"
-              >
-                <Pencil size={13} />
-              </button>
-              <button
-                onClick={() => remove(u)}
-                className="p-2 rounded-xl text-red-400/40 bg-red-400/5 hover:text-red-400 hover:bg-red-400/15 transition-all"
-              >
-                <Trash2 size={13} />
-              </button>
+              {isSystem ? (
+                <>
+                  <button
+                    onClick={() => toggleActive(u as unknown as AppUser)}
+                    title={u.isActive ? t("تعطيل","Désactiver") : t("تفعيل","Activer")}
+                    className={cn("p-2 rounded-xl transition-all",
+                      u.isActive
+                        ? "text-emerald-500/60 bg-emerald-500/5 hover:bg-red-400/10 hover:text-red-400"
+                        : "text-red-400/50 bg-red-400/5 hover:bg-emerald-500/10 hover:text-emerald-500")}
+                  >
+                    {u.isActive ? <UserCheck size={14} /> : <UserX size={14} />}
+                  </button>
+                  <button
+                    onClick={() => openEdit(u as unknown as AppUser)}
+                    className="p-2 rounded-xl text-[#2E7D32]/40 bg-[#2E7D32]/5 hover:text-[#2E7D32] hover:bg-[#2E7D32]/15 transition-all"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    onClick={() => remove(u as unknown as AppUser)}
+                    className="p-2 rounded-xl text-red-400/40 bg-red-400/5 hover:text-red-400 hover:bg-red-400/15 transition-all"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </>
+              ) : (
+                <span className="text-[10px] text-[#2E7D32]/30 px-2 py-1 rounded-lg bg-[#2E7D32]/5 border border-[#2E7D32]/8 whitespace-nowrap">
+                  {u.source === "providers" ? t("→ المزودون","→ Fournisseurs") : t("→ السائقون","→ Livreurs")}
+                </span>
+              )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Add / Edit Modal */}

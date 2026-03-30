@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db/schema";
+import { usersTable, serviceProvidersTable, deliveryStaffTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -54,6 +54,51 @@ router.get("/admin/users", async (_req, res) => {
       .from(usersTable)
       .orderBy(usersTable.createdAt);
     res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /admin/all-users — combined view: users + providers + drivers
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/admin/all-users", async (_req, res) => {
+  try {
+    const [users, providers, drivers] = await Promise.all([
+      db.select({
+        id: usersTable.id,
+        username: usersTable.username,
+        name: usersTable.name,
+        phone: usersTable.phone,
+        role: usersTable.role,
+        isActive: usersTable.isActive,
+        createdAt: usersTable.createdAt,
+      }).from(usersTable).orderBy(usersTable.createdAt),
+
+      db.select({
+        id: serviceProvidersTable.id,
+        name: serviceProvidersTable.nameAr,
+        phone: serviceProvidersTable.phone,
+        isActive: serviceProvidersTable.isAvailable,
+        createdAt: serviceProvidersTable.createdAt,
+      }).from(serviceProvidersTable).orderBy(serviceProvidersTable.createdAt),
+
+      db.select({
+        id: deliveryStaffTable.id,
+        name: deliveryStaffTable.nameAr,
+        phone: deliveryStaffTable.phone,
+        isActive: deliveryStaffTable.isAvailable,
+        createdAt: deliveryStaffTable.createdAt,
+      }).from(deliveryStaffTable).orderBy(deliveryStaffTable.createdAt),
+    ]);
+
+    const combined = [
+      ...users.map(u => ({ ...u, source: "users" as const, username: u.username })),
+      ...providers.map(p => ({ id: p.id, username: null, name: p.name, phone: p.phone, role: "provider", isActive: p.isActive, createdAt: p.createdAt, source: "providers" as const })),
+      ...drivers.map(d => ({ id: d.id, username: null, name: d.name, phone: d.phone, role: "driver", isActive: d.isActive, createdAt: d.createdAt, source: "drivers" as const })),
+    ];
+
+    res.json(combined);
   } catch (err) {
     res.status(500).json({ message: "Internal server error" });
   }
