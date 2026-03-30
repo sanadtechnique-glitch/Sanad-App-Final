@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { ExternalLink, Megaphone } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Megaphone } from "lucide-react";
 import { get } from "@/lib/admin-api";
 import { useLang } from "@/lib/language";
 
@@ -11,20 +12,19 @@ interface Ad {
   titleAr: string;
   titleFr: string;
   imageUrl?: string;
-  link?: string;
   bgColor?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GLOBAL PANORAMIC AD BANNER
-// Fetches active ads from /api/banners and shows a smooth scrolling ticker.
-// Returns null if there are no active ads — zero layout impact when empty.
+// GLOBAL AD BANNER — Full image slideshow
+// Fetches active banners from /api/banners and shows them as full images.
+// Returns null when empty — zero layout impact.
 // ─────────────────────────────────────────────────────────────────────────────
 export function AdBanner() {
   const { lang, t } = useLang();
   const [ads, setAds] = useState<Ad[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const trackRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
 
   useEffect(() => {
     get<Ad[]>("/banners")
@@ -32,127 +32,122 @@ export function AdBanner() {
       .catch(() => setLoaded(true));
   }, []);
 
-  // Don't render until we know if there are ads (prevents layout jump)
+  const next = useCallback(() => {
+    setActive(i => (i + 1) % ads.length);
+  }, [ads.length]);
+
+  // Auto-advance every 5 seconds when there are multiple ads
+  useEffect(() => {
+    if (ads.length <= 1) return;
+    const timer = setInterval(next, 5000);
+    return () => clearInterval(timer);
+  }, [ads.length, next]);
+
   if (!loaded || ads.length === 0) return null;
 
-  // Duplicate ads for seamless infinite loop
-  const items = [...ads, ...ads, ...ads];
-  // Speed: ~7s per unique ad, minimum 14s total
-  const duration = Math.max(14, ads.length * 7);
+  const ad = ads[active];
+  const title = lang === "ar" ? ad.titleAr : ad.titleFr;
+  const color = ad.bgColor || "#2E7D32";
 
   return (
     <div
-      className="w-full mx-0 overflow-hidden"
+      className="w-full relative overflow-hidden"
       style={{
-        borderRadius: 14,
-        border: "1.5px solid rgba(46,125,50,0.22)",
-        background: "rgba(255,243,224,0.85)",
-        boxShadow: "0 2px 12px rgba(46,125,50,0.07)",
-        height: 96,
+        borderRadius: 16,
+        height: 160,
+        border: "1.5px solid rgba(46,125,50,0.18)",
+        boxShadow: "0 4px 18px rgba(46,125,50,0.10)",
+        background: "#f5f0e8",
       }}
       aria-label={t("إعلانات سند", "Annonces Sanad")}
     >
-      {/* Scroll track */}
-      <div
-        ref={trackRef}
-        className="flex h-full items-center"
-        style={{
-          width: "max-content",
-          animation: `sanad-ad-scroll ${duration}s linear infinite`,
-          willChange: "transform",
-        }}
-      >
-        {items.map((ad, idx) => (
-          <AdItem key={`${ad.id}-${idx}`} ad={ad} lang={lang} t={t} />
-        ))}
-      </div>
-
-      {/* Inject keyframe once */}
-      <style>{`
-        @keyframes sanad-ad-scroll {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(calc(-100% / 3)); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          @keyframes sanad-ad-scroll { 0%, 100% { transform: translateX(0); } }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Individual ad item in the ticker
-// ─────────────────────────────────────────────────────────────────────────────
-function AdItem({
-  ad,
-  lang,
-  t,
-}: {
-  ad: Ad;
-  lang: string;
-  t: (ar: string, fr: string) => string;
-}) {
-  const color = ad.bgColor || "#2E7D32";
-  const title = lang === "ar" ? ad.titleAr : ad.titleFr;
-
-  const handleClick = () => {
-    if (ad.link) window.open(ad.link, "_blank", "noopener,noreferrer");
-  };
-
-  return (
-    <div
-      onClick={handleClick}
-      role={ad.link ? "link" : undefined}
-      tabIndex={ad.link ? 0 : undefined}
-      onKeyDown={e => { if (e.key === "Enter") handleClick(); }}
-      className="flex items-center gap-3 h-full px-5 flex-shrink-0 transition-opacity hover:opacity-80"
-      style={{
-        minWidth: 240,
-        cursor: ad.link ? "pointer" : "default",
-        borderInlineEnd: "1px solid rgba(46,125,50,0.10)",
-      }}
-      dir="rtl"
-    >
-      {/* Thumb: image or color swatch */}
-      {ad.imageUrl ? (
-        <img
-          src={ad.imageUrl}
-          alt={title}
-          className="h-14 w-20 object-cover rounded-lg flex-shrink-0 shadow-sm"
-          draggable={false}
-        />
-      ) : (
-        <div
-          className="h-12 w-12 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm"
-          style={{ background: color }}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={ad.id + "-" + active}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.6 }}
+          className="absolute inset-0"
         >
-          <Megaphone size={20} className="text-white" />
+          {ad.imageUrl ? (
+            <img
+              src={ad.imageUrl}
+              alt={title}
+              className="w-full h-full object-cover"
+              draggable={false}
+              onError={e => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            /* Fallback: colored card with title */
+            <div
+              className="w-full h-full flex flex-col items-center justify-center gap-2"
+              style={{ background: `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)` }}
+            >
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <Megaphone size={20} className="text-white" />
+              </div>
+              <p
+                className="text-white font-black text-sm text-center px-4"
+                style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}
+              >
+                {title}
+              </p>
+            </div>
+          )}
+
+          {/* Overlay gradient — bottom fade for dots visibility */}
+          {ad.imageUrl && (
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.35) 100%)",
+                pointerEvents: "none",
+              }}
+            />
+          )}
+
+          {/* Title overlay on image */}
+          {ad.imageUrl && title && (
+            <div
+              className="absolute bottom-0 left-0 right-0 px-4 py-2"
+              dir="rtl"
+            >
+              <p
+                className="text-white font-black text-sm drop-shadow"
+                style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}
+              >
+                {title}
+              </p>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Dot indicators — only when multiple ads */}
+      {ads.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+          {ads.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActive(i)}
+              className="rounded-full transition-all duration-300"
+              style={{
+                width: i === active ? 18 : 7,
+                height: 7,
+                background:
+                  i === active
+                    ? "#fff"
+                    : "rgba(255,255,255,0.45)",
+              }}
+              aria-label={`إعلان ${i + 1}`}
+            />
+          ))}
         </div>
       )}
-
-      {/* Text */}
-      <div className="flex flex-col justify-center min-w-0">
-        <p
-          className="font-black text-sm leading-tight truncate"
-          style={{
-            color: "#2E7D32",
-            fontFamily: "'Cairo','Tajawal',sans-serif",
-            maxWidth: 160,
-          }}
-        >
-          {title}
-        </p>
-        {ad.link && (
-          <span
-            className="flex items-center gap-1 mt-0.5"
-            style={{ color: "rgba(46,125,50,0.45)", fontSize: 10, fontFamily: "'Cairo','Tajawal',sans-serif" }}
-          >
-            <ExternalLink size={9} />
-            {t("اضغط للمزيد", "Cliquer pour plus")}
-          </span>
-        )}
-      </div>
     </div>
   );
 }

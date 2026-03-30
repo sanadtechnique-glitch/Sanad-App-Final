@@ -738,7 +738,7 @@ function DelegationsSection({ t }: { t: (ar: string, fr: string) => string }) {
 function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [items, setItems] = useState<PromoBanner[]>([]);
   const [modal, setModal] = useState<null | "add" | PromoBanner>(null);
-  const [form, setForm] = useState({ titleAr:"", titleFr:"", imageUrl:"", link:"", bgColor:"#2E7D32", isActive:true, startsAt:"", endsAt:"" });
+  const [form, setForm] = useState({ titleAr:"", titleFr:"", imageUrl:"", bgColor:"#2E7D32", isActive:true, startsAt:"", endsAt:"" });
 
   const load = () => get<PromoBanner[]>("/admin/banners").then(setItems).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -763,7 +763,7 @@ function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-black text-[#2E7D32]">{t("الإعلانات","Bannières Publicitaires")}</h2>
-        <GoldBtn onClick={() => { setForm({titleAr:"",titleFr:"",imageUrl:"",link:"",bgColor:"#2E7D32",isActive:true,startsAt:"",endsAt:""}); setModal("add"); }}>
+        <GoldBtn onClick={() => { setForm({titleAr:"",titleFr:"",imageUrl:"",bgColor:"#2E7D32",isActive:true,startsAt:"",endsAt:""}); setModal("add"); }}>
           <Plus size={14}/>{t("إضافة إعلان","Ajouter bannière")}
         </GoldBtn>
       </div>
@@ -813,8 +813,8 @@ function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
             {/* Controls row */}
             <div className="flex items-center justify-between px-4 py-3 gap-3 border-t border-[#2E7D32]/5">
               <div className="flex items-center gap-2 min-w-0">
-                {b.link && (
-                  <a href={b.link} target="_blank" rel="noopener noreferrer"
+                {false && (
+                  <a href="#"
                     className="text-[10px] text-[#2E7D32]/40 hover:text-[#2E7D32] truncate max-w-[180px] flex items-center gap-1">
                     <ExternalLink size={10} /> {b.link}
                   </a>
@@ -836,7 +836,7 @@ function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
                 {/* Edit */}
                 <button
                   onClick={() => {
-                    setForm({ titleAr: b.titleAr, titleFr: b.titleFr, imageUrl: b.imageUrl || "", link: b.link || "", bgColor: b.bgColor || "#2E7D32", isActive: b.isActive, startsAt: "", endsAt: "" });
+                    setForm({ titleAr: b.titleAr, titleFr: b.titleFr, imageUrl: b.imageUrl || "", bgColor: b.bgColor || "#2E7D32", isActive: b.isActive, startsAt: "", endsAt: "" });
                     setModal(b);
                   }}
                   className="p-2 rounded-xl bg-[#2E7D32]/8 text-[#2E7D32]/50 hover:text-[#2E7D32] hover:bg-[#2E7D32]/15 transition-all"
@@ -861,7 +861,6 @@ function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
           <Field label={t("العنوان فرنسي","Titre français")}><Input value={form.titleFr} onChange={v => setForm(f => ({...f, titleFr: v}))} placeholder="Offre spéciale!" /></Field>
         </div>
         <Field label={t("رابط الصورة","URL de l'image")}><Input value={form.imageUrl} onChange={v => setForm(f => ({...f, imageUrl: v}))} placeholder="https://..." /></Field>
-        <Field label={t("الرابط","Lien (optionnel)")}><Input value={form.link} onChange={v => setForm(f => ({...f, link: v}))} placeholder="https://..." /></Field>
         <Field label={t("لون الخلفية","Couleur de fond")}>
           <div className="flex items-center gap-3">
             <input type="color" value={form.bgColor} onChange={e => setForm(f => ({...f, bgColor: e.target.value}))} className="w-12 h-10 rounded-lg border border-[#2E7D32]/10 bg-transparent cursor-pointer" />
