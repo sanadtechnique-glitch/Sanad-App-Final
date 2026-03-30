@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Package, Tag, Users, ShoppingBag,
   Truck, Map, Megaphone, RefreshCw, Plus, Pencil, Trash2,
   X, Check, Clock, CheckCircle, AlertCircle, Star,
-  ChevronRight, Power, MessageCircle, Moon, Sun, Hotel, Car,
+  ChevronRight, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -762,24 +762,89 @@ function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
           <Plus size={14}/>{t("إضافة إعلان","Ajouter bannière")}
         </GoldBtn>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Summary stats */}
+      <div className="flex gap-3 text-sm">
+        <span className="px-3 py-1 rounded-full bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 font-bold">
+          {items.filter(b => b.isActive).length} {t("نشط","actif(s)")}
+        </span>
+        <span className="px-3 py-1 rounded-full bg-[#2E7D32]/5 text-[#2E7D32]/40 border border-[#2E7D32]/10 font-bold">
+          {items.filter(b => !b.isActive).length} {t("متوقف","inactif(s)")}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {items.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-[#2E7D32]/20 p-10 text-center">
+            <Megaphone size={32} className="mx-auto text-[#2E7D32]/20 mb-2" />
+            <p className="text-[#2E7D32]/40 text-sm">{t("لا توجد إعلانات بعد","Aucune annonce pour l'instant")}</p>
+          </div>
+        )}
         {items.map(b => (
-          <div key={b.id} className="rounded-2xl overflow-hidden border border-[#2E7D32]/10" style={{ background: b.bgColor + "20" }}>
-            <div className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-black text-[#2E7D32] text-lg">{b.titleAr}</p>
-                  <p className="text-sm text-[#2E7D32]/60">{b.titleFr}</p>
-                  {b.link && <a href={b.link} target="_blank" className="text-xs text-[#2E7D32] mt-1 block truncate">{b.link}</a>}
+          <div key={b.id} className="rounded-2xl overflow-hidden border border-[#2E7D32]/10 bg-[#FFFDE7]">
+            {/* Mini preview strip */}
+            <div
+              className="h-16 flex items-center px-5 gap-4 relative overflow-hidden"
+              style={{ background: b.bgColor ? b.bgColor + "25" : "rgba(46,125,50,0.08)" }}
+            >
+              {b.imageUrl ? (
+                <img src={b.imageUrl} alt="" className="h-10 w-14 object-cover rounded-lg flex-shrink-0 shadow" />
+              ) : (
+                <div className="h-10 w-10 rounded-xl flex-shrink-0 flex items-center justify-center shadow"
+                  style={{ background: b.bgColor || "#2E7D32" }}>
+                  <Megaphone size={16} className="text-white" />
                 </div>
-                <div className="flex gap-2 items-center">
-                  <button onClick={() => toggleActive(b.id, b.isActive)}
-                    className={cn("px-3 py-1 rounded-full text-xs font-bold border", b.isActive ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20" : "bg-[#2E7D32]/5 text-[#2E7D32]/30 border-[#2E7D32]/10")}>
-                    {b.isActive ? t("نشط","Actif") : t("متوقف","Inactif")}
-                  </button>
-                  <button onClick={() => { setForm({titleAr:b.titleAr,titleFr:b.titleFr,imageUrl:b.imageUrl||"",link:b.link||"",bgColor:b.bgColor||"#2E7D32",isActive:b.isActive,startsAt:"",endsAt:""}); setModal(b); }} className="p-2 rounded-lg bg-[#2E7D32]/10 text-[#2E7D32]/40 hover:text-[#2E7D32]"><Pencil size={13}/></button>
-                  <button onClick={() => remove(b.id)} className="p-2 rounded-lg bg-[#2E7D32]/10 text-[#2E7D32]/40 hover:text-red-400"><Trash2 size={13}/></button>
-                </div>
+              )}
+              <div dir="rtl" className="flex-1 min-w-0">
+                <p className="font-black text-[#2E7D32] text-sm truncate">{b.titleAr}</p>
+                <p className="text-[#2E7D32]/50 text-xs truncate">{b.titleFr}</p>
+              </div>
+              {/* Live/Hidden badge */}
+              <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-black flex-shrink-0",
+                b.isActive ? "bg-emerald-400/15 text-emerald-500 border border-emerald-400/25" : "bg-zinc-400/10 text-zinc-400 border border-zinc-400/20")}>
+                {b.isActive ? t("● مباشر","● Live") : t("○ متوقف","○ Caché")}
+              </span>
+            </div>
+
+            {/* Controls row */}
+            <div className="flex items-center justify-between px-4 py-3 gap-3 border-t border-[#2E7D32]/5">
+              <div className="flex items-center gap-2 min-w-0">
+                {b.link && (
+                  <a href={b.link} target="_blank" rel="noopener noreferrer"
+                    className="text-[10px] text-[#2E7D32]/40 hover:text-[#2E7D32] truncate max-w-[180px] flex items-center gap-1">
+                    <ExternalLink size={10} /> {b.link}
+                  </a>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Live / Hidden toggle */}
+                <button
+                  onClick={() => toggleActive(b.id, b.isActive)}
+                  className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all",
+                    b.isActive
+                      ? "bg-emerald-400/10 text-emerald-500 border-emerald-400/25 hover:bg-red-400/10 hover:text-red-400 hover:border-red-400/25"
+                      : "bg-[#2E7D32]/8 text-[#2E7D32]/40 border-[#2E7D32]/10 hover:bg-emerald-400/10 hover:text-emerald-500 hover:border-emerald-400/25"
+                  )}
+                >
+                  <Power size={11} />
+                  {b.isActive ? t("إيقاف","Désactiver") : t("تفعيل","Activer")}
+                </button>
+                {/* Edit */}
+                <button
+                  onClick={() => {
+                    setForm({ titleAr: b.titleAr, titleFr: b.titleFr, imageUrl: b.imageUrl || "", link: b.link || "", bgColor: b.bgColor || "#2E7D32", isActive: b.isActive, startsAt: "", endsAt: "" });
+                    setModal(b);
+                  }}
+                  className="p-2 rounded-xl bg-[#2E7D32]/8 text-[#2E7D32]/50 hover:text-[#2E7D32] hover:bg-[#2E7D32]/15 transition-all"
+                >
+                  <Pencil size={13} />
+                </button>
+                {/* Delete */}
+                <button
+                  onClick={() => remove(b.id)}
+                  className="p-2 rounded-xl bg-red-400/8 text-red-400/50 hover:text-red-400 hover:bg-red-400/15 transition-all"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { SanadBrand } from "@/components/sanad-brand";
+import { AdBanner } from "@/components/ad-banner";
 import { useLang } from "@/lib/language";
 import { getSession } from "@/lib/auth";
 import {
@@ -443,6 +444,13 @@ export default function Home() {
 
         </div>
       </motion.section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          GLOBAL AD BANNER
+      ══════════════════════════════════════════════════════════════════════ */}
+      <div className="px-4 sm:px-6 lg:px-10 mt-8">
+        <AdBanner />
+      </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
           FOOTER

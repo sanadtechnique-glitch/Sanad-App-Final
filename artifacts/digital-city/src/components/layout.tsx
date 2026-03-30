@@ -7,6 +7,7 @@ import { useCart } from "@/lib/cart";
 import { getSession, clearSession } from "@/lib/auth";
 import { useNotifications } from "@/lib/notifications";
 import { motion, AnimatePresence } from "framer-motion";
+import { AdBanner } from "@/components/ad-banner";
 
 function LangToggle() {
   const { lang, setLang } = useLang();
@@ -526,8 +527,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 w-full max-w-7xl mx-auto pb-20 md:pb-4">
         {children}
 
+        {/* ── Global Ad Banner — above footer, non-intrusive ── */}
+        <div className="px-4 sm:px-6 mt-8 mb-4">
+          <AdBanner />
+        </div>
+
         {/* ── Footer ── */}
-        <footer className="mt-8 mb-4 flex flex-col items-center gap-1 select-none">
+        <footer className="mt-2 mb-4 flex flex-col items-center gap-1 select-none">
           <p
             className="text-[11px] font-bold tracking-wide"
             style={{ color: "rgba(27,94,32,0.55)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
