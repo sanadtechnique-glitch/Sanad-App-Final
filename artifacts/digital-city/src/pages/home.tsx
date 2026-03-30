@@ -1,277 +1,467 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
-import { Layout } from "@/components/layout";
 import { SanadBrand } from "@/components/sanad-brand";
 import { useLang } from "@/lib/language";
-import { get } from "@/lib/admin-api";
 import { getSession } from "@/lib/auth";
 import {
   Utensils, Pill, Scale, ShoppingCart, Wrench, Stethoscope,
-  ChevronRight, Star, Car, Hotel, Zap, Clock, Shield, UserCircle, LogIn,
+  Car, Hotel, LogIn, UserCircle, ChevronLeft, ChevronRight,
+  MapPin, Truck, Eye, Grid,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
-const CATEGORIES = [
-  { id: "restaurant", icon: Utensils,     ar: "مطاعم",     fr: "Restaurants",  descAr: "أفضل المطاعم",            descFr: "Meilleurs restaurants",   color: "from-orange-500/20 to-red-500/20",     iconColor: "text-orange-400",  border: "hover:border-orange-500/30" },
-  { id: "pharmacy",   icon: Pill,         ar: "صيدلية",    fr: "Pharmacie",    descAr: "أدوية ومستلزمات",          descFr: "Médicaments & soins",     color: "from-emerald-500/20 to-teal-500/20",   iconColor: "text-emerald-400", border: "hover:border-emerald-500/30" },
-  { id: "lawyer",     icon: Scale,        ar: "محامي",     fr: "Avocat",       descAr: "استشارات قانونية",          descFr: "Conseils juridiques",     color: "from-amber-500/20 to-yellow-500/20",   iconColor: "text-amber-400",   border: "hover:border-amber-500/30" },
-  { id: "grocery",    icon: ShoppingCart, ar: "بقالة",     fr: "Épicerie",     descAr: "مواد غذائية طازجة",         descFr: "Produits frais",          color: "from-blue-500/20 to-cyan-500/20",      iconColor: "text-blue-400",    border: "hover:border-blue-500/30" },
-  { id: "mechanic",   icon: Wrench,       ar: "ميكانيكي", fr: "Mécanicien",   descAr: "صيانة السيارات",            descFr: "Réparation auto",         color: "from-zinc-400/20 to-slate-500/20",     iconColor: "text-zinc-300",    border: "hover:border-zinc-400/30" },
-  { id: "doctor",     icon: Stethoscope,  ar: "طبيب",      fr: "Médecin",      descAr: "رعاية صحية متكاملة",         descFr: "Soins médicaux",          color: "from-rose-500/20 to-pink-500/20",      iconColor: "text-rose-400",    border: "hover:border-rose-500/30" },
-  { id: "car",        icon: Car,          ar: "سيارات",    fr: "Voitures",     descAr: "بيع وتأجير السيارات",        descFr: "Vente & location auto",   color: "from-sky-500/20 to-blue-500/20",       iconColor: "text-sky-400",     border: "hover:border-sky-500/30" },
-  { id: "hotel",      icon: Hotel,        ar: "فنادق",     fr: "Hôtels",       descAr: "حجز فنادق مريحة",            descFr: "Réservation hôtels",      color: "from-violet-500/20 to-purple-500/20",  iconColor: "text-violet-400",  border: "hover:border-violet-500/30" },
+// PANORAMIC PROMO SLIDES
+// Admin: Edit this array to update the advertising slider on the homepage.
+// ─────────────────────────────────────────────────────────────────────────────
+const PROMO_SLIDES = [
+  {
+    id: 1,
+    imageUrl: "",
+    titleAr: "عروض رمضان الحصرية",
+    titleFr: "Offres exclusives Ramadan",
+    subtitleAr: "أفضل العروض من مطاعم ومحلات بن قردان",
+    subtitleFr: "Les meilleures offres des restaurants de Ben Guerdane",
+    bgFrom: "#2E7D32",
+    bgTo: "#1B5E20",
+    accent: "#FFA500",
+  },
+  {
+    id: 2,
+    imageUrl: "",
+    titleAr: "توصيل سريع لباب الدار",
+    titleFr: "Livraison rapide à domicile",
+    subtitleAr: "طلبك في أقل من 45 دقيقة — في أي مكان بالمدينة",
+    subtitleFr: "Votre commande en moins de 45 min — partout en ville",
+    bgFrom: "#E65100",
+    bgTo: "#BF360C",
+    accent: "#FFF3E0",
+  },
+  {
+    id: 3,
+    imageUrl: "",
+    titleAr: "انضم كمزود خدمة",
+    titleFr: "Rejoignez-nous en tant que prestataire",
+    subtitleAr: "سجّل محلك أو مطعمك وابدأ استقبال الطلبات اليوم",
+    subtitleFr: "Inscrivez votre boutique et commencez à recevoir des commandes",
+    bgFrom: "#1565C0",
+    bgTo: "#0D47A1",
+    accent: "#FFA500",
+  },
 ];
 
-interface PromoBanner { id: number; titleAr: string; titleFr: string; bgColor?: string; link?: string; imageUrl?: string; }
+// ─────────────────────────────────────────────────────────────────────────────
+// SERVICE CATEGORIES
+// ─────────────────────────────────────────────────────────────────────────────
+const CATEGORIES = [
+  { id: "restaurant", icon: Utensils,     ar: "مطاعم",    fr: "Restaurants" },
+  { id: "pharmacy",   icon: Pill,         ar: "صيدلية",   fr: "Pharmacie"   },
+  { id: "lawyer",     icon: Scale,        ar: "محامي",    fr: "Avocat"      },
+  { id: "grocery",    icon: ShoppingCart, ar: "بقالة",    fr: "Épicerie"    },
+  { id: "mechanic",   icon: Wrench,       ar: "ميكانيكي", fr: "Mécanicien"  },
+  { id: "doctor",     icon: Stethoscope,  ar: "طبيب",     fr: "Médecin"     },
+  { id: "car",        icon: Car,          ar: "سيارات",   fr: "Voitures"    },
+  { id: "hotel",      icon: Hotel,        ar: "فنادق",    fr: "Hôtels"      },
+];
 
-const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } };
-const itemAnim  = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 280, damping: 22 } } };
+// ─────────────────────────────────────────────────────────────────────────────
+// PANORAMIC SLIDER COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+function PromoSlider({ lang }: { lang: string }) {
+  const [active, setActive] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const resetTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setActive(i => (i + 1) % PROMO_SLIDES.length);
+    }, 5000);
+  };
+
+  useEffect(() => {
+    resetTimer();
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
+  const slide = PROMO_SLIDES[active];
+
+  const goTo = (idx: number) => {
+    setActive(idx);
+    resetTimer();
+  };
+
+  return (
+    <div className="relative w-full overflow-hidden rounded-2xl shadow-lg"
+      style={{ aspectRatio: "21/9", minHeight: 140, maxHeight: 320 }}>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={slide.id}
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -40 }}
+          transition={{ duration: 0.45, ease: "easeInOut" }}
+          className="absolute inset-0 flex items-center justify-center px-8 sm:px-14"
+          style={{
+            background: `linear-gradient(135deg, ${slide.bgFrom} 0%, ${slide.bgTo} 100%)`,
+          }}
+        >
+          {/* Background texture */}
+          <div className="absolute inset-0 opacity-10"
+            style={{
+              backgroundImage: "radial-gradient(circle at 25% 50%, rgba(255,255,255,0.25) 0%, transparent 50%), radial-gradient(circle at 75% 50%, rgba(255,255,255,0.15) 0%, transparent 50%)",
+            }} />
+
+          {/* Accent circle */}
+          <div className="absolute right-6 top-1/2 -translate-y-1/2 w-32 h-32 rounded-full opacity-15"
+            style={{ background: slide.accent }} />
+
+          {/* Content */}
+          <div className="relative z-10 text-center" dir="rtl">
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="text-sm font-bold mb-1 opacity-80"
+              style={{ color: slide.accent, fontFamily: "'Cairo','Tajawal',sans-serif" }}
+            >
+              {lang === "ar" ? slide.subtitleAr : slide.subtitleFr}
+            </motion.p>
+            <motion.h2
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-2xl sm:text-3xl font-black text-white leading-snug"
+              style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}
+            >
+              {lang === "ar" ? slide.titleAr : slide.titleFr}
+            </motion.h2>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Prev / Next arrows */}
+      <button
+        onClick={() => goTo((active - 1 + PROMO_SLIDES.length) % PROMO_SLIDES.length)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/35 transition-all"
+        aria-label="Previous"
+      >
+        <ChevronRight size={16} className="text-white" />
+      </button>
+      <button
+        onClick={() => goTo((active + 1) % PROMO_SLIDES.length)}
+        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/35 transition-all"
+        aria-label="Next"
+      >
+        <ChevronLeft size={16} className="text-white" />
+      </button>
+
+      {/* Navigation dots */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+        {PROMO_SLIDES.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => goTo(i)}
+            className="rounded-full transition-all duration-300"
+            style={{
+              width: i === active ? 20 : 8,
+              height: 8,
+              background: i === active ? "#2E7D32" : "rgba(255,255,255,0.5)",
+            }}
+            aria-label={`Slide ${i + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN HOME PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
   const { lang, t, isRTL } = useLang();
   const [, navigate] = useLocation();
   const session = getSession();
-  const [supplierCount, setSupplierCount] = useState<number | null>(null);
-  const [banners, setBanners] = useState<PromoBanner[]>([]);
-  const [bannerIndex, setBannerIndex] = useState(0);
-
-  useEffect(() => {
-    get<{ id: number }[]>("/services")
-      .then(data => setSupplierCount(data.length))
-      .catch(() => setSupplierCount(12));
-    get<PromoBanner[]>("/banners")
-      .then(data => setBanners(data.filter(b => (b as any).isActive !== false)))
-      .catch(() => {});
-  }, []);
-
-  // Auto-rotate banners
-  useEffect(() => {
-    if (banners.length < 2) return;
-    const t = setInterval(() => setBannerIndex(i => (i + 1) % banners.length), 5000);
-    return () => clearInterval(t);
-  }, [banners]);
 
   return (
-    <Layout>
-      <div className="relative pb-28" dir={isRTL ? "rtl" : "ltr"}>
+    <div
+      className="min-h-screen"
+      style={{ background: "#FFF3E0", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+      dir="rtl"
+    >
 
-        {/* ── Hero Section ── */}
-        <section className="relative h-[44vh] min-h-[320px] w-full flex items-center justify-center overflow-hidden rounded-b-[2.5rem] border-b border-[#2E7D32]/8">
-
-          {/* ── Login / Profile button — top right ── */}
-          <motion.div
-            initial={{ opacity: 0, x: isRTL ? -24 : 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.35, duration: 0.45 }}
-            className="absolute top-4 right-4 z-20"
-          >
-            {session ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#1B5E20]/50 bg-[#1B5E20]/12"
-                style={{ backdropFilter: "blur(6px)" }}>
-                <UserCircle size={17} className="text-[#1B5E20]" />
-                <span className="text-[#1B5E20] font-black text-xs" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-                  {session.username}
-                </span>
-              </div>
-            ) : (
-              <button
-                onClick={() => navigate("/auth")}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full font-black text-xs text-white transition-all hover:scale-105 active:scale-95"
-                style={{ background: "#2E7D32", boxShadow: "0 3px 12px rgba(46,125,50,0.40)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
-              >
-                <LogIn size={14} />
-                {t("دخول", "Connexion")}
-              </button>
-            )}
-          </motion.div>
-
-          <img
-            src={`${import.meta.env.BASE_URL}images/hero-bg.png`}
-            alt="" aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover opacity-45"
-            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-          />
-          {/* Gradient overlays */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#FFA500]/80 via-[#FFA500]/40 to-[#FFA500]" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#FFA500]/40 via-transparent to-[#FFA500]/40" />
-          {/* Animated gold particle */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full"
-              style={{ background: "radial-gradient(circle, rgba(46,125,50,0.08) 0%, transparent 70%)", animation: "pulse 6s ease-in-out infinite" }} />
-          </div>
-
-          <motion.div initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: "easeOut" }}
-            className="relative z-10 text-center px-4">
-            {/* Badge */}
-            <motion.span initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
-              className="inline-block mb-5 px-4 py-1.5 rounded-full border border-[#2E7D32]/40 bg-[#2E7D32]/10 text-[#2E7D32] text-xs font-black tracking-[0.25em] uppercase">
-              {t("بن قردان · تونس", "Ben Guerdane · Tunisie")}
-            </motion.span>
-
-            {/* Title */}
-            <h1 dir={isRTL ? "rtl" : "ltr"}
-              className="text-6xl md:text-8xl font-black text-[#2E7D32] mb-3 leading-tight"
-              style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-              <SanadBrand color="#2E7D32" innerColor="#FFA500" />
-            </h1>
-
-            <p className="text-base md:text-lg text-[#2E7D32]/70 font-bold tracking-wide" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-              {isRTL
-                ? <><SanadBrand color="#2E7D32" innerColor="#FFA500" />{"ك في التوصيل.. لباب الدار"}</>
-                : "Sanad — Livraison jusqu'à votre porte"
-              }
-            </p>
-          </motion.div>
-        </section>
-
-        {/* ── Stats Bar ── */}
-        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
-          className="flex items-center justify-center gap-6 py-4 border-b border-[#2E7D32]/5 text-sm text-[#2E7D32]/45">
-          <span className="flex items-center gap-1.5">
-            <Star size={13} className="text-[#2E7D32] fill-[#2E7D32]" />
-            {t("تقييم ممتاز", "Service excellent")}
-          </span>
-          <span className="w-px h-4 bg-[#2E7D32]/10" />
-          <span className="flex items-center gap-1.5">
-            <Zap size={13} className="text-[#2E7D32]" />
-            {supplierCount != null
-              ? t(`${supplierCount} مزود خدمة`, `${supplierCount} prestataires`)
-              : t("مزودو الخدمات", "Nos prestataires")}
-          </span>
-          <span className="w-px h-4 bg-[#2E7D32]/10" />
-          <span className="flex items-center gap-1.5">
-            <Clock size={13} className="text-[#2E7D32]" />
-            {t("توصيل سريع", "Livraison rapide")}
+      {/* ══════════════════════════════════════════════════════════════════════
+          HEADER
+      ══════════════════════════════════════════════════════════════════════ */}
+      <header
+        className="sticky top-0 z-50 w-full px-4 sm:px-6 lg:px-10 py-3 flex items-center justify-between"
+        style={{
+          background: "rgba(255,243,224,0.92)",
+          borderBottom: "1.5px solid rgba(46,125,50,0.12)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+        }}
+      >
+        {/* Logo — right side in RTL */}
+        <motion.div
+          initial={{ opacity: 0, x: 16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4 }}
+          className="flex items-center gap-2 cursor-pointer"
+          onClick={() => navigate("/home")}
+        >
+          <span style={{ fontSize: "1.65rem", fontWeight: 900, lineHeight: 1 }}>
+            <SanadBrand color="#2E7D32" innerColor="#FFF3E0" />
           </span>
         </motion.div>
 
-        {/* ── Promo Banners ── */}
-        {banners.length > 0 && (
-          <section className="px-4 sm:px-6 lg:px-8 mt-7">
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-              className="relative overflow-hidden rounded-2xl min-h-[80px] cursor-pointer"
-              style={{ background: banners[bannerIndex]?.bgColor ? `${banners[bannerIndex].bgColor}18` : "rgba(46,125,50,0.08)", border: `1px solid ${banners[bannerIndex]?.bgColor || "#2E7D32"}30` }}
-              onClick={() => banners[bannerIndex]?.link && window.open(banners[bannerIndex].link, "_blank")}>
-              {/* Glow blob */}
-              <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl pointer-events-none"
-                style={{ background: `${banners[bannerIndex]?.bgColor || "#2E7D32"}20` }} />
-              <div className="relative z-10 px-5 py-4 flex items-center justify-between gap-4">
-                <div>
-                  <p className="font-black text-[#2E7D32] text-lg leading-tight">
-                    {lang === "ar" ? banners[bannerIndex]?.titleAr : banners[bannerIndex]?.titleFr}
-                  </p>
-                  {banners.length > 1 && (
-                    <div className="flex gap-1 mt-2">
-                      {banners.map((_, i) => (
-                        <button key={i} onClick={e => { e.stopPropagation(); setBannerIndex(i); }}
-                          className="w-1.5 h-1.5 rounded-full transition-all"
-                          style={{ background: i === bannerIndex ? "#FFD700" : "rgba(255,255,255,0.25)" }} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {banners[bannerIndex]?.link && (
-                  <ChevronRight size={18} className={`text-[#2E7D32]/60 flex-shrink-0 ${isRTL ? "rotate-180" : ""}`} />
-                )}
+        {/* Right actions — left side in RTL layout */}
+        <motion.div
+          initial={{ opacity: 0, x: -16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="flex items-center gap-2"
+        >
+          {session ? (
+            <>
+              {/* Services link for logged-in clients */}
+              {session.role === "client" && (
+                <Link href="/services">
+                  <button className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:bg-[#2E7D32]/10"
+                    style={{ color: "#2E7D32" }}>
+                    <Grid size={14} />
+                    {t("الخدمات", "Services")}
+                  </button>
+                </Link>
+              )}
+              {/* Profile pill */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#2E7D32]/30"
+                style={{ background: "#2E7D32", cursor: "default" }}>
+                <UserCircle size={15} className="text-white" />
+                <span className="text-white font-black text-xs">{session.username}</span>
               </div>
-            </motion.div>
-          </section>
-        )}
+            </>
+          ) : (
+            <button
+              onClick={() => navigate("/auth")}
+              className="flex items-center gap-2 px-5 py-2 rounded-full font-black text-sm text-white transition-all hover:opacity-90 active:scale-95"
+              style={{
+                background: "#2E7D32",
+                boxShadow: "0 3px 14px rgba(46,125,50,0.30)",
+              }}
+            >
+              <LogIn size={15} />
+              {t("دخول", "Connexion")}
+            </button>
+          )}
+        </motion.div>
+      </header>
 
-        {/* ── Services Grid ── */}
-        <section className="px-4 sm:px-6 lg:px-8 mt-9">
-          <div className={`mb-7 ${isRTL ? "text-right" : "text-left"}`}>
-            <h2 className="text-2xl font-black text-[#2E7D32] mb-1">
-              {t("خدماتنا", "Nos Services")}
-            </h2>
-            <p className="text-[#2E7D32]/35 text-sm">
-              {t("اختر الخدمة المناسبة", "Choisissez votre service")}
-            </p>
-          </div>
+      {/* ══════════════════════════════════════════════════════════════════════
+          PANORAMIC ADVERTISING SLIDER
+      ══════════════════════════════════════════════════════════════════════ */}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="px-4 sm:px-6 lg:px-10 mt-4"
+      >
+        <PromoSlider lang={lang} />
+      </motion.section>
 
-          <motion.div key={lang} variants={container} initial="hidden" animate="show"
-            className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-x-3 gap-y-6">
-            {CATEGORIES.map(cat => {
-              const Icon = cat.icon;
-              const label = lang === "ar" ? cat.ar : cat.fr;
-              return (
-                <motion.div key={cat.id} variants={itemAnim}>
-                  <Link href={`/services?category=${cat.id}`}>
-                    <div className="flex flex-col items-center text-center gap-2.5 cursor-pointer group">
-                      {/* Circle — transparent bg, dark border */}
-                      <div className={[
-                        "w-16 h-16 rounded-full flex items-center justify-center",
-                        "border-2 border-[#1B5E20]/80",
-                        "bg-white/15",
-                        "group-hover:border-[#1B5E20] group-hover:bg-white/25 transition-all duration-200",
-                      ].join(" ")}>
-                        <Icon size={27} className="text-[#1B5E20] group-hover:scale-110 transition-transform duration-300" />
-                      </div>
-                      {/* Label below circle */}
-                      <p className="font-black text-[#1B5E20] text-xs leading-snug">
-                        {label}
-                      </p>
+      {/* ══════════════════════════════════════════════════════════════════════
+          SERVICES GRID
+      ══════════════════════════════════════════════════════════════════════ */}
+      <section className="px-4 sm:px-6 lg:px-10 mt-8">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-5 text-right"
+        >
+          <h2 className="text-xl font-black text-[#2E7D32]">
+            {t("خدماتنا", "Nos Services")}
+          </h2>
+          <p className="text-sm font-medium" style={{ color: "rgba(46,125,50,0.5)" }}>
+            {t("اختر الخدمة المناسبة", "Choisissez votre service")}
+          </p>
+        </motion.div>
+
+        <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-3 sm:gap-4">
+          {CATEGORIES.map((cat, i) => {
+            const Icon = cat.icon;
+            const label = lang === "ar" ? cat.ar : cat.fr;
+            return (
+              <motion.div
+                key={cat.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.05, type: "spring", stiffness: 280, damping: 22 }}
+              >
+                <Link href={`/services?category=${cat.id}`}>
+                  <div className="flex flex-col items-center text-center gap-2 cursor-pointer group">
+                    <div
+                      className="w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105"
+                      style={{
+                        border: "2.5px solid rgba(46,125,50,0.65)",
+                        background: "rgba(46,125,50,0.06)",
+                      }}
+                    >
+                      <Icon size={24} style={{ color: "#2E7D32" }} />
                     </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        </section>
-
-        {/* ── Trust badges ── */}
-        <section className="px-4 sm:px-6 lg:px-8 mt-8">
-          <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}
-            className="grid grid-cols-3 gap-3">
-            {[
-              { icon: Shield,  ar: "خصوصية تامة",   fr: "Confidentialité", sub: { ar: "بدون أرقام هاتف", fr: "Sans numéros" } },
-              { icon: Zap,     ar: "توصيل سريع",    fr: "Livraison rapide", sub: { ar: "أسرع وقت ممكن",  fr: "Le plus vite possible" } },
-              { icon: Star,    ar: "جودة مضمونة",   fr: "Qualité garantie", sub: { ar: "مزودون موثوقون", fr: "Prestataires vérifiés" } },
-            ].map(badge => {
-              const Icon = badge.icon;
-              return (
-                <div key={badge.ar} className="glass-panel rounded-2xl p-4 flex flex-col items-center text-center border border-[#2E7D32]/5">
-                  <div className="w-9 h-9 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/20 flex items-center justify-center mb-2">
-                    <Icon size={16} className="text-[#2E7D32]" />
+                    <p className="font-black text-[11px] leading-snug" style={{ color: "#2E7D32" }}>
+                      {label}
+                    </p>
                   </div>
-                  <p className="text-xs font-black text-[#2E7D32] leading-tight">{lang === "ar" ? badge.ar : badge.fr}</p>
-                  <p className="text-[10px] text-[#2E7D32]/25 mt-0.5 leading-tight">{lang === "ar" ? badge.sub.ar : badge.sub.fr}</p>
-                </div>
-              );
-            })}
-          </motion.div>
-        </section>
+                </Link>
+              </motion.div>
+            );
+          })}
+        </div>
+      </section>
 
-        {/* ── CTA Banner ── */}
-        <section className="px-4 sm:px-6 lg:px-8 mt-7">
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
-            className="relative overflow-hidden rounded-2xl p-6 border border-[#2E7D32]/20"
-            style={{ background: "linear-gradient(135deg, rgba(46,125,50,0.08) 0%, rgba(0,0,0,0) 60%)" }}>
-            <div className="absolute top-0 right-0 w-52 h-52 rounded-full blur-3xl pointer-events-none"
-              style={{ background: "rgba(46,125,50,0.07)" }} />
-            <div className={`relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 ${isRTL ? "sm:flex-row" : "sm:flex-row-reverse"}`}>
-              <div className={isRTL ? "text-right" : "text-left"}>
-                <h3 className="text-xl font-black text-[#2E7D32] mb-1">
-                  {t("هل تحتاج مساعدة؟", "Besoin d'aide ?")}
-                </h3>
-                <p className="text-sm text-[#2E7D32]/40">
-                  {t("تصفح كل مقدمي الخدمة في منطقتك", "Parcourez tous les prestataires")}
-                </p>
-              </div>
-              <Link href="/services">
-                <button className="flex-shrink-0 flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm transition-all hover:opacity-90 active:scale-95"
-                  style={{ background: "#2E7D32", color: "white", boxShadow: "0 0 20px -5px rgba(46,125,50,0.5)" }}>
-                  {t("تصفح الخدمات", "Voir les services")}
-                  <ChevronRight size={15} className={isRTL ? "rotate-180" : ""} />
-                </button>
-              </Link>
+      {/* ══════════════════════════════════════════════════════════════════════
+          ABOUT US  —  "عن سند.. لماذا نحن هنا؟"
+      ══════════════════════════════════════════════════════════════════════ */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="px-4 sm:px-8 lg:px-16 mt-10 mb-6"
+      >
+        {/* Divider */}
+        <div className="flex items-center gap-4 mb-7">
+          <div className="flex-1 h-px" style={{ background: "rgba(46,125,50,0.18)" }} />
+          <MapPin size={18} style={{ color: "#2E7D32", flexShrink: 0 }} />
+          <div className="flex-1 h-px" style={{ background: "rgba(46,125,50,0.18)" }} />
+        </div>
+
+        {/* Heading */}
+        <h2
+          className="text-2xl font-black text-center mb-8"
+          style={{ color: "#2E7D32", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+          dir="rtl"
+        >
+          عن سند.. لماذا نحن هنا؟
+        </h2>
+
+        <div className="flex flex-col gap-6 max-w-2xl mx-auto">
+
+          {/* Section 1 — The Purpose */}
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="rounded-2xl p-5 text-center"
+            style={{
+              background: "rgba(46,125,50,0.06)",
+              border: "1.5px solid rgba(46,125,50,0.14)",
+            }}
+          >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
+              style={{ background: "#2E7D32" }}>
+              <Truck size={18} className="text-white" />
             </div>
+            <p
+              className="font-black text-base mb-1"
+              style={{ color: "#2E7D32", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+              dir="rtl"
+            >
+              لماذا وضعناه على ذمتكم؟
+            </p>
+            <p
+              className="text-sm leading-relaxed"
+              style={{ color: "rgba(46,125,50,0.75)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+              dir="rtl"
+            >
+              لأن وقتكم غالي، ولأننا نؤمن بضرورة تقريب المسافات وتسهيل حياتكم اليومية.
+            </p>
           </motion.div>
-        </section>
 
-      </div>
-    </Layout>
+          {/* Section 2 — The Role */}
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.48 }}
+            className="rounded-2xl p-5 text-center"
+            style={{
+              background: "rgba(46,125,50,0.06)",
+              border: "1.5px solid rgba(46,125,50,0.14)",
+            }}
+          >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
+              style={{ background: "#2E7D32" }}>
+              <Grid size={18} className="text-white" />
+            </div>
+            <p
+              className="font-black text-base mb-1"
+              style={{ color: "#2E7D32", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+              dir="rtl"
+            >
+              ما هو دورنا؟
+            </p>
+            <p
+              className="text-sm leading-relaxed"
+              style={{ color: "rgba(46,125,50,0.75)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+              dir="rtl"
+            >
+              نحن الرابط الذكي بينك وبين احتياجاتك؛ سواء كانت قضية من المغازة، طرد مستعجل، أو وجبة من مطعمك المفضل.
+            </p>
+          </motion.div>
+
+          {/* Section 3 — Vision */}
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.56 }}
+            className="rounded-2xl p-5 text-center"
+            style={{
+              background: "rgba(46,125,50,0.06)",
+              border: "1.5px solid rgba(46,125,50,0.14)",
+            }}
+          >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
+              style={{ background: "#2E7D32" }}>
+              <Eye size={18} className="text-white" />
+            </div>
+            <p
+              className="font-black text-base mb-1"
+              style={{ color: "#2E7D32", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+              dir="rtl"
+            >
+              رؤيتنا
+            </p>
+            <p
+              className="text-sm leading-relaxed"
+              style={{ color: "rgba(46,125,50,0.75)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+              dir="rtl"
+            >
+              أن نكون الخيار الأول والآمن لكل مواطن بفضل تكنولوجيا محلية تحترم خصوصيتكم وتلبي تطلعاتكم.
+            </p>
+          </motion.div>
+
+        </div>
+      </motion.section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          FOOTER
+      ══════════════════════════════════════════════════════════════════════ */}
+      <footer
+        className="mt-10 py-5 text-center border-t"
+        style={{
+          borderColor: "rgba(46,125,50,0.12)",
+          background: "rgba(46,125,50,0.04)",
+        }}
+      >
+        <p className="text-xs font-bold" style={{ color: "rgba(46,125,50,0.55)", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+          جميع الحقوق محفوظة © سند · Sanad — بن قردان
+        </p>
+        <p className="text-xs mt-1" style={{ color: "rgba(46,125,50,0.4)", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+          📞 27 777 589
+        </p>
+      </footer>
+
+    </div>
   );
 }
