@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getSession, clearSession } from "@/lib/auth";
 import {
   Truck, CheckCircle, MapPin, RefreshCw, ChevronRight, MessageCircle,
-  LogOut, Check, Package, X, Map, Bell, Clock, AlertCircle,
+  LogOut, Check, Package, X, Map, Bell, Clock, AlertCircle, History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -375,6 +375,13 @@ export default function DeliveryDashboard() {
               </div>
               <div className="flex gap-2 items-center">
                 <NotificationBell lang={lang} role="delivery" />
+                <button
+                  onClick={() => navigate("/orders/history")}
+                  className="p-2.5 rounded-xl border border-[#2E7D32]/20 text-[#2E7D32]/50 hover:text-[#2E7D32] hover:border-[#2E7D32]/50 transition-all"
+                  title={t("سجل التوصيلات", "Historique")}
+                >
+                  <History size={14} />
+                </button>
                 {incomingQueue.length > 0 && (
                   <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/20">
                     <Bell size={13} className="text-[#2E7D32] animate-bounce" />

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut, Bell, CheckCheck, Bike } from "lucide-react";
+import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut, Bell, CheckCheck, Bike, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
@@ -398,8 +398,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const navItems = [
-    { href: "/home",     icon: Home, label: t("الرئيسية", "Accueil")  },
-    { href: "/services", icon: Grid, label: t("الخدمات",  "Services") },
+    { href: "/home",           icon: Home,    label: t("الرئيسية",  "Accueil")    },
+    { href: "/services",       icon: Grid,    label: t("الخدمات",   "Services")   },
+    { href: "/orders/history", icon: History, label: t("طلباتي",    "Mes ordres") },
   ];
 
   return (

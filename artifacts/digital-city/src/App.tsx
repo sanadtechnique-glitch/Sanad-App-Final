@@ -16,6 +16,7 @@ import Admin        from "./pages/admin";
 import Provider     from "./pages/provider";
 import Delivery     from "./pages/delivery";
 import Login        from "./pages/login";
+import OrderHistory from "./pages/order-history";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -145,6 +146,11 @@ function Router() {
       </Route>
       <Route path="/hotel/:id">
         {() => <ProtectedRoute component={HotelBooking}  roles={["client"]} />}
+      </Route>
+
+      {/* ── Order history (multi-role) ── */}
+      <Route path="/orders/history">
+        {() => <ProtectedRoute component={OrderHistory} roles={["client", "provider", "delivery"]} />}
       </Route>
 
       {/* ── Role dashboards ── */}

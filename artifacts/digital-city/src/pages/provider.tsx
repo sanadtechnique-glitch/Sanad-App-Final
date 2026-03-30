@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getSession, clearSession } from "@/lib/auth";
 import {
   Power, Clock, Truck, Star, RefreshCw, MessageCircle, ChevronRight,
-  Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon,
+  Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon, History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -268,6 +268,13 @@ export default function ProviderDashboard() {
             </div>
             <div className="flex gap-2 items-center">
               <NotificationBell lang={lang} role="provider" providerId={selected.id} />
+              <button
+                onClick={() => navigate("/orders/history")}
+                className="p-2.5 rounded-xl border border-[#2E7D32]/20 text-[#2E7D32]/50 hover:text-[#2E7D32] hover:border-[#2E7D32]/50 transition-all"
+                title={t("سجل الطلبات", "Historique")}
+              >
+                <History size={14} />
+              </button>
               <button onClick={() => loadOrders(selected, true)} disabled={refreshing}
                 className="p-2.5 rounded-xl border border-[#2E7D32]/10 text-[#2E7D32]/40 hover:text-[#2E7D32] transition-all">
                 <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />

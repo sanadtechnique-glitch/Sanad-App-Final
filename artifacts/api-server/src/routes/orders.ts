@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { ordersTable, serviceProvidersTable, deliveryStaffTable } from "@workspace/db/schema";
-import { eq, inArray, and } from "drizzle-orm";
+import { eq, inArray, and, ilike } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -110,6 +110,32 @@ router.get("/delivery/orders", async (req, res) => {
   try {
     const orders = await db.select().from(ordersTable)
       .where(inArray(ordersTable.status as any, ["prepared", "driver_accepted", "in_delivery"]));
+    res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Driver: full order history by staffId (including delivered/cancelled)
+router.get("/delivery/staff/:staffId/orders", async (req, res) => {
+  const staffId = parseInt(req.params.staffId);
+  if (isNaN(staffId)) { res.status(400).json({ message: "Invalid staffId" }); return; }
+  try {
+    const orders = await db.select().from(ordersTable)
+      .where(eq(ordersTable.deliveryStaffId, staffId));
+    res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Customer: orders by customer name (history endpoint)
+router.get("/orders/customer", async (req, res) => {
+  const name = req.query.name as string;
+  if (!name) { res.status(400).json({ message: "name is required" }); return; }
+  try {
+    const orders = await db.select().from(ordersTable)
+      .where(ilike(ordersTable.customerName, name));
     res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
   } catch (err) {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
