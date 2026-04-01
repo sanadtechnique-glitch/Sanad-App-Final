@@ -5,7 +5,7 @@ import { getSession, clearSession } from "@/lib/auth";
 import {
   Power, Clock, Truck, Star, RefreshCw, MessageCircle, ChevronRight,
   Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon, History,
-  Plus, Trash2, Pencil, Tag, ToggleLeft, ToggleRight,
+  Plus, Trash2, Pencil, ToggleLeft, ToggleRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -34,61 +34,82 @@ function timeAgo(dateStr: string, lang: string) {
   return lang === "ar" ? `${Math.floor(diff / 60)} س` : `${Math.floor(diff / 60)}h`;
 }
 
-// ── Product type ──────────────────────────────────────────────────────────────
-interface Product { id: number; providerId: number; title: string; description?: string; imageUrl?: string; category?: string; originalPrice?: string; salePrice?: string; isAvailable: boolean; createdAt: string; }
+// ── Article type (stored in articlesTable, visible to customers) ───────────────
+interface Article {
+  id: number; supplierId: number;
+  nameAr: string; nameFr: string;
+  descriptionAr: string; descriptionFr: string;
+  price: number; originalPrice?: number | null;
+  photoUrl?: string | null; isAvailable: boolean; createdAt: string;
+}
 
 // ── Products Management Component ─────────────────────────────────────────────
 function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: string, fr: string) => string; lang: string }) {
-  const [products, setProducts]   = useState<Product[]>([]);
+  const [products, setProducts]   = useState<Article[]>([]);
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm]   = useState(false);
-  const [editing, setEditing]     = useState<Product | null>(null);
+  const [editing, setEditing]     = useState<Article | null>(null);
   const [saving, setSaving]       = useState(false);
-  const EMPTY = { title: "", description: "", imageUrl: "", category: "", originalPrice: "", salePrice: "", isAvailable: true };
+  const EMPTY = { nameAr: "", nameFr: "", descriptionAr: "", photoUrl: "", price: "", originalPrice: "", isAvailable: true };
   const [form, setForm]           = useState(EMPTY);
 
   const load = async () => {
     setLoading(true);
-    try { setProducts(await get<Product[]>(`/provider/${providerId}/products`)); } finally { setLoading(false); }
+    try { setProducts(await get<Article[]>(`/provider/${providerId}/articles`)); } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, [providerId]);
 
   const openAdd  = () => { setEditing(null); setForm(EMPTY); setShowForm(true); };
-  const openEdit = (p: Product) => {
+  const openEdit = (p: Article) => {
     setEditing(p);
-    setForm({ title: p.title, description: p.description || "", imageUrl: p.imageUrl || "", category: p.category || "", originalPrice: p.originalPrice || "", salePrice: p.salePrice || "", isAvailable: p.isAvailable });
+    setForm({
+      nameAr: p.nameAr, nameFr: p.nameFr || "",
+      descriptionAr: p.descriptionAr || "", photoUrl: p.photoUrl || "",
+      price: p.price ? String(p.price) : "",
+      originalPrice: p.originalPrice ? String(p.originalPrice) : "",
+      isAvailable: p.isAvailable,
+    });
     setShowForm(true);
   };
 
   const save = async () => {
     setSaving(true);
     try {
-      const payload = { ...form, originalPrice: form.originalPrice ? Number(form.originalPrice) : null, salePrice: form.salePrice ? Number(form.salePrice) : null };
-      if (editing) await patch(`/provider/${providerId}/products/${editing.id}`, payload);
-      else await post(`/provider/${providerId}/products`, payload);
+      const payload = {
+        nameAr: form.nameAr,
+        nameFr: form.nameFr || form.nameAr,
+        descriptionAr: form.descriptionAr,
+        descriptionFr: form.descriptionAr,
+        photoUrl: form.photoUrl || null,
+        price: form.price ? Number(form.price) : 0,
+        originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
+        isAvailable: form.isAvailable,
+      };
+      if (editing) await patch(`/provider/${providerId}/articles/${editing.id}`, payload);
+      else await post(`/provider/${providerId}/articles`, payload);
       await load(); setShowForm(false);
     } finally { setSaving(false); }
   };
 
   const remove = async (id: number) => {
     if (!confirm(t("حذف المنتج؟", "Supprimer le produit?"))) return;
-    await del(`/provider/${providerId}/products/${id}`); await load();
+    await del(`/provider/${providerId}/articles/${id}`); await load();
   };
 
-  const toggleAvail = async (p: Product) => {
-    await patch(`/provider/${providerId}/products/${p.id}`, { isAvailable: !p.isAvailable });
+  const toggleAvail = async (p: Article) => {
+    await patch(`/provider/${providerId}/articles/${p.id}`, { isAvailable: !p.isAvailable });
     await load();
   };
 
-  const hasSale = (p: Product) => {
-    const o = parseFloat(p.originalPrice ?? "0");
-    const s = parseFloat(p.salePrice ?? "0");
+  const hasSale = (p: Article) => {
+    const o = p.originalPrice ?? 0;
+    const s = p.price ?? 0;
     return o > 0 && s > 0 && s < o;
   };
 
-  const pct = (p: Product) => {
-    const o = parseFloat(p.originalPrice ?? "0");
-    const s = parseFloat(p.salePrice ?? "0");
+  const pct = (p: Article) => {
+    const o = p.originalPrice ?? 0;
+    const s = p.price ?? 0;
     return o > 0 && s > 0 ? Math.round(((o - s) / o) * 100) : 0;
   };
 
@@ -118,8 +139,8 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
               <div className="flex gap-3 p-3" dir="rtl">
                 {/* Image */}
                 <div className="w-14 h-14 rounded-xl flex-shrink-0 border border-[#1A4D1F]/10 bg-[#1A4D1F]/5 flex items-center justify-center overflow-hidden relative">
-                  {p.imageUrl
-                    ? <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
+                  {p.photoUrl
+                    ? <img src={p.photoUrl} alt={p.nameAr} className="w-full h-full object-cover" />
                     : <ImageIcon size={18} className="text-[#1A4D1F]/20" />
                   }
                   {hasSale(p) && (
@@ -130,26 +151,17 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
                 </div>
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-1">
-                    <p className="font-black text-sm text-[#1A4D1F] truncate flex-1">{p.title}</p>
-                  </div>
-                  {p.category && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1A4D1F]/40 bg-[#1A4D1F]/5 px-1.5 py-0.5 rounded-full">
-                      <Tag size={8} />{p.category}
-                    </span>
-                  )}
+                  <p className="font-black text-sm text-[#1A4D1F] truncate">{lang === "ar" ? p.nameAr : (p.nameFr || p.nameAr)}</p>
                   {/* Prices */}
                   <div className="flex items-center gap-2 mt-1.5">
-                    {p.salePrice && (
-                      <span className="text-sm font-black text-[#1A4D1F]">{parseFloat(p.salePrice).toFixed(3)} TND</span>
-                    )}
-                    {p.originalPrice && hasSale(p) && (
-                      <span className="text-xs font-bold line-through" style={{ color: "#9CA3AF" }}>{parseFloat(p.originalPrice).toFixed(3)}</span>
-                    )}
-                    {p.originalPrice && !hasSale(p) && !p.salePrice && (
-                      <span className="text-sm font-black text-[#1A4D1F]">{parseFloat(p.originalPrice).toFixed(3)} TND</span>
+                    <span className="text-sm font-black text-[#1A4D1F]">{p.price.toFixed(3)} TND</span>
+                    {hasSale(p) && p.originalPrice && (
+                      <span className="text-xs font-bold line-through" style={{ color: "#9CA3AF" }}>{p.originalPrice.toFixed(3)}</span>
                     )}
                   </div>
+                  {!p.isAvailable && (
+                    <span className="text-[10px] font-bold text-red-400">{t("غير متاح", "Indisponible")}</span>
+                  )}
                 </div>
                 {/* Actions */}
                 <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
@@ -193,40 +205,55 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
                 <button onClick={() => setShowForm(false)}><X size={18} className="text-[#1A4D1F]/40" /></button>
               </div>
               <div className="space-y-3" dir="rtl">
-                {[
-                  { key: "title", label: t("اسم المنتج *", "Nom *"), ph: t("مثال: برغر لحم", "Ex: Burger boeuf") },
-                  { key: "description", label: t("الوصف", "Description"), ph: t("وصف مختصر...", "Description courte...") },
-                  { key: "imageUrl", label: t("رابط الصورة", "URL image"), ph: "https://..." },
-                  { key: "category", label: t("الفئة", "Catégorie"), ph: t("مثال: مأكولات", "Ex: Alimentaire") },
-                ].map(({ key, label, ph }) => (
-                  <div key={key}>
-                    <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{label}</label>
-                    <input value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                      placeholder={ph}
-                      className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
-                  </div>
-                ))}
+                {/* Arabic name (required) */}
+                <div>
+                  <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("اسم المنتج بالعربية *", "Nom en arabe *")}</label>
+                  <input value={form.nameAr} onChange={e => setForm(f => ({ ...f, nameAr: e.target.value }))}
+                    placeholder={t("مثال: برغر لحم", "Ex: Burger boeuf")}
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
+                </div>
+                {/* French name (optional) */}
+                <div>
+                  <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("الاسم بالفرنسية (اختياري)", "Nom en français (opt.)")}</label>
+                  <input value={form.nameFr} onChange={e => setForm(f => ({ ...f, nameFr: e.target.value }))}
+                    placeholder={t("يُكمل تلقائياً من الاسم العربي", "Auto-rempli si vide")}
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" dir="ltr" />
+                </div>
+                {/* Description */}
+                <div>
+                  <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("الوصف", "Description")}</label>
+                  <input value={form.descriptionAr} onChange={e => setForm(f => ({ ...f, descriptionAr: e.target.value }))}
+                    placeholder={t("وصف مختصر...", "Description courte...")}
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
+                </div>
+                {/* Photo URL */}
+                <div>
+                  <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("رابط الصورة", "URL image")}</label>
+                  <input value={form.photoUrl} onChange={e => setForm(f => ({ ...f, photoUrl: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" dir="ltr" />
+                </div>
                 {/* Prices */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("الثمن القديم (TND)", "Prix original")}</label>
+                    <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("الثمن (TND) *", "Prix (TND) *")}</label>
+                    <input type="number" step="0.001" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                      placeholder="0.000"
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("الثمن الأصلي (للتخفيض)", "Prix original (promo)")}</label>
                     <input type="number" step="0.001" value={form.originalPrice} onChange={e => setForm(f => ({ ...f, originalPrice: e.target.value }))}
                       placeholder="0.000"
                       className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
                   </div>
-                  <div>
-                    <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("الثمن الجديد (TND)", "Prix soldé")}</label>
-                    <input type="number" step="0.001" value={form.salePrice} onChange={e => setForm(f => ({ ...f, salePrice: e.target.value }))}
-                      placeholder="0.000"
-                      className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
-                  </div>
                 </div>
-                {/* Sale preview */}
-                {form.originalPrice && form.salePrice && parseFloat(form.salePrice) < parseFloat(form.originalPrice) && (
+                {/* Discount preview */}
+                {form.price && form.originalPrice && parseFloat(form.price) < parseFloat(form.originalPrice) && (
                   <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-red-50 border border-red-100">
-                    <span className="text-sm font-black text-red-600">-{Math.round(((parseFloat(form.originalPrice) - parseFloat(form.salePrice)) / parseFloat(form.originalPrice)) * 100)}%</span>
+                    <span className="text-sm font-black text-red-600">-{Math.round(((parseFloat(form.originalPrice) - parseFloat(form.price)) / parseFloat(form.originalPrice)) * 100)}%</span>
                     <span className="text-sm font-bold line-through text-gray-400">{parseFloat(form.originalPrice).toFixed(3)}</span>
-                    <span className="text-base font-black text-[#1A4D1F]">{parseFloat(form.salePrice).toFixed(3)} TND</span>
+                    <span className="text-base font-black text-[#1A4D1F]">{parseFloat(form.price).toFixed(3)} TND</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between px-1">
@@ -240,7 +267,7 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
-                <button onClick={save} disabled={saving || !form.title}
+                <button onClick={save} disabled={saving || !form.nameAr || !form.price}
                   className="flex-1 py-2.5 rounded-xl text-white font-black text-sm disabled:opacity-40"
                   style={{ background: "#1A4D1F" }}>
                   {saving ? <RefreshCw size={14} className="animate-spin mx-auto" /> : t("حفظ المنتج", "Enregistrer")}

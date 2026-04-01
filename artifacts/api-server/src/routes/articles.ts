@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { articlesTable, serviceProvidersTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { requireAdmin } from "../lib/authMiddleware";
 import { safeParseFloat, safeParseInt } from "../lib/validate";
 
@@ -21,6 +21,87 @@ router.get("/articles", async (req, res) => {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
   }
 });
+
+// ── Provider-facing article endpoints ────────────────────────────────────────
+
+// GET /provider/:providerId/articles  — list own articles (all, including unavailable)
+router.get("/provider/:providerId/articles", async (req, res) => {
+  const supplierId = parseInt(req.params.providerId);
+  if (isNaN(supplierId)) { res.status(400).json({ message: "Invalid providerId" }); return; }
+  try {
+    const rows = await db.select().from(articlesTable)
+      .where(eq(articlesTable.supplierId, supplierId))
+      .orderBy(articlesTable.createdAt);
+    res.json(rows);
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// POST /provider/:providerId/articles  — create article
+router.post("/provider/:providerId/articles", async (req, res) => {
+  const supplierId = parseInt(req.params.providerId);
+  if (isNaN(supplierId)) { res.status(400).json({ message: "Invalid providerId" }); return; }
+  const { nameAr, nameFr, descriptionAr, descriptionFr, price, originalPrice, photoUrl, isAvailable } = req.body;
+  if (!nameAr) { res.status(400).json({ message: "nameAr required" }); return; }
+  try {
+    const [article] = await db.insert(articlesTable).values({
+      supplierId,
+      nameAr,
+      nameFr: nameFr || nameAr,
+      descriptionAr: descriptionAr || "",
+      descriptionFr: descriptionFr || descriptionAr || "",
+      price: price != null ? Number(price) : 0,
+      originalPrice: originalPrice != null ? Number(originalPrice) : null,
+      photoUrl: photoUrl || null,
+      isAvailable: isAvailable !== false,
+    }).returning();
+    res.status(201).json(article);
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// PATCH /provider/:providerId/articles/:id  — update own article
+router.patch("/provider/:providerId/articles/:id", async (req, res) => {
+  const supplierId = parseInt(req.params.providerId);
+  const id = parseInt(req.params.id);
+  if (isNaN(supplierId) || isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
+  const { nameAr, nameFr, descriptionAr, descriptionFr, price, originalPrice, photoUrl, isAvailable } = req.body;
+  const updates: Record<string, unknown> = {};
+  if (nameAr !== undefined)        updates.nameAr        = nameAr;
+  if (nameFr !== undefined)        updates.nameFr        = nameFr;
+  if (descriptionAr !== undefined) updates.descriptionAr = descriptionAr;
+  if (descriptionFr !== undefined) updates.descriptionFr = descriptionFr;
+  if (price !== undefined)         updates.price         = price != null ? Number(price) : 0;
+  if (originalPrice !== undefined) updates.originalPrice = originalPrice != null ? Number(originalPrice) : null;
+  if (photoUrl !== undefined)      updates.photoUrl      = photoUrl || null;
+  if (isAvailable !== undefined)   updates.isAvailable   = isAvailable;
+  try {
+    const [article] = await db.update(articlesTable).set(updates)
+      .where(and(eq(articlesTable.id, id), eq(articlesTable.supplierId, supplierId)))
+      .returning();
+    if (!article) { res.status(404).json({ message: "Not found" }); return; }
+    res.json(article);
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// DELETE /provider/:providerId/articles/:id  — delete own article
+router.delete("/provider/:providerId/articles/:id", async (req, res) => {
+  const supplierId = parseInt(req.params.providerId);
+  const id = parseInt(req.params.id);
+  if (isNaN(supplierId) || isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
+  try {
+    await db.delete(articlesTable).where(and(eq(articlesTable.id, id), eq(articlesTable.supplierId, supplierId)));
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ── Admin article endpoints ───────────────────────────────────────────────────
 
 router.get("/admin/articles", requireAdmin, async (req, res) => {
   try {
