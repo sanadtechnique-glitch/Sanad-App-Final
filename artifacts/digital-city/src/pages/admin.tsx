@@ -9,7 +9,7 @@ import {
   X, Check, Clock, CheckCircle, AlertCircle, Star,
   ChevronRight, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
   UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
-  Image, Calendar, MousePointer, ToggleLeft, ToggleRight,
+  Image, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
@@ -158,13 +158,32 @@ function Stars({ rating }: { rating?: number | null }) {
 // ──────────────────────────────────────────────────────────────────────────────
 // Section: Overview
 // ──────────────────────────────────────────────────────────────────────────────
+interface DbStats {
+  database: string; status: string; timestamp: string;
+  tables: { users: number; providers: number; products: number; orders: number;
+    banners: number; ads: number; categories: number; delivery_staff: number;
+    broadcasts: number; ratings: number; };
+}
+
 function OverviewSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [dbStats, setDbStats] = useState<DbStats | null>(null);
+  const [dbLoading, setDbLoading] = useState(true);
+
+  const loadDbStats = () => {
+    setDbLoading(true);
+    get<DbStats>("/admin/db-stats")
+      .then(s => { setDbStats(s); setDbLoading(false); })
+      .catch(() => setDbLoading(false));
+  };
 
   useEffect(() => {
     get<Order[]>("/orders").then(setOrders).catch(() => {});
     get<Supplier[]>("/admin/suppliers").then(setSuppliers).catch(() => {});
+    loadDbStats();
+    const iv = setInterval(loadDbStats, 20_000);
+    return () => clearInterval(iv);
   }, []);
 
   const stats = {
@@ -175,9 +194,68 @@ function OverviewSection({ t }: { t: (ar: string, fr: string) => string }) {
     activeSuppliers: suppliers.filter(s => s.isAvailable).length,
   };
 
+  const dbRows: { ar: string; fr: string; key: keyof DbStats["tables"]; icon: string }[] = [
+    { ar: "المستخدمون",    fr: "Utilisateurs",   key: "users",          icon: "👤" },
+    { ar: "المزودون",      fr: "Prestataires",    key: "providers",      icon: "🏪" },
+    { ar: "المنتجات",      fr: "Produits",        key: "products",       icon: "📦" },
+    { ar: "الطلبات",       fr: "Commandes",       key: "orders",         icon: "🛒" },
+    { ar: "البنرات",       fr: "Bannières",       key: "banners",        icon: "🖼️" },
+    { ar: "الإعلانات",     fr: "Annonces",        key: "ads",            icon: "📢" },
+    { ar: "التصنيفات",     fr: "Catégories",      key: "categories",     icon: "🏷️" },
+    { ar: "موظفو التوصيل", fr: "Livreurs",        key: "delivery_staff", icon: "🚴" },
+    { ar: "الإذاعات",      fr: "Broadcasts",      key: "broadcasts",     icon: "📡" },
+    { ar: "التقييمات",     fr: "Avis",            key: "ratings",        icon: "⭐" },
+  ];
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-black text-[#2E7D32]">{t("نظرة عامة", "Vue d'ensemble")}</h2>
+
+      {/* ── Database Status Panel ─────────────────────────────────────── */}
+      <div className="rounded-2xl border-2 border-[#2E7D32]/20 bg-white overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 bg-[#2E7D32] text-white">
+          <div className="flex items-center gap-2">
+            <Database size={16} />
+            <span className="font-bold text-sm">{t("قاعدة البيانات · PostgreSQL", "Base de données · PostgreSQL")}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {dbStats?.status === "connected"
+              ? <span className="flex items-center gap-1 text-emerald-300 text-xs font-bold"><Wifi size={12}/> {t("متصل","Connecté")}</span>
+              : <span className="flex items-center gap-1 text-red-300 text-xs font-bold"><WifiOff size={12}/> {t("خطأ","Erreur")}</span>
+            }
+            <button onClick={loadDbStats} className="text-white/70 hover:text-white transition-colors">
+              <RefreshCw size={13} className={dbLoading ? "animate-spin" : ""} />
+            </button>
+          </div>
+        </div>
+        {dbLoading && !dbStats ? (
+          <div className="flex items-center justify-center py-6 text-[#2E7D32]/40 gap-2">
+            <div className="w-4 h-4 rounded-full border-2 border-[#2E7D32]/20 border-t-[#2E7D32] animate-spin" />
+            <span className="text-xs">{t("جارٍ الاتصال بـ PostgreSQL…","Connexion à PostgreSQL…")}</span>
+          </div>
+        ) : dbStats ? (
+          <div className="p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {dbRows.map(row => (
+                <div key={row.key} className="flex flex-col items-center justify-center rounded-xl bg-[#FFF3E0] py-3 px-2 gap-1">
+                  <span className="text-lg leading-none">{row.icon}</span>
+                  <span className="text-2xl font-black text-[#2E7D32]">{dbStats.tables[row.key]}</span>
+                  <span className="text-[10px] text-[#2E7D32]/50 text-center leading-tight">{t(row.ar, row.fr)}</span>
+                </div>
+              ))}
+            </div>
+            {dbStats.timestamp && (
+              <p className="text-[10px] text-[#2E7D32]/30 text-center mt-3">
+                {t("آخر تحديث","Dernière màj")} · {new Date(dbStats.timestamp).toLocaleTimeString("ar-TN")}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center py-6 text-red-400 text-xs gap-2">
+            <WifiOff size={14}/> {t("تعذّر الاتصال بقاعدة البيانات","Connexion échouée")}
+          </div>
+        )}
+      </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t("إجمالي الطلبات", "Total commandes")} value={stats.total} color="text-[#2E7D32]" />
         <StatCard label={t("قيد الانتظار", "En attente")} value={stats.pending} color="text-amber-400" />
