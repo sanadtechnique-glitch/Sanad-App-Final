@@ -73,17 +73,24 @@ Several endpoints were split into public (customer-safe) and admin-only versions
 
 The driver dashboard role check: `session.role === "driver" || session.role === "delivery"` (both supported).
 
-### Login/Auth (Unified) — ENFORCED
+### Login/Auth — Phone-Based, Unified, ENFORCED
 
 **ALL routes are protected.** Unauthenticated users are redirected to `/login` from any URL (enforced via `ProtectedRoute` in `App.tsx`).
 
-- `/login` — Public. If already logged in, auto-redirects to role home.
-- **Admin**: username `admin` (case-insensitive), password `Abc1234` (exact) → `/admin`
-- **Provider**: username matches supplier nameAr or name in DB → `/provider`
-- **Delivery**: username matches delivery staff nameAr or name in DB → `/delivery`
-- **Client**: any name + any password → `/` (home)
-- Session: `DcSession { role, name, supplierId?, staffId?, delegationId?, delegationFee?, delegationName? }` in `localStorage` key `dc_session` via `src/lib/auth.ts`.
-- Logout button in layout (desktop sidebar + mobile bottom nav) clears session → `/login`.
+**Login Page** (`/login`): Clean form with ONLY phone number + password fields. No username. No selection lists.
+**Signup Page** (tab): Phone (required, unique ID), full name, delegation dropdown, password.
+
+**Unified endpoint** `POST /api/auth/login`:
+- Accepts `{ phone, password }` for ALL roles
+- Searches by phone first; falls back to username for legacy accounts
+- Returns `{ role, name, token, supplierId? (provider), staffId? (driver) }`
+- Role-based redirect: `super_admin/manager/admin` → `/admin`; `provider` → `/provider`; `driver` → `/delivery`; `customer` → `/`
+
+**No selection lists**: Provider dashboard auto-loads from session.supplierId. Driver dashboard auto-loads from session.staffId. If not linked → shows "not linked" error + logout button.
+
+Session: `DcSession { role, name, userId, token, supplierId?, staffId?, delegationFee?, delegationName? }` in `localStorage` key `dc_session` via `src/lib/auth.ts`.
+
+**Test phone numbers**: admin=`21600000001`, provider=`27 777 002`, driver=`21600000003`, customer=`21600000099`
 
 ### Notification System (Client)
 

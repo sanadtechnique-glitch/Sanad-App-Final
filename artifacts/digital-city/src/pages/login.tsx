@@ -3,37 +3,15 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertCircle, Eye, EyeOff, ChevronDown, LogIn,
-  UserPlus, Phone, Lock, User, CheckCircle, MapPin, Search, Mail,
+  UserPlus, Phone, Lock, User, CheckCircle, MapPin, Search,
 } from "lucide-react";
-import { get, post } from "@/lib/admin-api";
 import { SanadBrand } from "@/components/sanad-brand";
 import { setSession, clearSession, type Role } from "@/lib/auth";
 import { requestNotificationPermission } from "@/lib/push-notifications";
 import { cn } from "@/lib/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
-interface Supplier   { id: number; name: string; nameAr: string; }
-interface Staff      { id: number; name: string; nameAr: string; phone: string; }
-
-type ProfileOption = { value: Role; labelAr: string; labelFr: string; color: string };
-
-const LOGIN_PROFILES: ProfileOption[] = [
-  { value: "client",   labelAr: "عميل",       labelFr: "Client",      color: "#1A4D1F" },
-  { value: "provider", labelAr: "مزود خدمة",  labelFr: "Fournisseur", color: "#1A4D1F" },
-  { value: "delivery", labelAr: "سائق توصيل", labelFr: "Livreur",     color: "#0D3311" },
-  { value: "admin",    labelAr: "مسؤول",       labelFr: "Admin",       color: "#0D3311" },
-];
-
-const SIGNUP_PROFILES: ProfileOption[] = [
-  { value: "client",   labelAr: "عميل",       labelFr: "Client",      color: "#1A4D1F" },
-  { value: "provider", labelAr: "مزود خدمة",  labelFr: "Fournisseur", color: "#1A4D1F" },
-  { value: "delivery", labelAr: "سائق توصيل", labelFr: "Livreur",     color: "#0D3311" },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tunisia Delegations — full static list (all 24 governorates)
+// Tunisia Delegations
 // ─────────────────────────────────────────────────────────────────────────────
 const TUNISIA_DELEGATIONS: { gov: string; delegations: string[] }[] = [
   { gov: "تونس", delegations: ["المدينة","باب باب حدي","باب سويقة","العمران","العمران الأعلى","التحرير","المنزه","حي الخضراء","الكبارية","الوردية","الحرائرية","الزهراء"] },
@@ -63,18 +41,15 @@ const TUNISIA_DELEGATIONS: { gov: string; delegations: string[] }[] = [
 ];
 
 const DELEGATION_FEE_MAP: Record<string, number> = {
-  "بنقردان": 3,
-  "جرجيس": 5,
+  "بنقردان": 3, "جرجيس": 5,
   "مدنين الشمالية": 6, "مدنين الجنوبية": 6,
   "جربة - حومة السوق": 8, "جربة - ميدون": 8, "جربة - أجيم": 8,
-  "سيدي مخلوف": 4.5,
-  "بني خداش": 7,
+  "سيدي مخلوف": 4.5, "بني خداش": 7,
 };
-
 const DEFAULT_DELIVERY_FEE = 5;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Reusable sub-components
+// Shared UI Components
 // ─────────────────────────────────────────────────────────────────────────────
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -84,18 +59,39 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TextInput({
-  value, onChange, placeholder, icon: Icon, hasValue,
+function PhoneInput({
+  value, onChange, hasValue,
 }: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  icon: React.FC<{ size?: number; className?: string }>;
-  hasValue?: boolean;
+  value: string; onChange: (v: string) => void; hasValue?: boolean;
 }) {
   return (
     <div className="relative">
-      <Icon size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#1A4D1F]/30" />
+      <Phone size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#1A4D1F]/30" />
+      <input
+        type="tel"
+        inputMode="numeric"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="+216 XX XXX XXX"
+        dir="ltr"
+        className="w-full ps-10 pe-4 py-3.5 rounded-xl border text-[#1A4D1F] font-bold outline-none transition-all placeholder:text-[#1A4D1F]/20 text-left"
+        style={{
+          background: "#FFFFFF",
+          borderColor: hasValue ? "#FFA500" : "rgba(255,165,0,0.3)",
+        }}
+      />
+    </div>
+  );
+}
+
+function NameInput({
+  value, onChange, placeholder, hasValue,
+}: {
+  value: string; onChange: (v: string) => void; placeholder: string; hasValue?: boolean;
+}) {
+  return (
+    <div className="relative">
+      <User size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#1A4D1F]/30" />
       <input
         type="text"
         value={value}
@@ -114,10 +110,7 @@ function TextInput({
 function PasswordInput({
   value, onChange, placeholder, hasValue,
 }: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  hasValue?: boolean;
+  value: string; onChange: (v: string) => void; placeholder?: string; hasValue?: boolean;
 }) {
   const [show, setShow] = useState(false);
   return (
@@ -127,7 +120,7 @@ function PasswordInput({
         type={show ? "text" : "password"}
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={placeholder ?? "••••••••"}
         className="w-full ps-10 pe-11 py-3.5 rounded-xl border text-[#1A4D1F] font-bold outline-none transition-all placeholder:text-[#1A4D1F]/20 text-right"
         style={{
           background: "#FFFFFF",
@@ -141,74 +134,6 @@ function PasswordInput({
       >
         {show ? <EyeOff size={15} /> : <Eye size={15} />}
       </button>
-    </div>
-  );
-}
-
-function RoleDropdown({
-  value, onChange, options, open, setOpen,
-}: {
-  value: Role;
-  onChange: (r: Role) => void;
-  options: ProfileOption[];
-  open: boolean;
-  setOpen: (v: boolean) => void;
-}) {
-  const selected = options.find(p => p.value === value) ?? options[0];
-  return (
-    <div className="relative">
-      <ChevronDown
-        size={15}
-        className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#1A4D1F]/30 pointer-events-none"
-      />
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full ps-9 pe-4 py-3.5 rounded-xl border transition-all outline-none text-right font-bold text-[#1A4D1F] flex items-center justify-between"
-        style={{
-          background: "#FFFFFF",
-          borderColor: open ? "#FFA500" : "rgba(255,165,0,0.3)",
-        }}
-      >
-        <ChevronDown
-          size={14}
-          className={cn("text-[#1A4D1F]/25 transition-transform", open && "rotate-180")}
-        />
-        <span>
-          {selected.labelAr}
-          <span className="text-[#1A4D1F]/30 font-normal"> · {selected.labelFr}</span>
-        </span>
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scaleY: 0.9 }}
-            animate={{ opacity: 1, y: 0, scaleY: 1 }}
-            exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
-            transition={{ duration: 0.14 }}
-            className="absolute top-full mt-1 w-full rounded-xl border z-50 overflow-hidden shadow-xl"
-            style={{ background: "#FFA500", borderColor: "rgba(46,125,50,0.3)" }}
-          >
-            {options.map(p => (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => { onChange(p.value); setOpen(false); }}
-                className={cn(
-                  "w-full px-4 py-3 flex items-center justify-end gap-3 text-right transition-colors",
-                  value === p.value ? "bg-[#1A4D1F]/6" : "hover:bg-[#1A4D1F]/4"
-                )}
-              >
-                <span className="font-bold text-[#1A4D1F] text-sm">
-                  {p.labelAr}
-                  <span className="text-[#1A4D1F]/30 font-normal"> · {p.labelFr}</span>
-                </span>
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -228,84 +153,77 @@ function ErrorBox({ message }: { message: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Login sub-form
+// Login Form — phone + password only
 // ─────────────────────────────────────────────────────────────────────────────
-function LoginForm({ onSuccess }: { onSuccess: () => void }) {
+function LoginForm() {
   const [, navigate] = useLocation();
-  const [username, setUsername] = useState("");
+  const [phone, setPhone]       = useState("");
   const [password, setPassword] = useState("");
   const [error, setError]       = useState<string | null>(null);
   const [loading, setLoading]   = useState(false);
 
-  const canSubmit = username.trim() !== "" && password.trim() !== "" && !loading;
+  const canSubmit = phone.trim() !== "" && password.trim() !== "" && !loading;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    // Always wipe any stale session before attempting a new login
     clearSession();
     requestNotificationPermission().catch(() => {});
+
     try {
-      // ── Step 1: Try unified login (admin / provider / driver) ──
-      const adminRes = await fetch(`/api/auth/admin-login`, {
+      const res = await fetch(`/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+        body: JSON.stringify({ phone: phone.trim(), password: password.trim() }),
       });
-      if (adminRes.ok) {
-        const user = await adminRes.json();
 
-        // Admin roles → admin dashboard
-        if (["super_admin", "manager", "admin"].includes(user.role)) {
-          setSession({ role: user.role as Role, name: user.name, userId: user.id, token: user.token });
-          navigate("/admin");
-          return;
-        }
+      const data = await res.json();
 
-        // Provider role → provider dashboard
-        if (user.role === "provider") {
-          setSession({
-            role: "provider",
-            name: user.displayName ?? user.name,
-            userId: user.id,
-            supplierId: user.supplierId,
-            token: user.token,
-          });
-          navigate("/provider");
-          return;
-        }
-
-        // Driver role → delivery dashboard
-        if (user.role === "driver") {
-          setSession({
-            role: "delivery",
-            name: user.displayName ?? user.name,
-            userId: user.id,
-            staffId: user.staffId,
-            token: user.token,
-          });
-          navigate("/delivery");
-          return;
-        }
+      if (!res.ok) {
+        setError(data.message || "خطأ في تسجيل الدخول · Erreur de connexion");
+        return;
       }
 
-      // ── Step 2: Try customer login ──
-      const clientRes = await fetch(`/api/auth/client-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
-      });
-      if (clientRes.ok) {
-        const data = await clientRes.json();
+      const role: string = data.role;
+
+      if (["super_admin", "manager", "admin"].includes(role)) {
+        setSession({ role: role as Role, name: data.name, userId: data.id, token: data.token });
+        navigate("/admin");
+        return;
+      }
+
+      if (role === "provider") {
+        setSession({
+          role: "provider",
+          name: data.displayName ?? data.name,
+          userId: data.id,
+          supplierId: data.supplierId,
+          token: data.token,
+        });
+        navigate("/provider");
+        return;
+      }
+
+      if (role === "driver") {
+        setSession({
+          role: "delivery",
+          name: data.displayName ?? data.name,
+          userId: data.id,
+          staffId: data.staffId,
+          token: data.token,
+        });
+        navigate("/delivery");
+        return;
+      }
+
+      if (role === "customer") {
         setSession({ role: "client", name: data.name, userId: data.id, token: data.token });
         navigate("/");
         return;
       }
 
-      // Nothing matched — show error from whichever response has a message
-      const errData = await clientRes.json().catch(() => ({}));
-      setError((errData as any).message || "اسم المستخدم أو كلمة المرور غير صحيحة · Identifiant ou mot de passe incorrect");
+      setError("دور المستخدم غير معروف · Rôle utilisateur inconnu");
     } catch {
       setError("حدث خطأ في الاتصال · Erreur de connexion");
     } finally {
@@ -315,25 +233,22 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5" dir="rtl">
-      {/* Username or Phone */}
+      {/* Phone */}
       <div>
-        <FieldLabel>اسم المستخدم أو رقم الهاتف · Pseudo ou Téléphone</FieldLabel>
-        <TextInput
-          value={username}
-          onChange={v => { setUsername(v); setError(null); }}
-          placeholder="اسمك أو +216 XX XXX XXX"
-          icon={User}
-          hasValue={username.length > 0}
+        <FieldLabel>رقم الهاتف · Téléphone</FieldLabel>
+        <PhoneInput
+          value={phone}
+          onChange={v => { setPhone(v); setError(null); }}
+          hasValue={phone.length > 0}
         />
       </div>
 
       {/* Password */}
       <div>
-        <FieldLabel>كلمة المرور · Mot de passe</FieldLabel>
+        <FieldLabel>كلمة السر · Mot de passe</FieldLabel>
         <PasswordInput
           value={password}
           onChange={v => { setPassword(v); setError(null); }}
-          placeholder="••••••••"
           hasValue={password.length > 0}
         />
       </div>
@@ -371,27 +286,25 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sign Up sub-form
+// Sign Up Form — phone as unique ID, name, delegation, password
 // ─────────────────────────────────────────────────────────────────────────────
 function SignUpForm() {
   const [, navigate] = useLocation();
-  const [username, setUsername] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [email, setEmail]       = useState("");
-  const [phone, setPhone]       = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm]   = useState("");
-  const [error, setError]       = useState<string | null>(null);
-  const [loading, setLoading]   = useState(false);
-  const [success, setSuccess]   = useState(false);
+  const [phone, setPhone]         = useState("");
+  const [name, setName]           = useState("");
+  const [password, setPassword]   = useState("");
+  const [confirm, setConfirm]     = useState("");
+  const [error, setError]         = useState<string | null>(null);
+  const [loading, setLoading]     = useState(false);
+  const [success, setSuccess]     = useState(false);
 
-  const [delegationName, setDelegationName]   = useState<string>("بنقردان");
-  const [delegationOpen, setDelegationOpen]   = useState(false);
+  const [delegationName, setDelegationName]     = useState<string>("بنقردان");
+  const [delegationOpen, setDelegationOpen]     = useState(false);
   const [delegationSearch, setDelegationSearch] = useState("");
 
   const canSubmit =
-    username.trim() !== "" &&
-    nickname.trim() !== "" &&
+    phone.trim() !== "" &&
+    name.trim()  !== "" &&
     password.trim() !== "" &&
     confirm.trim()  !== "" &&
     delegationName  !== "" &&
@@ -416,10 +329,6 @@ function SignUpForm() {
       setError("كلمة المرور قصيرة جداً (6 أحرف على الأقل) · Mot de passe trop court (min. 6 caractères)");
       return;
     }
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError("البريد الإلكتروني غير صحيح · Adresse e-mail invalide");
-      return;
-    }
 
     setLoading(true);
     try {
@@ -427,10 +336,8 @@ function SignUpForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: username.trim(),
-          nickname: nickname.trim(),
-          email: email.trim() || undefined,
-          phone: phone.trim() || undefined,
+          phone: phone.trim(),
+          name: name.trim(),
           password: password.trim(),
         }),
       });
@@ -443,6 +350,7 @@ function SignUpForm() {
         role: "client",
         name: data.name,
         userId: data.id,
+        token: data.token,
         delegationName,
         delegationFee: DELEGATION_FEE_MAP[delegationName] ?? DEFAULT_DELIVERY_FEE,
       });
@@ -477,9 +385,33 @@ function SignUpForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
+      {/* Phone — primary ID */}
+      <div>
+        <FieldLabel>رقم الهاتف · Téléphone <span className="text-red-400 font-black">*</span></FieldLabel>
+        <PhoneInput
+          value={phone}
+          onChange={v => { setPhone(v); setError(null); }}
+          hasValue={phone.length > 0}
+        />
+        <p className="text-[11px] text-[#1A4D1F]/35 mt-1 text-right">
+          سيُستخدم لتسجيل الدخول · Utilisé pour se connecter
+        </p>
+      </div>
+
+      {/* Name */}
+      <div>
+        <FieldLabel>الاسم الكامل · Prénom &amp; Nom <span className="text-red-400 font-black">*</span></FieldLabel>
+        <NameInput
+          value={name}
+          onChange={v => { setName(v); setError(null); }}
+          placeholder="ما يظهر في طلباتك · Nom affiché"
+          hasValue={name.length > 0}
+        />
+      </div>
+
       {/* Delegation */}
       <div>
-        <FieldLabel>المعتمدية · Délégation</FieldLabel>
+        <FieldLabel>المعتمدية · Délégation <span className="text-red-400 font-black">*</span></FieldLabel>
         <div className="relative">
           <MapPin size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#1A4D1F]/30 pointer-events-none z-10" />
           <button
@@ -493,7 +425,7 @@ function SignUpForm() {
           >
             <ChevronDown size={14} className={cn("text-[#1A4D1F]/25 transition-transform flex-shrink-0", delegationOpen && "rotate-180")} />
             <span className="truncate">
-              {delegationName || <span className="text-[#1A4D1F]/30 font-normal">اختر منطقتك · Choisissez votre zone</span>}
+              {delegationName || <span className="text-[#1A4D1F]/30 font-normal">اختر منطقتك · Choisissez</span>}
             </span>
           </button>
           <AnimatePresence>
@@ -506,7 +438,6 @@ function SignUpForm() {
                 className="absolute top-full mt-1 w-full rounded-xl border z-50 shadow-2xl overflow-hidden"
                 style={{ background: "#FFFFFF", borderColor: "#FFA500" }}
               >
-                {/* Search bar */}
                 <div className="px-3 py-2 border-b" style={{ borderColor: "rgba(255,165,0,0.3)", background: "#FFA500" }}>
                   <div className="relative">
                     <Search size={13} className="absolute top-1/2 -translate-y-1/2 start-2.5 text-[#1A4D1F]/40 pointer-events-none" />
@@ -522,7 +453,6 @@ function SignUpForm() {
                     />
                   </div>
                 </div>
-                {/* Scrollable list grouped by governorate */}
                 <div className="max-h-56 overflow-y-auto">
                   {filteredDelegations.length === 0 && (
                     <div className="px-4 py-4 text-sm text-[#1A4D1F]/40 text-center">لا توجد نتائج</div>
@@ -530,7 +460,7 @@ function SignUpForm() {
                   {filteredDelegations.map(group => (
                     <div key={group.gov}>
                       <div className="px-4 py-1.5 text-[10px] font-black text-[#1A4D1F]/35 uppercase tracking-widest text-right sticky top-0"
-                           style={{ background: "rgba(255,165,0,0.12)" }}>
+                        style={{ background: "rgba(255,165,0,0.12)" }}>
                         ولاية {group.gov}
                       </div>
                       {group.delegations.map(d => (
@@ -540,9 +470,7 @@ function SignUpForm() {
                           onClick={() => { setDelegationName(d); setDelegationOpen(false); setDelegationSearch(""); setError(null); }}
                           className={cn(
                             "w-full px-5 py-2.5 flex items-center justify-between text-right transition-colors",
-                            delegationName === d
-                              ? "bg-[#1A4D1F]/15 text-[#1A4D1F]"
-                              : "hover:bg-[#1A4D1F]/5 text-[#1A4D1F]/80"
+                            delegationName === d ? "bg-[#1A4D1F]/15 text-[#1A4D1F]" : "hover:bg-[#1A4D1F]/5 text-[#1A4D1F]/80"
                           )}
                         >
                           <div className={cn("w-2 h-2 rounded-full flex-shrink-0", delegationName === d ? "bg-[#1A4D1F]" : "bg-transparent")} />
@@ -556,82 +484,22 @@ function SignUpForm() {
             )}
           </AnimatePresence>
         </div>
-        {delegationName && (
-          <p className="text-[11px] text-[#1A4D1F] font-bold mt-1.5 text-right flex items-center justify-end gap-1">
-            <MapPin size={10} />
-            {delegationName}
-          </p>
-        )}
-      </div>
-
-      {/* Nickname (display name) */}
-      <div>
-        <FieldLabel>اللقب · Surnom</FieldLabel>
-        <TextInput
-          value={nickname}
-          onChange={v => { setNickname(v); setError(null); }}
-          placeholder="ما يظهر للآخرين · Ce que voient les autres"
-          icon={User}
-          hasValue={nickname.length > 0}
-        />
-      </div>
-
-      {/* Username (login ID) */}
-      <div>
-        <FieldLabel>اسم المستخدم · Pseudo de connexion</FieldLabel>
-        <TextInput
-          value={username}
-          onChange={v => { setUsername(v); setError(null); }}
-          placeholder="للدخول فقط · Pour se connecter"
-          icon={User}
-          hasValue={username.length > 0}
-        />
-        <p className="text-[11px] text-[#1A4D1F]/35 mt-1 text-right">
-          سيُستخدم للدخول · Utilisé pour la connexion
-        </p>
-      </div>
-
-      {/* Email (optional) */}
-      <div>
-        <FieldLabel>البريد الإلكتروني · E-mail <span className="text-[#1A4D1F]/35 text-[10px] font-normal">(اختياري · Facultatif)</span></FieldLabel>
-        <TextInput
-          value={email}
-          onChange={v => { setEmail(v); setError(null); }}
-          placeholder="exemple@mail.com"
-          icon={Mail}
-          hasValue={email.length > 0}
-        />
-      </div>
-
-      {/* Phone (optional — also usable as login identifier) */}
-      <div>
-        <FieldLabel>رقم الهاتف · Téléphone <span className="text-[#1A4D1F]/35 text-[10px] font-normal">(اختياري · Facultatif)</span></FieldLabel>
-        <TextInput
-          value={phone}
-          onChange={v => { setPhone(v); setError(null); }}
-          placeholder="+216 XX XXX XXX"
-          icon={Phone}
-          hasValue={phone.length > 0}
-        />
-        <p className="text-[11px] text-[#1A4D1F]/35 mt-1 text-right">
-          يمكن استخدامه للدخول · Peut être utilisé pour la connexion
-        </p>
       </div>
 
       {/* Password */}
       <div>
-        <FieldLabel>كلمة المرور · Mot de passe</FieldLabel>
+        <FieldLabel>كلمة السر · Mot de passe <span className="text-red-400 font-black">*</span></FieldLabel>
         <PasswordInput
           value={password}
           onChange={v => { setPassword(v); setError(null); }}
-          placeholder="4 أحرف على الأقل"
+          placeholder="6 أحرف على الأقل"
           hasValue={password.length > 0}
         />
       </div>
 
       {/* Confirm Password */}
       <div>
-        <FieldLabel>تأكيد كلمة المرور · Confirmer</FieldLabel>
+        <FieldLabel>تأكيد كلمة السر · Confirmer <span className="text-red-400 font-black">*</span></FieldLabel>
         <div className="relative">
           <PasswordInput
             value={confirm}
@@ -641,11 +509,10 @@ function SignUpForm() {
           />
           {confirm.length > 0 && password.length > 0 && (
             <div className="absolute top-1/2 -translate-y-1/2 start-10 pointer-events-none">
-              {confirm === password ? (
-                <CheckCircle size={14} className="text-[#1A4D1F]" />
-              ) : (
-                <AlertCircle size={14} className="text-red-400" />
-              )}
+              {confirm === password
+                ? <CheckCircle size={14} className="text-[#1A4D1F]" />
+                : <AlertCircle size={14} className="text-red-400" />
+              }
             </div>
           )}
         </div>
@@ -679,138 +546,69 @@ function SignUpForm() {
           </>
         )}
       </button>
-
-      <p className="text-center text-[#1A4D1F]/20 text-[11px]">
-        Admin يُنشأ فقط من قِبل قاعدة البيانات · Admin created by DB only
-      </p>
     </form>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main LoginPage
+// Main Login Page
 // ─────────────────────────────────────────────────────────────────────────────
 export default function LoginPage() {
+  const [, navigate] = useLocation();
   const [tab, setTab] = useState<"login" | "signup">("login");
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-4"
+      className="min-h-screen flex items-center justify-center p-4"
       style={{ background: "#FFA500" }}
       dir="rtl"
     >
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <motion.div
+          initial={{ opacity: 0, y: -24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex flex-col items-center mb-8"
+        >
+          <SanadBrand size="lg" />
+          <p className="text-[#1A4D1F]/50 text-sm mt-3 font-medium text-center">
+            سندك في التوصيل.. لباب الدار
+          </p>
+        </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
-        className="relative w-full max-w-md"
-      >
-        {/* Card — transparent, blends into orange background */}
-        <div className="w-full">
-          {/* ── Header ── */}
-          <div className="px-8 pt-8 pb-6">
-            <div className="flex flex-col items-center gap-2">
-              {/* ── 3D sphere: logo + name + slogan ── */}
-              <div style={{
-                width: 224,
-                height: 224,
-                borderRadius: "50%",
-                background: [
-                  "radial-gradient(circle at 36% 28%,",
-                  "  rgba(255,245,130,0.72) 0%,",
-                  "  rgba(255,165,0,0.93)   42%,",
-                  "  rgba(195,108,0,0.85)   100%)",
-                ].join(""),
-                boxShadow: [
-                  "inset 0 5px 16px rgba(255,255,255,0.55)",
-                  "inset 0 -7px 22px rgba(0,0,0,0.22)",
-                  "0 14px 48px rgba(27,94,32,0.52)",
-                  "0 5px 18px rgba(0,0,0,0.28)",
-                  "0 1px 4px rgba(0,0,0,0.12)",
-                ].join(", "),
-                border: "3px solid rgba(27,94,32,0.75)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 3,
-                overflow: "hidden",
-                flexShrink: 0,
-              }}>
-                <img
-                  src="/logo.png"
-                  alt="سند - Sanad Logo"
-                  className="object-contain"
-                  style={{ width: 80, height: 70 }}
-                  draggable={false}
-                />
-                <h1
-                  className="font-black tracking-tight leading-none"
-                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "#0D3311", fontSize: "1.35rem" }}
-                >
-                  <SanadBrand color="#0D3311" innerColor="#FFA500" />
-                </h1>
-                <p
-                  className="font-bold text-center leading-snug px-4"
-                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "rgba(27,94,32,0.82)", fontSize: "0.62rem" }}
-                >
-                  <SanadBrand color="#0D3311" innerColor="#FFA500" style={{ opacity: 0.85 }} />{"ك في التوصيل.. لباب الدار"}
-                </p>
-              </div>
-            </div>
+        {/* Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="rounded-[20px] border border-[#1A4D1F]/10 shadow-2xl overflow-hidden"
+          style={{ background: "#FFFDE7" }}
+        >
+          {/* Tabs */}
+          <div className="flex border-b border-[#1A4D1F]/8" style={{ background: "rgba(255,165,0,0.08)" }}>
+            {([
+              { id: "login",  labelAr: "تسجيل الدخول", labelFr: "Connexion"   },
+              { id: "signup", labelAr: "حساب جديد",     labelFr: "Inscription" },
+            ] as const).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "flex-1 py-4 font-black text-sm transition-all border-b-2",
+                  tab === t.id
+                    ? "text-[#1A4D1F] border-[#1A4D1F]"
+                    : "text-[#1A4D1F]/30 border-transparent hover:text-[#1A4D1F]/50"
+                )}
+              >
+                {t.labelAr}
+                <span className="block text-[10px] font-normal opacity-50">{t.labelFr}</span>
+              </button>
+            ))}
           </div>
 
-          {/* ── Tab Switcher ── */}
-          <div
-            className="flex border-b mx-4 rounded-xl overflow-hidden mb-1"
-            style={{ borderColor: "rgba(46,125,50,0.25)", background: "rgba(46,125,50,0.10)" }}
-          >
-            <button
-              type="button"
-              onClick={() => setTab("login")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-black transition-all relative",
-                tab === "login"
-                  ? "text-[#1A4D1F]"
-                  : "text-[#1A4D1F]/35 hover:text-[#1A4D1F]/60"
-              )}
-            >
-              <LogIn size={15} />
-              تسجيل الدخول
-              {tab === "login" && (
-                <motion.div
-                  layoutId="tab-indicator"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t"
-                  style={{ background: "#FFD700" }}
-                />
-              )}
-            </button>
-            <div className="w-px my-3" style={{ background: "rgba(46,125,50,0.2)" }} />
-            <button
-              type="button"
-              onClick={() => setTab("signup")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-black transition-all relative",
-                tab === "signup"
-                  ? "text-[#1A4D1F]"
-                  : "text-[#1A4D1F]/35 hover:text-[#1A4D1F]/60"
-              )}
-            >
-              <UserPlus size={15} />
-              إنشاء حساب
-              {tab === "signup" && (
-                <motion.div
-                  layoutId="tab-indicator"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t"
-                  style={{ background: "#FFD700" }}
-                />
-              )}
-            </button>
-          </div>
-
-          {/* ── Form Area ── */}
-          <div className="p-7">
+          {/* Form area */}
+          <div className="p-6">
             <AnimatePresence mode="wait">
               {tab === "login" ? (
                 <motion.div
@@ -820,14 +618,14 @@ export default function LoginPage() {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <LoginForm onSuccess={() => {}} />
+                  <LoginForm />
                 </motion.div>
               ) : (
                 <motion.div
                   key="signup"
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
+                  exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.2 }}
                 >
                   <SignUpForm />
@@ -835,13 +633,18 @@ export default function LoginPage() {
               )}
             </AnimatePresence>
           </div>
-        </div>
+        </motion.div>
 
         {/* Footer */}
-        <p className="text-center text-[#1A4D1F]/20 text-xs mt-5 font-medium" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-          <SanadBrand color="#1A4D1F" innerColor="white" style={{ opacity: 0.2 }} />{" · Sanad — بن قردان، تونس"}
-        </p>
-      </motion.div>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="text-center text-[#1A4D1F]/30 text-xs mt-6 font-medium"
+        >
+          سند · Sanad — بنقردان
+        </motion.p>
+      </div>
     </div>
   );
 }

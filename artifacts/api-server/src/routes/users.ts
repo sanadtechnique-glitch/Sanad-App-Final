@@ -9,7 +9,83 @@ import { isValidPhone, isValidPassword, isValidRole } from "../lib/validate";
 const router: IRouter = Router();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /auth/admin-login — staff/admin login
+// POST /auth/login — unified login for ALL roles (phone + password)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/auth/login", async (req, res) => {
+  const { phone, password } = req.body as { phone?: string; password?: string };
+  if (!phone || !password) {
+    res.status(400).json({ message: "رقم الهاتف وكلمة المرور مطلوبان · Téléphone et mot de passe requis" });
+    return;
+  }
+
+  try {
+    const identifier = phone.trim();
+
+    // Look up by phone first, then by username (for legacy admin accounts)
+    let user = (await db.select().from(usersTable).where(eq(usersTable.phone, identifier)))[0];
+    if (!user) {
+      user = (await db.select().from(usersTable).where(eq(usersTable.username, identifier.toLowerCase())))[0];
+    }
+
+    if (!user) {
+      res.status(401).json({ message: "رقم الهاتف غير مسجل · Numéro non enregistré" });
+      return;
+    }
+    if (!user.isActive) {
+      res.status(403).json({ message: "الحساب موقوف · Compte suspendu" });
+      return;
+    }
+    if (user.password !== password.trim()) {
+      res.status(401).json({ message: "كلمة المرور غير صحيحة · Mot de passe incorrect" });
+      return;
+    }
+
+    const token = createSession(user.id, user.role, user.username ?? user.name);
+    const { password: _pw, ...safeUser } = user;
+
+    // Provider: attach supplierId
+    if (user.role === "provider") {
+      let supplierId: number | null = user.linkedSupplierId ?? null;
+      let displayName: string = user.name;
+      if (!supplierId) {
+        const [sp] = await db.select({ id: serviceProvidersTable.id, nameAr: serviceProvidersTable.nameAr })
+          .from(serviceProvidersTable).where(eq(serviceProvidersTable.nameAr, user.name));
+        if (sp) { supplierId = sp.id; displayName = sp.nameAr; }
+      } else {
+        const [sp] = await db.select({ nameAr: serviceProvidersTable.nameAr })
+          .from(serviceProvidersTable).where(eq(serviceProvidersTable.id, supplierId));
+        if (sp) displayName = sp.nameAr;
+      }
+      res.json({ ...safeUser, supplierId: supplierId ?? undefined, displayName, token });
+      return;
+    }
+
+    // Driver: attach staffId
+    if (user.role === "driver") {
+      let staffId: number | null = user.linkedStaffId ?? null;
+      let displayName: string = user.name;
+      if (!staffId) {
+        const [ds] = await db.select({ id: deliveryStaffTable.id, nameAr: deliveryStaffTable.nameAr })
+          .from(deliveryStaffTable).where(eq(deliveryStaffTable.nameAr, user.name));
+        if (ds) { staffId = ds.id; displayName = ds.nameAr; }
+      } else {
+        const [ds] = await db.select({ nameAr: deliveryStaffTable.nameAr })
+          .from(deliveryStaffTable).where(eq(deliveryStaffTable.id, staffId));
+        if (ds) displayName = ds.nameAr;
+      }
+      res.json({ ...safeUser, staffId: staffId ?? undefined, displayName, token });
+      return;
+    }
+
+    res.json({ ...safeUser, token });
+  } catch (err) {
+    req.log.error({ err }, "Error in unified login");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/admin-login — staff/admin login (kept for backward compat)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/auth/admin-login", async (req, res) => {
   const { username, password } = req.body as { username?: string; password?: string };
@@ -97,17 +173,18 @@ router.post("/auth/admin-login", async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /auth/client-register — create a client account (public)
+// Phone is the primary unique identifier
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/auth/client-register", async (req, res) => {
-  const { username, name, nickname, email, password, phone } = req.body as {
-    username?: string; name?: string; nickname?: string;
+  const { name, nickname, email, password, phone } = req.body as {
+    name?: string; nickname?: string;
     email?: string; password?: string; phone?: string;
   };
 
   const displayName = (nickname || name || "").trim();
 
-  if (!username || !password || !displayName) {
-    res.status(400).json({ message: "username, name/nickname and password are required" });
+  if (!phone || !password || !displayName) {
+    res.status(400).json({ message: "رقم الهاتف والاسم وكلمة المرور مطلوبة · Téléphone, nom et mot de passe requis" });
     return;
   }
 
@@ -116,40 +193,50 @@ router.post("/auth/client-register", async (req, res) => {
     return;
   }
 
-  if (phone && !isValidPhone(phone)) {
+  if (!isValidPhone(phone)) {
     res.status(400).json({ message: "رقم الهاتف غير صالح · Numéro de téléphone invalide" });
     return;
   }
 
+  if (email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    res.status(400).json({ message: "البريد الإلكتروني غير صحيح · Adresse e-mail invalide" });
+    return;
+  }
+
   try {
-    const [existing] = await db
+    // Check phone uniqueness
+    const [existingPhone] = await db
       .select({ id: usersTable.id })
       .from(usersTable)
-      .where(eq(usersTable.username, username.toLowerCase().trim()));
+      .where(eq(usersTable.phone, phone.trim()));
 
-    if (existing) {
-      res.status(409).json({ message: "اسم المستخدم مسجل مسبقاً · Pseudo déjà utilisé" });
+    if (existingPhone) {
+      res.status(409).json({ message: "رقم الهاتف مسجل مسبقاً · Ce numéro est déjà utilisé" });
       return;
     }
+
+    // Auto-generate a unique username from phone number
+    const baseUsername = `user_${phone.trim().replace(/\D/g, "")}`;
 
     const [user] = await db
       .insert(usersTable)
       .values({
-        username: username.toLowerCase().trim(),
+        username: baseUsername,
         name: displayName,
         email: email?.trim() || null,
         password: password.trim(),
-        phone: phone?.trim() || null,
+        phone: phone.trim(),
         role: "customer",
         isActive: true,
       })
       .returning();
 
+    const token = createSession(user.id, user.role, user.username ?? user.name);
     const { password: _pw, ...safeUser } = user;
-    res.status(201).json(safeUser);
+    res.status(201).json({ ...safeUser, token });
   } catch (err: any) {
     if (err?.code === "23505") {
-      res.status(409).json({ message: "اسم المستخدم مسجل مسبقاً · Pseudo déjà utilisé" });
+      res.status(409).json({ message: "رقم الهاتف مسجل مسبقاً · Ce numéro est déjà utilisé" });
       return;
     }
     req.log.error({ err }, "Error in client-register");

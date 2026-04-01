@@ -386,38 +386,31 @@ export default function ProviderDashboard() {
   const pendingOrders = orders.filter(o => o.status === "pending");
   const displayOrders = tab === "pending" ? pendingOrders : orders;
 
-  /* ── Provider selection screen ── */
+  /* ── If not linked to a supplier → send back to login ── */
   if (!selected) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#FFA500" }} dir={isRTL ? "rtl" : "ltr"}>
-        <div className="w-full max-w-md">
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-[#1A4D1F]/15 border-2 border-[#1A4D1F]/40 flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_-8px_rgba(46,125,50,0.5)]">
-              <Package size={28} className="text-[#1A4D1F]" />
-            </div>
-            <h1 className="text-3xl font-black text-[#1A4D1F] mb-2">{t("لوحة المزود", "Tableau Fournisseur")}</h1>
-            <p className="text-[#1A4D1F]/40">{t("اختر اسمك للدخول", "Sélectionnez votre profil")}</p>
-          </motion.div>
-          <div className="space-y-2">
-            {providers.map((p, i) => (
-              <motion.button key={p.id}
-                initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
-                onClick={() => selectProvider(p)}
-                className="w-full rounded-[15px] p-4 flex items-center justify-between gap-3 border border-[#1A4D1F]/30 hover:border-[#1A4D1F]/40 transition-all group card-hover"
-                style={{ background: "#FFFDE7" }}>
-                <div className="flex items-center gap-3">
-                  <div className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0",
-                    p.isAvailable ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" : "bg-red-400")} />
-                  <div className="text-right">
-                    <p className="font-black text-[#1A4D1F] group-hover:text-[#1A4D1F] transition-colors">{p.nameAr}</p>
-                    <p className="text-xs text-[#1A4D1F]/30">{p.isAvailable ? t("مفتوح", "Ouvert") : t("مغلق", "Fermé")}</p>
-                  </div>
-                </div>
-                <ChevronRight size={16} className={cn("text-[#1A4D1F]/20 group-hover:text-[#1A4D1F]", isRTL && "rotate-180")} />
-              </motion.button>
-            ))}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-sm rounded-[20px] p-8 text-center"
+          style={{ background: "#FFFDE7", border: "1px solid rgba(26,77,31,0.1)" }}
+        >
+          <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-400/30 flex items-center justify-center mx-auto mb-5">
+            <Package size={24} className="text-red-400" />
           </div>
-        </div>
+          <h2 className="text-lg font-black text-[#1A4D1F] mb-2">{t("غير مرتبط بمتجر", "Compte non lié")}</h2>
+          <p className="text-sm text-[#1A4D1F]/40 mb-6">
+            {t("حسابك غير مرتبط بأي متجر. تواصل مع المسؤول.", "Votre compte n'est pas lié à un magasin. Contactez l'admin.")}
+          </p>
+          <button
+            onClick={logout}
+            className="w-full py-3 rounded-xl font-black text-white text-sm"
+            style={{ background: "#1A4D1F" }}
+          >
+            {t("العودة لتسجيل الدخول", "Retour à la connexion")}
+          </button>
+        </motion.div>
       </div>
     );
   }
