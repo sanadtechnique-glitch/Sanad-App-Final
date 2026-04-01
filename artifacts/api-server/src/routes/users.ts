@@ -39,12 +39,15 @@ router.post("/auth/admin-login", async (req, res) => {
 // POST /auth/client-register — create a client account (public, no admin needed)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/auth/client-register", async (req, res) => {
-  const { username, name, password, phone } = req.body as {
-    username?: string; name?: string; password?: string; phone?: string;
+  const { username, name, nickname, email, password, phone } = req.body as {
+    username?: string; name?: string; nickname?: string;
+    email?: string; password?: string; phone?: string;
   };
 
-  if (!username || !password || !name) {
-    res.status(400).json({ message: "username, name and password are required" });
+  const displayName = (nickname || name || "").trim();
+
+  if (!username || !password || !displayName) {
+    res.status(400).json({ message: "username, name/nickname and password are required" });
     return;
   }
 
@@ -63,7 +66,8 @@ router.post("/auth/client-register", async (req, res) => {
       .insert(usersTable)
       .values({
         username: username.toLowerCase().trim(),
-        name: name.trim(),
+        name: displayName,
+        email: email?.trim() || null,
         password: password.trim(),
         phone: phone?.trim() || null,
         role: "customer",

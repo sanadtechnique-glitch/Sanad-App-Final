@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertCircle, Eye, EyeOff, ChevronDown, LogIn,
-  UserPlus, Phone, Lock, User, CheckCircle, MapPin, Search,
+  UserPlus, Phone, Lock, User, CheckCircle, MapPin, Search, Mail,
 } from "lucide-react";
 import { get, post } from "@/lib/admin-api";
 import { SanadBrand } from "@/components/sanad-brand";
@@ -232,10 +232,8 @@ function ErrorBox({ message }: { message: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   const [, navigate] = useLocation();
-  const [role, setRole]         = useState<Role>("client");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [dropOpen, setDropOpen] = useState(false);
   const [error, setError]       = useState<string | null>(null);
   const [loading, setLoading]   = useState(false);
 
@@ -245,84 +243,48 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    // Request browser notification permission (non-blocking)
     requestNotificationPermission().catch(() => {});
     try {
-      if (role === "client") {
-        const res = await fetch(`/api/auth/client-login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: username.trim(), password: password.trim() }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.message || "فشل تسجيل الدخول · Échec de la connexion");
-          return;
-        }
+      // 1. Try client login
+      const clientRes = await fetch(`/api/auth/client-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+      });
+      if (clientRes.ok) {
+        const data = await clientRes.json();
         setSession({ role: "client", name: data.name, userId: data.id });
         navigate("/");
         return;
       }
-      if (role === "admin") {
-        // Try DB-backed authentication first
-        try {
-          const res = await fetch(`/api/auth/admin-login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: username.trim(), password: password.trim() }),
-          });
-          if (res.ok) {
-            const user = await res.json();
-            const adminRoles = ["super_admin", "manager", "admin"];
-            if (adminRoles.includes(user.role)) {
-              setSession({ role: user.role, name: user.name, userId: user.id });
-              navigate("/admin");
-              return;
-            } else {
-              setError("ليس لديك صلاحية الوصول للوحة التحكم · Accès refusé");
-              return;
-            }
+
+      // 2. Try admin login
+      try {
+        const adminRes = await fetch(`/api/auth/admin-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+        });
+        if (adminRes.ok) {
+          const user = await adminRes.json();
+          const adminRoles = ["super_admin", "manager", "admin"];
+          if (adminRoles.includes(user.role)) {
+            setSession({ role: user.role, name: user.name, userId: user.id });
+            navigate("/admin");
+            return;
           }
-        } catch {
-          // API unreachable — fall through to hardcoded fallback
         }
-        // Hardcoded fallback (for backward compat)
-        if (username.trim().toLowerCase() !== "admin") {
-          setError("اسم المستخدم غير صحيح · Identifiant incorrect");
-          return;
-        }
-        if (password.trim() !== "Abc1234") {
-          setError("كلمة المرور غير صحيحة · Mot de passe incorrect");
-          return;
-        }
+      } catch { /* ignore */ }
+
+      // 3. Hardcoded admin fallback
+      if (username.trim().toLowerCase() === "admin" && password.trim() === "Abc1234") {
         setSession({ role: "admin", name: "Admin" });
         navigate("/admin");
         return;
       }
-      if (role === "provider") {
-        const list = await get<Supplier[]>("/admin/suppliers");
-        const found = list.find(
-          s =>
-            s.nameAr.toLowerCase() === username.trim().toLowerCase() ||
-            s.name.toLowerCase()   === username.trim().toLowerCase()
-        );
-        if (!found) { setError("اسم المزود غير موجود · Fournisseur introuvable"); return; }
-        setSession({ role: "provider", name: found.nameAr, supplierId: found.id });
-        navigate("/provider");
-        return;
-      }
-      if (role === "delivery") {
-        const list = await get<Staff[]>("/admin/delivery-staff");
-        const found = list.find(
-          s =>
-            s.nameAr.toLowerCase() === username.trim().toLowerCase() ||
-            s.name.toLowerCase()   === username.trim().toLowerCase()
-        );
-        if (!found) { setError("اسم السائق غير موجود · Livreur introuvable"); return; }
-        setSession({ role: "delivery", name: found.nameAr, staffId: found.id });
-        navigate("/delivery");
-        return;
-      }
+
+      // Nothing matched
+      setError("اسم المستخدم أو كلمة المرور غير صحيحة · Identifiant ou mot de passe incorrect");
     } catch {
       setError("حدث خطأ في الاتصال · Erreur de connexion");
     } finally {
@@ -332,30 +294,13 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5" dir="rtl">
-      {/* Role */}
-      <div>
-        <FieldLabel>الدور · Profil</FieldLabel>
-        <RoleDropdown
-          value={role}
-          onChange={r => { setRole(r); setError(null); }}
-          options={LOGIN_PROFILES}
-          open={dropOpen}
-          setOpen={setDropOpen}
-        />
-      </div>
-
       {/* Username */}
       <div>
         <FieldLabel>اسم المستخدم · Pseudo</FieldLabel>
         <TextInput
           value={username}
           onChange={v => { setUsername(v); setError(null); }}
-          placeholder={
-            role === "admin"    ? "admin" :
-            role === "provider" ? "اسم المزود كما هو مسجل" :
-            role === "delivery" ? "اسم السائق كما هو مسجل" :
-            "اسمك"
-          }
+          placeholder="اسمك"
           icon={User}
           hasValue={username.length > 0}
         />
@@ -400,14 +345,6 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
           </>
         )}
       </button>
-
-      {(role === "provider" || role === "delivery") && (
-        <p className="text-center text-[#1A4D1F]/25 text-xs">
-          {role === "provider"
-            ? "أدخل اسمك كما هو مسجل في قائمة المزودين"
-            : "أدخل اسمك كما هو مسجل في قائمة السائقين"}
-        </p>
-      )}
     </form>
   );
 }
@@ -417,12 +354,11 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function SignUpForm() {
   const [, navigate] = useLocation();
-  const [role, setRole]         = useState<Role>("client");
   const [username, setUsername] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm]   = useState("");
-  const [phone, setPhone]       = useState("");
-  const [dropOpen, setDropOpen] = useState(false);
   const [error, setError]       = useState<string | null>(null);
   const [loading, setLoading]   = useState(false);
   const [success, setSuccess]   = useState(false);
@@ -431,13 +367,12 @@ function SignUpForm() {
   const [delegationOpen, setDelegationOpen]   = useState(false);
   const [delegationSearch, setDelegationSearch] = useState("");
 
-  const needsPhone = role === "provider" || role === "delivery";
-  const canSubmit  =
+  const canSubmit =
     username.trim() !== "" &&
+    nickname.trim() !== "" &&
     password.trim() !== "" &&
     confirm.trim()  !== "" &&
     delegationName  !== "" &&
-    (!needsPhone || phone.trim() !== "") &&
     !loading;
 
   const filteredDelegations = delegationSearch.trim()
@@ -459,102 +394,37 @@ function SignUpForm() {
       setError("كلمة المرور قصيرة جداً (4 أحرف على الأقل) · Mot de passe trop court");
       return;
     }
-    if (needsPhone && !/^\+?[\d\s]{8,}$/.test(phone.trim())) {
-      setError("رقم الهاتف غير صحيح · Numéro de téléphone invalide");
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("البريد الإلكتروني غير صحيح · Adresse e-mail invalide");
       return;
     }
 
     setLoading(true);
     try {
-      const pseudo = username.trim();
-
-      if (role === "client") {
-        const res = await fetch(`/api/auth/client-register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: pseudo,
-            name: pseudo,
-            password: password.trim(),
-            phone: phone.trim() || undefined,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.message || "فشل إنشاء الحساب · Échec de l'inscription");
-          return;
-        }
-        setSession({
-          role: "client",
-          name: data.name,
-          userId: data.id,
-          delegationName,
-          delegationFee: DELEGATION_FEE_MAP[delegationName] ?? DEFAULT_DELIVERY_FEE,
-        });
-        setSuccess(true);
-        setTimeout(() => navigate("/"), 900);
+      const res = await fetch(`/api/auth/client-register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: username.trim(),
+          nickname: nickname.trim(),
+          email: email.trim() || undefined,
+          password: password.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || "فشل إنشاء الحساب · Échec de l'inscription");
         return;
       }
-
-      if (role === "provider") {
-        // Check duplicate
-        const existing = await get<Supplier[]>("/admin/suppliers");
-        const dup = existing.find(
-          s => s.nameAr.toLowerCase() === pseudo.toLowerCase() ||
-               s.name.toLowerCase()   === pseudo.toLowerCase()
-        );
-        if (dup) { setError("هذا الاسم مسجل مسبقاً · Ce nom est déjà utilisé"); return; }
-
-        // Create supplier
-        const newSupplier = await post<Supplier>("/admin/suppliers", {
-          name: pseudo,
-          nameAr: pseudo,
-          category: "restaurant",
-          description: "",
-          descriptionAr: "",
-          address: "بن قردان",
-          phone: phone.trim(),
-          isAvailable: true,
-        });
-        setSession({
-          role: "provider",
-          name: newSupplier.nameAr,
-          supplierId: newSupplier.id,
-          delegationName,
-          delegationFee: DELEGATION_FEE_MAP[delegationName] ?? DEFAULT_DELIVERY_FEE,
-        });
-        setSuccess(true);
-        setTimeout(() => navigate("/provider"), 900);
-        return;
-      }
-
-      if (role === "delivery") {
-        // Check duplicate
-        const existing = await get<Staff[]>("/admin/delivery-staff");
-        const dup = existing.find(
-          s => s.nameAr.toLowerCase() === pseudo.toLowerCase() ||
-               s.name.toLowerCase()   === pseudo.toLowerCase()
-        );
-        if (dup) { setError("هذا الاسم مسجل مسبقاً · Ce nom est déjà utilisé"); return; }
-
-        // Create delivery staff
-        const newStaff = await post<Staff>("/admin/delivery-staff", {
-          name: pseudo,
-          nameAr: pseudo,
-          phone: phone.trim(),
-          isAvailable: true,
-        });
-        setSession({
-          role: "delivery",
-          name: newStaff.nameAr,
-          staffId: newStaff.id,
-          delegationName,
-          delegationFee: DELEGATION_FEE_MAP[delegationName] ?? DEFAULT_DELIVERY_FEE,
-        });
-        setSuccess(true);
-        setTimeout(() => navigate("/delivery"), 900);
-        return;
-      }
+      setSession({
+        role: "client",
+        name: data.name,
+        userId: data.id,
+        delegationName,
+        delegationFee: DELEGATION_FEE_MAP[delegationName] ?? DEFAULT_DELIVERY_FEE,
+      });
+      setSuccess(true);
+      setTimeout(() => navigate("/"), 900);
     } catch {
       setError("حدث خطأ في الاتصال · Erreur de connexion");
     } finally {
@@ -584,28 +454,6 @@ function SignUpForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
-      {/* Role */}
-      <div>
-        <FieldLabel>الدور · Profil</FieldLabel>
-        <RoleDropdown
-          value={role}
-          onChange={r => { setRole(r); setError(null); }}
-          options={SIGNUP_PROFILES}
-          open={dropOpen}
-          setOpen={setDropOpen}
-        />
-        {role === "provider" && (
-          <p className="text-[11px] text-[#1A4D1F]/35 mt-1.5 text-right">
-            سيُضاف كمزود خدمة · Vous serez ajouté comme fournisseur
-          </p>
-        )}
-        {role === "delivery" && (
-          <p className="text-[11px] text-[#1A4D1F]/35 mt-1.5 text-right">
-            سيُضاف كسائق توصيل · Vous serez ajouté comme livreur
-          </p>
-        )}
-      </div>
-
       {/* Delegation */}
       <div>
         <FieldLabel>المعتمدية · Délégation</FieldLabel>
@@ -693,41 +541,44 @@ function SignUpForm() {
         )}
       </div>
 
-      {/* Username */}
+      {/* Nickname (display name) */}
       <div>
-        <FieldLabel>الاسم · Pseudo</FieldLabel>
+        <FieldLabel>اللقب · Surnom</FieldLabel>
         <TextInput
-          value={username}
-          onChange={v => { setUsername(v); setError(null); }}
-          placeholder={
-            role === "provider" ? "اسم المحل أو الخدمة" :
-            role === "delivery" ? "اسمك الكامل" :
-            "اسمك"
-          }
+          value={nickname}
+          onChange={v => { setNickname(v); setError(null); }}
+          placeholder="ما يظهر للآخرين · Ce que voient les autres"
           icon={User}
-          hasValue={username.length > 0}
+          hasValue={nickname.length > 0}
         />
       </div>
 
-      {/* Phone — only for Frs & Livreur */}
-      <AnimatePresence>
-        {needsPhone && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-          >
-            <FieldLabel>رقم الهاتف · Téléphone</FieldLabel>
-            <TextInput
-              value={phone}
-              onChange={v => { setPhone(v); setError(null); }}
-              placeholder="+216 XX XXX XXX"
-              icon={Phone}
-              hasValue={phone.length > 0}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Username (login ID) */}
+      <div>
+        <FieldLabel>اسم المستخدم · Pseudo de connexion</FieldLabel>
+        <TextInput
+          value={username}
+          onChange={v => { setUsername(v); setError(null); }}
+          placeholder="للدخول فقط · Pour se connecter"
+          icon={User}
+          hasValue={username.length > 0}
+        />
+        <p className="text-[11px] text-[#1A4D1F]/35 mt-1 text-right">
+          سيُستخدم للدخول · Utilisé pour la connexion
+        </p>
+      </div>
+
+      {/* Email (optional) */}
+      <div>
+        <FieldLabel>البريد الإلكتروني · E-mail <span className="text-[#1A4D1F]/35 text-[10px] font-normal">(اختياري · Facultatif)</span></FieldLabel>
+        <TextInput
+          value={email}
+          onChange={v => { setEmail(v); setError(null); }}
+          placeholder="exemple@mail.com"
+          icon={Mail}
+          hasValue={email.length > 0}
+        />
+      </div>
 
       {/* Password */}
       <div>
