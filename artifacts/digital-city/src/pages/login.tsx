@@ -249,7 +249,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     requestNotificationPermission().catch(() => {});
     try {
       if (role === "client") {
-        const res = await fetch(`${import.meta.env.BASE_URL}api/auth/client-login`, {
+        const res = await fetch(`/api/auth/client-login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username: username.trim(), password: password.trim() }),
@@ -266,7 +266,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       if (role === "admin") {
         // Try DB-backed authentication first
         try {
-          const res = await fetch(`${import.meta.env.BASE_URL}api/auth/admin-login`, {
+          const res = await fetch(`/api/auth/admin-login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username: username.trim(), password: password.trim() }),
@@ -469,7 +469,7 @@ function SignUpForm() {
       const pseudo = username.trim();
 
       if (role === "client") {
-        const res = await fetch(`${import.meta.env.BASE_URL}api/auth/client-register`, {
+        const res = await fetch(`/api/auth/client-register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
