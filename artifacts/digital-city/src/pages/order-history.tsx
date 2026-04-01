@@ -26,6 +26,8 @@ interface Order {
   serviceProviderName: string;
   deliveryStaffId?: number;
   deliveryFee?: number;
+  distanceKm?: number | null;
+  etaMinutes?: number | null;
   photoUrl?: string;
   createdAt: string;
   updatedAt: string;
@@ -108,6 +110,13 @@ function OrderCard({
               {order.id}
             </span>
             <StatusBadge status={order.status} lang={lang} />
+            {order.etaMinutes && ONGOING_STATUSES.includes(order.status) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black border"
+                style={{ color: "#059669", background: "#F0FDF4", borderColor: "#05966930" }}>
+                <Clock size={9} />
+                {lang === "ar" ? `~${order.etaMinutes} دقيقة` : `~${order.etaMinutes} min`}
+              </span>
+            )}
           </div>
 
           {/* Provider + service */}

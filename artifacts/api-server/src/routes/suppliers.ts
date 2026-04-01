@@ -23,6 +23,8 @@ router.get("/suppliers", async (req, res) => {
       rating:        serviceProvidersTable.rating,
       isAvailable:   serviceProvidersTable.isAvailable,
       shift:         serviceProvidersTable.shift,
+      latitude:      serviceProvidersTable.latitude,
+      longitude:     serviceProvidersTable.longitude,
     }).from(serviceProvidersTable).orderBy(serviceProvidersTable.name);
     res.json(rows);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
@@ -44,6 +46,8 @@ router.get("/suppliers/:id", async (req, res) => {
       rating:        serviceProvidersTable.rating,
       isAvailable:   serviceProvidersTable.isAvailable,
       shift:         serviceProvidersTable.shift,
+      latitude:      serviceProvidersTable.latitude,
+      longitude:     serviceProvidersTable.longitude,
     }).from(serviceProvidersTable).where(eq(serviceProvidersTable.id, id));
     if (!row) { res.status(404).json({ message: "Not found" }); return; }
     res.json(row);
@@ -69,7 +73,7 @@ router.get("/admin/suppliers/:id", requireAdmin, async (req, res) => {
 });
 
 router.post("/admin/suppliers", requireAdmin, async (req, res) => {
-  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable } = req.body;
+  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable, latitude, longitude } = req.body;
   if (!name || !nameAr || !category) {
     res.status(400).json({ message: "name, nameAr, category required" }); return;
   }
@@ -87,6 +91,8 @@ router.post("/admin/suppliers", requireAdmin, async (req, res) => {
       shift: shift || "all",
       rating: rating ?? 4.5,
       isAvailable: isAvailable ?? true,
+      latitude: latitude ? parseFloat(String(latitude)) : null,
+      longitude: longitude ? parseFloat(String(longitude)) : null,
     }).returning();
     res.status(201).json(row);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
@@ -95,13 +101,17 @@ router.post("/admin/suppliers", requireAdmin, async (req, res) => {
 router.patch("/admin/suppliers/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
-  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable } = req.body;
+  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable, latitude, longitude } = req.body;
   if (phone !== undefined && phone !== "" && !isValidPhone(phone)) {
     res.status(400).json({ message: "Invalid phone number format" }); return;
   }
   try {
     const [row] = await db.update(serviceProvidersTable)
-      .set({ name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable })
+      .set({
+        name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable,
+        latitude: latitude !== undefined ? (latitude ? parseFloat(String(latitude)) : null) : undefined,
+        longitude: longitude !== undefined ? (longitude ? parseFloat(String(longitude)) : null) : undefined,
+      })
       .where(eq(serviceProvidersTable.id, id)).returning();
     if (!row) { res.status(404).json({ message: "Not found" }); return; }
     res.json(row);

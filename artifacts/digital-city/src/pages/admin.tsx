@@ -29,7 +29,7 @@ interface Order {
   createdAt: string; notes?: string; delegationId?: number;
 }
 interface Category { id: number; slug: string; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; icon: string; color: string; }
-interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; }
+interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; }
 interface Article { id: number; supplierId: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; originalPrice?: number; discountedPrice?: number; isAvailable: boolean; supplierName?: string; }
 interface DeliveryStaff { id: number; name: string; nameAr: string; phone: string; zone?: string; isAvailable: boolean; }
 interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
@@ -493,13 +493,13 @@ function CategoriesSection({ t }: { t: (ar: string, fr: string) => string }) {
 function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
   const [items, setItems] = useState<Supplier[]>([]);
   const [modal, setModal] = useState<null | "add" | Supplier>(null);
-  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", shift:"all", isAvailable: true });
+  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", shift:"all", isAvailable: true, latitude:"", longitude:"" });
 
   const load = () => get<Supplier[]>("/admin/suppliers").then(setItems).catch(() => {});
   useEffect(() => { load(); }, []);
 
-  const openAdd = () => { setForm({ name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",shift:"all",isAvailable:true }); setModal("add"); };
-  const openEdit = (s: Supplier) => { setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", shift:s.shift||"all", isAvailable:s.isAvailable }); setModal(s); };
+  const openAdd = () => { setForm({ name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",shift:"all",isAvailable:true,latitude:"",longitude:"" }); setModal("add"); };
+  const openEdit = (s: Supplier) => { setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"" }); setModal(s); };
 
   const save = async () => {
     if (modal === "add") await post("/admin/suppliers", form);
@@ -585,6 +585,23 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
         <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>
         <Field label={t("الوصف فرنسي","Description française")}><Input value={form.description} onChange={v => setForm(f => ({...f, description: v}))} /></Field>
         <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>
+        {/* GPS Coordinates for distance calculation */}
+        <div className="rounded-xl p-3 border border-[#FFA500]/30 bg-[#FFA500]/5">
+          <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-2">
+            {t("إحداثيات GPS (لحساب المسافة)","Coordonnées GPS (calcul distance)")}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={t("خط العرض","Latitude")}>
+              <Input value={form.latitude} onChange={v => setForm(f => ({...f, latitude: v}))} placeholder="33.1167" />
+            </Field>
+            <Field label={t("خط الطول","Longitude")}>
+              <Input value={form.longitude} onChange={v => setForm(f => ({...f, longitude: v}))} placeholder="11.2167" />
+            </Field>
+          </div>
+          <p className="text-[10px] text-[#1A4D1F]/30 mt-1">
+            {t("اختياري · بن قردان: 33.1167, 11.2167","Optionnel · Ben Guerdane: 33.1167, 11.2167")}
+          </p>
+        </div>
         <GoldBtn onClick={save} className="w-full justify-center">{t("حفظ","Enregistrer")}</GoldBtn>
       </Modal>
     </div>
@@ -1976,13 +1993,193 @@ function BroadcastSection({ t, lang }: { t: (ar: string, fr: string) => string; 
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Main Admin Page
+// Section: Live Delivery Map
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads";
+interface ActiveOrder {
+  id: number; customerName: string; customerAddress: string;
+  customerLat?: number | null; customerLng?: number | null;
+  serviceProviderName: string; status: string; deliveryFee?: number;
+  distanceKm?: number | null; etaMinutes?: number | null;
+  createdAt: string;
+}
+interface MapSupplier { id: number; nameAr: string; name: string; address: string; latitude?: number | null; longitude?: number | null; isAvailable: boolean; }
+
+function LiveMapSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
+  const [orders, setOrders] = useState<ActiveOrder[]>([]);
+  const [suppliers, setSuppliers] = useState<MapSupplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [MapComponents, setMapComponents] = useState<any>(null);
+
+  const BEN_GUERDANE: [number, number] = [33.1365, 11.2206];
+  const ACTIVE_STATUSES = ["pending", "accepted", "prepared", "driver_accepted", "in_delivery", "searching_for_driver"];
+
+  useEffect(() => {
+    const load = async () => {
+      const [allOrders, allSuppliers] = await Promise.all([
+        get<ActiveOrder[]>("/orders").catch(() => []),
+        get<MapSupplier[]>("/admin/suppliers").catch(() => []),
+      ]);
+      setOrders(allOrders.filter(o => ACTIVE_STATUSES.includes(o.status)));
+      setSuppliers(allSuppliers);
+      setLoading(false);
+    };
+    load();
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    Promise.all([
+      import("react-leaflet"),
+      import("leaflet"),
+      // @ts-ignore
+      import("leaflet/dist/leaflet.css"),
+    ]).then(([rl, L]) => {
+      delete (L.default.Icon.Default.prototype as any)._getIconUrl;
+      L.default.Icon.Default.mergeOptions({
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      });
+      setMapComponents({ MapContainer: rl.MapContainer, TileLayer: rl.TileLayer, Marker: rl.Marker, Popup: rl.Popup, L: L.default });
+    });
+  }, []);
+
+  const ordersWithCoords = orders.filter(o => o.customerLat && o.customerLng);
+  const suppliersWithCoords = suppliers.filter(s => s.latitude && s.longitude);
+
+  const createIcon = (color: string, L: any) => L.divIcon({
+    html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
+    iconSize: [14, 14], iconAnchor: [7, 7], className: "",
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-black text-[#1A4D1F]">{t("الخريطة المباشرة", "Carte en direct")}</h2>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-emerald-500 font-black">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            {t("مباشر", "En direct")}
+          </div>
+          <span className="text-xs text-[#1A4D1F]/40 font-bold">{t(`${orders.length} طلب نشط`, `${orders.length} commandes actives`)}</span>
+        </div>
+      </div>
+
+      {/* Stats bar */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="glass-panel rounded-xl p-3 text-center">
+          <p className="text-xl font-black text-[#FFA500]">{orders.length}</p>
+          <p className="text-xs text-[#1A4D1F]/40">{t("طلبات نشطة","Commandes actives")}</p>
+        </div>
+        <div className="glass-panel rounded-xl p-3 text-center">
+          <p className="text-xl font-black text-[#1A4D1F]">{ordersWithCoords.length}</p>
+          <p className="text-xs text-[#1A4D1F]/40">{t("موقع محدد","Avec GPS")}</p>
+        </div>
+        <div className="glass-panel rounded-xl p-3 text-center">
+          <p className="text-xl font-black text-emerald-500">{suppliersWithCoords.length}</p>
+          <p className="text-xs text-[#1A4D1F]/40">{t("مزودون محددون","Prestataires GPS")}</p>
+        </div>
+      </div>
+
+      {/* Map */}
+      <div className="glass-panel rounded-2xl overflow-hidden border border-[#1A4D1F]/20" style={{ height: "480px" }}>
+        {loading || !MapComponents ? (
+          <div className="h-full flex flex-col items-center justify-center gap-3">
+            <div className="w-8 h-8 border-3 border-[#1A4D1F] border-t-transparent rounded-full animate-spin" style={{ borderWidth: 3 }} />
+            <p className="text-sm text-[#1A4D1F]/40">{t("تحميل الخريطة...","Chargement de la carte...")}</p>
+          </div>
+        ) : (
+          <div style={{ height: "100%", direction: "ltr" }}>
+            <MapComponents.MapContainer center={BEN_GUERDANE} zoom={13} style={{ height: "100%", width: "100%" }}>
+              <MapComponents.TileLayer
+                attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {/* Customer order markers (orange) */}
+              {ordersWithCoords.map(order => (
+                <MapComponents.Marker
+                  key={`order-${order.id}`}
+                  position={[order.customerLat!, order.customerLng!]}
+                  icon={createIcon("#FFA500", MapComponents.L)}
+                >
+                  <MapComponents.Popup>
+                    <div style={{ fontFamily: "sans-serif", minWidth: 180 }}>
+                      <p style={{ fontWeight: 700, marginBottom: 4 }}>#{order.id} · {order.customerName}</p>
+                      <p style={{ fontSize: 12, color: "#666" }}>{order.serviceProviderName}</p>
+                      <p style={{ fontSize: 12, color: "#666" }}>{order.customerAddress}</p>
+                      {order.distanceKm && <p style={{ fontSize: 11, color: "#1A4D1F", marginTop: 4 }}>📍 {order.distanceKm.toFixed(1)} km</p>}
+                      {order.etaMinutes && <p style={{ fontSize: 11, color: "#059669" }}>⏱ ~{order.etaMinutes} min</p>}
+                      {order.deliveryFee && <p style={{ fontSize: 11, color: "#1A4D1F" }}>💰 {order.deliveryFee} TND</p>}
+                    </div>
+                  </MapComponents.Popup>
+                </MapComponents.Marker>
+              ))}
+              {/* Provider markers (green) */}
+              {suppliersWithCoords.map(s => (
+                <MapComponents.Marker
+                  key={`supplier-${s.id}`}
+                  position={[s.latitude!, s.longitude!]}
+                  icon={createIcon("#1A4D1F", MapComponents.L)}
+                >
+                  <MapComponents.Popup>
+                    <div style={{ fontFamily: "sans-serif" }}>
+                      <p style={{ fontWeight: 700 }}>{lang === "ar" ? s.nameAr : s.name}</p>
+                      <p style={{ fontSize: 12, color: "#666" }}>{s.address}</p>
+                      <p style={{ fontSize: 11, color: s.isAvailable ? "#059669" : "#EF4444", marginTop: 4 }}>
+                        {s.isAvailable ? (lang === "ar" ? "متاح" : "Disponible") : (lang === "ar" ? "غير متاح" : "Indisponible")}
+                      </p>
+                    </div>
+                  </MapComponents.Popup>
+                </MapComponents.Marker>
+              ))}
+            </MapComponents.MapContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-6 text-xs text-[#1A4D1F]/60 font-bold px-2">
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-[#FFA500] border border-white shadow-sm" />
+          {t("عميل / طلب نشط","Client / Commande active")}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-[#1A4D1F] border border-white shadow-sm" />
+          {t("مزود خدمات","Prestataire de services")}
+        </div>
+        <div className="ml-auto text-[10px] text-[#1A4D1F]/30">
+          {t("يتحدث كل 15 ثانية","Mise à jour toutes les 15s")}
+        </div>
+      </div>
+
+      {/* Orders without GPS */}
+      {orders.length > ordersWithCoords.length && (
+        <div className="glass-panel rounded-2xl p-4">
+          <p className="text-sm font-black text-[#1A4D1F] mb-3">{t("طلبات بدون موقع GPS","Commandes sans GPS")}</p>
+          <div className="space-y-2">
+            {orders.filter(o => !o.customerLat || !o.customerLng).map(order => (
+              <div key={order.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#FFA500]/5 border border-[#FFA500]/20">
+                <span className="font-mono text-xs text-[#1A4D1F]/40">#{order.id.toString().padStart(4,"0")}</span>
+                <span className="text-sm font-bold text-[#1A4D1F]">{order.customerName}</span>
+                <span className="text-xs text-[#1A4D1F]/40 flex-1">{order.customerAddress}</span>
+                <span className="text-xs text-[#FFA500] font-bold">{order.serviceProviderName}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map";
 
 const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean }[] = [
   { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",       fr: "Tableau de bord" },
   { id: "orders",        icon: Package,          ar: "الطلبات",         fr: "Commandes" },
+  { id: "live_map",      icon: Map,              ar: "الخريطة المباشرة", fr: "Carte live" },
   { id: "hotelBookings", icon: Hotel,            ar: "حجوزات الفنادق",  fr: "Réservations Hôtel" },
   { id: "banners",       icon: Megaphone,        ar: "الإعلانات",       fr: "Publicités" },
   { id: "ads",           icon: Image,            ar: "إعلانات متقدمة",  fr: "Ads avancées" },
@@ -2213,6 +2410,7 @@ export default function Admin() {
           <motion.div key={active} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
             {active === "overview"      && <OverviewSection t={t} />}
             {active === "orders"        && <OrdersSection t={t} lang={lang} />}
+            {active === "live_map"      && <LiveMapSection t={t} lang={lang} />}
             {active === "hotelBookings" && <HotelBookingsSection t={t} lang={lang} />}
             {active === "banners"       && <BannersSection t={t} />}
             {active === "ads"           && <AdsSection t={t} />}

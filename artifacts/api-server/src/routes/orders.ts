@@ -5,6 +5,7 @@ import { eq, inArray, and, ilike } from "drizzle-orm";
 import { emitNewOrder, emitOrderTaken, emitOrderStatus } from "../lib/socket";
 import { requireStaff, requireAdmin } from "../lib/authMiddleware";
 import { safeParseFloat, safeParseInt } from "../lib/validate";
+import { calculateDistance, haversineKm } from "../lib/distance";
 
 const router: IRouter = Router();
 
@@ -43,10 +44,39 @@ router.get("/orders/:id", async (req, res) => {
   }
 });
 
+// GET /distance — Calculate distance + fee + ETA between provider and customer
+router.get("/distance", async (req, res) => {
+  const { providerLat, providerLng, customerLat, customerLng, providerId } = req.query as Record<string, string>;
+
+  let pLat: number | null = providerLat ? parseFloat(providerLat) : null;
+  let pLng: number | null = providerLng ? parseFloat(providerLng) : null;
+
+  if (providerId && (!pLat || !pLng)) {
+    const [provider] = await db.select({ latitude: serviceProvidersTable.latitude, longitude: serviceProvidersTable.longitude })
+      .from(serviceProvidersTable).where(eq(serviceProvidersTable.id, parseInt(providerId)));
+    if (provider) { pLat = provider.latitude; pLng = provider.longitude; }
+  }
+
+  const cLat = customerLat ? parseFloat(customerLat) : null;
+  const cLng = customerLng ? parseFloat(customerLng) : null;
+
+  if (!cLat || !cLng || isNaN(cLat) || isNaN(cLng)) {
+    res.status(400).json({ message: "customerLat and customerLng are required" }); return;
+  }
+
+  try {
+    const result = await calculateDistance(pLat, pLng, cLat, cLng);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Could not calculate distance" });
+  }
+});
+
 // POST /orders — Customer places order → status "searching_for_driver" → broadcast to ALL drivers
 router.post("/orders", async (req, res) => {
   const { customerName, customerPhone, customerAddress, delegationId, notes,
-    serviceProviderId, serviceType, photoUrl, customerId } = req.body;
+    serviceProviderId, serviceType, photoUrl, customerId,
+    customerLat, customerLng } = req.body;
 
   if (!customerName || !customerAddress || !serviceProviderId || !serviceType) {
     res.status(400).json({ message: "customerName, customerAddress, serviceProviderId, serviceType are required" });
@@ -58,8 +88,26 @@ router.post("/orders", async (req, res) => {
     if (!provider) { res.status(400).json({ message: "Service provider not found" }); return; }
 
     const cid = customerId ? parseInt(String(customerId)) : null;
+    const cLat = customerLat ? parseFloat(String(customerLat)) : null;
+    const cLng = customerLng ? parseFloat(String(customerLng)) : null;
+
+    let distanceKm: number | null = null;
+    let etaMinutes: number | null = null;
+    let computedFee: number | null = null;
+
+    if (cLat && cLng && !isNaN(cLat) && !isNaN(cLng)) {
+      try {
+        const dist = await calculateDistance(provider.latitude, provider.longitude, cLat, cLng);
+        distanceKm = dist.distanceKm;
+        etaMinutes = dist.etaMinutes;
+        computedFee = dist.deliveryFee;
+      } catch { /* fallback to no calculation */ }
+    }
+
     const [order] = await db.insert(ordersTable).values({
       customerName, customerPhone, customerAddress,
+      customerLat: cLat,
+      customerLng: cLng,
       delegationId: delegationId ? parseInt(delegationId) : null,
       notes: notes || null,
       photoUrl: photoUrl || null,
@@ -68,6 +116,9 @@ router.post("/orders", async (req, res) => {
       serviceProviderName: provider.name,
       status: "searching_for_driver",
       customerId: isNaN(cid as number) ? null : cid,
+      deliveryFee: computedFee ?? (req.body.deliveryFee ? parseFloat(String(req.body.deliveryFee)) : 0),
+      distanceKm,
+      etaMinutes,
     }).returning();
 
     // Real-time: broadcast instantly to ALL connected drivers

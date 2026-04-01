@@ -29,6 +29,8 @@ interface Order {
   customerAddress: string; serviceProviderName: string; serviceType: string;
   status: string; deliveryFee?: number; createdAt: string; notes?: string;
   serviceProviderId?: number; deliveryStaffId?: number;
+  customerLat?: number | null; customerLng?: number | null;
+  distanceKm?: number | null; etaMinutes?: number | null;
 }
 
 function timeAgo(dateStr: string, lang: string) {
@@ -403,6 +405,20 @@ export default function DeliveryDashboard() {
     window.open(`https://wa.me/${phone.replace(/\D/g, "")}`, "_blank");
   };
 
+  const openNavToProvider = (order: Order) => {
+    const dest = encodeURIComponent(`${order.serviceProviderName}, بن قردان، تونس`);
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`, "_blank");
+  };
+
+  const openNavToCustomer = (order: Order) => {
+    if (order.customerLat && order.customerLng) {
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${order.customerLat},${order.customerLng}&travelmode=driving`, "_blank");
+    } else {
+      const dest = encodeURIComponent(`${order.customerAddress}, بن قردان، تونس`);
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`, "_blank");
+    }
+  };
+
   const logout = () => {
     clearSession();
     setSelected(null); setOrders([]);
@@ -613,12 +629,22 @@ export default function DeliveryDashboard() {
                           </button>
                         )}
                       </div>
-                      <button onClick={() => confirmPickup(order)}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm text-white transition-all"
-                        style={{ background: "#FFA500" }}>
-                        <CheckCircle size={15} />
-                        {t("تأكيد الاستلام من المزود ✓", "Confirmer récupération ✓")}
-                      </button>
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => openNavToProvider(order)}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-sm transition-all border border-blue-400/30"
+                          style={{ background: "rgba(59,130,246,0.08)", color: "#1A4D1F" }}
+                        >
+                          <MapPin size={13} className="text-blue-400" />
+                          {t("الملاحة إلى المزود 🗺️", "Naviguer vers prestataire 🗺️")}
+                        </button>
+                        <button onClick={() => confirmPickup(order)}
+                          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm text-white transition-all"
+                          style={{ background: "#FFA500" }}>
+                          <CheckCircle size={15} />
+                          {t("تأكيد الاستلام من المزود ✓", "Confirmer récupération ✓")}
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -666,21 +692,46 @@ export default function DeliveryDashboard() {
                         )}
                       </div>
 
-                      {/* GPS Map */}
-                      <Suspense fallback={
-                        <div className="mt-3 h-10 rounded-[12px] border border-[#1A4D1F]/20 flex items-center justify-center gap-2 text-[#1A4D1F]/40 text-xs font-bold" style={{ background: "#FFFDE7" }}>
-                          <Map size={13} />{t("تحميل الخريطة...", "Chargement carte...")}
+                      {/* ETA display if available */}
+                      {order.etaMinutes && (
+                        <div className="flex items-center gap-1.5 mt-2 px-2.5 py-1.5 rounded-xl border border-emerald-400/20 bg-emerald-400/5 w-fit">
+                          <Clock size={11} className="text-emerald-500" />
+                          <span className="text-xs font-black text-emerald-600">
+                            {t(`يصل خلال ~${order.etaMinutes} دقيقة`, `Arrivée estimée: ~${order.etaMinutes} min`)}
+                          </span>
                         </div>
-                      }>
-                        <DeliveryMap address={order.customerAddress} customerName={order.customerName} />
-                      </Suspense>
+                      )}
+                      {order.distanceKm && (
+                        <p className="text-xs text-[#1A4D1F]/30 mt-1">{order.distanceKm.toFixed(1)} km</p>
+                      )}
 
-                      <button onClick={() => confirmDelivery(order)}
-                        className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm border transition-all"
-                        style={{ background: "rgba(52,211,153,0.1)", color: "#10b981", borderColor: "rgba(52,211,153,0.3)" }}>
-                        <Check size={15} />
-                        {t("تم التسليم للعميل ✓", "Livré au client ✓")}
-                      </button>
+                      {/* Navigation buttons */}
+                      <div className="mt-3 space-y-2">
+                        <button
+                          onClick={() => openNavToCustomer(order)}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-sm transition-all border border-[#FFA500]/40"
+                          style={{ background: "rgba(255,165,0,0.10)", color: "#1A4D1F" }}
+                        >
+                          <MapPin size={13} className="text-[#FFA500]" />
+                          {t("الملاحة إلى العميل 🗺️", "Naviguer vers le client 🗺️")}
+                        </button>
+
+                        {/* GPS Map */}
+                        <Suspense fallback={
+                          <div className="h-10 rounded-[12px] border border-[#1A4D1F]/20 flex items-center justify-center gap-2 text-[#1A4D1F]/40 text-xs font-bold" style={{ background: "#FFFDE7" }}>
+                            <Map size={13} />{t("تحميل الخريطة...", "Chargement carte...")}
+                          </div>
+                        }>
+                          <DeliveryMap address={order.customerAddress} customerName={order.customerName} />
+                        </Suspense>
+
+                        <button onClick={() => confirmDelivery(order)}
+                          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm border transition-all"
+                          style={{ background: "rgba(52,211,153,0.1)", color: "#10b981", borderColor: "rgba(52,211,153,0.3)" }}>
+                          <Check size={15} />
+                          {t("تم التسليم للعميل ✓", "Livré au client ✓")}
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 ))}

@@ -176,6 +176,43 @@ Arabic (RTL) and French (LTR). `useLang()` hook provides `lang`, `t(ar, fr)`, `i
 
 Suppliers with `category === "pharmacy"` have a `shift` field: `"day"`, `"night"`, `"all"`. Used for automatic display filtering.
 
+### Intelligent Logistics & Navigation System
+
+**Distance Calculation** (`artifacts/api-server/src/lib/distance.ts`):
+- Algorithm: Haversine formula × 1.35 road factor (no API key needed)
+- Optional upgrade: Set `GOOGLE_MAPS_API_KEY` env var → uses Google Maps Distance Matrix API
+- Formula: `2 TND base + 0.5 TND/km`, ETA: `15 min prep + (distance/0.5 km/min)`
+- Endpoint: `GET /api/distance?providerId=X&customerLat=Y&customerLng=Z` → `{distanceKm, etaMinutes, deliveryFee, source}`
+
+**Schema Changes**:
+- `service_providers`: Added `latitude` (real), `longitude` (real) — GPS coordinates for distance calc
+- `orders`: Added `customerLat` (real), `customerLng` (real), `distanceKm` (real), `etaMinutes` (integer)
+
+**Customer Order Flow** (`order.tsx`):
+- GPS button "استخدم موقعي الحالي" — captures browser GPS via Geolocation API
+- Shows delivery fee + ETA card BEFORE order confirmation (3 boxes: KM / TND / min)
+- GPS coordinates stored in order on submission, fee calculated server-side
+
+**Customer Order History** (`order-history.tsx`):
+- ETA badge `~X دقيقة` shown for active orders (pending, driver_accepted, in_delivery...)
+
+**Driver Navigation** (`delivery.tsx`):
+- "الملاحة إلى المزود 🗺️" button on waiting-for-pickup orders → Google Maps deep link to provider
+- "الملاحة إلى العميل 🗺️" button on in-delivery orders → Google Maps deep link to customer GPS coords
+- Opens native Google Maps app on mobile with fastest route pre-calculated
+
+**Admin Live Map** (`admin.tsx` → LiveMapSection):
+- New sidebar section "الخريطة المباشرة / Carte live"
+- Leaflet.js + OpenStreetMap (free, no API key)
+- Orange pins = active customer orders; Green pins = providers with GPS
+- Popup shows: customer name, provider, distance, ETA, fee
+- Auto-refreshes every 15 seconds
+- Lists orders without GPS separately below the map
+
+**Admin Supplier Form**:
+- GPS coordinates section added: Latitude + Longitude inputs
+- Ben Guerdane defaults: 33.1167, 11.2167
+
 ### DB Push Command
 
 ```

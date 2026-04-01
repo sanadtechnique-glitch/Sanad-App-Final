@@ -12,7 +12,7 @@ import { getSession } from "@/lib/auth";
 import {
   ChevronRight, CheckCircle2, MapPin, User, StickyNote,
   Phone, Loader2, AlertTriangle, Star, Building2, Hash,
-  Camera, X,
+  Camera, X, Navigation, Zap, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,9 @@ interface Supplier {
   id: number; name: string; nameAr: string; category: string;
   description: string; descriptionAr: string; address: string;
   rating?: number; isAvailable: boolean;
+  latitude?: number | null; longitude?: number | null;
 }
+interface DistanceResult { distanceKm: number; etaMinutes: number; deliveryFee: number; source: string; }
 interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
 
 const schema = z.object({
@@ -60,6 +62,11 @@ export default function Order() {
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
   const [prescriptionPhoto, setPrescriptionPhoto] = useState<string | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [customerLat, setCustomerLat] = useState<number | null>(null);
+  const [customerLng, setCustomerLng] = useState<number | null>(null);
+  const [distInfo, setDistInfo] = useState<DistanceResult | null>(null);
+  const [distLoading, setDistLoading] = useState(false);
 
   const prefilledNotes = decodeURIComponent(new URLSearchParams(window.location.search).get("notes") || "");
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
@@ -99,6 +106,33 @@ export default function Order() {
   const selectedDelegationId = watch("delegationId");
   const selectedDelegation = delegations.find(d => d.id.toString() === selectedDelegationId);
 
+  const getGPSAndCalculate = () => {
+    if (!navigator.geolocation) return;
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setCustomerLat(lat);
+        setCustomerLng(lng);
+        setGpsLoading(false);
+        if (!supplier) return;
+        setDistLoading(true);
+        try {
+          const params = new URLSearchParams({
+            providerId: String(supplier.id),
+            customerLat: String(lat),
+            customerLng: String(lng),
+          });
+          const res = await get<DistanceResult>(`/distance?${params}`);
+          setDistInfo(res);
+        } catch { /* silent */ } finally { setDistLoading(false); }
+      },
+      () => { setGpsLoading(false); },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -116,12 +150,14 @@ export default function Order() {
         customerPhone:   data.customerPhone,
         customerAddress: data.customerAddress,
         delegationId:    data.delegationId ? parseInt(data.delegationId) : null,
-        deliveryFee:     selectedDelegation?.deliveryFee ?? 0,
+        deliveryFee:     distInfo?.deliveryFee ?? selectedDelegation?.deliveryFee ?? 0,
         notes:           data.notes || null,
         serviceProviderId: supplier.id,
         serviceType: supplier.category,
         photoUrl: prescriptionPhoto || null,
         customerId:      session?.userId ?? null,
+        customerLat:     customerLat ?? undefined,
+        customerLng:     customerLng ?? undefined,
       };
       const res = await post<{ id: number }>("/orders", payload);
       setOrderId(res.id);
@@ -360,6 +396,71 @@ export default function Order() {
                     )}
                   </div>
                 )}
+
+                {/* GPS Delivery Fee Calculator */}
+                <div className="rounded-2xl border border-[#FFA500]/40 overflow-hidden" style={{ background: "rgba(255,165,0,0.04)" }}>
+                  <div className="px-4 py-3 border-b border-[#FFA500]/15 flex items-center justify-between" style={{ background: "rgba(255,165,0,0.08)" }}>
+                    <div className="flex items-center gap-2">
+                      <Zap size={13} className="text-[#FFA500]" />
+                      <p className="text-xs font-black text-[#1A4D1F] uppercase tracking-widest">
+                        {t("احسب رسوم التوصيل", "Calculer les frais")}
+                      </p>
+                    </div>
+                    {distInfo && (
+                      <span className="text-[10px] text-[#1A4D1F]/40">
+                        {distInfo.source === "google" ? "Google Maps" : t("تقريبي","Estimé")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    {!customerLat ? (
+                      <button
+                        type="button"
+                        onClick={getGPSAndCalculate}
+                        disabled={gpsLoading}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm transition-all disabled:opacity-50 border border-[#FFA500]/40"
+                        style={{ background: gpsLoading ? "rgba(255,165,0,0.05)" : "rgba(255,165,0,0.12)", color: "#1A4D1F" }}
+                      >
+                        {gpsLoading
+                          ? <><Loader2 size={14} className="animate-spin" />{t("جاري تحديد موقعك...","Localisation en cours...")}</>
+                          : <><Navigation size={14} className="text-[#FFA500]" />{t("استخدم موقعي الحالي لحساب الرسوم","Utiliser ma position pour calculer les frais")}</>
+                        }
+                      </button>
+                    ) : distLoading ? (
+                      <div className="flex items-center justify-center gap-2 py-3 text-[#1A4D1F]/50 text-sm">
+                        <Loader2 size={14} className="animate-spin" />
+                        {t("جاري الحساب...","Calcul en cours...")}
+                      </div>
+                    ) : distInfo ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="text-center p-2.5 rounded-xl bg-white/60 border border-[#1A4D1F]/10">
+                          <p className="text-lg font-black text-[#FFA500]">{distInfo.distanceKm.toFixed(1)}</p>
+                          <p className="text-[10px] text-[#1A4D1F]/40 font-bold">KM</p>
+                        </div>
+                        <div className="text-center p-2.5 rounded-xl bg-white/60 border border-[#1A4D1F]/10">
+                          <p className="text-lg font-black text-[#1A4D1F]">{distInfo.deliveryFee.toFixed(2)}</p>
+                          <p className="text-[10px] text-[#1A4D1F]/40 font-bold">TND</p>
+                        </div>
+                        <div className="text-center p-2.5 rounded-xl bg-white/60 border border-[#1A4D1F]/10">
+                          <p className="text-lg font-black text-emerald-500">{distInfo.etaMinutes}</p>
+                          <p className="text-[10px] text-[#1A4D1F]/40 font-bold">{t("دقيقة","min")}</p>
+                        </div>
+                        <div className="col-span-3 flex items-center gap-1.5 text-xs text-[#1A4D1F]/40 mt-1">
+                          <Clock size={10} />
+                          <span>{t(`يُتوقع وصول طلبك خلال ${distInfo.etaMinutes} دقيقة`, `Livraison estimée dans ${distInfo.etaMinutes} min`)}</span>
+                        </div>
+                        <button type="button" onClick={getGPSAndCalculate}
+                          className="col-span-3 text-[10px] text-[#1A4D1F]/30 underline text-center" disabled={gpsLoading}>
+                          {t("إعادة حساب","Recalculer")}
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-center text-[#1A4D1F]/30 py-1">
+                        {t("اضغط للحصول على موقعك وحساب الرسوم","Cliquez pour obtenir votre position")}
+                      </p>
+                    )}
+                  </div>
+                </div>
 
                 {/* Privacy note */}
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-[#1A4D1F]/3 border border-[#1A4D1F]/5">
