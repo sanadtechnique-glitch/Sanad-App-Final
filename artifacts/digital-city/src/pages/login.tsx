@@ -247,7 +247,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     clearSession();
     requestNotificationPermission().catch(() => {});
     try {
-      // ── Step 1: Try admin login first (so admin roles are never mis-classified) ──
+      // ── Step 1: Try unified login (admin / provider / driver) ──
       const adminRes = await fetch(`/api/auth/admin-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -255,10 +255,35 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       });
       if (adminRes.ok) {
         const user = await adminRes.json();
-        const adminRoles = ["super_admin", "manager", "admin"];
-        if (adminRoles.includes(user.role)) {
+
+        // Admin roles → admin dashboard
+        if (["super_admin", "manager", "admin"].includes(user.role)) {
           setSession({ role: user.role as Role, name: user.name, userId: user.id });
           navigate("/admin");
+          return;
+        }
+
+        // Provider role → provider dashboard
+        if (user.role === "provider") {
+          setSession({
+            role: "provider",
+            name: user.displayName ?? user.name,
+            userId: user.id,
+            supplierId: user.supplierId,
+          });
+          navigate("/provider");
+          return;
+        }
+
+        // Driver role → delivery dashboard
+        if (user.role === "driver") {
+          setSession({
+            role: "delivery",
+            name: user.displayName ?? user.name,
+            userId: user.id,
+            staffId: user.staffId,
+          });
+          navigate("/delivery");
           return;
         }
       }

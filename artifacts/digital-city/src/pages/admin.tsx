@@ -1074,6 +1074,7 @@ function HotelBookingsSection({ t, lang }: { t: (a: string, f: string) => string
 interface AppUser {
   id: number; username: string; name: string; email?: string | null;
   phone?: string | null; role: string; isActive: boolean; createdAt: string;
+  linkedSupplierId?: number | null; linkedStaffId?: number | null;
 }
 
 interface AnyUser {
@@ -1120,9 +1121,13 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
+  const [supplierList, setSupplierList] = useState<{ id: number; nameAr: string }[]>([]);
+  const [staffList, setStaffList] = useState<{ id: number; nameAr: string }[]>([]);
   const [form, setForm] = useState({
     username: "", name: "", email: "", phone: "",
     role: "customer", password: "", isActive: true,
+    linkedSupplierId: null as number | null,
+    linkedStaffId: null as number | null,
   });
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -1152,17 +1157,20 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
   };
   useEffect(() => {
     load();
+    // Load suppliers and staff for the link dropdowns
+    get<{ id: number; nameAr: string }[]>("/admin/suppliers").then(setSupplierList).catch(() => {});
+    get<{ id: number; nameAr: string }[]>("/admin/delivery-staff").then(setStaffList).catch(() => {});
     // Auto-refresh every 30 seconds to catch new signups
     const interval = setInterval(() => load(true), 30_000);
     return () => clearInterval(interval);
   }, []);
 
   const openAdd = () => {
-    setForm({ username: "", name: "", email: "", phone: "", role: "customer", password: "", isActive: true });
+    setForm({ username: "", name: "", email: "", phone: "", role: "customer", password: "", isActive: true, linkedSupplierId: null, linkedStaffId: null });
     setSaveError(null); setShowPw(false); setModal("add");
   };
   const openEdit = (u: AppUser) => {
-    setForm({ username: u.username, name: u.name, email: u.email || "", phone: u.phone || "", role: u.role, password: "", isActive: u.isActive });
+    setForm({ username: u.username, name: u.name, email: u.email || "", phone: u.phone || "", role: u.role, password: "", isActive: u.isActive, linkedSupplierId: u.linkedSupplierId ?? null, linkedStaffId: u.linkedStaffId ?? null });
     setSaveError(null); setShowPw(false); setModal(u);
   };
 
@@ -1178,6 +1186,8 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
         name: form.name.trim(), email: form.email.trim() || undefined,
         phone: form.phone.trim() || undefined, role: form.role, isActive: form.isActive,
         ...(form.password.trim() ? { password: form.password.trim() } : {}),
+        linkedSupplierId: form.role === "provider" ? (form.linkedSupplierId ?? null) : null,
+        linkedStaffId: form.role === "driver" ? (form.linkedStaffId ?? null) : null,
       };
       if (modal === "add") {
         await post("/admin/users", { ...payload, password: form.password.trim() });
@@ -1497,6 +1507,38 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
               ))}
             </div>
           </Field>
+
+          {/* Linked entity — shown only for provider and driver roles */}
+          {form.role === "provider" && (
+            <Field label={t("ربط بمزود / تاجر","Lier à un fournisseur")}>
+              <select
+                value={form.linkedSupplierId ?? ""}
+                onChange={e => setForm(f => ({ ...f, linkedSupplierId: e.target.value ? parseInt(e.target.value) : null }))}
+                className="w-full bg-[#FFA500]/50 border border-[#1A4D1F]/10 rounded-xl px-3 py-2.5 text-sm text-[#1A4D1F] focus:outline-none focus:border-[#1A4D1F]/50 transition-colors"
+                dir="rtl"
+              >
+                <option value="">{t("— بدون ربط —","— Sans lien —")}</option>
+                {supplierList.map(s => (
+                  <option key={s.id} value={s.id}>{s.nameAr}</option>
+                ))}
+              </select>
+            </Field>
+          )}
+          {form.role === "driver" && (
+            <Field label={t("ربط بموزع / سائق","Lier à un livreur")}>
+              <select
+                value={form.linkedStaffId ?? ""}
+                onChange={e => setForm(f => ({ ...f, linkedStaffId: e.target.value ? parseInt(e.target.value) : null }))}
+                className="w-full bg-[#FFA500]/50 border border-[#1A4D1F]/10 rounded-xl px-3 py-2.5 text-sm text-[#1A4D1F] focus:outline-none focus:border-[#1A4D1F]/50 transition-colors"
+                dir="rtl"
+              >
+                <option value="">{t("— بدون ربط —","— Sans lien —")}</option>
+                {staffList.map(s => (
+                  <option key={s.id} value={s.id}>{s.nameAr}</option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           {/* Password */}
           <Field label={modal === "add" ? t("كلمة المرور","Mot de passe") : t("كلمة المرور الجديدة (اتركها فارغة للإبقاء عليها)","Nouveau mot de passe (vide = inchangé)")}>

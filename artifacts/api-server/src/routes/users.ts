@@ -6,8 +6,9 @@ import { eq } from "drizzle-orm";
 const router: IRouter = Router();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /auth/admin-login  — verify credentials against the users table
-// Returns user (without password) or 401
+// POST /auth/admin-login  — verify credentials for all non-customer roles
+// Supports username OR phone number lookup.
+// For provider/driver roles, also returns supplierId / staffId if linked.
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/auth/admin-login", async (req, res) => {
   const { username, password } = req.body as { username?: string; password?: string };
@@ -17,17 +18,71 @@ router.post("/auth/admin-login", async (req, res) => {
   }
 
   try {
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.username, username.toLowerCase().trim()));
+    const identifier = username.trim();
+
+    // Try by username first, then phone
+    let user = (
+      await db.select().from(usersTable).where(eq(usersTable.username, identifier.toLowerCase()))
+    )[0];
+
+    if (!user) {
+      user = (
+        await db.select().from(usersTable).where(eq(usersTable.phone, identifier))
+      )[0];
+    }
 
     if (!user) { res.status(401).json({ message: "User not found" }); return; }
     if (!user.isActive) { res.status(403).json({ message: "Account is deactivated" }); return; }
     if (user.password !== password.trim()) { res.status(401).json({ message: "Wrong password" }); return; }
 
-    // Strip password from response
     const { password: _pw, ...safeUser } = user;
+
+    // For provider role: use linkedSupplierId first, fall back to name match
+    if (user.role === "provider") {
+      let supplierId: number | null = user.linkedSupplierId ?? null;
+      let displayName: string = user.name;
+
+      if (!supplierId) {
+        const [sp] = await db
+          .select({ id: serviceProvidersTable.id, nameAr: serviceProvidersTable.nameAr })
+          .from(serviceProvidersTable)
+          .where(eq(serviceProvidersTable.nameAr, user.name));
+        if (sp) { supplierId = sp.id; displayName = sp.nameAr; }
+      } else {
+        const [sp] = await db
+          .select({ nameAr: serviceProvidersTable.nameAr })
+          .from(serviceProvidersTable)
+          .where(eq(serviceProvidersTable.id, supplierId));
+        if (sp) displayName = sp.nameAr;
+      }
+
+      res.json({ ...safeUser, supplierId: supplierId ?? undefined, displayName });
+      return;
+    }
+
+    // For driver role: use linkedStaffId first, fall back to name match
+    if (user.role === "driver") {
+      let staffId: number | null = user.linkedStaffId ?? null;
+      let displayName: string = user.name;
+
+      if (!staffId) {
+        const [ds] = await db
+          .select({ id: deliveryStaffTable.id, nameAr: deliveryStaffTable.nameAr })
+          .from(deliveryStaffTable)
+          .where(eq(deliveryStaffTable.nameAr, user.name));
+        if (ds) { staffId = ds.id; displayName = ds.nameAr; }
+      } else {
+        const [ds] = await db
+          .select({ nameAr: deliveryStaffTable.nameAr })
+          .from(deliveryStaffTable)
+          .where(eq(deliveryStaffTable.id, staffId));
+        if (ds) displayName = ds.nameAr;
+      }
+
+      res.json({ ...safeUser, staffId: staffId ?? undefined, displayName });
+      return;
+    }
+
     res.json(safeUser);
   } catch (err) {
     req.log.error({ err }, "Error in admin-login");
@@ -153,6 +208,8 @@ router.get("/admin/users", async (_req, res) => {
         role: usersTable.role,
         isActive: usersTable.isActive,
         createdAt: usersTable.createdAt,
+        linkedSupplierId: usersTable.linkedSupplierId,
+        linkedStaffId: usersTable.linkedStaffId,
       })
       .from(usersTable)
       .orderBy(usersTable.createdAt);
@@ -211,9 +268,10 @@ router.get("/admin/all-users", async (_req, res) => {
 // POST /admin/users — create a new user
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/admin/users", async (req, res) => {
-  const { username, name, email, phone, role, password, isActive } = req.body as {
+  const { username, name, email, phone, role, password, isActive, linkedSupplierId, linkedStaffId } = req.body as {
     username?: string; name?: string; email?: string; phone?: string;
     role?: string; password?: string; isActive?: boolean;
+    linkedSupplierId?: number | null; linkedStaffId?: number | null;
   };
 
   if (!username || !name || !password) {
@@ -232,6 +290,8 @@ router.post("/admin/users", async (req, res) => {
         role: role || "customer",
         password: password.trim(),
         isActive: isActive !== undefined ? isActive : true,
+        linkedSupplierId: linkedSupplierId ?? null,
+        linkedStaffId: linkedStaffId ?? null,
       })
       .returning();
 
@@ -254,9 +314,10 @@ router.patch("/admin/users/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
 
-  const { name, email, phone, role, password, isActive } = req.body as {
+  const { name, email, phone, role, password, isActive, linkedSupplierId, linkedStaffId } = req.body as {
     name?: string; email?: string; phone?: string;
     role?: string; password?: string; isActive?: boolean;
+    linkedSupplierId?: number | null; linkedStaffId?: number | null;
   };
 
   try {
@@ -267,6 +328,8 @@ router.patch("/admin/users/:id", async (req, res) => {
     if (role !== undefined) updates.role = role;
     if (password !== undefined && password.trim() !== "") updates.password = password.trim();
     if (isActive !== undefined) updates.isActive = isActive;
+    if ("linkedSupplierId" in req.body) updates.linkedSupplierId = linkedSupplierId ?? null;
+    if ("linkedStaffId" in req.body) updates.linkedStaffId = linkedStaffId ?? null;
 
     const [user] = await db
       .update(usersTable)
