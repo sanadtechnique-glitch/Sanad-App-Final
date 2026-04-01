@@ -116,6 +116,11 @@ router.post("/auth/client-login", async (req, res) => {
       res.status(401).json({ message: "اسم المستخدم أو رقم الهاتف غير موجود · Identifiant introuvable" });
       return;
     }
+    // Only allow customer accounts via this endpoint — admin/staff use /auth/admin-login
+    if (user.role !== "customer") {
+      res.status(403).json({ message: "هذا الحساب ليس حساب زبون · Ce compte n'est pas un compte client", role: user.role });
+      return;
+    }
     if (!user.isActive) {
       res.status(403).json({ message: "الحساب موقوف · Compte suspendu" });
       return;

@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { get, post } from "@/lib/admin-api";
 import { SanadBrand } from "@/components/sanad-brand";
-import { setSession, type Role } from "@/lib/auth";
+import { setSession, clearSession, type Role } from "@/lib/auth";
 import { requestNotificationPermission } from "@/lib/push-notifications";
 import { cn } from "@/lib/utils";
 
@@ -243,9 +243,27 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    // Always wipe any stale session before attempting a new login
+    clearSession();
     requestNotificationPermission().catch(() => {});
     try {
-      // 1. Try client login
+      // ── Step 1: Try admin login first (so admin roles are never mis-classified) ──
+      const adminRes = await fetch(`/api/auth/admin-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+      });
+      if (adminRes.ok) {
+        const user = await adminRes.json();
+        const adminRoles = ["super_admin", "manager", "admin"];
+        if (adminRoles.includes(user.role)) {
+          setSession({ role: user.role as Role, name: user.name, userId: user.id });
+          navigate("/admin");
+          return;
+        }
+      }
+
+      // ── Step 2: Try customer login ──
       const clientRes = await fetch(`/api/auth/client-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -258,27 +276,9 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         return;
       }
 
-      // 2. Try admin login
-      try {
-        const adminRes = await fetch(`/api/auth/admin-login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: username.trim(), password: password.trim() }),
-        });
-        if (adminRes.ok) {
-          const user = await adminRes.json();
-          const adminRoles = ["super_admin", "manager", "admin"];
-          if (adminRoles.includes(user.role)) {
-            setSession({ role: user.role, name: user.name, userId: user.id });
-            navigate("/admin");
-            return;
-          }
-        }
-      } catch { /* ignore */ }
-
-      // 3. Hardcoded admin fallback
+      // ── Step 3: Hardcoded super-admin fallback ──
       if (username.trim().toLowerCase() === "admin" && password.trim() === "Abc1234") {
-        setSession({ role: "admin", name: "Admin" });
+        setSession({ role: "super_admin", name: "Admin" });
         navigate("/admin");
         return;
       }
