@@ -2,16 +2,18 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { serviceProvidersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdmin } from "../lib/authMiddleware";
+import { isValidPhone } from "../lib/validate";
 
 const router: IRouter = Router();
 
-router.get("/admin/suppliers", async (req, res) => {
+router.get("/admin/suppliers", requireAdmin, async (req, res) => {
   try {
     res.json(await db.select().from(serviceProvidersTable).orderBy(serviceProvidersTable.name));
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-router.get("/admin/suppliers/:id", async (req, res) => {
+router.get("/admin/suppliers/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   try {
@@ -21,10 +23,13 @@ router.get("/admin/suppliers/:id", async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-router.post("/admin/suppliers", async (req, res) => {
+router.post("/admin/suppliers", requireAdmin, async (req, res) => {
   const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable } = req.body;
   if (!name || !nameAr || !category) {
     res.status(400).json({ message: "name, nameAr, category required" }); return;
+  }
+  if (phone && !isValidPhone(phone)) {
+    res.status(400).json({ message: "Invalid phone number format" }); return;
   }
   try {
     const [row] = await db.insert(serviceProvidersTable).values({
@@ -42,10 +47,13 @@ router.post("/admin/suppliers", async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-router.patch("/admin/suppliers/:id", async (req, res) => {
+router.patch("/admin/suppliers/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable } = req.body;
+  if (phone !== undefined && phone !== "" && !isValidPhone(phone)) {
+    res.status(400).json({ message: "Invalid phone number format" }); return;
+  }
   try {
     const [row] = await db.update(serviceProvidersTable)
       .set({ name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable })
@@ -55,7 +63,7 @@ router.patch("/admin/suppliers/:id", async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-router.delete("/admin/suppliers/:id", async (req, res) => {
+router.delete("/admin/suppliers/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   try {
@@ -64,8 +72,7 @@ router.delete("/admin/suppliers/:id", async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-// Toggle availability
-router.patch("/admin/suppliers/:id/toggle", async (req, res) => {
+router.patch("/admin/suppliers/:id/toggle", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   try {

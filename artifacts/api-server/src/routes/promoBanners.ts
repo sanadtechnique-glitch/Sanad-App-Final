@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { promoBannersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdmin } from "../lib/authMiddleware";
 
 const router: IRouter = Router();
 
@@ -12,7 +13,6 @@ router.get("/banners", async (req, res) => {
     const banners = await db.select().from(promoBannersTable)
       .where(eq(promoBannersTable.isActive, true))
       .orderBy(promoBannersTable.createdAt);
-    // Filter by date range if set
     const active = banners.filter(b => {
       if (b.startsAt && new Date(b.startsAt) > now) return false;
       if (b.endsAt && new Date(b.endsAt) < now) return false;
@@ -22,13 +22,13 @@ router.get("/banners", async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-router.get("/admin/banners", async (req, res) => {
+router.get("/admin/banners", requireAdmin, async (req, res) => {
   try {
     res.json(await db.select().from(promoBannersTable).orderBy(promoBannersTable.createdAt));
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-router.post("/admin/banners", async (req, res) => {
+router.post("/admin/banners", requireAdmin, async (req, res) => {
   const { titleAr, titleFr, imageUrl, link, bgColor, isActive, startsAt, endsAt } = req.body;
   if (!titleAr || !titleFr) { res.status(400).json({ message: "titleAr and titleFr required" }); return; }
   try {
@@ -42,7 +42,7 @@ router.post("/admin/banners", async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-router.patch("/admin/banners/:id", async (req, res) => {
+router.patch("/admin/banners/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   const { titleAr, titleFr, imageUrl, link, bgColor, isActive, startsAt, endsAt } = req.body;
@@ -57,7 +57,7 @@ router.patch("/admin/banners/:id", async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-router.delete("/admin/banners/:id", async (req, res) => {
+router.delete("/admin/banners/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   try {

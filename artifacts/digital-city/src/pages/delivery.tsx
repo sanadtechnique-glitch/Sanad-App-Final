@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { NotificationBell } from "@/components/notification-bell";
 import { get, patch } from "@/lib/admin-api";
+import { getSessionToken } from "@/lib/auth";
 import {
   pushNotification, pushProviderNotif, pushAdminNotif,
 } from "@/lib/notifications";
@@ -286,9 +287,13 @@ export default function DeliveryDashboard() {
     setAcceptingId(order.id);
     try {
       // Atomic DB transaction — only ONE driver can win
+      const token = getSessionToken();
       const res = await fetch(`/api/orders/${order.id}/driver-accept`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "X-Session-Token": token } : {}),
+        },
         body: JSON.stringify({ staffId: selected.id }),
       });
 

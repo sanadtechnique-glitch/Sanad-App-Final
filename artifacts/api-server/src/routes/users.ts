@@ -2,13 +2,14 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { usersTable, serviceProvidersTable, deliveryStaffTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { createSession } from "../lib/sessionStore";
+import { requireAdmin } from "../lib/authMiddleware";
+import { isValidPhone, isValidPassword, isValidRole } from "../lib/validate";
 
 const router: IRouter = Router();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /auth/admin-login  — verify credentials for all non-customer roles
-// Supports username OR phone number lookup.
-// For provider/driver roles, also returns supplierId / staffId if linked.
+// POST /auth/admin-login — staff/admin login
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/auth/admin-login", async (req, res) => {
   const { username, password } = req.body as { username?: string; password?: string };
@@ -20,7 +21,6 @@ router.post("/auth/admin-login", async (req, res) => {
   try {
     const identifier = username.trim();
 
-    // Try by username first, then phone
     let user = (
       await db.select().from(usersTable).where(eq(usersTable.username, identifier.toLowerCase()))
     )[0];
@@ -32,12 +32,18 @@ router.post("/auth/admin-login", async (req, res) => {
     }
 
     if (!user) { res.status(401).json({ message: "User not found" }); return; }
+
+    // Block customers from using the admin-login endpoint
+    if (user.role === "customer") {
+      res.status(403).json({ message: "Use the customer login endpoint" }); return;
+    }
+
     if (!user.isActive) { res.status(403).json({ message: "Account is deactivated" }); return; }
     if (user.password !== password.trim()) { res.status(401).json({ message: "Wrong password" }); return; }
 
+    const token = createSession(user.id, user.role, user.username ?? user.name);
     const { password: _pw, ...safeUser } = user;
 
-    // For provider role: use linkedSupplierId first, fall back to name match
     if (user.role === "provider") {
       let supplierId: number | null = user.linkedSupplierId ?? null;
       let displayName: string = user.name;
@@ -56,11 +62,10 @@ router.post("/auth/admin-login", async (req, res) => {
         if (sp) displayName = sp.nameAr;
       }
 
-      res.json({ ...safeUser, supplierId: supplierId ?? undefined, displayName });
+      res.json({ ...safeUser, supplierId: supplierId ?? undefined, displayName, token });
       return;
     }
 
-    // For driver role: use linkedStaffId first, fall back to name match
     if (user.role === "driver") {
       let staffId: number | null = user.linkedStaffId ?? null;
       let displayName: string = user.name;
@@ -79,11 +84,11 @@ router.post("/auth/admin-login", async (req, res) => {
         if (ds) displayName = ds.nameAr;
       }
 
-      res.json({ ...safeUser, staffId: staffId ?? undefined, displayName });
+      res.json({ ...safeUser, staffId: staffId ?? undefined, displayName, token });
       return;
     }
 
-    res.json(safeUser);
+    res.json({ ...safeUser, token });
   } catch (err) {
     req.log.error({ err }, "Error in admin-login");
     res.status(500).json({ message: "Internal server error" });
@@ -91,7 +96,7 @@ router.post("/auth/admin-login", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /auth/client-register — create a client account (public, no admin needed)
+// POST /auth/client-register — create a client account (public)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/auth/client-register", async (req, res) => {
   const { username, name, nickname, email, password, phone } = req.body as {
@@ -103,6 +108,16 @@ router.post("/auth/client-register", async (req, res) => {
 
   if (!username || !password || !displayName) {
     res.status(400).json({ message: "username, name/nickname and password are required" });
+    return;
+  }
+
+  if (!isValidPassword(password)) {
+    res.status(400).json({ message: "كلمة المرور يجب أن تكون 6 أحرف على الأقل · Le mot de passe doit contenir au moins 6 caractères" });
+    return;
+  }
+
+  if (phone && !isValidPhone(phone)) {
+    res.status(400).json({ message: "رقم الهاتف غير صالح · Numéro de téléphone invalide" });
     return;
   }
 
@@ -143,7 +158,7 @@ router.post("/auth/client-register", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /auth/client-login — verify client credentials against DB
+// POST /auth/client-login — customer login
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/auth/client-login", async (req, res) => {
   const { username, password } = req.body as { username?: string; password?: string };
@@ -156,7 +171,6 @@ router.post("/auth/client-login", async (req, res) => {
   try {
     const identifier = username.trim();
 
-    // Try by username first, then fall back to phone number
     let user = (
       await db.select().from(usersTable).where(eq(usersTable.username, identifier.toLowerCase()))
     )[0];
@@ -171,7 +185,6 @@ router.post("/auth/client-login", async (req, res) => {
       res.status(401).json({ message: "اسم المستخدم أو رقم الهاتف غير موجود · Identifiant introuvable" });
       return;
     }
-    // Only allow customer accounts via this endpoint — admin/staff use /auth/admin-login
     if (user.role !== "customer") {
       res.status(403).json({ message: "هذا الحساب ليس حساب زبون · Ce compte n'est pas un compte client", role: user.role });
       return;
@@ -185,8 +198,9 @@ router.post("/auth/client-login", async (req, res) => {
       return;
     }
 
+    const token = createSession(user.id, user.role, user.username ?? user.name);
     const { password: _pw, ...safeUser } = user;
-    res.json(safeUser);
+    res.json({ ...safeUser, token });
   } catch (err) {
     req.log.error({ err }, "Error in client-login");
     res.status(500).json({ message: "Internal server error" });
@@ -194,9 +208,9 @@ router.post("/auth/client-login", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /admin/users — list all users (password excluded)
+// GET /admin/users — list all users [ADMIN ONLY]
 // ─────────────────────────────────────────────────────────────────────────────
-router.get("/admin/users", async (_req, res) => {
+router.get("/admin/users", requireAdmin, async (_req, res) => {
   try {
     const users = await db
       .select({
@@ -220,9 +234,9 @@ router.get("/admin/users", async (_req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /admin/all-users — combined view: users + providers + drivers
+// GET /admin/all-users — combined view [ADMIN ONLY]
 // ─────────────────────────────────────────────────────────────────────────────
-router.get("/admin/all-users", async (_req, res) => {
+router.get("/admin/all-users", requireAdmin, async (_req, res) => {
   try {
     const [users, providers, drivers] = await Promise.all([
       db.select({
@@ -253,7 +267,7 @@ router.get("/admin/all-users", async (_req, res) => {
     ]);
 
     const combined = [
-      ...users.map(u => ({ ...u, source: "users" as const, username: u.username })),
+      ...users.map(u => ({ ...u, source: "users" as const })),
       ...providers.map(p => ({ id: p.id, username: null, name: p.name, phone: p.phone, role: "provider", isActive: p.isActive, createdAt: p.createdAt, source: "providers" as const })),
       ...drivers.map(d => ({ id: d.id, username: null, name: d.name, phone: d.phone, role: "driver", isActive: d.isActive, createdAt: d.createdAt, source: "drivers" as const })),
     ];
@@ -265,9 +279,9 @@ router.get("/admin/all-users", async (_req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /admin/users — create a new user
+// POST /admin/users — create a new user [ADMIN ONLY]
 // ─────────────────────────────────────────────────────────────────────────────
-router.post("/admin/users", async (req, res) => {
+router.post("/admin/users", requireAdmin, async (req, res) => {
   const { username, name, email, phone, role, password, isActive, linkedSupplierId, linkedStaffId } = req.body as {
     username?: string; name?: string; email?: string; phone?: string;
     role?: string; password?: string; isActive?: boolean;
@@ -276,6 +290,21 @@ router.post("/admin/users", async (req, res) => {
 
   if (!username || !name || !password) {
     res.status(400).json({ message: "username, name, and password are required" });
+    return;
+  }
+
+  if (!isValidPassword(password)) {
+    res.status(400).json({ message: "Password must be at least 6 characters" });
+    return;
+  }
+
+  if (phone && !isValidPhone(phone)) {
+    res.status(400).json({ message: "Invalid phone number format" });
+    return;
+  }
+
+  if (role && !isValidRole(role)) {
+    res.status(400).json({ message: "Invalid role" });
     return;
   }
 
@@ -308,9 +337,9 @@ router.post("/admin/users", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PATCH /admin/users/:id — update user fields (password optional)
+// PATCH /admin/users/:id — update user [ADMIN ONLY]
 // ─────────────────────────────────────────────────────────────────────────────
-router.patch("/admin/users/:id", async (req, res) => {
+router.patch("/admin/users/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
 
@@ -319,6 +348,21 @@ router.patch("/admin/users/:id", async (req, res) => {
     role?: string; password?: string; isActive?: boolean;
     linkedSupplierId?: number | null; linkedStaffId?: number | null;
   };
+
+  if (phone !== undefined && phone !== "" && !isValidPhone(phone)) {
+    res.status(400).json({ message: "Invalid phone number format" });
+    return;
+  }
+
+  if (password !== undefined && password.trim() !== "" && !isValidPassword(password)) {
+    res.status(400).json({ message: "Password must be at least 6 characters" });
+    return;
+  }
+
+  if (role !== undefined && !isValidRole(role)) {
+    res.status(400).json({ message: "Invalid role" });
+    return;
+  }
 
   try {
     const updates: Record<string, unknown> = {};
@@ -347,9 +391,9 @@ router.patch("/admin/users/:id", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DELETE /admin/users/:id — remove user
+// DELETE /admin/users/:id — remove user [ADMIN ONLY]
 // ─────────────────────────────────────────────────────────────────────────────
-router.delete("/admin/users/:id", async (req, res) => {
+router.delete("/admin/users/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
 

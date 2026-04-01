@@ -33,6 +33,8 @@ export interface DcSession {
   delegationFee?: number;
   delegationName?: string;
   expiresAt?: number;
+  /** Server-issued session token — sent as X-Session-Token header on authenticated requests */
+  token?: string;
 }
 
 const KEY = "dc_session";
@@ -57,6 +59,11 @@ export const setSession = (s: DcSession): void => {
 
 export const clearSession = (): void => {
   localStorage.removeItem(KEY);
+};
+
+/** Returns the stored session token (if any) */
+export const getSessionToken = (): string | null => {
+  return getSession()?.token ?? null;
 };
 
 /** Returns true if the session role has admin-level access */

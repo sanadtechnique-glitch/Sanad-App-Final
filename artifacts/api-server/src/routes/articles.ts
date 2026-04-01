@@ -2,31 +2,34 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { articlesTable, serviceProvidersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdmin } from "../lib/authMiddleware";
+import { safeParseFloat, safeParseInt } from "../lib/validate";
 
 const router: IRouter = Router();
 
 // Public: articles for a supplier (customer-facing product grid)
 router.get("/articles", async (req, res) => {
   const { supplierId } = req.query;
-  if (!supplierId || typeof supplierId !== "string" || isNaN(parseInt(supplierId))) {
+  const id = safeParseInt(supplierId as string);
+  if (!id) {
     res.status(400).json({ message: "supplierId query param required" }); return;
   }
   try {
-    const rows = await db.select().from(articlesTable)
-      .where(eq(articlesTable.supplierId, parseInt(supplierId)));
+    const rows = await db.select().from(articlesTable).where(eq(articlesTable.supplierId, id));
     res.json(rows.filter(r => r.isAvailable));
   } catch (err) {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
   }
 });
 
-router.get("/admin/articles", async (req, res) => {
+router.get("/admin/articles", requireAdmin, async (req, res) => {
   try {
     const { supplierId } = req.query;
+    const sid = safeParseInt(supplierId as string);
     let rows;
-    if (supplierId && typeof supplierId === "string") {
+    if (sid) {
       rows = await db.select().from(articlesTable)
-        .where(eq(articlesTable.supplierId, parseInt(supplierId)))
+        .where(eq(articlesTable.supplierId, sid))
         .orderBy(articlesTable.createdAt);
     } else {
       rows = await db.select({
@@ -53,19 +56,19 @@ router.get("/admin/articles", async (req, res) => {
   }
 });
 
-router.post("/admin/articles", async (req, res) => {
+router.post("/admin/articles", requireAdmin, async (req, res) => {
   const { supplierId, nameAr, nameFr, descriptionAr, descriptionFr, price, isAvailable } = req.body;
-  if (!supplierId || !nameAr || !nameFr) {
-    res.status(400).json({ message: "supplierId, nameAr, nameFr are required" });
-    return;
+  const sid = safeParseInt(supplierId);
+  if (!sid || !nameAr || !nameFr) {
+    res.status(400).json({ message: "supplierId, nameAr, nameFr are required" }); return;
   }
   try {
     const [article] = await db.insert(articlesTable).values({
-      supplierId: parseInt(supplierId),
+      supplierId: sid,
       nameAr, nameFr,
       descriptionAr: descriptionAr || "",
       descriptionFr: descriptionFr || "",
-      price: price ?? 0,
+      price: safeParseFloat(price) ?? 0,
       isAvailable: isAvailable ?? true,
     }).returning();
     res.status(201).json(article);
@@ -75,14 +78,19 @@ router.post("/admin/articles", async (req, res) => {
   }
 });
 
-router.patch("/admin/articles/:id", async (req, res) => {
+router.patch("/admin/articles/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   const { nameAr, nameFr, descriptionAr, descriptionFr, price, isAvailable, supplierId } = req.body;
+  const sid = supplierId ? safeParseInt(supplierId) : undefined;
   try {
     const [article] = await db.update(articlesTable)
-      .set({ nameAr, nameFr, descriptionAr, descriptionFr, price, isAvailable,
-             ...(supplierId ? { supplierId: parseInt(supplierId) } : {}) })
+      .set({
+        nameAr, nameFr, descriptionAr, descriptionFr,
+        price: price !== undefined ? (safeParseFloat(price) ?? 0) : undefined,
+        isAvailable,
+        ...(sid ? { supplierId: sid } : {}),
+      })
       .where(eq(articlesTable.id, id))
       .returning();
     if (!article) { res.status(404).json({ message: "Not found" }); return; }
@@ -93,7 +101,7 @@ router.patch("/admin/articles/:id", async (req, res) => {
   }
 });
 
-router.delete("/admin/articles/:id", async (req, res) => {
+router.delete("/admin/articles/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   try {

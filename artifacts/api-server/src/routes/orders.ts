@@ -3,10 +3,12 @@ import { db } from "@workspace/db";
 import { ordersTable, serviceProvidersTable, deliveryStaffTable } from "@workspace/db/schema";
 import { eq, inArray, and, ilike } from "drizzle-orm";
 import { emitNewOrder, emitOrderTaken, emitOrderStatus } from "../lib/socket";
+import { requireStaff, requireAdmin } from "../lib/authMiddleware";
+import { safeParseFloat, safeParseInt } from "../lib/validate";
 
 const router: IRouter = Router();
 
-router.get("/orders", async (req, res) => {
+router.get("/orders", requireAdmin, async (req, res) => {
   try {
     const orders = await db.select().from(ordersTable).orderBy(ordersTable.createdAt);
     res.json(orders.reverse());
@@ -79,7 +81,7 @@ router.post("/orders", async (req, res) => {
 
 // POST /orders/:id/driver-accept — Atomic first-come-first-served
 // DB transaction ensures ONLY ONE driver can win the order
-router.post("/orders/:id/driver-accept", async (req, res) => {
+router.post("/orders/:id/driver-accept", requireStaff, async (req, res) => {
   const orderId = parseInt(req.params.id);
   if (isNaN(orderId)) { res.status(400).json({ message: "Invalid order ID" }); return; }
 
@@ -121,7 +123,7 @@ router.post("/orders/:id/driver-accept", async (req, res) => {
   }
 });
 
-router.patch("/orders/:id", async (req, res) => {
+router.patch("/orders/:id", requireStaff, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid order ID" }); return; }
 
@@ -133,14 +135,18 @@ router.patch("/orders/:id", async (req, res) => {
   if (status && !validStatuses.includes(status)) {
     res.status(400).json({ message: `Invalid status.` }); return;
   }
+  if (deliveryFee !== undefined) {
+    const fee = safeParseFloat(deliveryFee);
+    if (fee === null) { res.status(400).json({ message: "Invalid deliveryFee value" }); return; }
+  }
   try {
     const [currentOrder] = await db.select().from(ordersTable).where(eq(ordersTable.id, id));
     if (!currentOrder) { res.status(404).json({ message: "Order not found" }); return; }
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (status) updates.status = status;
-    if (deliveryStaffId !== undefined) updates.deliveryStaffId = deliveryStaffId ? parseInt(deliveryStaffId) : null;
-    if (deliveryFee !== undefined) updates.deliveryFee = parseFloat(deliveryFee);
+    if (deliveryStaffId !== undefined) updates.deliveryStaffId = deliveryStaffId ? safeParseInt(deliveryStaffId) : null;
+    if (deliveryFee !== undefined) updates.deliveryFee = safeParseFloat(deliveryFee);
 
     const [order] = await db.update(ordersTable).set(updates as any).where(eq(ordersTable.id, id)).returning();
 

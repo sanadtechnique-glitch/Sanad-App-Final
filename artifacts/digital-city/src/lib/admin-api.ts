@@ -1,12 +1,21 @@
+import { getSessionToken } from "./auth";
+
 const BASE = "/api";
 
 export async function api<T = unknown>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
+  const token = getSessionToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options?.headers as Record<string, string> || {}),
+  };
+  if (token) headers["X-Session-Token"] = token;
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));

@@ -258,7 +258,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 
         // Admin roles → admin dashboard
         if (["super_admin", "manager", "admin"].includes(user.role)) {
-          setSession({ role: user.role as Role, name: user.name, userId: user.id });
+          setSession({ role: user.role as Role, name: user.name, userId: user.id, token: user.token });
           navigate("/admin");
           return;
         }
@@ -270,6 +270,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
             name: user.displayName ?? user.name,
             userId: user.id,
             supplierId: user.supplierId,
+            token: user.token,
           });
           navigate("/provider");
           return;
@@ -282,6 +283,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
             name: user.displayName ?? user.name,
             userId: user.id,
             staffId: user.staffId,
+            token: user.token,
           });
           navigate("/delivery");
           return;
@@ -296,20 +298,14 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       });
       if (clientRes.ok) {
         const data = await clientRes.json();
-        setSession({ role: "client", name: data.name, userId: data.id });
+        setSession({ role: "client", name: data.name, userId: data.id, token: data.token });
         navigate("/");
         return;
       }
 
-      // ── Step 3: Hardcoded super-admin fallback ──
-      if (username.trim().toLowerCase() === "admin" && password.trim() === "Abc1234") {
-        setSession({ role: "super_admin", name: "Admin" });
-        navigate("/admin");
-        return;
-      }
-
-      // Nothing matched
-      setError("اسم المستخدم أو كلمة المرور غير صحيحة · Identifiant ou mot de passe incorrect");
+      // Nothing matched — show error from whichever response has a message
+      const errData = await clientRes.json().catch(() => ({}));
+      setError((errData as any).message || "اسم المستخدم أو كلمة المرور غير صحيحة · Identifiant ou mot de passe incorrect");
     } catch {
       setError("حدث خطأ في الاتصال · Erreur de connexion");
     } finally {
@@ -416,8 +412,8 @@ function SignUpForm() {
       setError("كلمة المرور غير متطابقة · Les mots de passe ne correspondent pas");
       return;
     }
-    if (password.length < 4) {
-      setError("كلمة المرور قصيرة جداً (4 أحرف على الأقل) · Mot de passe trop court");
+    if (password.length < 6) {
+      setError("كلمة المرور قصيرة جداً (6 أحرف على الأقل) · Mot de passe trop court (min. 6 caractères)");
       return;
     }
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {

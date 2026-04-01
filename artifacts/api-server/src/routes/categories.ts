@@ -2,10 +2,12 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { categoriesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdmin } from "../lib/authMiddleware";
 
 const router: IRouter = Router();
 
-router.get("/admin/categories", async (req, res) => {
+// Public read — customers need category list to browse
+router.get("/categories", async (req, res) => {
   try {
     const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.createdAt);
     res.json(cats);
@@ -15,7 +17,17 @@ router.get("/admin/categories", async (req, res) => {
   }
 });
 
-router.post("/admin/categories", async (req, res) => {
+router.get("/admin/categories", requireAdmin, async (req, res) => {
+  try {
+    const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.createdAt);
+    res.json(cats);
+  } catch (err) {
+    req.log.error({ err }, "Error fetching categories");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.post("/admin/categories", requireAdmin, async (req, res) => {
   const { slug, nameAr, nameFr, descriptionAr, descriptionFr, icon, color } = req.body;
   if (!slug || !nameAr || !nameFr) {
     res.status(400).json({ message: "slug, nameAr, nameFr are required" });
@@ -40,7 +52,7 @@ router.post("/admin/categories", async (req, res) => {
   }
 });
 
-router.patch("/admin/categories/:id", async (req, res) => {
+router.patch("/admin/categories/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   const { nameAr, nameFr, descriptionAr, descriptionFr, icon, color } = req.body;
@@ -57,7 +69,7 @@ router.patch("/admin/categories/:id", async (req, res) => {
   }
 });
 
-router.delete("/admin/categories/:id", async (req, res) => {
+router.delete("/admin/categories/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   try {
