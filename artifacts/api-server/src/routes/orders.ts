@@ -16,6 +16,19 @@ router.get("/orders", async (req, res) => {
   }
 });
 
+// !! MUST be before /orders/:id to avoid "customer" being treated as an ID
+router.get("/orders/customer", async (req, res) => {
+  const name = req.query.name as string;
+  if (!name) { res.status(400).json({ message: "name is required" }); return; }
+  try {
+    const orders = await db.select().from(ordersTable)
+      .where(ilike(ordersTable.customerName, name));
+    res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 router.get("/orders/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid order ID" }); return; }
@@ -189,18 +202,6 @@ router.get("/delivery/staff/:staffId/orders", async (req, res) => {
   try {
     const orders = await db.select().from(ordersTable)
       .where(eq(ordersTable.deliveryStaffId, staffId));
-    res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-  } catch (err) {
-    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-router.get("/orders/customer", async (req, res) => {
-  const name = req.query.name as string;
-  if (!name) { res.status(400).json({ message: "name is required" }); return; }
-  try {
-    const orders = await db.select().from(ordersTable)
-      .where(ilike(ordersTable.customerName, name));
     res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
   } catch (err) {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
