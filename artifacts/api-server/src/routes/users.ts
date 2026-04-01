@@ -1,7 +1,10 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { usersTable, serviceProvidersTable, deliveryStaffTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import {
+  usersTable, serviceProvidersTable, deliveryStaffTable,
+  ordersTable, productsTable, ratingsTable, hotelBookingsTable,
+} from "@workspace/db/schema";
+import { eq, ne } from "drizzle-orm";
 import { createSession } from "../lib/sessionStore";
 import { requireAdmin } from "../lib/authMiddleware";
 import { isValidPhone, isValidPassword, isValidRole } from "../lib/validate";
@@ -489,6 +492,46 @@ router.delete("/admin/users/:id", requireAdmin, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Error deleting user");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /admin/reset-all-data — wipe all data except super_admin users [ADMIN]
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/admin/reset-all-data", requireAdmin, async (req, res) => {
+  try {
+    // Delete in correct FK order: dependents first
+    const ratings   = await db.delete(ratingsTable);
+    const bookings  = await db.delete(hotelBookingsTable);
+    const orders    = await db.delete(ordersTable);
+    const products  = await db.delete(productsTable);
+    const staff     = await db.delete(deliveryStaffTable);
+    const providers = await db.delete(serviceProvidersTable);
+    const users     = await db.delete(usersTable).where(ne(usersTable.role, "super_admin"));
+
+    const [adminUser] = await db
+      .select({ id: usersTable.id, username: usersTable.username, name: usersTable.name, phone: usersTable.phone })
+      .from(usersTable)
+      .where(eq(usersTable.role, "super_admin"))
+      .limit(1);
+
+    res.json({
+      success: true,
+      message: "تم مسح قاعدة البيانات · Base de données réinitialisée",
+      deleted: {
+        orders: orders.rowCount ?? 0,
+        products: products.rowCount ?? 0,
+        serviceProviders: providers.rowCount ?? 0,
+        deliveryStaff: staff.rowCount ?? 0,
+        nonAdminUsers: users.rowCount ?? 0,
+        ratings: ratings.rowCount ?? 0,
+        hotelBookings: bookings.rowCount ?? 0,
+      },
+      adminPreserved: adminUser ?? null,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Error in reset-all-data");
     res.status(500).json({ message: "Internal server error" });
   }
 });

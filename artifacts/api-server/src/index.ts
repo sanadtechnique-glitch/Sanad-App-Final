@@ -1,8 +1,11 @@
 import httpServer from "./app";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import {
+  usersTable, serviceProvidersTable, deliveryStaffTable,
+  ordersTable, productsTable, ratingsTable, hotelBookingsTable,
+} from "@workspace/db/schema";
+import { eq, ne } from "drizzle-orm";
 
 const rawPort = process.env["PORT"];
 
@@ -40,6 +43,65 @@ async function seedDefaultAdmin() {
   }
 }
 
+// One-time production data cleanup using Replit KV as a flag store.
+// After the flag is set the cleanup never runs again, even on restarts.
+const CLEANUP_FLAG = "SANAD_PROD_CLEANUP_V1";
+
+async function replitKvGet(key: string): Promise<string | null> {
+  const dbUrl = process.env["REPLIT_DB_URL"];
+  if (!dbUrl) return null;
+  try {
+    const res = await fetch(`${dbUrl}/${encodeURIComponent(key)}`);
+    if (res.status === 404) return null;
+    return res.ok ? res.text() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function replitKvSet(key: string, value: string): Promise<void> {
+  const dbUrl = process.env["REPLIT_DB_URL"];
+  if (!dbUrl) return;
+  try {
+    await fetch(dbUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
+    });
+  } catch {
+    // ignore
+  }
+}
+
+async function oneTimeCleanupIfNeeded() {
+  // Only run in the deployed production environment
+  if (process.env["NODE_ENV"] !== "production") {
+    logger.info("Non-production env — skipping one-time DB cleanup.");
+    return;
+  }
+
+  const done = await replitKvGet(CLEANUP_FLAG);
+  if (done === "true") {
+    logger.info("One-time DB cleanup already ran — skipping.");
+    return;
+  }
+
+  try {
+    logger.info("Running one-time production DB cleanup…");
+    await db.delete(ratingsTable);
+    await db.delete(hotelBookingsTable);
+    await db.delete(ordersTable);
+    await db.delete(productsTable);
+    await db.delete(deliveryStaffTable);
+    await db.delete(serviceProvidersTable);
+    await db.delete(usersTable).where(ne(usersTable.role, "super_admin"));
+    await replitKvSet(CLEANUP_FLAG, "true");
+    logger.info("One-time production DB cleanup complete — flag set to prevent re-run.");
+  } catch (err) {
+    logger.warn({ err }, "One-time cleanup failed — will retry on next start.");
+  }
+}
+
 httpServer.listen(port, async (err: Error | null) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
@@ -48,4 +110,5 @@ httpServer.listen(port, async (err: Error | null) => {
 
   logger.info({ port }, "Server listening");
   await seedDefaultAdmin();
+  await oneTimeCleanupIfNeeded();
 });
