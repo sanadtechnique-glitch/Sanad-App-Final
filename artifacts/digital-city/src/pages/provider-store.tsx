@@ -33,10 +33,9 @@ export default function ProviderStore() {
     if (!id) return;
     setLoading(true);
     Promise.all([
-      get<Supplier[]>("/admin/suppliers"),
+      get<Supplier>(`/suppliers/${id}`),
       get<Article[]>(`/articles?supplierId=${id}`),
-    ]).then(([suppliers, arts]) => {
-      const sup = suppliers.find(s => s.id === parseInt(id));
+    ]).then(([sup, arts]) => {
       setSupplier(sup || null);
       setArticles(arts.filter((a: Article) => a.isAvailable));
     }).finally(() => setLoading(false));

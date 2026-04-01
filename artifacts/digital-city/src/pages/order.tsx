@@ -73,7 +73,7 @@ export default function Order() {
   useEffect(() => {
     Promise.all([
       get<Supplier[]>("/services"),
-      get<Delegation[]>("/admin/delegations"),
+      get<Delegation[]>("/delegations"),
     ]).then(([providers, dels]) => {
       const found = providers.find(p => p.id === parseInt(id || "0"));
       if (!found) { setNotFound(true); setLoadingProvider(false); return; }

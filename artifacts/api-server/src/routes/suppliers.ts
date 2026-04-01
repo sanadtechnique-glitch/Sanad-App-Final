@@ -2,10 +2,55 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { serviceProvidersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAdmin } from "../lib/authMiddleware";
+import { requireAdmin, requireStaff } from "../lib/authMiddleware";
 import { isValidPhone } from "../lib/validate";
 
 const router: IRouter = Router();
+
+// ── Public endpoints — safe fields only (no phone exposed to customers) ──────
+
+router.get("/suppliers", async (req, res) => {
+  try {
+    const rows = await db.select({
+      id:            serviceProvidersTable.id,
+      name:          serviceProvidersTable.name,
+      nameAr:        serviceProvidersTable.nameAr,
+      category:      serviceProvidersTable.category,
+      description:   serviceProvidersTable.description,
+      descriptionAr: serviceProvidersTable.descriptionAr,
+      address:       serviceProvidersTable.address,
+      photoUrl:      serviceProvidersTable.photoUrl,
+      rating:        serviceProvidersTable.rating,
+      isAvailable:   serviceProvidersTable.isAvailable,
+      shift:         serviceProvidersTable.shift,
+    }).from(serviceProvidersTable).orderBy(serviceProvidersTable.name);
+    res.json(rows);
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+});
+
+router.get("/suppliers/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
+  try {
+    const [row] = await db.select({
+      id:            serviceProvidersTable.id,
+      name:          serviceProvidersTable.name,
+      nameAr:        serviceProvidersTable.nameAr,
+      category:      serviceProvidersTable.category,
+      description:   serviceProvidersTable.description,
+      descriptionAr: serviceProvidersTable.descriptionAr,
+      address:       serviceProvidersTable.address,
+      photoUrl:      serviceProvidersTable.photoUrl,
+      rating:        serviceProvidersTable.rating,
+      isAvailable:   serviceProvidersTable.isAvailable,
+      shift:         serviceProvidersTable.shift,
+    }).from(serviceProvidersTable).where(eq(serviceProvidersTable.id, id));
+    if (!row) { res.status(404).json({ message: "Not found" }); return; }
+    res.json(row);
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+});
+
+// ── Admin-only endpoints ──────────────────────────────────────────────────────
 
 router.get("/admin/suppliers", requireAdmin, async (req, res) => {
   try {
@@ -73,6 +118,20 @@ router.delete("/admin/suppliers/:id", requireAdmin, async (req, res) => {
 });
 
 router.patch("/admin/suppliers/:id/toggle", requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
+  try {
+    const [current] = await db.select().from(serviceProvidersTable).where(eq(serviceProvidersTable.id, id));
+    if (!current) { res.status(404).json({ message: "Not found" }); return; }
+    const [row] = await db.update(serviceProvidersTable)
+      .set({ isAvailable: !current.isAvailable })
+      .where(eq(serviceProvidersTable.id, id)).returning();
+    res.json(row);
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+});
+
+// Provider-accessible toggle — allows providers to toggle their OWN store availability
+router.patch("/provider/:id/toggle", requireStaff, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   try {

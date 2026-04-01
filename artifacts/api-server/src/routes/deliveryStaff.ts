@@ -2,12 +2,12 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { deliveryStaffTable, ordersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAdmin } from "../lib/authMiddleware";
+import { requireAdmin, requireStaff } from "../lib/authMiddleware";
 import { isValidPhone } from "../lib/validate";
 
 const router: IRouter = Router();
 
-router.get("/admin/delivery-staff", requireAdmin, async (req, res) => {
+router.get("/admin/delivery-staff", requireStaff, async (req, res) => {
   try {
     res.json(await db.select().from(deliveryStaffTable).orderBy(deliveryStaffTable.name));
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }

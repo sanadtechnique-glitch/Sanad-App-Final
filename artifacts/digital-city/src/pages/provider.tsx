@@ -285,7 +285,7 @@ export default function ProviderDashboard() {
   }, []);
 
   useEffect(() => {
-    get<Supplier[]>("/admin/suppliers").then(list => {
+    get<Supplier[]>("/suppliers").then(list => {
       setProviders(list);
       const session = getSession();
       if (session?.role === "provider" && session.supplierId) {
@@ -366,7 +366,7 @@ export default function ProviderDashboard() {
 
   const toggleAvailability = async () => {
     if (!selected) return;
-    const res = await patch<Supplier>(`/admin/suppliers/${selected.id}/toggle`, {});
+    const res = await patch<Supplier>(`/provider/${selected.id}/toggle`, {});
     setSelected(res);
     setProviders(prev => prev.map(p => p.id === selected.id ? res : p));
   };

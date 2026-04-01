@@ -58,6 +58,21 @@ All API routes are mounted at `/api` prefix. In `main.tsx`, `setBaseUrl("/api")`
 | `/provider` | Provider dashboard — name-select login, gold logout button |
 | `/delivery` | Delivery staff dashboard — name-select login, gold logout button |
 
+### Public vs Admin API Endpoints — IMPORTANT
+
+Several endpoints were split into public (customer-safe) and admin-only versions:
+
+| Endpoint | Auth | Used by |
+|----------|------|---------|
+| `GET /api/suppliers` | None (public) | provider.tsx, services page |
+| `GET /api/suppliers/:id` | None (public) | provider-store.tsx |
+| `PATCH /api/provider/:id/toggle` | requireStaff | provider.tsx (availability toggle) |
+| `GET /api/delegations` | None (public) | order.tsx |
+| `GET /api/admin/delivery-staff` | requireStaff | delivery.tsx (drivers allowed) |
+| `GET /api/admin/suppliers` | requireAdmin | admin.tsx only |
+
+The driver dashboard role check: `session.role === "driver" || session.role === "delivery"` (both supported).
+
 ### Login/Auth (Unified) — ENFORCED
 
 **ALL routes are protected.** Unauthenticated users are redirected to `/login` from any URL (enforced via `ProtectedRoute` in `App.tsx`).

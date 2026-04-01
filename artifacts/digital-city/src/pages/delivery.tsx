@@ -175,7 +175,7 @@ export default function DeliveryDashboard() {
     get<Staff[]>("/admin/delivery-staff").then(list => {
       setStaff(list);
       const session = getSession();
-      if (session?.role === "delivery" && session.staffId) {
+      if ((session?.role === "delivery" || session?.role === "driver") && session.staffId) {
         const found = list.find(s => s.id === session.staffId);
         if (found) selectStaff(found);
       }
