@@ -66,7 +66,7 @@ router.post("/auth/client-register", async (req, res) => {
         name: name.trim(),
         password: password.trim(),
         phone: phone?.trim() || null,
-        role: "client",
+        role: "customer",
         isActive: true,
       })
       .returning();

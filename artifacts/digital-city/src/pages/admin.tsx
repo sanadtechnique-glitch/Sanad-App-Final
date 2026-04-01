@@ -1048,8 +1048,12 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
   });
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const load = () => {
-    setListLoading(true);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = (silent = false) => {
+    if (!silent) setListLoading(true);
+    else setRefreshing(true);
     setListError(null);
     Promise.all([
       get<AppUser[]>("/admin/users"),
@@ -1059,13 +1063,21 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
         setUsers(sysUsers);
         setAllUsers(anyUsers);
         setListLoading(false);
+        setRefreshing(false);
+        setLastRefresh(new Date());
       })
       .catch(err => {
         setListError(err?.message || t("تعذّر تحميل المستخدمين","Impossible de charger les utilisateurs"));
         setListLoading(false);
+        setRefreshing(false);
       });
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // Auto-refresh every 30 seconds to catch new signups
+    const interval = setInterval(() => load(true), 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const openAdd = () => {
     setForm({ username: "", name: "", email: "", phone: "", role: "customer", password: "", isActive: true });
@@ -1162,11 +1174,29 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-black text-[#2E7D32]">{t("إدارة المستخدمين","Gestion des Utilisateurs")}</h2>
-          <p className="text-[#2E7D32]/30 text-sm mt-0.5">{displayList.length} {t("مستخدم","utilisateur(s)")}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-[#2E7D32]/30 text-sm">{allUsers.length} {t("مستخدم","utilisateur(s)")}</p>
+            {lastRefresh && (
+              <p className="text-[#2E7D32]/20 text-xs">
+                · {t("آخر تحديث","Màj")} {lastRefresh.toLocaleTimeString("ar-TN", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
+          </div>
         </div>
-        <GoldBtn onClick={openAdd}>
-          <Plus size={14} />{t("إضافة مستخدم","Ajouter utilisateur")}
-        </GoldBtn>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => load(true)}
+            disabled={refreshing}
+            title={t("تحديث القائمة","Actualiser")}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#2E7D32]/20 text-[#2E7D32]/50 hover:text-[#2E7D32] hover:border-[#2E7D32]/40 transition-all text-xs font-bold"
+          >
+            <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
+            {t("تحديث","Actualiser")}
+          </button>
+          <GoldBtn onClick={openAdd}>
+            <Plus size={14} />{t("إضافة مستخدم","Ajouter utilisateur")}
+          </GoldBtn>
+        </div>
       </div>
 
       {/* View mode tabs */}
