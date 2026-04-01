@@ -249,7 +249,17 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     requestNotificationPermission().catch(() => {});
     try {
       if (role === "client") {
-        setSession({ role: "client", name: username.trim() });
+        const res = await fetch(`${import.meta.env.BASE_URL}api/auth/client-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.message || "فشل تسجيل الدخول · Échec de la connexion");
+          return;
+        }
+        setSession({ role: "client", name: data.name, userId: data.id });
         navigate("/");
         return;
       }
@@ -459,9 +469,25 @@ function SignUpForm() {
       const pseudo = username.trim();
 
       if (role === "client") {
+        const res = await fetch(`${import.meta.env.BASE_URL}api/auth/client-register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: pseudo,
+            name: pseudo,
+            password: password.trim(),
+            phone: phone.trim() || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.message || "فشل إنشاء الحساب · Échec de l'inscription");
+          return;
+        }
         setSession({
           role: "client",
-          name: pseudo,
+          name: data.name,
+          userId: data.id,
           delegationName,
           delegationFee: DELEGATION_FEE_MAP[delegationName] ?? DEFAULT_DELIVERY_FEE,
         });

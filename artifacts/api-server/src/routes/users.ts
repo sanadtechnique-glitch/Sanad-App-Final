@@ -36,6 +36,92 @@ router.post("/auth/admin-login", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/client-register — create a client account (public, no admin needed)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/auth/client-register", async (req, res) => {
+  const { username, name, password, phone } = req.body as {
+    username?: string; name?: string; password?: string; phone?: string;
+  };
+
+  if (!username || !password || !name) {
+    res.status(400).json({ message: "username, name and password are required" });
+    return;
+  }
+
+  try {
+    const [existing] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.username, username.toLowerCase().trim()));
+
+    if (existing) {
+      res.status(409).json({ message: "اسم المستخدم مسجل مسبقاً · Pseudo déjà utilisé" });
+      return;
+    }
+
+    const [user] = await db
+      .insert(usersTable)
+      .values({
+        username: username.toLowerCase().trim(),
+        name: name.trim(),
+        password: password.trim(),
+        phone: phone?.trim() || null,
+        role: "client",
+        isActive: true,
+      })
+      .returning();
+
+    const { password: _pw, ...safeUser } = user;
+    res.status(201).json(safeUser);
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ message: "اسم المستخدم مسجل مسبقاً · Pseudo déjà utilisé" });
+      return;
+    }
+    req.log.error({ err }, "Error in client-register");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/client-login — verify client credentials against DB
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/auth/client-login", async (req, res) => {
+  const { username, password } = req.body as { username?: string; password?: string };
+
+  if (!username || !password) {
+    res.status(400).json({ message: "Missing credentials" });
+    return;
+  }
+
+  try {
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.username, username.toLowerCase().trim()));
+
+    if (!user) {
+      res.status(401).json({ message: "اسم المستخدم غير موجود · Pseudo introuvable" });
+      return;
+    }
+    if (!user.isActive) {
+      res.status(403).json({ message: "الحساب موقوف · Compte suspendu" });
+      return;
+    }
+    if (user.password !== password.trim()) {
+      res.status(401).json({ message: "كلمة المرور غير صحيحة · Mot de passe incorrect" });
+      return;
+    }
+
+    const { password: _pw, ...safeUser } = user;
+    res.json(safeUser);
+  } catch (err) {
+    req.log.error({ err }, "Error in client-login");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /admin/users — list all users (password excluded)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/admin/users", async (_req, res) => {
