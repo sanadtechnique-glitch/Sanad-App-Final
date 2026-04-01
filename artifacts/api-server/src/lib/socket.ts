@@ -47,20 +47,26 @@ export function emitNewOrder(order: Record<string, unknown>) {
 }
 
 // Emit order taken — removes it from all other drivers' screens
-export function emitOrderTaken(orderId: number, driverName: string, customerId?: string) {
+export function emitOrderTaken(orderId: number, driverName: string, customerId?: number | string | null) {
   try {
     getIO().to("drivers").emit("order_taken", { orderId, driverName });
-    if (customerId) {
+    if (customerId != null) {
       getIO().to(`customer:${customerId}`).emit("driver_assigned", { orderId, driverName });
+      getIO().to(`customer:${customerId}`).emit("order_status", { orderId, status: "driver_accepted", driverName });
     }
     getIO().to("admins").emit("order_updated", { orderId });
   } catch {}
 }
 
 // Emit generic order status change
-export function emitOrderStatus(orderId: number, status: string, extra?: Record<string, unknown>) {
+export function emitOrderStatus(orderId: number, status: string, extra?: Record<string, unknown> & { order?: { customerId?: number | null } }) {
   try {
     getIO().to("drivers").emit("order_status", { orderId, status, ...extra });
     getIO().to("admins").emit("order_updated", { orderId, status });
+    // Also notify the customer who placed the order
+    const customerId = extra?.order?.customerId;
+    if (customerId != null) {
+      getIO().to(`customer:${customerId}`).emit("order_status", { orderId, status });
+    }
   } catch {}
 }

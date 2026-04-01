@@ -42,6 +42,7 @@ router.post("/orders", async (req, res) => {
       .where(eq(serviceProvidersTable.id, parseInt(serviceProviderId)));
     if (!provider) { res.status(400).json({ message: "Service provider not found" }); return; }
 
+    const cid = customerId ? parseInt(String(customerId)) : null;
     const [order] = await db.insert(ordersTable).values({
       customerName, customerPhone, customerAddress,
       delegationId: delegationId ? parseInt(delegationId) : null,
@@ -51,10 +52,11 @@ router.post("/orders", async (req, res) => {
       serviceProviderId: provider.id,
       serviceProviderName: provider.name,
       status: "searching_for_driver",
+      customerId: isNaN(cid as number) ? null : cid,
     }).returning();
 
     // Real-time: broadcast instantly to ALL connected drivers
-    emitNewOrder({ ...order, customerId: customerId || null });
+    emitNewOrder({ ...order });
 
     res.status(201).json(order);
   } catch (err) {
@@ -98,7 +100,7 @@ router.post("/orders/:id/driver-accept", async (req, res) => {
     const driverName = staff?.nameAr ?? "السائق";
 
     // Real-time: remove order from all other drivers + notify customer
-    emitOrderTaken(orderId, driverName, result.customerPhone ?? undefined);
+    emitOrderTaken(orderId, driverName, result.customerId ?? result.customerPhone ?? undefined);
 
     res.json({ ...result, driverName });
   } catch (err) {

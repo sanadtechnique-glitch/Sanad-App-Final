@@ -121,6 +121,7 @@ export default function Order() {
         serviceProviderId: supplier.id,
         serviceType: supplier.category,
         photoUrl: prescriptionPhoto || null,
+        customerId:      session?.userId ?? null,
       };
       const res = await post<{ id: number }>("/orders", payload);
       setOrderId(res.id);

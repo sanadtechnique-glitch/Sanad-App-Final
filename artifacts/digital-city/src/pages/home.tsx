@@ -6,12 +6,13 @@ import { AdBanner } from "@/components/ad-banner";
 import { useLang } from "@/lib/language";
 import { getSession, clearSession } from "@/lib/auth";
 import { get } from "@/lib/admin-api";
+import { useSocket } from "@/lib/use-socket";
 import {
   Utensils, Pill, Scale, ShoppingCart, Wrench, Stethoscope,
   Car, Hotel, LogIn, UserCircle, ChevronLeft, ChevronRight,
   MapPin, Truck, Eye, Grid, LogOut, Clock, CheckCircle, XCircle,
   Package, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Bike,
-  Percent, Tag, Phone,
+  Percent, Tag, Phone, ArrowLeft,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -229,6 +230,149 @@ function OrderCard({ order, t, expanded, onToggle }: {
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACTIVE ORDERS BAR — horizontal scrolling mini-cards, real-time
+// ─────────────────────────────────────────────────────────────────────────────
+const STATUS_PULSE: Record<string, boolean> = {
+  pending: true, accepted: true, prepared: true, driver_accepted: true, in_delivery: true,
+};
+
+function ActiveOrdersBar({
+  userId, name, t,
+}: {
+  userId: number | undefined;
+  name: string;
+  t: (ar: string, fr: string) => string;
+}) {
+  const [orders, setOrders]   = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const refreshRef            = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await get<Order[]>(`/orders/customer?name=${encodeURIComponent(name)}`);
+      setOrders(Array.isArray(data) ? data.filter(o => ONGOING_STATUSES.includes(o.status)) : []);
+    } catch { /* silent */ } finally { setLoading(false); }
+  }, [name]);
+
+  useEffect(() => {
+    load();
+    refreshRef.current = setInterval(load, 8000);
+    return () => { if (refreshRef.current) clearInterval(refreshRef.current); };
+  }, [load]);
+
+  // Real-time socket: refresh instantly on order_status / driver_assigned
+  useSocket("customer", userId, {
+    order_status:    () => { load(); },
+    driver_assigned: () => { load(); },
+    order_updated:   () => { load(); },
+  });
+
+  if (loading || orders.length === 0) return null;
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.35 }}
+      className="px-4 sm:px-6 lg:px-10 mt-4"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3" dir="rtl">
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+        </span>
+        <span className="text-sm font-black text-[#1A4D1F]">
+          {t("طلباتي الحالية", "Mes commandes actives")}
+        </span>
+        <span
+          className="text-[10px] font-black px-2 py-0.5 rounded-full"
+          style={{ background: "rgba(26,77,31,0.10)", color: "#1A4D1F" }}
+        >
+          {orders.length}
+        </span>
+      </div>
+
+      {/* Horizontal scroll */}
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" dir="rtl">
+        {orders.map(order => {
+          const cfg = statusConfig(order.status, t);
+          const isPulsing = STATUS_PULSE[order.status] ?? false;
+          return (
+            <div
+              key={order.id}
+              className="flex-shrink-0 w-56 rounded-2xl overflow-hidden"
+              style={{
+                background: "#fff",
+                border: "1.5px solid rgba(26,77,31,0.12)",
+                boxShadow: "0 4px 18px rgba(26,77,31,0.10), 0 1px 4px rgba(0,0,0,0.05)",
+              }}
+            >
+              {/* Color top stripe based on status */}
+              <div className="h-1 w-full" style={{ background: cfg.color }} />
+
+              <div className="p-3">
+                {/* Order ID */}
+                <div className="flex items-center justify-between mb-1.5" dir="rtl">
+                  <span className="text-[10px] font-black text-[#1A4D1F]/35 font-mono">
+                    #{order.id}
+                  </span>
+                  {/* Status badge */}
+                  <span
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black"
+                    style={{ background: cfg.bg, color: cfg.color }}
+                  >
+                    {isPulsing && (
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span
+                          className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                          style={{ background: cfg.color }}
+                        />
+                        <span
+                          className="relative inline-flex rounded-full h-1.5 w-1.5"
+                          style={{ background: cfg.color }}
+                        />
+                      </span>
+                    )}
+                    {cfg.label}
+                  </span>
+                </div>
+
+                {/* Provider name */}
+                <p
+                  className="font-black text-sm text-[#1A4D1F] leading-tight truncate mb-2.5"
+                  dir="rtl"
+                >
+                  {order.serviceProviderName}
+                </p>
+
+                {/* Service type chip */}
+                <p className="text-[10px] text-[#1A4D1F]/45 font-bold truncate mb-3" dir="rtl">
+                  {order.serviceType}
+                </p>
+
+                {/* Track / Details button */}
+                <Link href="/services">
+                  <button
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-black text-white transition-all hover:opacity-90 active:scale-95"
+                    style={{ background: "#1A4D1F" }}
+                  >
+                    <Eye size={11} />
+                    {t("تفاصيل", "Détails")}
+                    <ArrowLeft size={10} />
+                  </button>
+                </Link>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </motion.section>
   );
 }
 
@@ -622,6 +766,13 @@ export default function Home() {
       >
         <PromoSlider lang={lang} />
       </motion.section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          ACTIVE ORDERS BAR — real-time mini-cards (logged-in clients only)
+      ══════════════════════════════════════════════════════════════════════ */}
+      {session?.role === "client" && (
+        <ActiveOrdersBar userId={session.userId} name={session.name} t={t} />
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           1. DEALS BUTTON — منتجات في التخفيض

@@ -18,6 +18,7 @@ export const ordersTable = pgTable("orders", {
   serviceProviderId: integer("service_provider_id").references(() => serviceProvidersTable.id).notNull(),
   serviceProviderName: text("service_provider_name").notNull(),
   deliveryStaffId: integer("delivery_staff_id"),
+  customerId: integer("customer_id"),
   deliveryFee: real("delivery_fee").default(0),
   photoUrl: text("photo_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

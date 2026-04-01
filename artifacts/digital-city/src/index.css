@@ -102,6 +102,10 @@
   ::-webkit-scrollbar-thumb { background: #1A4D1F; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: #0D3311; }
 
+  /* Hide scrollbar utility */
+  .scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
   /* Inputs on mustard background */
   input, select, textarea {
     background: #FFFDE7;
