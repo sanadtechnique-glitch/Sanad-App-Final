@@ -21,22 +21,33 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+const ADMIN_PHONE = "21600000001";
+
 async function seedDefaultAdmin() {
   try {
     const existing = await db
-      .select({ id: usersTable.id })
+      .select({ id: usersTable.id, phone: usersTable.phone })
       .from(usersTable)
       .where(eq(usersTable.username, "admin"))
       .limit(1);
+
     if (existing.length === 0) {
       await db.insert(usersTable).values({
         username: "admin",
         name: "مدير النظام",
         role: "super_admin",
         password: "Abc1234",
+        phone: ADMIN_PHONE,
         isActive: true,
       });
       logger.info("Default admin user created (admin / Abc1234)");
+    } else if (!existing[0]!.phone) {
+      // Ensure admin always has a phone so phone-based login works
+      await db
+        .update(usersTable)
+        .set({ phone: ADMIN_PHONE })
+        .where(eq(usersTable.username, "admin"));
+      logger.info("Admin phone updated to " + ADMIN_PHONE);
     }
   } catch (err) {
     logger.warn({ err }, "Could not seed default admin — table may not exist yet");
