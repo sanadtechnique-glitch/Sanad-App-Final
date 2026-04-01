@@ -99,13 +99,21 @@ router.post("/auth/client-login", async (req, res) => {
   }
 
   try {
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.username, username.toLowerCase().trim()));
+    const identifier = username.trim();
+
+    // Try by username first, then fall back to phone number
+    let user = (
+      await db.select().from(usersTable).where(eq(usersTable.username, identifier.toLowerCase()))
+    )[0];
 
     if (!user) {
-      res.status(401).json({ message: "اسم المستخدم غير موجود · Pseudo introuvable" });
+      user = (
+        await db.select().from(usersTable).where(eq(usersTable.phone, identifier))
+      )[0];
+    }
+
+    if (!user) {
+      res.status(401).json({ message: "اسم المستخدم أو رقم الهاتف غير موجود · Identifiant introuvable" });
       return;
     }
     if (!user.isActive) {

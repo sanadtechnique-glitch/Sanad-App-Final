@@ -294,13 +294,13 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5" dir="rtl">
-      {/* Username */}
+      {/* Username or Phone */}
       <div>
-        <FieldLabel>اسم المستخدم · Pseudo</FieldLabel>
+        <FieldLabel>اسم المستخدم أو رقم الهاتف · Pseudo ou Téléphone</FieldLabel>
         <TextInput
           value={username}
           onChange={v => { setUsername(v); setError(null); }}
-          placeholder="اسمك"
+          placeholder="اسمك أو +216 XX XXX XXX"
           icon={User}
           hasValue={username.length > 0}
         />
@@ -357,6 +357,7 @@ function SignUpForm() {
   const [username, setUsername] = useState("");
   const [nickname, setNickname] = useState("");
   const [email, setEmail]       = useState("");
+  const [phone, setPhone]       = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm]   = useState("");
   const [error, setError]       = useState<string | null>(null);
@@ -408,6 +409,7 @@ function SignUpForm() {
           username: username.trim(),
           nickname: nickname.trim(),
           email: email.trim() || undefined,
+          phone: phone.trim() || undefined,
           password: password.trim(),
         }),
       });
@@ -578,6 +580,21 @@ function SignUpForm() {
           icon={Mail}
           hasValue={email.length > 0}
         />
+      </div>
+
+      {/* Phone (optional — also usable as login identifier) */}
+      <div>
+        <FieldLabel>رقم الهاتف · Téléphone <span className="text-[#1A4D1F]/35 text-[10px] font-normal">(اختياري · Facultatif)</span></FieldLabel>
+        <TextInput
+          value={phone}
+          onChange={v => { setPhone(v); setError(null); }}
+          placeholder="+216 XX XXX XXX"
+          icon={Phone}
+          hasValue={phone.length > 0}
+        />
+        <p className="text-[11px] text-[#1A4D1F]/35 mt-1 text-right">
+          يمكن استخدامه للدخول · Peut être utilisé pour la connexion
+        </p>
       </div>
 
       {/* Password */}
