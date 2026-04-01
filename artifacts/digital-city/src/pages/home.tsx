@@ -22,10 +22,10 @@ function getRoleBadge(role: string) {
     super_admin: { ar: "مدير النظام", fr: "Super Admin",  bg: "#B91C1C", border: "#991B1B" },
     admin:       { ar: "مدير النظام", fr: "Admin",        bg: "#B91C1C", border: "#991B1B" },
     manager:     { ar: "مدير النظام", fr: "Gestionnaire", bg: "#B91C1C", border: "#991B1B" },
-    provider:    { ar: "مزود",        fr: "Fournisseur",  bg: "#2E7D32", border: "#1B5E20" },
+    provider:    { ar: "مزود",        fr: "Fournisseur",  bg: "#1A4D1F", border: "#0D3311" },
     delivery:    { ar: "سائق/موزع",   fr: "Livreur",      bg: "#1565C0", border: "#0D47A1" },
     driver:      { ar: "سائق/موزع",   fr: "Livreur",      bg: "#1565C0", border: "#0D47A1" },
-    client:      { ar: "عميل",        fr: "Client",       bg: "#388E3C", border: "#2E7D32" },
+    client:      { ar: "عميل",        fr: "Client",       bg: "#0D3311", border: "#1A4D1F" },
   };
   return map[role] ?? map.client;
 }
@@ -41,8 +41,8 @@ const PROMO_SLIDES = [
     titleFr: "Offres exclusives Ramadan",
     subtitleAr: "أفضل العروض من مطاعم ومحلات المدينة",
     subtitleFr: "Les meilleures offres des restaurants de la ville",
-    bgFrom: "#2E7D32",
-    bgTo: "#1B5E20",
+    bgFrom: "#1A4D1F",
+    bgTo: "#0D3311",
     accent: "#FFA500",
   },
   {
@@ -147,10 +147,10 @@ function OrderCard({ order, t, expanded, onToggle }: {
         />
         {/* Provider + service */}
         <div className="flex-1 min-w-0">
-          <p className="font-black text-sm text-[#2E7D32] truncate">
+          <p className="font-black text-sm text-[#1A4D1F] truncate">
             {order.serviceProviderName}
           </p>
-          <p className="text-[10px] font-bold text-[#2E7D32]/50 truncate">
+          <p className="text-[10px] font-bold text-[#1A4D1F]/50 truncate">
             {order.serviceType} · {date}
           </p>
         </div>
@@ -164,10 +164,10 @@ function OrderCard({ order, t, expanded, onToggle }: {
         </span>
         {/* Order ID + expand arrow */}
         <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-          <span className="text-[10px] font-black text-[#2E7D32]/30">#{order.id}</span>
+          <span className="text-[10px] font-black text-[#1A4D1F]/30">#{order.id}</span>
           {expanded
-            ? <ChevronUp size={14} className="text-[#2E7D32]/30" />
-            : <ChevronDown size={14} className="text-[#2E7D32]/30" />
+            ? <ChevronUp size={14} className="text-[#1A4D1F]/30" />
+            : <ChevronDown size={14} className="text-[#1A4D1F]/30" />
           }
         </div>
       </div>
@@ -190,29 +190,29 @@ function OrderCard({ order, t, expanded, onToggle }: {
               <div className="grid grid-cols-2 gap-2">
                 {order.customerAddress && (
                   <div className="flex items-start gap-1.5">
-                    <MapPin size={12} className="text-[#2E7D32]/40 mt-0.5 flex-shrink-0" />
+                    <MapPin size={12} className="text-[#1A4D1F]/40 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-[9px] font-bold text-[#2E7D32]/40">{t("العنوان","Adresse")}</p>
-                      <p className="text-xs font-black text-[#2E7D32]/70">{order.customerAddress}</p>
+                      <p className="text-[9px] font-bold text-[#1A4D1F]/40">{t("العنوان","Adresse")}</p>
+                      <p className="text-xs font-black text-[#1A4D1F]/70">{order.customerAddress}</p>
                     </div>
                   </div>
                 )}
                 {order.deliveryFee !== undefined && (
                   <div className="flex items-start gap-1.5">
-                    <Truck size={12} className="text-[#2E7D32]/40 mt-0.5 flex-shrink-0" />
+                    <Truck size={12} className="text-[#1A4D1F]/40 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-[9px] font-bold text-[#2E7D32]/40">{t("رسوم التوصيل","Livraison")}</p>
-                      <p className="text-xs font-black text-[#2E7D32]/70">{order.deliveryFee} TND</p>
+                      <p className="text-[9px] font-bold text-[#1A4D1F]/40">{t("رسوم التوصيل","Livraison")}</p>
+                      <p className="text-xs font-black text-[#1A4D1F]/70">{order.deliveryFee} TND</p>
                     </div>
                   </div>
                 )}
               </div>
               {order.notes && (
                 <div className="flex items-start gap-1.5">
-                  <Package size={12} className="text-[#2E7D32]/40 mt-0.5 flex-shrink-0" />
+                  <Package size={12} className="text-[#1A4D1F]/40 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-[9px] font-bold text-[#2E7D32]/40">{t("ملاحظات","Notes")}</p>
-                    <p className="text-xs font-black text-[#2E7D32]/70">{order.notes}</p>
+                    <p className="text-[9px] font-bold text-[#1A4D1F]/40">{t("ملاحظات","Notes")}</p>
+                    <p className="text-xs font-black text-[#1A4D1F]/70">{order.notes}</p>
                   </div>
                 </div>
               )}
@@ -265,7 +265,7 @@ function MyOrdersSection({ name, t }: { name: string; t: (ar: string, fr: string
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <RefreshCw size={20} className="animate-spin text-[#2E7D32]/40" />
+        <RefreshCw size={20} className="animate-spin text-[#1A4D1F]/40" />
       </div>
     );
   }
@@ -273,11 +273,11 @@ function MyOrdersSection({ name, t }: { name: string; t: (ar: string, fr: string
   if (orders.length === 0) {
     return (
       <div className="text-center py-8" dir="rtl">
-        <ShoppingCart size={32} className="mx-auto mb-2 text-[#2E7D32]/20" />
-        <p className="text-sm font-black text-[#2E7D32]/30">
+        <ShoppingCart size={32} className="mx-auto mb-2 text-[#1A4D1F]/20" />
+        <p className="text-sm font-black text-[#1A4D1F]/30">
           {t("لا توجد طلبات بعد", "Aucune commande pour l'instant")}
         </p>
-        <p className="text-xs text-[#2E7D32]/20 mt-1">
+        <p className="text-xs text-[#1A4D1F]/20 mt-1">
           {t("ستظهر طلباتك هنا بمجرد إرسالها", "Vos commandes apparaîtront ici")}
         </p>
       </div>
@@ -288,13 +288,13 @@ function MyOrdersSection({ name, t }: { name: string; t: (ar: string, fr: string
     <div className="space-y-4" dir="rtl">
       {/* Refresh button */}
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-[#2E7D32]/40">
+        <span className="text-xs font-bold text-[#1A4D1F]/40">
           {orders.length} {t("طلب", "commande(s)")}
         </span>
         <button
           onClick={() => load(true)}
           disabled={refreshing}
-          className="flex items-center gap-1 text-xs font-bold text-[#2E7D32]/50 hover:text-[#2E7D32] transition-all"
+          className="flex items-center gap-1 text-xs font-bold text-[#1A4D1F]/50 hover:text-[#1A4D1F] transition-all"
         >
           <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
           {t("تحديث", "Actualiser")}
@@ -328,8 +328,8 @@ function MyOrdersSection({ name, t }: { name: string; t: (ar: string, fr: string
       {history.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <Clock size={12} className="text-[#2E7D32]/40" />
-            <span className="text-xs font-black text-[#2E7D32]/50">
+            <Clock size={12} className="text-[#1A4D1F]/40" />
+            <span className="text-xs font-black text-[#1A4D1F]/50">
               {t("السابقة", "Historique")} ({history.length})
             </span>
           </div>
@@ -347,7 +347,7 @@ function MyOrdersSection({ name, t }: { name: string; t: (ar: string, fr: string
           {history.length > 3 && (
             <button
               onClick={() => setShowAll(v => !v)}
-              className="w-full mt-2 py-2 rounded-xl text-xs font-black text-[#2E7D32]/50 hover:text-[#2E7D32] border border-[#2E7D32]/10 hover:border-[#2E7D32]/30 transition-all"
+              className="w-full mt-2 py-2 rounded-xl text-xs font-black text-[#1A4D1F]/50 hover:text-[#1A4D1F] border border-[#1A4D1F]/10 hover:border-[#1A4D1F]/30 transition-all"
             >
               {showAll
                 ? t("عرض أقل", "Voir moins")
@@ -535,7 +535,7 @@ export default function Home() {
           onClick={() => navigate("/home")}
         >
           <span style={{ fontSize: "1.65rem", fontWeight: 900, lineHeight: 1 }}>
-            <SanadBrand color="#2E7D32" innerColor="#FFF3E0" />
+            <SanadBrand color="#1A4D1F" innerColor="#FFF3E0" />
           </span>
         </motion.div>
 
@@ -558,7 +558,7 @@ export default function Home() {
                 </div>
                 {/* Name + badge */}
                 <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-xs font-black leading-tight" style={{ color: "#2E7D32" }}>
+                  <span className="text-xs font-black leading-tight" style={{ color: "#1A4D1F" }}>
                     {t("مرحباً،", "Bonjour,")} {session.name}
                   </span>
                   <span
@@ -589,17 +589,17 @@ export default function Home() {
           ) : (
             <div className="flex items-center gap-2">
               {/* Guest label */}
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#2E7D32]/20"
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#1A4D1F]/20"
                 style={{ background: "rgba(46,125,50,0.05)" }}>
-                <UserCircle size={14} className="text-[#2E7D32]/40" />
-                <span className="text-xs font-bold text-[#2E7D32]/50">{t("زائر", "Visiteur")}</span>
+                <UserCircle size={14} className="text-[#1A4D1F]/40" />
+                <span className="text-xs font-bold text-[#1A4D1F]/50">{t("زائر", "Visiteur")}</span>
               </div>
               {/* Login button */}
               <button
                 onClick={() => navigate("/auth")}
                 className="flex items-center gap-2 px-4 py-2 rounded-full font-black text-sm text-white transition-all hover:opacity-90 active:scale-95"
                 style={{
-                  background: "#2E7D32",
+                  background: "#1A4D1F",
                   boxShadow: "0 3px 14px rgba(46,125,50,0.30)",
                 }}
               >
@@ -676,7 +676,7 @@ export default function Home() {
           transition={{ delay: 0.2 }}
           className="mb-5 text-right"
         >
-          <h2 className="text-xl font-black text-[#2E7D32]">
+          <h2 className="text-xl font-black text-[#1A4D1F]">
             {t("خدماتنا", "Nos Services")}
           </h2>
           <p className="text-sm font-medium" style={{ color: "rgba(46,125,50,0.5)" }}>
@@ -704,9 +704,9 @@ export default function Home() {
                         background: "rgba(46,125,50,0.06)",
                       }}
                     >
-                      <Icon size={24} style={{ color: "#2E7D32" }} />
+                      <Icon size={24} style={{ color: "#1A4D1F" }} />
                     </div>
-                    <p className="font-black text-[11px] leading-snug" style={{ color: "#2E7D32" }}>
+                    <p className="font-black text-[11px] leading-snug" style={{ color: "#1A4D1F" }}>
                       {label}
                     </p>
                   </div>
@@ -730,17 +730,17 @@ export default function Home() {
           {/* Section header */}
           <div className="flex items-center justify-between mb-4" dir="rtl">
             <div>
-              <h2 className="text-lg font-black text-[#2E7D32]">
+              <h2 className="text-lg font-black text-[#1A4D1F]">
                 {t("طلباتي", "Mes commandes")}
               </h2>
-              <p className="text-xs font-bold text-[#2E7D32]/40">
+              <p className="text-xs font-bold text-[#1A4D1F]/40">
                 {t("جميع طلباتك من كل المزودين", "Toutes vos commandes")}
               </p>
             </div>
             <Link href="/services">
               <button
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white transition-all hover:opacity-90"
-                style={{ background: "#2E7D32" }}
+                style={{ background: "#1A4D1F" }}
               >
                 <ShoppingCart size={13} />
                 {t("طلب جديد", "Nouvelle commande")}
@@ -772,13 +772,13 @@ export default function Home() {
       >
         <div className="flex items-center gap-4 mb-7">
           <div className="flex-1 h-px" style={{ background: "rgba(46,125,50,0.18)" }} />
-          <MapPin size={18} style={{ color: "#2E7D32", flexShrink: 0 }} />
+          <MapPin size={18} style={{ color: "#1A4D1F", flexShrink: 0 }} />
           <div className="flex-1 h-px" style={{ background: "rgba(46,125,50,0.18)" }} />
         </div>
 
         <h2
           className="text-2xl font-black text-center mb-8"
-          style={{ color: "#2E7D32", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+          style={{ color: "#1A4D1F", fontFamily: "'Cairo','Tajawal',sans-serif" }}
           dir="rtl"
         >
           عن سند.. لماذا نحن هنا؟
@@ -802,10 +802,10 @@ export default function Home() {
               }}
             >
               <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
-                style={{ background: "#2E7D32" }}>
+                style={{ background: "#1A4D1F" }}>
                 <Icon size={18} className="text-white" />
               </div>
-              <p className="font-black text-base mb-1" style={{ color: "#2E7D32", fontFamily: "'Cairo','Tajawal',sans-serif" }} dir="rtl">
+              <p className="font-black text-base mb-1" style={{ color: "#1A4D1F", fontFamily: "'Cairo','Tajawal',sans-serif" }} dir="rtl">
                 {titleAr}
               </p>
               <p className="text-sm leading-relaxed" style={{ color: "rgba(46,125,50,0.75)", fontFamily: "'Cairo','Tajawal',sans-serif" }} dir="rtl">
@@ -842,7 +842,7 @@ export default function Home() {
           className="inline-flex items-center gap-1.5 mt-1 group"
           style={{ fontFamily: "'Outfit',sans-serif" }}
         >
-          <Phone size={12} style={{ color: "#2E7D32" }} />
+          <Phone size={12} style={{ color: "#1A4D1F" }} />
           <span
             className="text-xs font-black tracking-widest group-hover:underline"
             style={{ color: "rgba(46,125,50,0.65)", letterSpacing: "0.10em" }}

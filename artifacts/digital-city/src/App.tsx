@@ -103,17 +103,17 @@ function NotFound() {
       dir="rtl"
     >
       <div
-        className="rounded-3xl p-10 text-center shadow-xl border border-[#2E7D32]/30"
+        className="rounded-3xl p-10 text-center shadow-xl border border-[#1A4D1F]/30"
         style={{ background: "#FFFDE7" }}
       >
-        <p className="text-7xl font-black text-[#2E7D32] mb-3">404</p>
+        <p className="text-7xl font-black text-[#1A4D1F] mb-3">404</p>
         <p className="text-[#004D40] font-bold text-lg mb-6">
           الصفحة غير موجودة · Page introuvable
         </p>
         <button
           onClick={() => navigate("/login")}
           className="px-6 py-3 rounded-xl font-black text-black text-sm"
-          style={{ background: "#2E7D32" }}
+          style={{ background: "#1A4D1F" }}
         >
           العودة للرئيسية · Retour
         </button>

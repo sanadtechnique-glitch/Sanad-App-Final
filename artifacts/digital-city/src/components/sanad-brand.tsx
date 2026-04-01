@@ -15,7 +15,7 @@ import React from "react";
  *        to bridge the gap between the two letters visually.
  *
  * Props
- *  color      – fill / text colour (default #2E7D32)
+ *  color      – fill / text colour (default #1A4D1F)
  *  innerColor – colour of the pin's inner circle (default white; match button/card bg)
  *  className  – extra classes for the outer <span>
  *  style      – extra inline styles for the outer <span>
@@ -29,7 +29,7 @@ interface SanadBrandProps {
 }
 
 export function SanadBrand({
-  color = "#2E7D32",
+  color = "#1A4D1F",
   innerColor = "white",
   className,
   style,

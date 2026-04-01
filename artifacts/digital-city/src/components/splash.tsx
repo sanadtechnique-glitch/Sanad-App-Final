@@ -40,11 +40,11 @@ export function Splash({ onDone }: SplashProps) {
                 fontSize: "5rem",
                 fontWeight: 900,
                 lineHeight: 1,
-                color: "#2E7D32",
+                color: "#1A4D1F",
                 fontFamily: "'Cairo','Tajawal',sans-serif",
               }}
             >
-              <SanadBrand color="#2E7D32" innerColor="#FFF3E0" />
+              <SanadBrand color="#1A4D1F" innerColor="#FFF3E0" />
             </span>
 
             {/* Slogan */}
@@ -54,7 +54,7 @@ export function Splash({ onDone }: SplashProps) {
               transition={{ delay: 0.45, duration: 0.5 }}
               style={{
                 fontFamily: "'Cairo','Tajawal',sans-serif",
-                color: "#2E7D32",
+                color: "#1A4D1F",
                 fontSize: "1rem",
                 fontWeight: 700,
                 textAlign: "center",
@@ -76,7 +76,7 @@ export function Splash({ onDone }: SplashProps) {
               <motion.span
                 key={i}
                 className="w-2 h-2 rounded-full"
-                style={{ background: "#2E7D32" }}
+                style={{ background: "#1A4D1F" }}
                 animate={{ opacity: [0.25, 1, 0.25], scale: [0.8, 1.25, 0.8] }}
                 transition={{
                   duration: 1.1,

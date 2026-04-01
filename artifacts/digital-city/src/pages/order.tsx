@@ -33,7 +33,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="block text-xs font-black text-[#2E7D32]/50 mb-1.5 uppercase tracking-widest">{children}</label>;
+  return <label className="block text-xs font-black text-[#1A4D1F]/50 mb-1.5 uppercase tracking-widest">{children}</label>;
 }
 
 function InputBase({ error, children }: { error?: string; children: React.ReactNode }) {
@@ -136,7 +136,7 @@ export default function Order() {
     return (
       <Layout>
         <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="w-10 h-10 border-4 border-[#2E7D32] border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-[#1A4D1F] border-t-transparent rounded-full animate-spin" />
         </div>
       </Layout>
     );
@@ -149,9 +149,9 @@ export default function Order() {
           <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
             <AlertTriangle size={28} className="text-red-400" />
           </div>
-          <h2 className="text-2xl font-black text-[#2E7D32]">{t("المزود غير موجود", "Prestataire introuvable")}</h2>
+          <h2 className="text-2xl font-black text-[#1A4D1F]">{t("المزود غير موجود", "Prestataire introuvable")}</h2>
           <Link href="/services">
-            <button className="px-5 py-2.5 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/30 text-[#2E7D32] font-bold text-sm hover:bg-[#2E7D32]/20 transition-colors">
+            <button className="px-5 py-2.5 rounded-xl bg-[#1A4D1F]/10 border border-[#1A4D1F]/30 text-[#1A4D1F] font-bold text-sm hover:bg-[#1A4D1F]/20 transition-colors">
               {t("العودة للخدمات", "Retour aux services")}
             </button>
           </Link>
@@ -167,13 +167,13 @@ export default function Order() {
         {/* ── Back ── */}
         <div className="flex items-center gap-4 mb-7">
           <Link href="/services">
-            <div className="w-11 h-11 rounded-2xl glass-panel border border-[#2E7D32]/10 flex items-center justify-center hover:bg-[#2E7D32]/10 hover:border-[#2E7D32]/30 transition-all cursor-pointer">
-              <ChevronRight size={18} className={cn("text-[#2E7D32]/60", !isRTL && "rotate-180")} />
+            <div className="w-11 h-11 rounded-2xl glass-panel border border-[#1A4D1F]/10 flex items-center justify-center hover:bg-[#1A4D1F]/10 hover:border-[#1A4D1F]/30 transition-all cursor-pointer">
+              <ChevronRight size={18} className={cn("text-[#1A4D1F]/60", !isRTL && "rotate-180")} />
             </div>
           </Link>
           <div>
-            <h1 className="text-2xl font-black text-[#2E7D32]">{t("تأكيد الطلب", "Confirmer la commande")}</h1>
-            <p className="text-[#2E7D32]/30 text-sm">{t("أدخل بياناتك لإتمام الطلب", "Remplissez vos informations")}</p>
+            <h1 className="text-2xl font-black text-[#1A4D1F]">{t("تأكيد الطلب", "Confirmer la commande")}</h1>
+            <p className="text-[#1A4D1F]/30 text-sm">{t("أدخل بياناتك لإتمام الطلب", "Remplissez vos informations")}</p>
           </div>
         </div>
 
@@ -182,35 +182,35 @@ export default function Order() {
             /* ── Success ── */
             <motion.div key="success"
               initial={{ opacity: 0, scale: 0.93 }} animate={{ opacity: 1, scale: 1 }}
-              className="glass-panel rounded-3xl p-12 text-center flex flex-col items-center border border-[#2E7D32]/25"
+              className="glass-panel rounded-3xl p-12 text-center flex flex-col items-center border border-[#1A4D1F]/25"
             >
               <motion.div
                 initial={{ scale: 0 }} animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
-                className="w-24 h-24 rounded-full bg-[#2E7D32]/15 border border-[#2E7D32]/30 flex items-center justify-center mb-6"
+                className="w-24 h-24 rounded-full bg-[#1A4D1F]/15 border border-[#1A4D1F]/30 flex items-center justify-center mb-6"
                 style={{ boxShadow: "0 0 40px -10px rgba(46,125,50,0.4)" }}
               >
-                <CheckCircle2 size={44} className="text-[#2E7D32]" />
+                <CheckCircle2 size={44} className="text-[#1A4D1F]" />
               </motion.div>
-              <h2 className="text-3xl font-black text-[#2E7D32] mb-2">
+              <h2 className="text-3xl font-black text-[#1A4D1F] mb-2">
                 {t("تم تأكيد طلبك!", "Commande confirmée !")}
               </h2>
               {orderId && (
                 <div className="flex items-center gap-2 mb-3">
-                  <Hash size={14} className="text-[#2E7D32]/60" />
-                  <span className="text-[#2E7D32] font-mono font-black">
+                  <Hash size={14} className="text-[#1A4D1F]/60" />
+                  <span className="text-[#1A4D1F] font-mono font-black">
                     {orderId.toString().padStart(5, "0")}
                   </span>
                 </div>
               )}
-              <p className="text-[#2E7D32]/40 text-sm mb-8 leading-relaxed max-w-xs">
+              <p className="text-[#1A4D1F]/40 text-sm mb-8 leading-relaxed max-w-xs">
                 {t(
                   "سيتواصل معك المزود قريباً. يتم تحويلك للرئيسية...",
                   "Le prestataire vous contactera bientôt. Redirection..."
                 )}
               </p>
-              <div className="w-32 h-1 bg-[#2E7D32]/5 rounded-full overflow-hidden">
-                <motion.div className="h-full bg-[#2E7D32] rounded-full"
+              <div className="w-32 h-1 bg-[#1A4D1F]/5 rounded-full overflow-hidden">
+                <motion.div className="h-full bg-[#1A4D1F] rounded-full"
                   initial={{ width: "0%" }} animate={{ width: "100%" }}
                   transition={{ duration: 4, ease: "linear" }} />
               </div>
@@ -219,24 +219,24 @@ export default function Order() {
             /* ── Form ── */
             <motion.div key="form" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
               {/* Provider card — reference spec: #121212 bg, gold border */}
-              <div className="rounded-[15px] p-4 mb-6 border border-[#2E7D32]/30 flex items-center gap-4" style={{ background: "#FFFFFF" }}>
-                <div className="w-12 h-12 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/20 flex items-center justify-center flex-shrink-0">
-                  <Building2 size={20} className="text-[#2E7D32]" />
+              <div className="rounded-[15px] p-4 mb-6 border border-[#1A4D1F]/30 flex items-center gap-4" style={{ background: "#FFFFFF" }}>
+                <div className="w-12 h-12 rounded-xl bg-[#1A4D1F]/10 border border-[#1A4D1F]/20 flex items-center justify-center flex-shrink-0">
+                  <Building2 size={20} className="text-[#1A4D1F]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-[#2E7D32] leading-tight">
+                  <p className="font-black text-[#1A4D1F] leading-tight">
                     {lang === "ar" ? supplier.nameAr : (supplier.name || supplier.nameAr)}
                   </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <MapPin size={10} className="text-[#2E7D32]/30 flex-shrink-0" />
-                    <p className="text-xs text-[#2E7D32]/30 truncate">{supplier.address}</p>
+                    <MapPin size={10} className="text-[#1A4D1F]/30 flex-shrink-0" />
+                    <p className="text-xs text-[#1A4D1F]/30 truncate">{supplier.address}</p>
                   </div>
                   {supplier.rating && (
                     <div className="flex items-center gap-0.5 mt-1">
                       {[1,2,3,4,5].map(i => (
-                        <Star key={i} size={10} className={i <= Math.round(supplier.rating!) ? "text-[#2E7D32] fill-[#2E7D32]" : "text-[#2E7D32]/15"} />
+                        <Star key={i} size={10} className={i <= Math.round(supplier.rating!) ? "text-[#1A4D1F] fill-[#1A4D1F]" : "text-[#1A4D1F]/15"} />
                       ))}
-                      <span className="text-xs text-[#2E7D32]/30 ml-1">{supplier.rating.toFixed(1)}</span>
+                      <span className="text-xs text-[#1A4D1F]/30 ml-1">{supplier.rating.toFixed(1)}</span>
                     </div>
                   )}
                 </div>
@@ -252,13 +252,13 @@ export default function Order() {
                 <InputBase error={errors.customerName && t("الاسم مطلوب (٣ أحرف على الأقل)","Nom requis (3 caractères min)")}>
                   <FieldLabel>{t("الاسم الكامل", "Nom complet")}</FieldLabel>
                   <div className="relative">
-                    <User size={15} className={cn("absolute top-1/2 -translate-y-1/2 text-[#2E7D32]/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
+                    <User size={15} className={cn("absolute top-1/2 -translate-y-1/2 text-[#1A4D1F]/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
                     <input {...register("customerName")}
                       placeholder={t("أدخل اسمك الكامل","Votre nom complet")}
                       className={cn(
-                        "w-full bg-[#FFFDE7] border-[#2E7D32]/40 rounded-xl py-3.5 text-sm text-[#2E7D32] placeholder:text-[#2E7D32]/30 focus:outline-none focus:border-[#2E7D32] transition-colors",
+                        "w-full bg-[#FFFDE7] border-[#1A4D1F]/40 rounded-xl py-3.5 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/30 focus:outline-none focus:border-[#1A4D1F] transition-colors",
                         isRTL ? "pr-10 pl-4" : "pl-10 pr-4",
-                        errors.customerName ? "border-red-500" : "border-[#2E7D32]/40"
+                        errors.customerName ? "border-red-500" : "border-[#1A4D1F]/40"
                       )} />
                   </div>
                 </InputBase>
@@ -267,13 +267,13 @@ export default function Order() {
                 <InputBase error={errors.customerPhone && t("رقم الهاتف مطلوب","Téléphone requis")}>
                   <FieldLabel>{t("رقم الهاتف", "Numéro de téléphone")}</FieldLabel>
                   <div className="relative">
-                    <Phone size={15} className={cn("absolute top-1/2 -translate-y-1/2 text-[#2E7D32]/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
+                    <Phone size={15} className={cn("absolute top-1/2 -translate-y-1/2 text-[#1A4D1F]/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
                     <input {...register("customerPhone")} type="tel"
                       placeholder={t("+216 __ ___ ___","+216 __ ___ ___")}
                       className={cn(
-                        "w-full bg-[#FFFDE7] border-[#2E7D32]/40 rounded-xl py-3.5 text-sm text-[#2E7D32] placeholder:text-[#2E7D32]/30 focus:outline-none focus:border-[#2E7D32] transition-colors",
+                        "w-full bg-[#FFFDE7] border-[#1A4D1F]/40 rounded-xl py-3.5 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/30 focus:outline-none focus:border-[#1A4D1F] transition-colors",
                         isRTL ? "pr-10 pl-4" : "pl-10 pr-4",
-                        errors.customerPhone ? "border-red-500" : "border-[#2E7D32]/40"
+                        errors.customerPhone ? "border-red-500" : "border-[#1A4D1F]/40"
                       )} />
                   </div>
                 </InputBase>
@@ -283,7 +283,7 @@ export default function Order() {
                   <div className="space-y-1.5">
                     <FieldLabel>{t("المعتمدية (المنطقة)", "Délégation (Zone)")}</FieldLabel>
                     <select {...register("delegationId")}
-                      className="w-full bg-[#FFFDE7] border border-[#2E7D32]/40 rounded-xl px-4 py-3.5 text-sm text-[#2E7D32] focus:outline-none focus:border-[#2E7D32] transition-colors">
+                      className="w-full bg-[#FFFDE7] border border-[#1A4D1F]/40 rounded-xl px-4 py-3.5 text-sm text-[#1A4D1F] focus:outline-none focus:border-[#1A4D1F] transition-colors">
                       <option value="" className="bg-zinc-900">{t("اختر منطقتك","Choisissez votre zone")}</option>
                       {delegations.map(d => (
                         <option key={d.id} value={d.id.toString()} className="bg-zinc-900">
@@ -292,7 +292,7 @@ export default function Order() {
                       ))}
                     </select>
                     {selectedDelegation && (
-                      <p className="text-xs text-[#2E7D32]/70 font-bold">
+                      <p className="text-xs text-[#1A4D1F]/70 font-bold">
                         {t("رسوم التوصيل","Frais de livraison")}: {selectedDelegation.deliveryFee} TND
                       </p>
                     )}
@@ -303,13 +303,13 @@ export default function Order() {
                 <InputBase error={errors.customerAddress && t("العنوان مطلوب","Adresse requise")}>
                   <FieldLabel>{t("عنوان التوصيل", "Adresse de livraison")}</FieldLabel>
                   <div className="relative">
-                    <MapPin size={15} className={cn("absolute top-4 text-[#2E7D32]/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
+                    <MapPin size={15} className={cn("absolute top-4 text-[#1A4D1F]/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
                     <textarea {...register("customerAddress")} rows={2}
                       placeholder={t("الشارع، الحي، المعلم القريب...","Rue, quartier, repère...")}
                       className={cn(
-                        "w-full bg-[#FFFDE7] border-[#2E7D32]/40 rounded-xl py-3.5 text-sm text-[#2E7D32] placeholder:text-[#2E7D32]/30 focus:outline-none focus:border-[#2E7D32] transition-colors resize-none",
+                        "w-full bg-[#FFFDE7] border-[#1A4D1F]/40 rounded-xl py-3.5 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/30 focus:outline-none focus:border-[#1A4D1F] transition-colors resize-none",
                         isRTL ? "pr-10 pl-4" : "pl-10 pr-4",
-                        errors.customerAddress ? "border-red-500" : "border-[#2E7D32]/40"
+                        errors.customerAddress ? "border-red-500" : "border-[#1A4D1F]/40"
                       )} />
                   </div>
                 </InputBase>
@@ -318,11 +318,11 @@ export default function Order() {
                 <div className="space-y-1.5">
                   <FieldLabel>{t("ملاحظات (اختياري)", "Notes (optionnel)")}</FieldLabel>
                   <div className="relative">
-                    <StickyNote size={15} className={cn("absolute top-4 text-[#2E7D32]/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
+                    <StickyNote size={15} className={cn("absolute top-4 text-[#1A4D1F]/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
                     <textarea {...register("notes")} rows={3}
                       placeholder={t("أي تفاصيل إضافية...","Détails supplémentaires...")}
                       className={cn(
-                        "w-full bg-[#FFFDE7] border border-[#2E7D32]/40 rounded-xl py-3.5 text-sm text-[#2E7D32] placeholder:text-[#2E7D32]/30 focus:outline-none focus:border-[#2E7D32] transition-colors resize-none",
+                        "w-full bg-[#FFFDE7] border border-[#1A4D1F]/40 rounded-xl py-3.5 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/30 focus:outline-none focus:border-[#1A4D1F] transition-colors resize-none",
                         isRTL ? "pr-10 pl-4" : "pl-10 pr-4"
                       )} />
                   </div>
@@ -333,26 +333,26 @@ export default function Order() {
                   <div className="space-y-2">
                     <FieldLabel>{t("صورة الوصفة الطبية (اختياري)", "Ordonnance médicale (optionnel)")}</FieldLabel>
                     {prescriptionPhoto ? (
-                      <div className="relative rounded-xl overflow-hidden border border-[#2E7D32]/30">
+                      <div className="relative rounded-xl overflow-hidden border border-[#1A4D1F]/30">
                         <img src={prescriptionPhoto} alt="prescription" className="w-full h-40 object-cover" />
                         <button type="button" onClick={() => setPrescriptionPhoto(null)}
-                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500/90 text-[#2E7D32] flex items-center justify-center hover:bg-red-600 transition-colors">
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500/90 text-[#1A4D1F] flex items-center justify-center hover:bg-red-600 transition-colors">
                           <X size={13} />
                         </button>
-                        <div className="absolute bottom-2 left-2 text-xs bg-[#FFA500]/60 text-[#2E7D32] px-2 py-1 rounded-lg backdrop-blur-sm">
+                        <div className="absolute bottom-2 left-2 text-xs bg-[#FFA500]/60 text-[#1A4D1F] px-2 py-1 rounded-lg backdrop-blur-sm">
                           {t("✓ تم رفع الوصفة", "✓ Ordonnance jointe")}
                         </div>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-dashed border-[#2E7D32]/15 cursor-pointer hover:border-[#2E7D32]/40 hover:bg-[#2E7D32]/3 transition-all group">
-                        <div className="w-12 h-12 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/20 flex items-center justify-center group-hover:bg-[#2E7D32]/20 transition-colors">
-                          <Camera size={20} className="text-[#2E7D32]/60" />
+                      <label className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-dashed border-[#1A4D1F]/15 cursor-pointer hover:border-[#1A4D1F]/40 hover:bg-[#1A4D1F]/3 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-[#1A4D1F]/10 border border-[#1A4D1F]/20 flex items-center justify-center group-hover:bg-[#1A4D1F]/20 transition-colors">
+                          <Camera size={20} className="text-[#1A4D1F]/60" />
                         </div>
                         <div className="text-center">
-                          <p className="text-sm font-bold text-[#2E7D32]/50 group-hover:text-[#2E7D32]/70 transition-colors">
+                          <p className="text-sm font-bold text-[#1A4D1F]/50 group-hover:text-[#1A4D1F]/70 transition-colors">
                             {t("اضغط لرفع صورة الوصفة", "Cliquez pour télécharger")}
                           </p>
-                          <p className="text-xs text-[#2E7D32]/25 mt-0.5">JPG, PNG, WEBP</p>
+                          <p className="text-xs text-[#1A4D1F]/25 mt-0.5">JPG, PNG, WEBP</p>
                         </div>
                         <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                       </label>
@@ -361,9 +361,9 @@ export default function Order() {
                 )}
 
                 {/* Privacy note */}
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-[#2E7D32]/3 border border-[#2E7D32]/5">
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-[#1A4D1F]/3 border border-[#1A4D1F]/5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
-                  <p className="text-xs text-[#2E7D32]/30 leading-relaxed">
+                  <p className="text-xs text-[#1A4D1F]/30 leading-relaxed">
                     {t(
                       "لا يتم مشاركة أرقام الهاتف مع مقدمي الخدمات. تواصلنا داخلي وآمن.",
                       "Aucun numéro de téléphone n'est partagé avec les prestataires. Communication interne sécurisée."
@@ -374,7 +374,7 @@ export default function Order() {
                 {/* Submit */}
                 <button type="submit" disabled={submitting}
                   className="w-full h-14 rounded-2xl font-black text-base transition-all disabled:opacity-50 flex items-center justify-center gap-3"
-                  style={{ background: submitting ? "rgba(46,125,50,0.5)" : "#2E7D32", color: "white", boxShadow: submitting ? "none" : "0 0 30px -8px rgba(46,125,50,0.5)" }}
+                  style={{ background: submitting ? "rgba(46,125,50,0.5)" : "#1A4D1F", color: "white", boxShadow: submitting ? "none" : "0 0 30px -8px rgba(46,125,50,0.5)" }}
                 >
                   {submitting ? (
                     <><Loader2 size={20} className="animate-spin" />{t("جاري الإرسال...","Envoi en cours...")}</>

@@ -47,7 +47,7 @@ export function AdBanner() {
 
   const ad = ads[active];
   const title = lang === "ar" ? ad.titleAr : ad.titleFr;
-  const color = ad.bgColor || "#2E7D32";
+  const color = ad.bgColor || "#1A4D1F";
 
   return (
     <div

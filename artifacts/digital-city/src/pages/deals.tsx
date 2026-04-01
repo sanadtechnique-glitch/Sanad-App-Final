@@ -48,11 +48,11 @@ function ProductCard({ p, t }: { p: DealProduct; t: (ar: string, fr: string) => 
     >
       <div className="flex gap-3 p-4" dir="rtl">
         {/* Image */}
-        <div className="w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden border border-[#2E7D32]/10 bg-[#2E7D32]/5 flex items-center justify-center relative">
+        <div className="w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden border border-[#1A4D1F]/10 bg-[#1A4D1F]/5 flex items-center justify-center relative">
           {p.imageUrl ? (
             <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
           ) : (
-            <Package size={22} className="text-[#2E7D32]/20" />
+            <Package size={22} className="text-[#1A4D1F]/20" />
           )}
           {pct > 0 && (
             <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-bl-xl rounded-tr-xl">
@@ -63,9 +63,9 @@ function ProductCard({ p, t }: { p: DealProduct; t: (ar: string, fr: string) => 
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className="font-black text-sm text-[#2E7D32] truncate">{p.title}</p>
+          <p className="font-black text-sm text-[#1A4D1F] truncate">{p.title}</p>
           {p.category && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#2E7D32]/40 bg-[#2E7D32]/5 px-2 py-0.5 rounded-full mt-0.5">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1A4D1F]/40 bg-[#1A4D1F]/5 px-2 py-0.5 rounded-full mt-0.5">
               <Tag size={9} />
               {p.category}
             </span>
@@ -73,7 +73,7 @@ function ProductCard({ p, t }: { p: DealProduct; t: (ar: string, fr: string) => 
           {/* Prices */}
           <div className="flex items-center gap-2 mt-2">
             {p.salePrice && (
-              <span className="text-lg font-black" style={{ color: "#2E7D32" }}>
+              <span className="text-lg font-black" style={{ color: "#1A4D1F" }}>
                 {parseFloat(p.salePrice).toFixed(3)} TND
               </span>
             )}
@@ -88,8 +88,8 @@ function ProductCard({ p, t }: { p: DealProduct; t: (ar: string, fr: string) => 
         {/* Expand */}
         <div className="flex-shrink-0 self-center">
           {expanded
-            ? <ChevronUp size={16} className="text-[#2E7D32]/30" />
-            : <ChevronDown size={16} className="text-[#2E7D32]/30" />
+            ? <ChevronUp size={16} className="text-[#1A4D1F]/30" />
+            : <ChevronDown size={16} className="text-[#1A4D1F]/30" />
           }
         </div>
       </div>
@@ -105,7 +105,7 @@ function ProductCard({ p, t }: { p: DealProduct; t: (ar: string, fr: string) => 
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 pt-1 border-t" style={{ borderColor: "rgba(46,125,50,0.08)" }} dir="rtl">
-              <p className="text-xs font-bold text-[#2E7D32]/60 leading-relaxed">{p.description}</p>
+              <p className="text-xs font-bold text-[#1A4D1F]/60 leading-relaxed">{p.description}</p>
             </div>
           </motion.div>
         )}
@@ -172,23 +172,23 @@ export default function Deals() {
       >
         <button
           onClick={() => navigate("/home")}
-          className="p-2 rounded-xl text-[#2E7D32]/50 hover:text-[#2E7D32] hover:bg-[#2E7D32]/8 transition-all"
+          className="p-2 rounded-xl text-[#1A4D1F]/50 hover:text-[#1A4D1F] hover:bg-[#1A4D1F]/8 transition-all"
         >
           <ArrowRight size={18} />
         </button>
         <div className="flex-1">
-          <h1 className="text-base font-black text-[#2E7D32] flex items-center gap-2">
+          <h1 className="text-base font-black text-[#1A4D1F] flex items-center gap-2">
             <Percent size={16} className="text-red-500" />
             {t("منتجات في التخفيض", "Produits en promotion")}
           </h1>
-          <p className="text-[10px] font-bold text-[#2E7D32]/40">
+          <p className="text-[10px] font-bold text-[#1A4D1F]/40">
             {t("أفضل العروض من جميع المزودين", "Meilleures offres de tous les fournisseurs")}
           </p>
         </div>
         <button
           onClick={() => load(true)}
           disabled={refreshing}
-          className="p-2 rounded-xl text-[#2E7D32]/40 hover:text-[#2E7D32] transition-all"
+          className="p-2 rounded-xl text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-all"
         >
           <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
         </button>
@@ -200,7 +200,7 @@ export default function Deals() {
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           className="mx-4 mt-4 rounded-2xl p-4 flex items-center gap-4"
-          style={{ background: "linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%)" }}
+          style={{ background: "linear-gradient(135deg, #1A4D1F 0%, #0D3311 100%)" }}
         >
           <div className="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
             <Sparkles size={22} className="text-[#FFA500]" />
@@ -224,17 +224,17 @@ export default function Deals() {
       {/* ── Search ── */}
       <div className="px-4 mt-4">
         <div className="relative">
-          <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2E7D32]/30" />
+          <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#1A4D1F]/30" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={t("ابحث عن منتج...", "Rechercher un produit...")}
-            className="w-full pr-9 pl-8 py-2.5 rounded-xl border text-sm font-bold text-[#2E7D32] bg-white outline-none"
+            className="w-full pr-9 pl-8 py-2.5 rounded-xl border text-sm font-bold text-[#1A4D1F] bg-white outline-none"
             style={{ borderColor: "rgba(46,125,50,0.2)" }}
           />
           {search && (
             <button onClick={() => setSearch("")} className="absolute left-3 top-1/2 -translate-y-1/2">
-              <X size={14} className="text-[#2E7D32]/30" />
+              <X size={14} className="text-[#1A4D1F]/30" />
             </button>
           )}
         </div>
@@ -251,9 +251,9 @@ export default function Deals() {
                 "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-black transition-all",
                 catFilter === c
                   ? "text-white shadow-sm"
-                  : "text-[#2E7D32]/50 border border-[#2E7D32]/15 hover:border-[#2E7D32]/40"
+                  : "text-[#1A4D1F]/50 border border-[#1A4D1F]/15 hover:border-[#1A4D1F]/40"
               )}
-              style={catFilter === c ? { background: "#2E7D32" } : {}}
+              style={catFilter === c ? { background: "#1A4D1F" } : {}}
             >
               {c === "all" ? t("الكل", "Tout") : c}
             </button>
@@ -265,8 +265,8 @@ export default function Deals() {
       <div className="px-4 mt-4 pb-24">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <RefreshCw size={24} className="animate-spin text-[#2E7D32]/30" />
-            <p className="text-sm font-bold text-[#2E7D32]/30">{t("جارٍ التحميل...", "Chargement...")}</p>
+            <RefreshCw size={24} className="animate-spin text-[#1A4D1F]/30" />
+            <p className="text-sm font-bold text-[#1A4D1F]/30">{t("جارٍ التحميل...", "Chargement...")}</p>
           </div>
         ) : sorted.length === 0 ? (
           <motion.div
@@ -274,24 +274,24 @@ export default function Deals() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center justify-center py-24 gap-4"
           >
-            <div className="w-20 h-20 rounded-full bg-[#2E7D32]/5 flex items-center justify-center">
-              <ShoppingBag size={32} className="text-[#2E7D32]/20" />
+            <div className="w-20 h-20 rounded-full bg-[#1A4D1F]/5 flex items-center justify-center">
+              <ShoppingBag size={32} className="text-[#1A4D1F]/20" />
             </div>
             <div className="text-center">
-              <p className="font-black text-[#2E7D32]/40 text-base">
+              <p className="font-black text-[#1A4D1F]/40 text-base">
                 {search || catFilter !== "all"
                   ? t("لا توجد نتائج مطابقة", "Aucun résultat")
                   : t("لا توجد عروض حالياً", "Aucune promotion pour l'instant")
                 }
               </p>
-              <p className="text-xs text-[#2E7D32]/25 mt-1 font-bold">
+              <p className="text-xs text-[#1A4D1F]/25 mt-1 font-bold">
                 {t("تحقق لاحقاً للعروض الجديدة", "Revenez plus tard pour de nouvelles offres")}
               </p>
             </div>
             {(search || catFilter !== "all") && (
               <button
                 onClick={() => { setSearch(""); setCatFilter("all"); }}
-                className="px-4 py-2 rounded-xl text-xs font-black text-[#2E7D32] border border-[#2E7D32]/20 hover:bg-[#2E7D32]/5 transition-all"
+                className="px-4 py-2 rounded-xl text-xs font-black text-[#1A4D1F] border border-[#1A4D1F]/20 hover:bg-[#1A4D1F]/5 transition-all"
               >
                 {t("مسح الفلاتر", "Effacer les filtres")}
               </button>

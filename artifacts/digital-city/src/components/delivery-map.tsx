@@ -48,10 +48,10 @@ export default function DeliveryMap({ address, customerName }: Props) {
   };
 
   return (
-    <div className="mt-3 rounded-[12px] overflow-hidden border border-[#2E7D32]/30" style={{ direction: "ltr" }}>
+    <div className="mt-3 rounded-[12px] overflow-hidden border border-[#1A4D1F]/30" style={{ direction: "ltr" }}>
       {geocoding ? (
         <div className="h-40 flex items-center justify-center bg-[#FFFDE7]">
-          <div className="w-6 h-6 border-2 border-[#2E7D32] border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-[#1A4D1F] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : coords ? (
         <>
@@ -70,7 +70,7 @@ export default function DeliveryMap({ address, customerName }: Props) {
           </div>
           <button
             onClick={openGoogleMaps}
-            className="w-full flex items-center justify-center gap-2 py-2.5 font-black text-sm text-[#2E7D32] hover:text-[#2E7D32] border-t border-[#2E7D32]/30 transition-all hover:bg-[#2E7D32]/8"
+            className="w-full flex items-center justify-center gap-2 py-2.5 font-black text-sm text-[#1A4D1F] hover:text-[#1A4D1F] border-t border-[#1A4D1F]/30 transition-all hover:bg-[#1A4D1F]/8"
             style={{ background: "#FFFDE7" }}
             dir={isRTL ? "rtl" : "ltr"}>
             <Navigation size={15} />
@@ -81,7 +81,7 @@ export default function DeliveryMap({ address, customerName }: Props) {
       ) : (
         <button
           onClick={openGoogleMaps}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] text-[#2E7D32] border border-[#2E7D32]/30 font-black text-sm hover:bg-[#2E7D32]/10 transition-all"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] text-[#1A4D1F] border border-[#1A4D1F]/30 font-black text-sm hover:bg-[#1A4D1F]/10 transition-all"
           style={{ background: "#FFFDE7" }}>
           <Navigation size={15} />
           {t("فتح الخريطة", "Ouvrir la carte")}

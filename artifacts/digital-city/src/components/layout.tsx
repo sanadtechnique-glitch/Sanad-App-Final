@@ -17,10 +17,10 @@ function getRoleBadge(role: string) {
     super_admin: { ar: "مدير النظام", fr: "Super Admin",  bg: "#B91C1C", border: "#991B1B" },
     admin:       { ar: "مدير النظام", fr: "Admin",        bg: "#B91C1C", border: "#991B1B" },
     manager:     { ar: "مدير النظام", fr: "Gestionnaire", bg: "#B91C1C", border: "#991B1B" },
-    provider:    { ar: "مزود",        fr: "Fournisseur",  bg: "#2E7D32", border: "#1B5E20" },
+    provider:    { ar: "مزود",        fr: "Fournisseur",  bg: "#1A4D1F", border: "#0D3311" },
     delivery:    { ar: "سائق/موزع",   fr: "Livreur",      bg: "#1565C0", border: "#0D47A1" },
     driver:      { ar: "سائق/موزع",   fr: "Livreur",      bg: "#1565C0", border: "#0D47A1" },
-    client:      { ar: "عميل",        fr: "Client",       bg: "#388E3C", border: "#2E7D32" },
+    client:      { ar: "عميل",        fr: "Client",       bg: "#0D3311", border: "#1A4D1F" },
   };
   return map[role] ?? map.client;
 }
@@ -28,14 +28,14 @@ function getRoleBadge(role: string) {
 function LangToggle() {
   const { lang, setLang } = useLang();
   return (
-    <div className="flex items-center gap-1 p-1 rounded-full bg-[#2E7D32]/8 border border-[#2E7D32]/12">
+    <div className="flex items-center gap-1 p-1 rounded-full bg-[#1A4D1F]/8 border border-[#1A4D1F]/12">
       <button
         onClick={() => setLang("ar")}
         className={cn(
           "px-3 py-1 rounded-full text-xs font-bold transition-all duration-300",
           lang === "ar"
-            ? "bg-[#2E7D32] text-black shadow-[0_0_10px_rgba(46,125,50,0.4)]"
-            : "text-[#2E7D32]/50 hover:text-[#2E7D32]"
+            ? "bg-[#1A4D1F] text-black shadow-[0_0_10px_rgba(46,125,50,0.4)]"
+            : "text-[#1A4D1F]/50 hover:text-[#1A4D1F]"
         )}
       >AR</button>
       <button
@@ -43,8 +43,8 @@ function LangToggle() {
         className={cn(
           "px-3 py-1 rounded-full text-xs font-bold transition-all duration-300",
           lang === "fr"
-            ? "bg-[#2E7D32] text-black shadow-[0_0_10px_rgba(46,125,50,0.4)]"
-            : "text-[#2E7D32]/50 hover:text-[#2E7D32]"
+            ? "bg-[#1A4D1F] text-black shadow-[0_0_10px_rgba(46,125,50,0.4)]"
+            : "text-[#1A4D1F]/50 hover:text-[#1A4D1F]"
         )}
       >FR</button>
     </div>
@@ -57,20 +57,20 @@ function CartButton({ onClick, large }: { onClick: () => void; large?: boolean }
     <button
       onClick={onClick}
       className={cn(
-        "relative flex items-center gap-2 rounded-xl border border-[#2E7D32]/40 bg-[#2E7D32]/15 hover:bg-[#2E7D32]/25 transition-all group",
+        "relative flex items-center gap-2 rounded-xl border border-[#1A4D1F]/40 bg-[#1A4D1F]/15 hover:bg-[#1A4D1F]/25 transition-all group",
         large ? "px-4 py-2.5" : "p-2"
       )}
     >
-      <ShoppingCart size={large ? 20 : 19} className="text-[#2E7D32] group-hover:scale-110 transition-transform" />
+      <ShoppingCart size={large ? 20 : 19} className="text-[#1A4D1F] group-hover:scale-110 transition-transform" />
       {large && itemCount > 0 && (
-        <span className="text-[#2E7D32] font-black text-sm">
-          {total.toFixed(2)} <span className="text-[10px] font-bold text-[#2E7D32]/60">DT</span>
+        <span className="text-[#1A4D1F] font-black text-sm">
+          {total.toFixed(2)} <span className="text-[10px] font-bold text-[#1A4D1F]/60">DT</span>
         </span>
       )}
       {itemCount > 0 && (
         <span
           className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-black"
-          style={{ background: "#2E7D32" }}
+          style={{ background: "#1A4D1F" }}
         >
           {itemCount > 9 ? "9+" : itemCount}
         </span>
@@ -108,17 +108,17 @@ function NotificationBell() {
         className={cn(
           "relative p-2.5 rounded-xl border transition-all",
           unreadCount > 0
-            ? "border-[#2E7D32]/50 bg-[#2E7D32]/20 hover:bg-[#2E7D32]/30"
-            : "border-[#2E7D32]/10 bg-[#2E7D32]/5 hover:bg-[#2E7D32]/10"
+            ? "border-[#1A4D1F]/50 bg-[#1A4D1F]/20 hover:bg-[#1A4D1F]/30"
+            : "border-[#1A4D1F]/10 bg-[#1A4D1F]/5 hover:bg-[#1A4D1F]/10"
         )}
       >
-        <Bell size={18} className={unreadCount > 0 ? "text-[#2E7D32]" : "text-[#2E7D32]/40"} />
+        <Bell size={18} className={unreadCount > 0 ? "text-[#1A4D1F]" : "text-[#1A4D1F]/40"} />
         {unreadCount > 0 && (
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-black"
-            style={{ background: "#2E7D32" }}
+            style={{ background: "#1A4D1F" }}
           >
             {unreadCount > 9 ? "9+" : unreadCount}
           </motion.span>
@@ -141,14 +141,14 @@ function NotificationBell() {
             dir="rtl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#2E7D32]/8">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1A4D1F]/8">
               <div className="flex items-center gap-2">
-                <Bell size={15} className="text-[#2E7D32]" />
-                <span className="font-black text-[#2E7D32] text-sm">
+                <Bell size={15} className="text-[#1A4D1F]" />
+                <span className="font-black text-[#1A4D1F] text-sm">
                   {lang === "ar" ? "الإشعارات" : "Notifications"}
                 </span>
                 {notifications.length > 0 && (
-                  <span className="text-[10px] font-bold text-[#2E7D32]/40">({notifications.length})</span>
+                  <span className="text-[10px] font-bold text-[#1A4D1F]/40">({notifications.length})</span>
                 )}
               </div>
               {notifications.length > 0 && (
@@ -165,15 +165,15 @@ function NotificationBell() {
             <div className="max-h-72 overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-[#2E7D32]/5 border border-[#2E7D32]/8 flex items-center justify-center">
-                    <Bell size={20} className="text-[#2E7D32]/20" />
+                  <div className="w-12 h-12 rounded-2xl bg-[#1A4D1F]/5 border border-[#1A4D1F]/8 flex items-center justify-center">
+                    <Bell size={20} className="text-[#1A4D1F]/20" />
                   </div>
-                  <p className="text-[#2E7D32]/30 text-sm font-bold text-center">
+                  <p className="text-[#1A4D1F]/30 text-sm font-bold text-center">
                     {lang === "ar" ? "لا توجد إشعارات" : "Aucune notification"}
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-[#2E7D32]/5">
+                <div className="divide-y divide-[#1A4D1F]/5">
                   {notifications.map(n => (
                     <motion.div
                       key={n.id}
@@ -181,7 +181,7 @@ function NotificationBell() {
                       animate={{ opacity: 1, x: 0 }}
                       className={cn(
                         "px-4 py-3 flex items-start gap-3 transition-colors",
-                        !n.read ? "bg-[#2E7D32]/8" : ""
+                        !n.read ? "bg-[#1A4D1F]/8" : ""
                       )}
                     >
                       <div className={cn(
@@ -194,13 +194,13 @@ function NotificationBell() {
                         }
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-[#2E7D32] leading-snug">
+                        <p className="text-sm font-bold text-[#1A4D1F] leading-snug">
                           {lang === "ar" ? n.messageAr : n.messageFr}
                         </p>
-                        <p className="text-[10px] text-[#2E7D32]/30 mt-0.5">{timeAgo(n.timestamp)}</p>
+                        <p className="text-[10px] text-[#1A4D1F]/30 mt-0.5">{timeAgo(n.timestamp)}</p>
                       </div>
                       {!n.read && (
-                        <div className="w-2 h-2 rounded-full bg-[#2E7D32] flex-shrink-0 mt-1.5" />
+                        <div className="w-2 h-2 rounded-full bg-[#1A4D1F] flex-shrink-0 mt-1.5" />
                       )}
                     </motion.div>
                   ))}
@@ -209,8 +209,8 @@ function NotificationBell() {
             </div>
 
             {notifications.length > 0 && (
-              <div className="px-4 py-2 border-t border-[#2E7D32]/5 text-center">
-                <p className="text-[10px] text-[#2E7D32]/25">
+              <div className="px-4 py-2 border-t border-[#1A4D1F]/5 text-center">
+                <p className="text-[10px] text-[#1A4D1F]/25">
                   {lang === "ar" ? "إشعارات حالة طلباتك" : "Statut de vos commandes"}
                 </p>
               </div>
@@ -263,18 +263,18 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             className={cn("fixed top-0 h-full w-full max-w-sm z-[70] flex flex-col", isRTL ? "left-0" : "right-0")}
             style={{
               background: "#FFA500",
-              borderLeft:  isRTL ? "none" : "2px solid #2E7D32",
-              borderRight: isRTL ? "2px solid #2E7D32" : "none",
+              borderLeft:  isRTL ? "none" : "2px solid #1A4D1F",
+              borderRight: isRTL ? "2px solid #1A4D1F" : "none",
             }}
             dir={isRTL ? "rtl" : "ltr"}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#2E7D32]/20">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#1A4D1F]/20">
               <div className="flex items-center gap-2">
-                <ShoppingCart size={18} className="text-[#2E7D32]" />
-                <h2 className="font-black text-[#2E7D32] text-lg">{t("سلة التسوق", "Mon Panier")}</h2>
+                <ShoppingCart size={18} className="text-[#1A4D1F]" />
+                <h2 className="font-black text-[#1A4D1F] text-lg">{t("سلة التسوق", "Mon Panier")}</h2>
                 {itemCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-black text-black" style={{ background: "#2E7D32" }}>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-black text-black" style={{ background: "#1A4D1F" }}>
                     {itemCount}
                   </span>
                 )}
@@ -290,7 +290,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                 )}
                 <button
                   onClick={onClose}
-                  className="p-2 rounded-xl text-[#2E7D32]/40 hover:text-[#2E7D32] border border-[#2E7D32]/10 hover:bg-[#2E7D32]/5 transition-all"
+                  className="p-2 rounded-xl text-[#1A4D1F]/40 hover:text-[#1A4D1F] border border-[#1A4D1F]/10 hover:bg-[#1A4D1F]/5 transition-all"
                 >
                   <X size={16} />
                 </button>
@@ -299,8 +299,8 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 
             {/* Supplier tag */}
             {cart.supplierName && (
-              <div className="px-5 py-2 border-b border-[#2E7D32]/5">
-                <p className="text-xs text-[#2E7D32]/60 font-bold">{cart.supplierName}</p>
+              <div className="px-5 py-2 border-b border-[#1A4D1F]/5">
+                <p className="text-xs text-[#1A4D1F]/60 font-bold">{cart.supplierName}</p>
               </div>
             )}
 
@@ -308,41 +308,41 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {cart.items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-4 py-16">
-                  <div className="w-16 h-16 rounded-2xl bg-[#2E7D32]/10 border border-[#2E7D32]/20 flex items-center justify-center">
-                    <ShoppingCart size={28} className="text-[#2E7D32]/40" />
+                  <div className="w-16 h-16 rounded-2xl bg-[#1A4D1F]/10 border border-[#1A4D1F]/20 flex items-center justify-center">
+                    <ShoppingCart size={28} className="text-[#1A4D1F]/40" />
                   </div>
-                  <p className="text-[#2E7D32]/30 font-bold text-center">{t("السلة فارغة", "Panier vide")}</p>
+                  <p className="text-[#1A4D1F]/30 font-bold text-center">{t("السلة فارغة", "Panier vide")}</p>
                 </div>
               ) : (
                 cart.items.map(item => (
                   <motion.div
                     key={item.id}
                     layout
-                    className="rounded-[12px] border border-[#2E7D32]/20 p-3 flex items-center gap-3"
+                    className="rounded-[12px] border border-[#1A4D1F]/20 p-3 flex items-center gap-3"
                     style={{ background: "#FFFDE7" }}
                   >
                     {item.image && (
                       <img
                         src={item.image}
                         alt={item.name}
-                        className="w-14 h-14 rounded-lg object-cover border border-[#2E7D32]/30 flex-shrink-0"
+                        className="w-14 h-14 rounded-lg object-cover border border-[#1A4D1F]/30 flex-shrink-0"
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-[#2E7D32] text-sm truncate">
+                      <p className="font-black text-[#1A4D1F] text-sm truncate">
                         {lang === "ar" ? item.nameAr : item.name}
                       </p>
-                      <p className="text-[#2E7D32] font-bold text-sm mt-0.5">{(item.price * item.qty).toFixed(2)} DT</p>
-                      <p className="text-[#2E7D32]/30 text-xs">{item.price.toFixed(2)} DT × {item.qty}</p>
+                      <p className="text-[#1A4D1F] font-bold text-sm mt-0.5">{(item.price * item.qty).toFixed(2)} DT</p>
+                      <p className="text-[#1A4D1F]/30 text-xs">{item.price.toFixed(2)} DT × {item.qty}</p>
                     </div>
                     <div className="flex flex-col items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => updateQty(item.id, item.qty + 1)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center border border-[#2E7D32]/30 bg-[#2E7D32]/10 hover:bg-[#2E7D32]/20 text-[#2E7D32] transition-all"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center border border-[#1A4D1F]/30 bg-[#1A4D1F]/10 hover:bg-[#1A4D1F]/20 text-[#1A4D1F] transition-all"
                       >
                         <Plus size={12} />
                       </button>
-                      <span className="text-[#2E7D32] font-black text-sm">{item.qty}</span>
+                      <span className="text-[#1A4D1F] font-black text-sm">{item.qty}</span>
                       <button
                         onClick={() => updateQty(item.id, item.qty - 1)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center border border-red-400/20 bg-red-400/5 hover:bg-red-400/10 text-red-400 transition-all"
@@ -360,35 +360,35 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 
             {/* Footer — total + order */}
             {cart.items.length > 0 && (
-              <div className="p-4 border-t border-[#2E7D32]/20 space-y-3">
-                <div className="rounded-[12px] p-3 space-y-2 border border-[#2E7D32]/20" style={{ background: "#FFFDE7" }}>
+              <div className="p-4 border-t border-[#1A4D1F]/20 space-y-3">
+                <div className="rounded-[12px] p-3 space-y-2 border border-[#1A4D1F]/20" style={{ background: "#FFFDE7" }}>
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#2E7D32]/50">{t("المنتجات", "Produits")}</span>
-                    <span className="text-[#2E7D32] font-bold">{subTotal.toFixed(2)} DT</span>
+                    <span className="text-[#1A4D1F]/50">{t("المنتجات", "Produits")}</span>
+                    <span className="text-[#1A4D1F] font-bold">{subTotal.toFixed(2)} DT</span>
                   </div>
                   {/* Delegation-based delivery fee */}
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#2E7D32]/50 flex items-center gap-1">
+                    <span className="text-[#1A4D1F]/50 flex items-center gap-1">
                       {t("التوصيل", "Livraison")}
                       {session?.delegationName && (
-                        <span className="text-[10px] text-[#2E7D32]/70 font-bold px-1.5 py-0.5 rounded-full bg-[#2E7D32]/10">
+                        <span className="text-[10px] text-[#1A4D1F]/70 font-bold px-1.5 py-0.5 rounded-full bg-[#1A4D1F]/10">
                           {session.delegationName}
                         </span>
                       )}
                     </span>
-                    <span className="text-[#2E7D32] font-bold">{deliveryFee.toFixed(2)} DT</span>
+                    <span className="text-[#1A4D1F] font-bold">{deliveryFee.toFixed(2)} DT</span>
                   </div>
-                  <div className="flex justify-between pt-2 border-t border-[#2E7D32]/30">
-                    <span className="font-black text-[#2E7D32]">{t("الإجمالي", "Total")}</span>
-                    <span className="font-black text-xl" style={{ color: "#2E7D32" }}>{total.toFixed(2)} DT</span>
+                  <div className="flex justify-between pt-2 border-t border-[#1A4D1F]/30">
+                    <span className="font-black text-[#1A4D1F]">{t("الإجمالي", "Total")}</span>
+                    <span className="font-black text-xl" style={{ color: "#1A4D1F" }}>{total.toFixed(2)} DT</span>
                   </div>
                 </div>
                 <button
                   onClick={placeOrder}
                   className="w-full py-3.5 rounded-[12px] font-black text-base flex items-center justify-center gap-2 transition-all active:scale-95"
-                  style={{ background: "#2E7D32", color: "white", boxShadow: "0 4px 16px rgba(46,125,50,0.4)" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#1B5E20")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#2E7D32")}
+                  style={{ background: "#1A4D1F", color: "white", boxShadow: "0 4px 16px rgba(46,125,50,0.4)" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#0D3311")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#1A4D1F")}
                 >
                   <ShoppingCart size={18} />
                   {t("تأكيد الطلب", "Passer la commande")}
@@ -431,8 +431,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className={cn(
           "hidden md:flex flex-col fixed top-0 h-screen w-20 z-50 py-6 items-center justify-between",
           isRTL
-            ? "right-0 border-l-2 border-l-[#2E7D32]"
-            : "left-0 border-r-2 border-r-[#2E7D32]"
+            ? "right-0 border-l-2 border-l-[#1A4D1F]"
+            : "left-0 border-r-2 border-r-[#1A4D1F]"
         )}
         style={{ background: "#FFA500" }}
       >
@@ -463,8 +463,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   className={cn(
                     "p-2.5 rounded-xl transition-all duration-300",
                     isActive
-                      ? "bg-[#2E7D32] text-black shadow-[0_0_14px_rgba(46,125,50,0.45)]"
-                      : "text-[#2E7D32]/40 group-hover:text-[#2E7D32] group-hover:bg-[#2E7D32]/10"
+                      ? "bg-[#1A4D1F] text-black shadow-[0_0_14px_rgba(46,125,50,0.45)]"
+                      : "text-[#1A4D1F]/40 group-hover:text-[#1A4D1F] group-hover:bg-[#1A4D1F]/10"
                   )}
                 >
                   <item.icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
@@ -472,7 +472,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <span
                   className={cn(
                     "text-[9px] font-bold transition-colors duration-300 text-center",
-                    isActive ? "text-[#2E7D32]" : "text-[#2E7D32]/40 group-hover:text-[#2E7D32]"
+                    isActive ? "text-[#1A4D1F]" : "text-[#1A4D1F]/40 group-hover:text-[#1A4D1F]"
                   )}
                 >
                   {item.label}
@@ -512,7 +512,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               {/* Logout */}
               <button
                 onClick={handleLogout}
-                className="p-2.5 rounded-xl text-[#2E7D32]/30 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                className="p-2.5 rounded-xl text-[#1A4D1F]/30 hover:text-red-400 hover:bg-red-400/10 transition-all"
                 title={t("تسجيل الخروج", "Déconnexion")}
               >
                 <LogOut size={18} />
@@ -521,7 +521,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           ) : (
             <Link href="/auth">
               <button
-                className="p-2.5 rounded-xl text-[#2E7D32]/40 hover:text-[#2E7D32] hover:bg-[#2E7D32]/10 transition-all"
+                className="p-2.5 rounded-xl text-[#1A4D1F]/40 hover:text-[#1A4D1F] hover:bg-[#1A4D1F]/10 transition-all"
                 title={t("دخول", "Connexion")}
               >
                 <LogIn size={18} />
@@ -534,7 +534,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Desktop Top Header (sticky) ── */}
       <header
         className={cn(
-          "hidden md:flex items-center justify-between px-6 py-3 sticky top-0 z-40 border-b-2 border-[#2E7D32]",
+          "hidden md:flex items-center justify-between px-6 py-3 sticky top-0 z-40 border-b-2 border-[#1A4D1F]",
           isRTL ? "md:pr-24" : "md:pl-24"
         )}
         style={{ background: "#FFA500" }}
@@ -552,7 +552,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
               {/* Name + badge */}
               <div className="flex flex-col items-end">
-                <span className="text-[#2E7D32] font-black text-sm leading-tight">
+                <span className="text-[#1A4D1F] font-black text-sm leading-tight">
                   {t("مرحباً،", "Bonjour,")} {session.name}
                 </span>
                 <span
@@ -570,9 +570,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#2E7D32]/30 bg-[#2E7D32]/5">
-              <UserCircle size={15} className="text-[#2E7D32]/50" />
-              <span className="text-[#2E7D32]/60 text-sm font-bold">{t("زائر", "Visiteur")}</span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#1A4D1F]/30 bg-[#1A4D1F]/5">
+              <UserCircle size={15} className="text-[#1A4D1F]/50" />
+              <span className="text-[#1A4D1F]/60 text-sm font-bold">{t("زائر", "Visiteur")}</span>
             </div>
           )}
         </div>
@@ -587,7 +587,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Mobile Top Bar ── */}
       <header
-        className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b-2 border-[#2E7D32] sticky top-0 z-50"
+        className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b-2 border-[#1A4D1F] sticky top-0 z-50"
         style={{ background: "#FFA500" }}
       >
         {/* Logo */}
@@ -611,7 +611,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               {session.name?.charAt(0)?.toUpperCase() ?? "؟"}
             </div>
             <div className="flex flex-col items-end leading-none">
-              <span className="text-[#2E7D32] font-black text-xs">
+              <span className="text-[#1A4D1F] font-black text-xs">
                 {session.name?.split(" ")[0]}
               </span>
               <span
@@ -629,9 +629,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         ) : (
           <Link href="/auth">
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-[#2E7D32]/30 bg-[#2E7D32]/5 cursor-pointer">
-              <UserCircle size={14} className="text-[#2E7D32]/50" />
-              <span className="text-[#2E7D32]/60 text-xs font-bold">{t("زائر", "Visiteur")}</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-[#1A4D1F]/30 bg-[#1A4D1F]/5 cursor-pointer">
+              <UserCircle size={14} className="text-[#1A4D1F]/50" />
+              <span className="text-[#1A4D1F]/60 text-xs font-bold">{t("زائر", "Visiteur")}</span>
             </div>
           </Link>
         )}
@@ -667,7 +667,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             className="inline-flex items-center gap-1.5 group"
             style={{ fontFamily: "'Outfit',sans-serif" }}
           >
-            <Phone size={12} style={{ color: "#2E7D32" }} />
+            <Phone size={12} style={{ color: "#1A4D1F" }} />
             <span
               className="text-[12px] font-black tracking-widest group-hover:underline"
               style={{ color: "rgba(27,94,32,0.70)", letterSpacing: "0.12em" }}
@@ -696,11 +696,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <div
                 className={cn(
                   "relative p-2 rounded-xl transition-all duration-300",
-                  isActive ? "text-[#2E7D32]" : "text-[#2E7D32]/40"
+                  isActive ? "text-[#1A4D1F]" : "text-[#1A4D1F]/40"
                 )}
               >
                 {isActive && (
-                  <span className="absolute inset-0 bg-[#2E7D32]/20 rounded-xl blur-sm" />
+                  <span className="absolute inset-0 bg-[#1A4D1F]/20 rounded-xl blur-sm" />
                 )}
                 <item.icon
                   className="w-6 h-6 relative z-10"
@@ -710,7 +710,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <span
                 className={cn(
                   "text-[10px] font-bold",
-                  isActive ? "text-[#2E7D32]" : "text-[#2E7D32]/40"
+                  isActive ? "text-[#1A4D1F]" : "text-[#1A4D1F]/40"
                 )}
               >
                 {item.label}
@@ -724,10 +724,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
             onClick={handleLogout}
             className="flex flex-col items-center justify-center gap-1 w-16"
           >
-            <div className="p-2 rounded-xl text-[#2E7D32]/30 hover:text-red-400 transition-all">
+            <div className="p-2 rounded-xl text-[#1A4D1F]/30 hover:text-red-400 transition-all">
               <LogOut className="w-6 h-6" />
             </div>
-            <span className="text-[10px] font-bold text-[#2E7D32]/30">
+            <span className="text-[10px] font-bold text-[#1A4D1F]/30">
               {t("خروج", "Sortir")}
             </span>
           </button>

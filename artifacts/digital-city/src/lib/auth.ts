@@ -6,10 +6,10 @@ export type Role = "client" | "provider" | "delivery" | "admin"
 export type AppRole = "super_admin" | "manager" | "provider" | "driver" | "customer";
 
 export const ROLE_META: Record<AppRole, { ar: string; fr: string; color: string; badge: string }> = {
-  super_admin: { ar: "مدير عام",    fr: "Super Admin", color: "#1B5E20", badge: "bg-[#1B5E20]/15 text-[#1B5E20] border-[#1B5E20]/30" },
-  manager:     { ar: "مسؤول",       fr: "Manager",     color: "#2E7D32", badge: "bg-[#2E7D32]/15 text-[#2E7D32] border-[#2E7D32]/30" },
-  provider:    { ar: "مزود / تاجر", fr: "Fournisseur", color: "#4CAF50", badge: "bg-[#4CAF50]/15 text-[#4CAF50] border-[#4CAF50]/30" },
-  driver:      { ar: "موزع",        fr: "Livreur",     color: "#388E3C", badge: "bg-[#388E3C]/15 text-[#388E3C] border-[#388E3C]/30" },
+  super_admin: { ar: "مدير عام",    fr: "Super Admin", color: "#0D3311", badge: "bg-[#0D3311]/15 text-[#0D3311] border-[#0D3311]/30" },
+  manager:     { ar: "مسؤول",       fr: "Manager",     color: "#1A4D1F", badge: "bg-[#1A4D1F]/15 text-[#1A4D1F] border-[#1A4D1F]/30" },
+  provider:    { ar: "مزود / تاجر", fr: "Fournisseur", color: "#1A4D1F", badge: "bg-[#1A4D1F]/15 text-[#1A4D1F] border-[#1A4D1F]/30" },
+  driver:      { ar: "موزع",        fr: "Livreur",     color: "#0D3311", badge: "bg-[#0D3311]/15 text-[#0D3311] border-[#0D3311]/30" },
   customer:    { ar: "زبون",        fr: "Client",      color: "#FFA500", badge: "bg-[#FFA500]/15 text-[#FFA500] border-[#FFA500]/30" },
 };
 

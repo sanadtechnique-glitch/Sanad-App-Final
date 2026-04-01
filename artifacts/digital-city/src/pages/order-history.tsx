@@ -38,7 +38,7 @@ const STATUS: Record<string, { ar: string; fr: string; color: string; bg: string
   prepared:        { ar: "جاهز للتسليم",     fr: "Prêt",             color: "#8B5CF6", bg: "#F5F3FF", icon: Package },
   driver_accepted: { ar: "سائق في الطريق",  fr: "Livreur en route", color: "#6366F1", bg: "#EEF2FF", icon: Truck },
   in_delivery:     { ar: "قيد التوصيل",      fr: "En livraison",     color: "#FFA500", bg: "#FFF7ED", icon: Truck },
-  delivered:       { ar: "تم التوصيل",       fr: "Livré",            color: "#2E7D32", bg: "#F0FDF4", icon: CheckCircle },
+  delivered:       { ar: "تم التوصيل",       fr: "Livré",            color: "#1A4D1F", bg: "#F0FDF4", icon: CheckCircle },
   cancelled:       { ar: "ملغي",             fr: "Annulé",           color: "#EF4444", bg: "#FEF2F2", icon: XCircle },
 };
 
@@ -103,7 +103,7 @@ function OrderCard({
         <div className="flex-1 min-w-0">
           {/* Top row: ID + status */}
           <div className="flex items-center gap-2 flex-wrap mb-2">
-            <span className="flex items-center gap-1 text-xs font-black text-[#2E7D32]/50">
+            <span className="flex items-center gap-1 text-xs font-black text-[#1A4D1F]/50">
               <Hash size={11} />
               {order.id}
             </span>
@@ -111,12 +111,12 @@ function OrderCard({
           </div>
 
           {/* Provider + service */}
-          <p className="text-[#2E7D32] font-black text-sm leading-tight">{order.serviceProviderName}</p>
-          <p className="text-[#2E7D32]/50 text-xs mt-0.5">{order.serviceType}</p>
+          <p className="text-[#1A4D1F] font-black text-sm leading-tight">{order.serviceProviderName}</p>
+          <p className="text-[#1A4D1F]/50 text-xs mt-0.5">{order.serviceType}</p>
 
           {/* Customer name — for provider/driver views */}
           {(role === "provider" || role === "delivery") && (
-            <p className="text-[#2E7D32]/40 text-xs mt-1 flex items-center gap-1">
+            <p className="text-[#1A4D1F]/40 text-xs mt-1 flex items-center gap-1">
               <User size={10} />
               {order.customerName}
             </p>
@@ -125,11 +125,11 @@ function OrderCard({
 
         {/* Right: date + price + expand */}
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
-          <span className="text-[10px] text-[#2E7D32]/30 font-bold">{formatDate(order.createdAt, lang)}</span>
+          <span className="text-[10px] text-[#1A4D1F]/30 font-bold">{formatDate(order.createdAt, lang)}</span>
           {(order.deliveryFee !== undefined && order.deliveryFee !== null) && (
-            <span className="text-sm font-black text-[#2E7D32]">{formatPrice(order.deliveryFee)}</span>
+            <span className="text-sm font-black text-[#1A4D1F]">{formatPrice(order.deliveryFee)}</span>
           )}
-          <div className="flex items-center gap-1 text-[#2E7D32]/30">
+          <div className="flex items-center gap-1 text-[#1A4D1F]/30">
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </div>
         </div>
@@ -145,18 +145,18 @@ function OrderCard({
             transition={{ duration: 0.22 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 pt-1 border-t border-[#2E7D32]/8 space-y-2.5">
+            <div className="px-4 pb-4 pt-1 border-t border-[#1A4D1F]/8 space-y-2.5">
               {/* Address */}
               <div className="flex items-start gap-2">
-                <MapPin size={13} className="text-[#2E7D32]/40 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-[#2E7D32]/70 leading-relaxed">{order.customerAddress}</p>
+                <MapPin size={13} className="text-[#1A4D1F]/40 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-[#1A4D1F]/70 leading-relaxed">{order.customerAddress}</p>
               </div>
 
               {/* Phone */}
               {order.customerPhone && (
                 <div className="flex items-center gap-2">
-                  <Phone size={13} className="text-[#2E7D32]/40 flex-shrink-0" />
-                  <a href={`tel:${order.customerPhone}`} className="text-sm text-[#2E7D32] font-bold hover:underline">
+                  <Phone size={13} className="text-[#1A4D1F]/40 flex-shrink-0" />
+                  <a href={`tel:${order.customerPhone}`} className="text-sm text-[#1A4D1F] font-bold hover:underline">
                     {order.customerPhone}
                   </a>
                 </div>
@@ -165,15 +165,15 @@ function OrderCard({
               {/* Notes */}
               {order.notes && (
                 <div className="flex items-start gap-2">
-                  <FileText size={13} className="text-[#2E7D32]/40 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-[#2E7D32]/60 leading-relaxed">{order.notes}</p>
+                  <FileText size={13} className="text-[#1A4D1F]/40 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-[#1A4D1F]/60 leading-relaxed">{order.notes}</p>
                 </div>
               )}
 
               {/* Prescription photo */}
               {order.photoUrl && (
                 <div className="flex items-center gap-2">
-                  <ImageIcon size={13} className="text-[#2E7D32]/40 flex-shrink-0" />
+                  <ImageIcon size={13} className="text-[#1A4D1F]/40 flex-shrink-0" />
                   <a
                     href={order.photoUrl}
                     target="_blank"
@@ -187,16 +187,16 @@ function OrderCard({
 
               {/* Updated at */}
               <div className="flex items-center gap-2">
-                <Clock size={13} className="text-[#2E7D32]/40 flex-shrink-0" />
-                <p className="text-xs text-[#2E7D32]/30">
+                <Clock size={13} className="text-[#1A4D1F]/40 flex-shrink-0" />
+                <p className="text-xs text-[#1A4D1F]/30">
                   {t("آخر تحديث:", "Mis à jour:")} {formatDate(order.updatedAt, lang)}
                 </p>
               </div>
 
               {/* Delivery fee summary row */}
-              <div className="flex items-center justify-between pt-2 border-t border-[#2E7D32]/5">
-                <span className="text-xs font-bold text-[#2E7D32]/40">{t("رسوم التوصيل", "Frais de livraison")}</span>
-                <span className="text-sm font-black text-[#2E7D32]">{formatPrice(order.deliveryFee)}</span>
+              <div className="flex items-center justify-between pt-2 border-t border-[#1A4D1F]/5">
+                <span className="text-xs font-bold text-[#1A4D1F]/40">{t("رسوم التوصيل", "Frais de livraison")}</span>
+                <span className="text-sm font-black text-[#1A4D1F]">{formatPrice(order.deliveryFee)}</span>
               </div>
             </div>
           </motion.div>
@@ -227,15 +227,15 @@ function FilterBar({
       {/* Search + toggle */}
       <div className="flex gap-2">
         <div className="flex-1 relative">
-          <Search size={14} className={cn("absolute top-1/2 -translate-y-1/2 text-[#2E7D32]/30", lang === "ar" ? "right-3" : "left-3")} />
+          <Search size={14} className={cn("absolute top-1/2 -translate-y-1/2 text-[#1A4D1F]/30", lang === "ar" ? "right-3" : "left-3")} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={t("البحث برقم الطلب أو اسم المزود...", "Rechercher par ID ou fournisseur...")}
-            className={cn("w-full bg-[#FFFDE7] border border-[#2E7D32]/15 rounded-xl py-2.5 text-sm text-[#2E7D32] placeholder:text-[#2E7D32]/20 focus:outline-none focus:border-[#2E7D32]/40 transition-colors", lang === "ar" ? "pr-9 pl-3" : "pl-9 pr-3")}
+            className={cn("w-full bg-[#FFFDE7] border border-[#1A4D1F]/15 rounded-xl py-2.5 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/20 focus:outline-none focus:border-[#1A4D1F]/40 transition-colors", lang === "ar" ? "pr-9 pl-3" : "pl-9 pr-3")}
           />
           {search && (
-            <button onClick={() => setSearch("")} className={cn("absolute top-1/2 -translate-y-1/2 text-[#2E7D32]/30 hover:text-[#2E7D32]", lang === "ar" ? "left-3" : "right-3")}>
+            <button onClick={() => setSearch("")} className={cn("absolute top-1/2 -translate-y-1/2 text-[#1A4D1F]/30 hover:text-[#1A4D1F]", lang === "ar" ? "left-3" : "right-3")}>
               <X size={12} />
             </button>
           )}
@@ -245,8 +245,8 @@ function FilterBar({
           className={cn(
             "px-3.5 py-2.5 rounded-xl border font-black text-xs flex items-center gap-1.5 transition-all",
             open || activeCount > 0
-              ? "bg-[#2E7D32] text-white border-[#2E7D32]"
-              : "bg-[#FFFDE7] text-[#2E7D32] border-[#2E7D32]/20 hover:border-[#2E7D32]/50"
+              ? "bg-[#1A4D1F] text-white border-[#1A4D1F]"
+              : "bg-[#FFFDE7] text-[#1A4D1F] border-[#1A4D1F]/20 hover:border-[#1A4D1F]/50"
           )}
         >
           <Filter size={13} />
@@ -267,10 +267,10 @@ function FilterBar({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="bg-[#FFFDE7] border border-[#2E7D32]/10 rounded-2xl p-4 space-y-3">
+            <div className="bg-[#FFFDE7] border border-[#1A4D1F]/10 rounded-2xl p-4 space-y-3">
               {/* Status filter */}
               <div>
-                <p className="text-[10px] font-black text-[#2E7D32]/40 uppercase tracking-wider mb-2">
+                <p className="text-[10px] font-black text-[#1A4D1F]/40 uppercase tracking-wider mb-2">
                   {t("الحالة", "Statut")}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -283,8 +283,8 @@ function FilterBar({
                         className={cn(
                           "px-2.5 py-1 rounded-xl text-xs font-black border transition-all",
                           statusFilter === s
-                            ? "bg-[#2E7D32] text-white border-[#2E7D32]"
-                            : "text-[#2E7D32] border-[#2E7D32]/15 hover:border-[#2E7D32]/40"
+                            ? "bg-[#1A4D1F] text-white border-[#1A4D1F]"
+                            : "text-[#1A4D1F] border-[#1A4D1F]/15 hover:border-[#1A4D1F]/40"
                         )}
                         style={statusFilter !== s && cfg ? { borderColor: `${cfg.color}40`, color: cfg.color } : {}}
                       >
@@ -297,27 +297,27 @@ function FilterBar({
 
               {/* Date range */}
               <div>
-                <p className="text-[10px] font-black text-[#2E7D32]/40 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <p className="text-[10px] font-black text-[#1A4D1F]/40 uppercase tracking-wider mb-2 flex items-center gap-1">
                   <Calendar size={10} />
                   {t("تحديد الفترة", "Période")}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <p className="text-[10px] text-[#2E7D32]/30 mb-1">{t("من", "Du")}</p>
+                    <p className="text-[10px] text-[#1A4D1F]/30 mb-1">{t("من", "Du")}</p>
                     <input
                       type="date"
                       value={dateFrom}
                       onChange={e => setDateFrom(e.target.value)}
-                      className="w-full bg-white/60 border border-[#2E7D32]/10 rounded-xl px-3 py-2 text-xs text-[#2E7D32] focus:outline-none focus:border-[#2E7D32]/40"
+                      className="w-full bg-white/60 border border-[#1A4D1F]/10 rounded-xl px-3 py-2 text-xs text-[#1A4D1F] focus:outline-none focus:border-[#1A4D1F]/40"
                     />
                   </div>
                   <div>
-                    <p className="text-[10px] text-[#2E7D32]/30 mb-1">{t("إلى", "Au")}</p>
+                    <p className="text-[10px] text-[#1A4D1F]/30 mb-1">{t("إلى", "Au")}</p>
                     <input
                       type="date"
                       value={dateTo}
                       onChange={e => setDateTo(e.target.value)}
-                      className="w-full bg-white/60 border border-[#2E7D32]/10 rounded-xl px-3 py-2 text-xs text-[#2E7D32] focus:outline-none focus:border-[#2E7D32]/40"
+                      className="w-full bg-white/60 border border-[#1A4D1F]/10 rounded-xl px-3 py-2 text-xs text-[#1A4D1F] focus:outline-none focus:border-[#1A4D1F]/40"
                     />
                   </div>
                 </div>
@@ -373,7 +373,7 @@ export default function OrderHistory() {
 
   const roleColor = role === "provider" ? "#8B5CF6"
     : role === "delivery"              ? "#3B82F6"
-    : "#2E7D32";
+    : "#1A4D1F";
 
   // ── Fetch orders ──────────────────────────────────────────────────────────────
   const loadOrders = useCallback(async (showRefresh = false) => {
@@ -449,8 +449,8 @@ export default function OrderHistory() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#FFF3E0" }}>
         <div className="flex flex-col items-center gap-3">
-          <RefreshCw size={28} className="text-[#2E7D32] animate-spin" />
-          <p className="text-[#2E7D32]/50 font-bold text-sm">{t("جاري تحميل السجل...", "Chargement...")}</p>
+          <RefreshCw size={28} className="text-[#1A4D1F] animate-spin" />
+          <p className="text-[#1A4D1F]/50 font-bold text-sm">{t("جاري تحميل السجل...", "Chargement...")}</p>
         </div>
       </div>
     );
@@ -459,19 +459,19 @@ export default function OrderHistory() {
   return (
     <div className="min-h-screen pb-10" style={{ background: "#FFF3E0" }} dir={isRTL ? "rtl" : "ltr"}>
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 border-b border-[#2E7D32]/10" style={{ background: "#FFA500" }}>
+      <div className="sticky top-0 z-30 border-b border-[#1A4D1F]/10" style={{ background: "#FFA500" }}>
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           {/* Back */}
           <button
             onClick={() => navigate(backHref)}
-            className="p-2.5 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/20 text-[#2E7D32] hover:bg-[#2E7D32]/20 transition-all flex-shrink-0"
+            className="p-2.5 rounded-xl bg-[#1A4D1F]/10 border border-[#1A4D1F]/20 text-[#1A4D1F] hover:bg-[#1A4D1F]/20 transition-all flex-shrink-0"
           >
             {isRTL ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
           </button>
 
           {/* Title + role badge */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-base font-black text-[#2E7D32] leading-tight">
+            <h1 className="text-base font-black text-[#1A4D1F] leading-tight">
               {t("سجل الطلبات", "Historique des commandes")}
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -481,7 +481,7 @@ export default function OrderHistory() {
               >
                 {roleLabel}
               </span>
-              <span className="text-[10px] text-[#2E7D32]/40 font-bold">
+              <span className="text-[10px] text-[#1A4D1F]/40 font-bold">
                 {allOrders.length} {t("طلب", "commandes")}
               </span>
             </div>
@@ -497,7 +497,7 @@ export default function OrderHistory() {
             <button
               onClick={() => loadOrders(true)}
               disabled={refreshing}
-              className="p-2.5 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/20 text-[#2E7D32]/40 hover:text-[#2E7D32] transition-all"
+              className="p-2.5 rounded-xl bg-[#1A4D1F]/10 border border-[#1A4D1F]/20 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-all"
             >
               <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
             </button>
@@ -507,7 +507,7 @@ export default function OrderHistory() {
 
       <div className="max-w-2xl mx-auto px-4 pt-4 space-y-4">
         {/* ── Tabs ─────────────────────────────────────────────────────────── */}
-        <div className="flex rounded-2xl overflow-hidden border border-[#2E7D32]/15" style={{ background: "#FFFDE7" }}>
+        <div className="flex rounded-2xl overflow-hidden border border-[#1A4D1F]/15" style={{ background: "#FFFDE7" }}>
           {([
             { key: "ongoing", ar: "في طور الإنجاز", fr: "En cours", count: ongoingCount, icon: Clock },
             { key: "history", ar: "الطلبات السابقة", fr: "Historique",  count: historyCount, icon: CheckCircle },
@@ -518,15 +518,15 @@ export default function OrderHistory() {
               className={cn(
                 "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-black transition-all border-b-2",
                 tab === key
-                  ? "text-[#2E7D32] border-[#2E7D32]"
-                  : "text-[#2E7D32]/30 border-transparent hover:text-[#2E7D32]/50"
+                  ? "text-[#1A4D1F] border-[#1A4D1F]"
+                  : "text-[#1A4D1F]/30 border-transparent hover:text-[#1A4D1F]/50"
               )}
             >
               <Icon size={14} />
               {lang === "ar" ? ar : fr}
               <span className={cn(
                 "text-[10px] font-black px-1.5 py-0.5 rounded-full",
-                tab === key ? "bg-[#2E7D32] text-white" : "bg-[#2E7D32]/10 text-[#2E7D32]/40"
+                tab === key ? "bg-[#1A4D1F] text-white" : "bg-[#1A4D1F]/10 text-[#1A4D1F]/40"
               )}>
                 {count}
               </span>
@@ -549,7 +549,7 @@ export default function OrderHistory() {
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-xs text-[#2E7D32]/40 font-bold"
+            className="text-xs text-[#1A4D1F]/40 font-bold"
           >
             {filteredOrders.length} {t("نتيجة", "résultat(s)")}
             {filteredOrders.length !== allOrders.length && ` ${t("من أصل", "sur")} ${allOrders.length}`}
@@ -566,14 +566,14 @@ export default function OrderHistory() {
               exit={{ opacity: 0 }}
               className="flex flex-col items-center justify-center py-16 gap-4"
             >
-              <div className="w-16 h-16 rounded-2xl bg-[#FFFDE7] border border-[#2E7D32]/10 flex items-center justify-center shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-[#FFFDE7] border border-[#1A4D1F]/10 flex items-center justify-center shadow-sm">
                 {tab === "ongoing"
-                  ? <Clock size={24} className="text-[#2E7D32]/20" />
-                  : <ShoppingBag size={24} className="text-[#2E7D32]/20" />
+                  ? <Clock size={24} className="text-[#1A4D1F]/20" />
+                  : <ShoppingBag size={24} className="text-[#1A4D1F]/20" />
                 }
               </div>
               <div className="text-center">
-                <p className="font-black text-[#2E7D32]/40 text-base">
+                <p className="font-black text-[#1A4D1F]/40 text-base">
                   {activeFilters > 0 || search
                     ? t("لا توجد نتائج مطابقة", "Aucun résultat trouvé")
                     : tab === "ongoing"
@@ -581,7 +581,7 @@ export default function OrderHistory() {
                       : t("لا يوجد سجل طلبات بعد", "Aucun historique disponible")
                   }
                 </p>
-                <p className="text-xs text-[#2E7D32]/25 mt-1 font-bold">
+                <p className="text-xs text-[#1A4D1F]/25 mt-1 font-bold">
                   {activeFilters > 0 || search
                     ? t("جرّب تغيير الفلاتر", "Essayez de modifier vos filtres")
                     : t("ستظهر طلباتك هنا", "Vos commandes apparaîtront ici")
@@ -591,7 +591,7 @@ export default function OrderHistory() {
               {(activeFilters > 0 || search) && (
                 <button
                   onClick={clearFilters}
-                  className="px-4 py-2 rounded-xl text-xs font-black text-[#2E7D32] border border-[#2E7D32]/20 hover:bg-[#2E7D32]/5 transition-all"
+                  className="px-4 py-2 rounded-xl text-xs font-black text-[#1A4D1F] border border-[#1A4D1F]/20 hover:bg-[#1A4D1F]/5 transition-all"
                 >
                   {t("مسح الفلاتر", "Effacer les filtres")}
                 </button>
@@ -620,7 +620,7 @@ export default function OrderHistory() {
                 <div ref={bottomRef} className="pt-2 text-center">
                   <button
                     onClick={() => setPage(p => p + 1)}
-                    className="px-6 py-3 rounded-xl font-black text-sm border border-[#2E7D32]/20 text-[#2E7D32] hover:bg-[#2E7D32]/5 transition-all inline-flex items-center gap-2"
+                    className="px-6 py-3 rounded-xl font-black text-sm border border-[#1A4D1F]/20 text-[#1A4D1F] hover:bg-[#1A4D1F]/5 transition-all inline-flex items-center gap-2"
                   >
                     <ChevronDown size={14} />
                     {t(`تحميل المزيد (${filteredOrders.length - paginatedOrders.length})`, `Charger plus (${filteredOrders.length - paginatedOrders.length})`)}

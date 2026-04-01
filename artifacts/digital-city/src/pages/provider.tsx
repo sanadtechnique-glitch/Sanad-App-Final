@@ -20,7 +20,7 @@ interface Order { id: number; customerName: string; customerPhone?: string; cust
 const STATUS: Record<string, { ar: string; fr: string; color: string }> = {
   pending:         { ar: "قيد الانتظار",       fr: "En attente",          color: "text-amber-400 border-amber-400/30 bg-amber-400/10" },
   accepted:        { ar: "مقبول",              fr: "Accepté",             color: "text-blue-400 border-blue-400/30 bg-blue-400/10" },
-  prepared:        { ar: "جاهز للتوصيل",      fr: "Prêt à livrer",       color: "text-[#2E7D32] border-[#2E7D32]/30 bg-[#2E7D32]/10" },
+  prepared:        { ar: "جاهز للتوصيل",      fr: "Prêt à livrer",       color: "text-[#1A4D1F] border-[#1A4D1F]/30 bg-[#1A4D1F]/10" },
   driver_accepted: { ar: "سائق في الطريق",    fr: "Livreur en route",    color: "text-orange-400 border-orange-400/30 bg-orange-400/10" },
   in_delivery:     { ar: "تم الاستلام · في الطريق", fr: "Récupéré · En route", color: "text-purple-400 border-purple-400/30 bg-purple-400/10" },
   delivered:       { ar: "تم التوصيل",         fr: "Livré",               color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" },
@@ -96,20 +96,20 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="font-black text-[#2E7D32]">{t("منتجاتي", "Mes produits")}</h3>
-          <p className="text-xs text-[#2E7D32]/40">{products.length} {t("منتج", "produit(s)")}</p>
+          <h3 className="font-black text-[#1A4D1F]">{t("منتجاتي", "Mes produits")}</h3>
+          <p className="text-xs text-[#1A4D1F]/40">{products.length} {t("منتج", "produit(s)")}</p>
         </div>
-        <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-black" style={{ background: "#2E7D32" }}>
+        <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-black" style={{ background: "#1A4D1F" }}>
           <Plus size={13} /> {t("إضافة", "Ajouter")}
         </button>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-[#2E7D32] border-t-transparent rounded-full animate-spin" /></div>
+        <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-[#1A4D1F] border-t-transparent rounded-full animate-spin" /></div>
       ) : products.length === 0 ? (
         <div className="text-center py-12">
-          <Package size={32} className="mx-auto mb-2 text-[#2E7D32]/20" />
-          <p className="text-sm font-black text-[#2E7D32]/30">{t("لم تضف منتجات بعد", "Aucun produit")}</p>
+          <Package size={32} className="mx-auto mb-2 text-[#1A4D1F]/20" />
+          <p className="text-sm font-black text-[#1A4D1F]/30">{t("لم تضف منتجات بعد", "Aucun produit")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -117,10 +117,10 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
             <motion.div key={p.id} layout className="rounded-2xl border overflow-hidden" style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.15)" }}>
               <div className="flex gap-3 p-3" dir="rtl">
                 {/* Image */}
-                <div className="w-14 h-14 rounded-xl flex-shrink-0 border border-[#2E7D32]/10 bg-[#2E7D32]/5 flex items-center justify-center overflow-hidden relative">
+                <div className="w-14 h-14 rounded-xl flex-shrink-0 border border-[#1A4D1F]/10 bg-[#1A4D1F]/5 flex items-center justify-center overflow-hidden relative">
                   {p.imageUrl
                     ? <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
-                    : <ImageIcon size={18} className="text-[#2E7D32]/20" />
+                    : <ImageIcon size={18} className="text-[#1A4D1F]/20" />
                   }
                   {hasSale(p) && (
                     <span className="absolute top-0 right-0 bg-red-500 text-white text-[8px] font-black px-1 py-0.5 rounded-bl-lg rounded-tr-lg">
@@ -131,23 +131,23 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-1">
-                    <p className="font-black text-sm text-[#2E7D32] truncate flex-1">{p.title}</p>
+                    <p className="font-black text-sm text-[#1A4D1F] truncate flex-1">{p.title}</p>
                   </div>
                   {p.category && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#2E7D32]/40 bg-[#2E7D32]/5 px-1.5 py-0.5 rounded-full">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1A4D1F]/40 bg-[#1A4D1F]/5 px-1.5 py-0.5 rounded-full">
                       <Tag size={8} />{p.category}
                     </span>
                   )}
                   {/* Prices */}
                   <div className="flex items-center gap-2 mt-1.5">
                     {p.salePrice && (
-                      <span className="text-sm font-black text-[#2E7D32]">{parseFloat(p.salePrice).toFixed(3)} TND</span>
+                      <span className="text-sm font-black text-[#1A4D1F]">{parseFloat(p.salePrice).toFixed(3)} TND</span>
                     )}
                     {p.originalPrice && hasSale(p) && (
                       <span className="text-xs font-bold line-through" style={{ color: "#9CA3AF" }}>{parseFloat(p.originalPrice).toFixed(3)}</span>
                     )}
                     {p.originalPrice && !hasSale(p) && !p.salePrice && (
-                      <span className="text-sm font-black text-[#2E7D32]">{parseFloat(p.originalPrice).toFixed(3)} TND</span>
+                      <span className="text-sm font-black text-[#1A4D1F]">{parseFloat(p.originalPrice).toFixed(3)} TND</span>
                     )}
                   </div>
                 </div>
@@ -156,11 +156,11 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
                   <button onClick={() => toggleAvail(p)}>
                     {p.isAvailable
                       ? <ToggleRight size={20} className="text-green-500" />
-                      : <ToggleLeft size={20} className="text-[#2E7D32]/20" />
+                      : <ToggleLeft size={20} className="text-[#1A4D1F]/20" />
                     }
                   </button>
-                  <button onClick={() => openEdit(p)} className="p-1 rounded-lg hover:bg-[#2E7D32]/10 transition-all">
-                    <Pencil size={13} className="text-[#2E7D32]/40" />
+                  <button onClick={() => openEdit(p)} className="p-1 rounded-lg hover:bg-[#1A4D1F]/10 transition-all">
+                    <Pencil size={13} className="text-[#1A4D1F]/40" />
                   </button>
                   <button onClick={() => remove(p.id)} className="p-1 rounded-lg hover:bg-red-50 transition-all">
                     <Trash2 size={13} className="text-red-400" />
@@ -168,7 +168,7 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
                 </div>
               </div>
               {p.description && (
-                <p className="px-3 pb-3 text-xs text-[#2E7D32]/50 font-bold leading-relaxed border-t border-[#2E7D32]/5 pt-2" dir="rtl">
+                <p className="px-3 pb-3 text-xs text-[#1A4D1F]/50 font-bold leading-relaxed border-t border-[#1A4D1F]/5 pt-2" dir="rtl">
                   {p.description}
                 </p>
               )}
@@ -189,8 +189,8 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
               style={{ background: "#FFF3E0" }}
               onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4" dir="rtl">
-                <h3 className="font-black text-[#2E7D32]">{editing ? t("تعديل المنتج", "Modifier") : t("منتج جديد", "Nouveau produit")}</h3>
-                <button onClick={() => setShowForm(false)}><X size={18} className="text-[#2E7D32]/40" /></button>
+                <h3 className="font-black text-[#1A4D1F]">{editing ? t("تعديل المنتج", "Modifier") : t("منتج جديد", "Nouveau produit")}</h3>
+                <button onClick={() => setShowForm(false)}><X size={18} className="text-[#1A4D1F]/40" /></button>
               </div>
               <div className="space-y-3" dir="rtl">
                 {[
@@ -200,25 +200,25 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
                   { key: "category", label: t("الفئة", "Catégorie"), ph: t("مثال: مأكولات", "Ex: Alimentaire") },
                 ].map(({ key, label, ph }) => (
                   <div key={key}>
-                    <label className="text-xs font-black text-[#2E7D32]/60 block mb-1">{label}</label>
+                    <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{label}</label>
                     <input value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                       placeholder={ph}
-                      className="w-full px-3 py-2.5 rounded-xl border border-[#2E7D32]/20 bg-white text-sm font-bold text-[#2E7D32] outline-none focus:border-[#2E7D32]/50" />
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
                   </div>
                 ))}
                 {/* Prices */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-xs font-black text-[#2E7D32]/60 block mb-1">{t("الثمن القديم (TND)", "Prix original")}</label>
+                    <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("الثمن القديم (TND)", "Prix original")}</label>
                     <input type="number" step="0.001" value={form.originalPrice} onChange={e => setForm(f => ({ ...f, originalPrice: e.target.value }))}
                       placeholder="0.000"
-                      className="w-full px-3 py-2.5 rounded-xl border border-[#2E7D32]/20 bg-white text-sm font-bold text-[#2E7D32] outline-none focus:border-[#2E7D32]/50" />
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
                   </div>
                   <div>
-                    <label className="text-xs font-black text-[#2E7D32]/60 block mb-1">{t("الثمن الجديد (TND)", "Prix soldé")}</label>
+                    <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("الثمن الجديد (TND)", "Prix soldé")}</label>
                     <input type="number" step="0.001" value={form.salePrice} onChange={e => setForm(f => ({ ...f, salePrice: e.target.value }))}
                       placeholder="0.000"
-                      className="w-full px-3 py-2.5 rounded-xl border border-[#2E7D32]/20 bg-white text-sm font-bold text-[#2E7D32] outline-none focus:border-[#2E7D32]/50" />
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
                   </div>
                 </div>
                 {/* Sale preview */}
@@ -226,15 +226,15 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
                   <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-red-50 border border-red-100">
                     <span className="text-sm font-black text-red-600">-{Math.round(((parseFloat(form.originalPrice) - parseFloat(form.salePrice)) / parseFloat(form.originalPrice)) * 100)}%</span>
                     <span className="text-sm font-bold line-through text-gray-400">{parseFloat(form.originalPrice).toFixed(3)}</span>
-                    <span className="text-base font-black text-[#2E7D32]">{parseFloat(form.salePrice).toFixed(3)} TND</span>
+                    <span className="text-base font-black text-[#1A4D1F]">{parseFloat(form.salePrice).toFixed(3)} TND</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between px-1">
-                  <span className="text-sm font-black text-[#2E7D32]">{t("متاح للبيع", "Disponible")}</span>
+                  <span className="text-sm font-black text-[#1A4D1F]">{t("متاح للبيع", "Disponible")}</span>
                   <button onClick={() => setForm(f => ({ ...f, isAvailable: !f.isAvailable }))}>
                     {form.isAvailable
                       ? <ToggleRight size={26} className="text-green-500" />
-                      : <ToggleLeft size={26} className="text-[#2E7D32]/20" />
+                      : <ToggleLeft size={26} className="text-[#1A4D1F]/20" />
                     }
                   </button>
                 </div>
@@ -242,10 +242,10 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
               <div className="flex gap-2 mt-4">
                 <button onClick={save} disabled={saving || !form.title}
                   className="flex-1 py-2.5 rounded-xl text-white font-black text-sm disabled:opacity-40"
-                  style={{ background: "#2E7D32" }}>
+                  style={{ background: "#1A4D1F" }}>
                   {saving ? <RefreshCw size={14} className="animate-spin mx-auto" /> : t("حفظ المنتج", "Enregistrer")}
                 </button>
-                <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-xl text-sm font-black text-[#2E7D32]/50 border border-[#2E7D32]/15">
+                <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-xl text-sm font-black text-[#1A4D1F]/50 border border-[#1A4D1F]/15">
                   {t("إلغاء", "Annuler")}
                 </button>
               </div>
@@ -392,28 +392,28 @@ export default function ProviderDashboard() {
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#FFA500" }} dir={isRTL ? "rtl" : "ltr"}>
         <div className="w-full max-w-md">
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-[#2E7D32]/15 border-2 border-[#2E7D32]/40 flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_-8px_rgba(46,125,50,0.5)]">
-              <Package size={28} className="text-[#2E7D32]" />
+            <div className="w-16 h-16 rounded-2xl bg-[#1A4D1F]/15 border-2 border-[#1A4D1F]/40 flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_-8px_rgba(46,125,50,0.5)]">
+              <Package size={28} className="text-[#1A4D1F]" />
             </div>
-            <h1 className="text-3xl font-black text-[#2E7D32] mb-2">{t("لوحة المزود", "Tableau Fournisseur")}</h1>
-            <p className="text-[#2E7D32]/40">{t("اختر اسمك للدخول", "Sélectionnez votre profil")}</p>
+            <h1 className="text-3xl font-black text-[#1A4D1F] mb-2">{t("لوحة المزود", "Tableau Fournisseur")}</h1>
+            <p className="text-[#1A4D1F]/40">{t("اختر اسمك للدخول", "Sélectionnez votre profil")}</p>
           </motion.div>
           <div className="space-y-2">
             {providers.map((p, i) => (
               <motion.button key={p.id}
                 initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
                 onClick={() => selectProvider(p)}
-                className="w-full rounded-[15px] p-4 flex items-center justify-between gap-3 border border-[#2E7D32]/30 hover:border-[#2E7D32]/40 transition-all group card-hover"
+                className="w-full rounded-[15px] p-4 flex items-center justify-between gap-3 border border-[#1A4D1F]/30 hover:border-[#1A4D1F]/40 transition-all group card-hover"
                 style={{ background: "#FFFDE7" }}>
                 <div className="flex items-center gap-3">
                   <div className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0",
                     p.isAvailable ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" : "bg-red-400")} />
                   <div className="text-right">
-                    <p className="font-black text-[#2E7D32] group-hover:text-[#2E7D32] transition-colors">{p.nameAr}</p>
-                    <p className="text-xs text-[#2E7D32]/30">{p.isAvailable ? t("مفتوح", "Ouvert") : t("مغلق", "Fermé")}</p>
+                    <p className="font-black text-[#1A4D1F] group-hover:text-[#1A4D1F] transition-colors">{p.nameAr}</p>
+                    <p className="text-xs text-[#1A4D1F]/30">{p.isAvailable ? t("مفتوح", "Ouvert") : t("مغلق", "Fermé")}</p>
                   </div>
                 </div>
-                <ChevronRight size={16} className={cn("text-[#2E7D32]/20 group-hover:text-[#2E7D32]", isRTL && "rotate-180")} />
+                <ChevronRight size={16} className={cn("text-[#1A4D1F]/20 group-hover:text-[#1A4D1F]", isRTL && "rotate-180")} />
               </motion.button>
             ))}
           </div>
@@ -430,10 +430,10 @@ export default function ProviderDashboard() {
       <AnimatePresence>
         {hasNewOrder && (
           <motion.div initial={{ opacity: 0, y: -60 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -60 }}
-            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl border border-[#2E7D32]/40 shadow-xl"
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl border border-[#1A4D1F]/40 shadow-xl"
             style={{ background: "#D4A800" }}>
-            <Bell size={18} className="text-[#2E7D32]" />
-            <span className="text-[#2E7D32] font-black text-sm">{t("🔔 طلب جديد وصل!", "🔔 Nouvelle commande!")}</span>
+            <Bell size={18} className="text-[#1A4D1F]" />
+            <span className="text-[#1A4D1F] font-black text-sm">{t("🔔 طلب جديد وصل!", "🔔 Nouvelle commande!")}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -446,11 +446,11 @@ export default function ProviderDashboard() {
             style={{ background: "#FFFDE7", borderColor: "#FFA500" }}>
             <Truck size={18} className="text-[#FFA500] mt-0.5 flex-shrink-0" />
             <div className="min-w-0">
-              <p className="text-[#2E7D32] font-black text-sm">
+              <p className="text-[#1A4D1F] font-black text-sm">
                 {lang === "ar" ? driverNotif.messageAr : driverNotif.messageFr}
               </p>
             </div>
-            <button onClick={() => setDriverNotif(null)} className="text-[#2E7D32]/30 hover:text-[#2E7D32] flex-shrink-0 mt-0.5">
+            <button onClick={() => setDriverNotif(null)} className="text-[#1A4D1F]/30 hover:text-[#1A4D1F] flex-shrink-0 mt-0.5">
               <X size={14} />
             </button>
           </motion.div>
@@ -464,18 +464,18 @@ export default function ProviderDashboard() {
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             style={{ background: "rgba(0,0,0,0.92)" }} onClick={() => setPhotoModal(null)}>
             <motion.img initial={{ scale: 0.9 }} animate={{ scale: 1 }} src={photoModal}
-              className="max-w-sm w-full rounded-2xl border border-[#2E7D32]/10" alt="prescription" />
+              className="max-w-sm w-full rounded-2xl border border-[#1A4D1F]/10" alt="prescription" />
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className="max-w-2xl mx-auto space-y-4">
         {/* Header */}
-        <div className="rounded-[15px] p-5 border border-[#2E7D32]/25" style={{ background: "#FFFDE7" }}>
+        <div className="rounded-[15px] p-5 border border-[#1A4D1F]/25" style={{ background: "#FFFDE7" }}>
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-xl font-black text-[#2E7D32]">{selected.nameAr}</h1>
+                <h1 className="text-xl font-black text-[#1A4D1F]">{selected.nameAr}</h1>
                 {pendingCount > 0 && (
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30">
                     <Bell size={10} className="text-amber-400" />
@@ -485,8 +485,8 @@ export default function ProviderDashboard() {
               </div>
               {selected.rating && (
                 <div className="flex items-center gap-0.5">
-                  {[1,2,3,4,5].map(i => <Star key={i} size={11} className={i <= Math.round(selected.rating!) ? "text-[#2E7D32] fill-[#2E7D32]" : "text-[#2E7D32]/20"} />)}
-                  <span className="text-xs text-[#2E7D32]/40 ml-1">{selected.rating.toFixed(1)}</span>
+                  {[1,2,3,4,5].map(i => <Star key={i} size={11} className={i <= Math.round(selected.rating!) ? "text-[#1A4D1F] fill-[#1A4D1F]" : "text-[#1A4D1F]/20"} />)}
+                  <span className="text-xs text-[#1A4D1F]/40 ml-1">{selected.rating.toFixed(1)}</span>
                 </div>
               )}
             </div>
@@ -494,20 +494,20 @@ export default function ProviderDashboard() {
               <NotificationBell lang={lang} role="provider" providerId={selected.id} />
               <button
                 onClick={() => navigate("/orders/history")}
-                className="p-2.5 rounded-xl border border-[#2E7D32]/20 text-[#2E7D32]/50 hover:text-[#2E7D32] hover:border-[#2E7D32]/50 transition-all"
+                className="p-2.5 rounded-xl border border-[#1A4D1F]/20 text-[#1A4D1F]/50 hover:text-[#1A4D1F] hover:border-[#1A4D1F]/50 transition-all"
                 title={t("سجل الطلبات", "Historique")}
               >
                 <History size={14} />
               </button>
               <button onClick={() => loadOrders(selected, true)} disabled={refreshing}
-                className="p-2.5 rounded-xl border border-[#2E7D32]/10 text-[#2E7D32]/40 hover:text-[#2E7D32] transition-all">
+                className="p-2.5 rounded-xl border border-[#1A4D1F]/10 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-all">
                 <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
               </button>
               <button onClick={logout}
                 className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-black text-sm transition-all"
-                style={{ background: "#2E7D32", color: "#000" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#4CAF50")}
-                onMouseLeave={e => (e.currentTarget.style.background = "#2E7D32")}>
+                style={{ background: "#1A4D1F", color: "#000" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#1A4D1F")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#1A4D1F")}>
                 <LogOut size={14} />
                 <span>{t("خروج", "Déco.")}</span>
               </button>
@@ -527,18 +527,18 @@ export default function ProviderDashboard() {
           </button>
 
           {/* Stats bar */}
-          <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#2E7D32]/5">
+          <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#1A4D1F]/5">
             <div className="text-center">
               <p className="text-2xl font-black text-amber-400">{pendingOrders.length}</p>
-              <p className="text-xs text-[#2E7D32]/30">{t("انتظار", "En attente")}</p>
+              <p className="text-xs text-[#1A4D1F]/30">{t("انتظار", "En attente")}</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-black text-blue-400">{orders.filter(o => ["accepted","prepared","in_delivery"].includes(o.status)).length}</p>
-              <p className="text-xs text-[#2E7D32]/30">{t("نشط", "En cours")}</p>
+              <p className="text-xs text-[#1A4D1F]/30">{t("نشط", "En cours")}</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-black text-emerald-400">{orders.filter(o => o.status === "delivered").length}</p>
-              <p className="text-xs text-[#2E7D32]/30">{t("منجز", "Livré")}</p>
+              <p className="text-xs text-[#1A4D1F]/30">{t("منجز", "Livré")}</p>
             </div>
           </div>
         </div>
@@ -548,7 +548,7 @@ export default function ProviderDashboard() {
           {(["pending", "all", "products"] as const).map(tb => (
             <button key={tb} onClick={() => setTab(tb)}
               className={cn("flex-1 py-2 rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1.5",
-                tab === tb ? "bg-[#2E7D32] text-black" : "text-[#2E7D32]/40 hover:text-[#2E7D32]")}>
+                tab === tb ? "bg-[#1A4D1F] text-black" : "text-[#1A4D1F]/40 hover:text-[#1A4D1F]")}>
               {tb === "pending"
                 ? <>{t("جديد", "Nouv.")} {pendingOrders.length > 0 && <span className={cn("px-1.5 py-0.5 rounded-full text-xs", tab === tb ? "bg-[#FFA500]/20 text-black" : "bg-amber-400/20 text-amber-400")}>{pendingOrders.length}</span>}</>
                 : tb === "all"
@@ -567,12 +567,12 @@ export default function ProviderDashboard() {
         {/* Orders */}
         {tab !== "products" && (loading ? (
           <div className="flex justify-center py-16">
-            <div className="w-7 h-7 border-[3px] border-[#2E7D32] border-t-transparent rounded-full animate-spin" />
+            <div className="w-7 h-7 border-[3px] border-[#1A4D1F] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : displayOrders.length === 0 ? (
           <div className="text-center py-16">
-            <Package size={40} className="text-[#2E7D32]/10 mx-auto mb-3" />
-            <p className="text-[#2E7D32]/25 font-bold">
+            <Package size={40} className="text-[#1A4D1F]/10 mx-auto mb-3" />
+            <p className="text-[#1A4D1F]/25 font-bold">
               {tab === "pending" ? t("لا توجد طلبات جديدة", "Aucune nouvelle commande") : t("لا توجد طلبات", "Aucune commande")}
             </p>
           </div>
@@ -584,15 +584,15 @@ export default function ProviderDashboard() {
                 return (
                   <motion.div key={order.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} layout
                     className={cn("rounded-[15px] border overflow-hidden",
-                      order.status === "pending" ? "border-amber-400/25" : "border-[#2E7D32]/30")}
+                      order.status === "pending" ? "border-amber-400/25" : "border-[#1A4D1F]/30")}
                     style={{ background: "#FFFDE7" }}>
 
                     {/* Order header */}
-                    <div className={cn("px-4 py-2 flex items-center justify-between border-b border-[#2E7D32]/20",
+                    <div className={cn("px-4 py-2 flex items-center justify-between border-b border-[#1A4D1F]/20",
                       order.status === "pending" ? "bg-amber-400/5" : "")}>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-[#2E7D32]/25">#{order.id.toString().padStart(4, "0")}</span>
-                        <span className="text-xs text-[#2E7D32]/20">{timeAgo(order.createdAt, lang)}</span>
+                        <span className="font-mono text-xs text-[#1A4D1F]/25">#{order.id.toString().padStart(4, "0")}</span>
+                        <span className="text-xs text-[#1A4D1F]/20">{timeAgo(order.createdAt, lang)}</span>
                       </div>
                       <span className={cn("text-xs px-2.5 py-1 rounded-full border font-black", s.color)}>
                         {lang === "ar" ? s.ar : s.fr}
@@ -603,16 +603,16 @@ export default function ProviderDashboard() {
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-black text-[#2E7D32]">{order.customerName}</p>
+                          <p className="font-black text-[#1A4D1F]">{order.customerName}</p>
                           <div className="flex items-center gap-1.5 mt-1">
-                            <MapPin size={10} className="text-[#2E7D32]/40 flex-shrink-0" />
-                            <p className="text-sm text-[#2E7D32]/40 truncate">{order.customerAddress}</p>
+                            <MapPin size={10} className="text-[#1A4D1F]/40 flex-shrink-0" />
+                            <p className="text-sm text-[#1A4D1F]/40 truncate">{order.customerAddress}</p>
                           </div>
                           {order.deliveryFee && order.deliveryFee > 0 && (
-                            <p className="text-sm text-[#2E7D32] font-bold mt-1">{t("رسوم التوصيل", "Livraison")}: {order.deliveryFee} TND</p>
+                            <p className="text-sm text-[#1A4D1F] font-bold mt-1">{t("رسوم التوصيل", "Livraison")}: {order.deliveryFee} TND</p>
                           )}
                           {order.notes && (
-                            <p className="text-xs text-[#2E7D32]/30 mt-2 p-2 rounded-lg border border-[#2E7D32]/5" style={{ background: "#D4A800" }}>{order.notes}</p>
+                            <p className="text-xs text-[#1A4D1F]/30 mt-2 p-2 rounded-lg border border-[#1A4D1F]/5" style={{ background: "#D4A800" }}>{order.notes}</p>
                           )}
                         </div>
                         <div className="flex flex-col gap-2 flex-shrink-0">
@@ -646,8 +646,8 @@ export default function ProviderDashboard() {
                       )}
                       {order.status === "accepted" && (
                         <button onClick={() => updateStatus(order.id, "prepared")}
-                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/30 font-black text-sm hover:bg-[#2E7D32]/20 transition-all"
-                          style={{ color: "#2E7D32" }}>
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#1A4D1F]/10 border border-[#1A4D1F]/30 font-black text-sm hover:bg-[#1A4D1F]/20 transition-all"
+                          style={{ color: "#1A4D1F" }}>
                           <Truck size={15} />
                           {t("جاهز للتوصيل ✓", "Prêt pour livraison ✓")}
                         </button>

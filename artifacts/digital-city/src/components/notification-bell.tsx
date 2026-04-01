@@ -41,7 +41,7 @@ function getIcon(n: UiNotif) {
   if (n.type === "delivered") return <Check size={14} className="text-emerald-400" />;
   if (n.type === "driver_coming" || n.type === "driver_accepted") return <Truck size={14} className="text-orange-400" />;
   if (n.type === "driver_picked_up") return <Package size={14} className="text-purple-400" />;
-  return <Bell size={14} className="text-[#2E7D32]" />;
+  return <Bell size={14} className="text-[#1A4D1F]" />;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -187,9 +187,9 @@ export function NotificationBell({ lang, role, providerId, theme = "light" }: Pr
     setPermDenied(result === "denied");
   };
 
-  const textColor   = theme === "dark" ? "text-white" : "text-[#2E7D32]";
-  const borderColor = theme === "dark" ? "border-white/20" : "border-[#2E7D32]/20";
-  const bgHover     = theme === "dark" ? "hover:bg-white/10" : "hover:bg-[#2E7D32]/10";
+  const textColor   = theme === "dark" ? "text-white" : "text-[#1A4D1F]";
+  const borderColor = theme === "dark" ? "border-white/20" : "border-[#1A4D1F]/20";
+  const bgHover     = theme === "dark" ? "hover:bg-white/10" : "hover:bg-[#1A4D1F]/10";
 
   return (
     <div ref={ref} className="relative">
@@ -202,11 +202,11 @@ export function NotificationBell({ lang, role, providerId, theme = "light" }: Pr
         className={cn(
           "relative p-2.5 rounded-xl border transition-all",
           unread > 0
-            ? `${borderColor} bg-[#2E7D32]/20 ${bgHover}`
+            ? `${borderColor} bg-[#1A4D1F]/20 ${bgHover}`
             : `${borderColor} bg-transparent ${bgHover}`
         )}
       >
-        <Bell size={18} className={unread > 0 ? "text-[#2E7D32]" : cn(textColor, "opacity-50")} />
+        <Bell size={18} className={unread > 0 ? "text-[#1A4D1F]" : cn(textColor, "opacity-50")} />
         {unread > 0 && (
           <motion.span
             initial={{ scale: 0 }}
@@ -236,21 +236,21 @@ export function NotificationBell({ lang, role, providerId, theme = "light" }: Pr
             dir="rtl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#2E7D32]/10">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1A4D1F]/10">
               <div className="flex items-center gap-2">
-                <Bell size={14} className="text-[#2E7D32]" />
-                <span className="font-black text-[#2E7D32] text-sm">
+                <Bell size={14} className="text-[#1A4D1F]" />
+                <span className="font-black text-[#1A4D1F] text-sm">
                   {lang === "ar" ? "الإشعارات" : "Notifications"}
                 </span>
                 {notifs.length > 0 && (
-                  <span className="text-[10px] font-bold text-[#2E7D32]/40">({notifs.length})</span>
+                  <span className="text-[10px] font-bold text-[#1A4D1F]/40">({notifs.length})</span>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 {/* Sound toggle */}
                 <button
                   onClick={() => setSoundMuted(m => !m)}
-                  className="p-1 rounded-lg text-[#2E7D32]/40 hover:text-[#2E7D32] transition-colors"
+                  className="p-1 rounded-lg text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-colors"
                   title={lang === "ar" ? (soundMuted ? "تفعيل الصوت" : "كتم الصوت") : (soundMuted ? "Activer son" : "Couper son")}
                 >
                   {soundMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
@@ -285,15 +285,15 @@ export function NotificationBell({ lang, role, providerId, theme = "light" }: Pr
             <div className="max-h-80 overflow-y-auto">
               {notifs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-[#2E7D32]/5 border border-[#2E7D32]/10 flex items-center justify-center">
-                    <Bell size={18} className="text-[#2E7D32]/20" />
+                  <div className="w-11 h-11 rounded-2xl bg-[#1A4D1F]/5 border border-[#1A4D1F]/10 flex items-center justify-center">
+                    <Bell size={18} className="text-[#1A4D1F]/20" />
                   </div>
-                  <p className="text-[#2E7D32]/30 text-sm font-bold">
+                  <p className="text-[#1A4D1F]/30 text-sm font-bold">
                     {lang === "ar" ? "لا توجد إشعارات" : "Aucune notification"}
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-[#2E7D32]/5">
+                <div className="divide-y divide-[#1A4D1F]/5">
                   {notifs.map(n => (
                     <motion.div
                       key={n.id}
@@ -301,7 +301,7 @@ export function NotificationBell({ lang, role, providerId, theme = "light" }: Pr
                       animate={{ opacity: 1, x: 0 }}
                       className={cn(
                         "px-4 py-3 flex items-start gap-3 transition-colors",
-                        !n.read ? "bg-[#2E7D32]/8" : ""
+                        !n.read ? "bg-[#1A4D1F]/8" : ""
                       )}
                     >
                       <div className={cn(
@@ -309,7 +309,7 @@ export function NotificationBell({ lang, role, providerId, theme = "light" }: Pr
                         n.kind === "broadcast" ? "bg-[#FFA500]/20 border-[#FFA500]/30" :
                         n.type === "accepted" ? "bg-blue-400/15 border-blue-400/20" :
                         n.type === "delivered" ? "bg-emerald-400/15 border-emerald-400/20" :
-                        "bg-[#2E7D32]/10 border-[#2E7D32]/20"
+                        "bg-[#1A4D1F]/10 border-[#1A4D1F]/20"
                       )}>
                         {getIcon(n)}
                       </div>
@@ -319,10 +319,10 @@ export function NotificationBell({ lang, role, providerId, theme = "light" }: Pr
                             {lang === "ar" ? "إشعار عام" : "Broadcast"}
                           </span>
                         )}
-                        <p className="text-sm font-bold text-[#2E7D32] leading-snug">
+                        <p className="text-sm font-bold text-[#1A4D1F] leading-snug">
                           {lang === "ar" ? n.messageAr : n.messageFr}
                         </p>
-                        <p className="text-[10px] text-[#2E7D32]/30 mt-0.5">{timeAgo(n.timestamp, lang)}</p>
+                        <p className="text-[10px] text-[#1A4D1F]/30 mt-0.5">{timeAgo(n.timestamp, lang)}</p>
                       </div>
                       {!n.read && (
                         <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 mt-1.5" />
@@ -333,8 +333,8 @@ export function NotificationBell({ lang, role, providerId, theme = "light" }: Pr
               )}
             </div>
 
-            <div className="px-4 py-2 border-t border-[#2E7D32]/5 text-center">
-              <p className="text-[10px] text-[#2E7D32]/25">
+            <div className="px-4 py-2 border-t border-[#1A4D1F]/5 text-center">
+              <p className="text-[10px] text-[#1A4D1F]/25">
                 {lang === "ar" ? "إشعارات سند · Sanad" : "Notifications Sanad"}
               </p>
             </div>
