@@ -5,7 +5,7 @@ import { getSession, clearSession } from "@/lib/auth";
 import {
   Truck, CheckCircle, MapPin, RefreshCw, ChevronRight, MessageCircle,
   LogOut, Check, Package, X, Map, Bell, Clock, AlertCircle, History,
-  CalendarCheck, Banknote, ChevronDown, ChevronUp,
+  CalendarCheck, Banknote, ChevronDown, ChevronUp, Wifi, WifiOff, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -15,6 +15,7 @@ import {
   pushNotification, pushProviderNotif, pushAdminNotif,
 } from "@/lib/notifications";
 import { playSanadSound, unlockAudio } from "@/lib/notification-sound";
+import { io, type Socket } from "socket.io-client";
 
 const DeliveryMap = lazy(() => import("@/components/delivery-map"));
 
@@ -38,12 +39,13 @@ function timeAgo(dateStr: string, lang: string) {
 
 // ── Incoming order notification popup ────────────────────────────────────────
 function IncomingOrderPopup({
-  order, onAccept, onReject, lang,
+  order, onAccept, onReject, lang, isAccepting,
 }: {
   order: Order;
   onAccept: () => void;
   onReject: () => void;
   lang: string;
+  isAccepting?: boolean;
 }) {
   const t = (ar: string, fr: string) => lang === "ar" ? ar : fr;
   return (
@@ -118,11 +120,14 @@ function IncomingOrderPopup({
           </button>
           <button
             onClick={onAccept}
-            className="flex-[2] flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm text-white transition-all"
+            disabled={isAccepting}
+            className="flex-[2] flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm text-white transition-all disabled:opacity-70"
             style={{ background: "#2E7D32" }}
           >
-            <Check size={16} />
-            {t("قبول الطلب", "Accepter")}
+            {isAccepting
+              ? <><div className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />{t("جارٍ القبول…", "En cours…")}</>
+              : <><Zap size={16} />{t("قبول الطلب الآن", "Accepter maintenant")}</>
+            }
           </button>
         </div>
       </motion.div>
@@ -142,13 +147,17 @@ export default function DeliveryDashboard() {
   const [history, setHistory] = useState<Order[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [expandedHistId, setExpandedHistId] = useState<number | null>(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [acceptingId, setAcceptingId] = useState<number | null>(null);
 
   // Incoming notifications queue
   const [incomingQueue, setIncomingQueue] = useState<Order[]>([]);
-  const seenPreparedIds = useRef<Set<number>>(new Set());
+  const seenOrderIds = useRef<Set<number>>(new Set());
   const rejectedIds = useRef<Set<number>>(new Set());
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const selectedRef = useRef<Staff | null>(null);
   const [, navigate] = useLocation();
 
   useEffect(() => {
@@ -177,19 +186,18 @@ export default function DeliveryDashboard() {
     try {
       const data = await get<Order[]>("/delivery/orders");
       setOrders(data);
-
-      // Detect NEW prepared orders → show notification popup
-      const freshPrepared = data.filter(
-        o => o.status === "prepared"
-           && !seenPreparedIds.current.has(o.id)
+      // Detect newly available orders (fallback for when socket misses an event)
+      const fresh = data.filter(
+        o => (o.status === "searching_for_driver" || o.status === "prepared")
+           && !seenOrderIds.current.has(o.id)
            && !rejectedIds.current.has(o.id)
       );
-      if (freshPrepared.length > 0) {
+      if (fresh.length > 0) {
         playSanadSound();
-        freshPrepared.forEach(o => seenPreparedIds.current.add(o.id));
+        fresh.forEach(o => seenOrderIds.current.add(o.id));
         setIncomingQueue(prev => {
           const existingIds = new Set(prev.map(o => o.id));
-          return [...prev, ...freshPrepared.filter(o => !existingIds.has(o.id))];
+          return [...prev, ...fresh.filter(o => !existingIds.has(o.id))];
         });
       }
     } catch {}
@@ -205,31 +213,101 @@ export default function DeliveryDashboard() {
     setHistoryLoading(false);
   }, []);
 
+  // ── Socket.io connection + event handlers ───────────────────────────────────
+  const connectSocket = useCallback((member: Staff) => {
+    if (socketRef.current?.connected) socketRef.current.disconnect();
+
+    const socket = io(window.location.origin, {
+      query: { role: "driver", userId: String(member.id) },
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1500,
+    });
+    socketRef.current = socket;
+
+    socket.on("connect",    () => setWsConnected(true));
+    socket.on("disconnect", () => setWsConnected(false));
+
+    // New order broadcast from server → add to popup queue + play sound
+    socket.on("new_order", (order: Order) => {
+      if (rejectedIds.current.has(order.id)) return;
+      if (seenOrderIds.current.has(order.id)) return;
+      seenOrderIds.current.add(order.id);
+      playSanadSound();
+      // Also add to orders list so it shows in active tab
+      setOrders(prev => {
+        const exists = prev.some(o => o.id === order.id);
+        return exists ? prev : [order, ...prev];
+      });
+      setIncomingQueue(prev => {
+        const exists = prev.some(o => o.id === order.id);
+        return exists ? prev : [order, ...prev];
+      });
+    });
+
+    // Order taken by another driver → remove immediately from all lists
+    socket.on("order_taken", ({ orderId }: { orderId: number; driverName: string }) => {
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      setIncomingQueue(prev => prev.filter(o => o.id !== orderId));
+      seenOrderIds.current.add(orderId);
+    });
+
+    // Generic status update
+    socket.on("order_status", ({ orderId, status, order: updatedOrder }: any) => {
+      setOrders(prev => prev.map(o =>
+        o.id === orderId ? { ...o, status, ...(updatedOrder || {}) } : o
+      ));
+    });
+
+    return socket;
+  }, []);
+
   const selectStaff = async (member: Staff) => {
+    selectedRef.current = member;
     setSelected(member);
     await loadOrders();
     loadHistory(member.id);
+    // Connect Socket.io for real-time updates
+    connectSocket(member);
+    // Keep polling as fallback (30s instead of 10s — socket handles the real-time)
     if (pollRef.current) clearInterval(pollRef.current);
-    // Poll every 10s for faster notification delivery
-    pollRef.current = setInterval(() => loadOrders(true), 10000);
+    pollRef.current = setInterval(() => loadOrders(true), 30000);
   };
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+  useEffect(() => () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    socketRef.current?.disconnect();
+  }, []);
 
-  // ── Accept incoming order ──────────────────────────────────────────────────
+  // ── Accept incoming order (ATOMIC — first come, first served) ───────────────
   const handleAcceptIncoming = async (order: Order) => {
-    if (!selected) return;
+    if (!selected || acceptingId === order.id) return;
+    setAcceptingId(order.id);
     try {
-      await patch(`/orders/${order.id}`, {
-        status: "driver_accepted",
-        deliveryStaffId: selected.id,
+      // Atomic DB transaction — only ONE driver can win
+      const res = await fetch(`/api/orders/${order.id}/driver-accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffId: selected.id }),
       });
 
-      // Update local state
+      if (res.status === 409) {
+        // Another driver was faster — remove from our queue silently
+        setIncomingQueue(prev => prev.filter(o => o.id !== order.id));
+        setOrders(prev => prev.filter(o => o.id !== order.id));
+        setAcceptingId(null);
+        return;
+      }
+      if (!res.ok) throw new Error("accept_failed");
+
+      // WON — update local state
       setOrders(prev => prev.map(o =>
         o.id === order.id ? { ...o, status: "driver_accepted", deliveryStaffId: selected.id } : o
       ));
       setIncomingQueue(prev => prev.filter(o => o.id !== order.id));
+
+      // Socket.io will handle notifying other drivers (order_taken event)
 
       // ── Notify customer ──
       pushNotification({
@@ -258,6 +336,8 @@ export default function DeliveryDashboard() {
       });
     } catch {
       setIncomingQueue(prev => prev.filter(o => o.id !== order.id));
+    } finally {
+      setAcceptingId(null);
     }
   };
 
@@ -377,6 +457,7 @@ export default function DeliveryDashboard() {
             key={currentIncoming.id}
             order={currentIncoming}
             lang={lang}
+            isAccepting={acceptingId === currentIncoming.id}
             onAccept={() => handleAcceptIncoming(currentIncoming)}
             onReject={() => handleRejectIncoming(currentIncoming)}
           />
@@ -397,6 +478,16 @@ export default function DeliveryDashboard() {
               </div>
               <div className="flex gap-2 items-center">
                 <NotificationBell lang={lang} role="delivery" />
+                {/* Real-time connection badge */}
+                <div className={cn(
+                  "flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all",
+                  wsConnected
+                    ? "bg-emerald-400/10 border-emerald-400/30 text-emerald-500"
+                    : "bg-red-400/10 border-red-400/20 text-red-400"
+                )}>
+                  {wsConnected ? <Wifi size={11} /> : <WifiOff size={11} />}
+                  {wsConnected ? t("مباشر","Live") : t("انتظار","...") }
+                </div>
                 {incomingQueue.length > 0 && (
                   <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/20">
                     <Bell size={13} className="text-[#2E7D32] animate-bounce" />

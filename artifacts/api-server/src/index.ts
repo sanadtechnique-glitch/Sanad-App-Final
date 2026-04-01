@@ -1,4 +1,4 @@
-import app from "./app";
+import httpServer from "./app";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
@@ -40,7 +40,7 @@ async function seedDefaultAdmin() {
   }
 }
 
-app.listen(port, async (err) => {
+httpServer.listen(port, async (err: Error | null) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);

@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { serviceProvidersTable } from "./serviceProviders";
 
-export const orderStatusEnum = ["pending", "accepted", "prepared", "driver_accepted", "in_delivery", "delivered", "cancelled"] as const;
+export const orderStatusEnum = ["searching_for_driver", "pending", "accepted", "prepared", "driver_accepted", "in_delivery", "delivered", "cancelled"] as const;
 export type OrderStatus = typeof orderStatusEnum[number];
 
 export const ordersTable = pgTable("orders", {
