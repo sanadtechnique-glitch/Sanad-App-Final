@@ -21,6 +21,8 @@ export const serviceProvidersTable = pgTable("service_providers", {
   shift: text("shift").$type<PharmacyShift>().default("all"),
   rating: real("rating").default(4.5),
   isAvailable: boolean("is_available").default(true).notNull(),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
