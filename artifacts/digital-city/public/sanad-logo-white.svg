@@ -5,21 +5,24 @@
     </style>
   </defs>
 
-  <!-- White square background -->
   <rect width="600" height="600" fill="#FFFFFF"/>
 
-  <!-- Map Pin — tip near ن dot, centered ~x=310 (noon letter position) -->
+  <!--
+    Pin tip at y=355 — sits right on top of the ن dot.
+    Pin head center at y=315, radius=32, top at y=283.
+    x=305 ≈ position of noon letter in centered "سند".
+  -->
   <path
-    d="M310 192
-       C285 192 264 213 264 238
-       C264 270 310 300 310 300
-       C310 300 356 270 356 238
-       C356 213 335 192 310 192 Z"
+    d="M305 283
+       C283 283 273 299 273 315
+       C273 338 305 355 305 355
+       C305 355 337 338 337 315
+       C337 299 327 283 305 283 Z"
     fill="#006B3C"
   />
-  <circle cx="310" cy="238" r="20" fill="#FFA500"/>
+  <circle cx="305" cy="315" r="14" fill="#FFA500"/>
 
-  <!-- Arabic: سند — Kufic font -->
+  <!-- Arabic: سند -->
   <text
     x="300"
     y="430"

@@ -5,19 +5,22 @@
     </style>
   </defs>
 
-  <!-- Map Pin — tip points near the noon dot of سند -->
-  <!-- Pin centered at x=258 (slightly right of center where ن falls), tip at y=178 -->
+  <!--
+    Arabic "سند" baseline=292, font-size=108.
+    Pin tip at y=232 (right at ن dot).
+    Pin center at y=196, radius=27. x=254 ≈ noon letter.
+  -->
   <path
-    d="M258 88
-       C237 88 219 106 219 127
-       C219 155 258 178 258 178
-       C258 178 297 155 297 127
-       C297 106 279 88 258 88 Z"
+    d="M254 169
+       C235 169 227 183 227 196
+       C227 217 254 232 254 232
+       C254 232 281 217 281 196
+       C281 183 273 169 254 169 Z"
     fill="#006B3C"
   />
-  <circle cx="258" cy="127" r="16" fill="#FFA500"/>
+  <circle cx="254" cy="196" r="12" fill="#FFA500"/>
 
-  <!-- Arabic: سند — Reem Kufi (Kufic style) -->
+  <!-- Arabic: سند -->
   <text
     x="250"
     y="292"
