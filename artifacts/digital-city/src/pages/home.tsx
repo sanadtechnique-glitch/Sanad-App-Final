@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
-import { SanadBrand } from "@/components/sanad-brand";
 import { AdBanner } from "@/components/ad-banner";
 import { useLang } from "@/lib/language";
 import { getSession, clearSession } from "@/lib/auth";
@@ -678,9 +677,7 @@ export default function Home() {
           className="flex items-center gap-2 cursor-pointer"
           onClick={() => navigate("/home")}
         >
-          <span style={{ fontSize: "1.65rem", fontWeight: 900, lineHeight: 1 }}>
-            <SanadBrand color="#1A4D1F" innerColor="#FFF3E0" />
-          </span>
+          <img src="/sanad-logo.svg" alt="سند" style={{ height: 44, width: "auto" }} draggable={false} />
         </motion.div>
 
         <motion.div

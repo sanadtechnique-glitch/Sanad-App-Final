@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SanadBrand } from "@/components/sanad-brand";
 
 interface SplashProps {
   onDone: () => void;
@@ -34,18 +33,13 @@ export function Splash({ onDone }: SplashProps) {
             transition={{ duration: 0.75, ease: [0.34, 1.56, 0.64, 1] }}
             className="flex flex-col items-center gap-5"
           >
-            {/* Sanad brand wordmark */}
-            <span
-              style={{
-                fontSize: "5rem",
-                fontWeight: 900,
-                lineHeight: 1,
-                color: "#1A4D1F",
-                fontFamily: "'Cairo','Tajawal',sans-serif",
-              }}
-            >
-              <SanadBrand color="#1A4D1F" innerColor="#FFF3E0" />
-            </span>
+            {/* Sanad logo */}
+            <img
+              src="/sanad-logo.svg"
+              alt="سند · Sanad"
+              style={{ height: "180px", width: "auto" }}
+              draggable={false}
+            />
 
             {/* Slogan */}
             <motion.p

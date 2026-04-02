@@ -5,7 +5,6 @@ import {
   AlertCircle, Eye, EyeOff, ChevronDown, LogIn,
   UserPlus, Phone, Lock, User, CheckCircle, MapPin, Search,
 } from "lucide-react";
-import { SanadBrand } from "@/components/sanad-brand";
 import { setSession, clearSession, type Role } from "@/lib/auth";
 import { requestNotificationPermission } from "@/lib/push-notifications";
 import { cn } from "@/lib/utils";
@@ -571,7 +570,12 @@ export default function LoginPage() {
           transition={{ duration: 0.5 }}
           className="flex flex-col items-center mb-8"
         >
-          <SanadBrand size="lg" />
+          <img
+            src="/sanad-logo.svg"
+            alt="سند · Sanad"
+            style={{ height: "140px", width: "auto" }}
+            draggable={false}
+          />
           <p className="text-[#1A4D1F]/50 text-sm mt-3 font-medium text-center">
             سندك في التوصيل.. لباب الدار
           </p>

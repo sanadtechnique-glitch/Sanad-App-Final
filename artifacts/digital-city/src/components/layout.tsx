@@ -437,15 +437,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ background: "#FFA500" }}
       >
         {/* Logo */}
-        <div className="flex items-center justify-center rounded-full"
-          style={{
-            width: 54, height: 38,
-            background: "radial-gradient(circle at 35% 28%, rgba(255,245,130,0.7) 0%, rgba(255,165,0,0.95) 45%, rgba(195,108,0,0.88) 100%)",
-            boxShadow: "inset 0 3px 8px rgba(255,255,255,0.5), inset 0 -4px 10px rgba(0,0,0,0.2), 0 6px 18px rgba(27,94,32,0.45), 0 2px 6px rgba(0,0,0,0.22)",
-            border: "2px solid rgba(27,94,32,0.72)",
-          }}>
-          <img src="/logo.png" alt="سند" className="w-11 h-8 object-contain" draggable={false} />
-        </div>
+        <img src="/sanad-logo.svg" alt="سند" style={{ height: 52, width: "auto" }} draggable={false} />
 
         {/* Nav icons */}
         <nav className="flex flex-col gap-7">
@@ -591,15 +583,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ background: "#FFA500" }}
       >
         {/* Logo */}
-        <div className="flex items-center justify-center rounded-full"
-          style={{
-            width: 50, height: 34,
-            background: "radial-gradient(circle at 35% 28%, rgba(255,245,130,0.7) 0%, rgba(255,165,0,0.95) 45%, rgba(195,108,0,0.88) 100%)",
-            boxShadow: "inset 0 3px 7px rgba(255,255,255,0.5), inset 0 -4px 9px rgba(0,0,0,0.2), 0 5px 14px rgba(27,94,32,0.42), 0 2px 5px rgba(0,0,0,0.2)",
-            border: "2px solid rgba(27,94,32,0.72)",
-          }}>
-          <img src="/logo.png" alt="سند" className="w-10 h-7 object-contain" draggable={false} />
-        </div>
+        <img src="/sanad-logo.svg" alt="سند" style={{ height: 44, width: "auto" }} draggable={false} />
 
         {/* User greeting (mobile — center) */}
         {session ? (

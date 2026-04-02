@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSession, clearSession, isAdminRole, isSuperAdmin, ROLE_META, ROLE_SECTIONS, type AppRole } from "@/lib/auth";
-import { SanadBrand } from "@/components/sanad-brand";
 import {
   LayoutDashboard, Package, Tag, Users, ShoppingBag,
   Truck, Map, Megaphone, RefreshCw, Plus, Pencil, Trash2,
@@ -2237,7 +2236,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
             <LayoutDashboard size={28} className="text-[#1A4D1F]" />
           </div>
           <h1 className="text-3xl font-black text-[#1A4D1F] mb-1">لوحة التحكم</h1>
-          <p className="text-[#1A4D1F]/30 text-sm">Admin Panel · <SanadBrand color="#1A4D1F" innerColor="white" style={{ opacity: 0.3 }} /></p>
+          <p className="text-[#1A4D1F]/30 text-sm">Admin Panel · سند</p>
         </div>
 
         {/* Form */}
@@ -2305,7 +2304,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
         </form>
 
         <p className="text-center text-[#1A4D1F]/15 text-xs mt-8">
-          <SanadBrand color="#1A4D1F" innerColor="white" style={{ opacity: 0.15 }} />{" — Sanad · بن قردان"}
+          سند — Sanad · بن قردان
         </p>
       </motion.div>
     </div>
@@ -2345,8 +2344,8 @@ export default function Admin() {
       )}>
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-4 border-b border-[#1A4D1F]/5">
-          <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#FFFDE7] border border-[#1A4D1F]/20 flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_-3px_rgba(255,165,0,0.4)]">
-            <img src="/logo.png" alt="سند" className="w-full h-full object-contain p-0.5" draggable={false} />
+          <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
+            <img src="/sanad-logo.svg" alt="سند" style={{ height: 36, width: "auto" }} draggable={false} />
           </div>
           <div className="hidden md:block overflow-hidden flex-1 min-w-0">
             <p className="text-xs font-black text-[#1A4D1F] leading-tight">{t("لوحة التحكم","Admin Panel")}</p>
