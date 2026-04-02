@@ -1,25 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 420" width="500" height="420">
-  <!-- Transparent background -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 380" width="500" height="380">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@700&amp;family=Outfit:wght@700&amp;display=swap');
+    </style>
+  </defs>
 
-  <!-- Map Pin Icon — centered at x=250, pin head center at y=90 -->
+  <!-- Map Pin — tip points near the noon dot of سند -->
+  <!-- Pin centered at x=258 (slightly right of center where ن falls), tip at y=178 -->
   <path
-    d="M250 28
-       C224 28 203 49 203 75
-       C203 109 250 148 250 148
-       C250 148 297 109 297 75
-       C297 49 276 28 250 28 Z"
+    d="M258 88
+       C237 88 219 106 219 127
+       C219 155 258 178 258 178
+       C258 178 297 155 297 127
+       C297 106 279 88 258 88 Z"
     fill="#006B3C"
   />
-  <circle cx="250" cy="75" r="18" fill="#FFA500"/>
+  <circle cx="258" cy="127" r="16" fill="#FFA500"/>
 
-  <!-- Arabic: سند -->
+  <!-- Arabic: سند — Reem Kufi (Kufic style) -->
   <text
     x="250"
-    y="258"
+    y="292"
     text-anchor="middle"
-    font-family="'Tajawal','Cairo','Noto Sans Arabic','Arial',sans-serif"
-    font-size="112"
-    font-weight="800"
+    font-family="'Reem Kufi','Noto Kufi Arabic','Cairo',sans-serif"
+    font-size="108"
+    font-weight="700"
     fill="#006B3C"
     direction="rtl"
   >سند</text>
@@ -27,10 +32,10 @@
   <!-- Latin: Sanad -->
   <text
     x="250"
-    y="350"
+    y="365"
     text-anchor="middle"
-    font-family="'Outfit','Montserrat','Nunito','Arial',sans-serif"
-    font-size="68"
+    font-family="'Outfit','Montserrat','Arial',sans-serif"
+    font-size="62"
     font-weight="700"
     fill="#006B3C"
     letter-spacing="3"

@@ -11,10 +11,10 @@ title = "سند - New Integrated Logo (logo.png)"
 id = "h10c3QeJyW2dgpaM8u11k"
 uri = "file://artifacts/digital-city/public/sanad-logo.svg"
 type = "image"
-title = "شعار سند - خلفية شفافة (Transparent)"
+title = "شعار سند كوفي - خلفية شفافة"
 
 [[outputs]]
 id = "rZveh_GfmH8jlw1BPEtii"
 uri = "file://artifacts/digital-city/public/sanad-logo-white.svg"
 type = "image"
-title = "شعار سند - خلفية بيضاء (White Background)"
+title = "شعار سند كوفي - خلفية بيضاء"
