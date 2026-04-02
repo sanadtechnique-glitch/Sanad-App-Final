@@ -6,3 +6,15 @@ id = "9VeQ31SSK97bcpLne8I8Q"
 uri = "file://artifacts/digital-city/public/logo.png"
 type = "image"
 title = "سند - New Integrated Logo (logo.png)"
+
+[[outputs]]
+id = "h10c3QeJyW2dgpaM8u11k"
+uri = "file://artifacts/digital-city/public/sanad-logo.svg"
+type = "image"
+title = "شعار سند - خلفية شفافة (Transparent)"
+
+[[outputs]]
+id = "rZveh_GfmH8jlw1BPEtii"
+uri = "file://artifacts/digital-city/public/sanad-logo-white.svg"
+type = "image"
+title = "شعار سند - خلفية بيضاء (White Background)"
