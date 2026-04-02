@@ -573,7 +573,7 @@ export default function LoginPage() {
           <img
             src="/sanad-logo.svg"
             alt="سند · Sanad"
-            style={{ height: "140px", width: "auto" }}
+            style={{ height: "280px", width: "auto" }}
             draggable={false}
           />
           <p className="text-[#1A4D1F]/50 text-sm mt-3 font-medium text-center">
