@@ -18,6 +18,8 @@ const DEFAULTS = {
   avgSpeedKmPerMin: 0.5,
   expressEnabled: false,
   expressSurchargeTnd: 1.0,
+  fixedFeeEnabled: false,
+  fixedFeeTnd: 5.0,
 };
 
 export type DeliveryConfigSnapshot = typeof DEFAULTS;
@@ -51,6 +53,8 @@ export async function getDeliveryConfig(): Promise<DeliveryConfigSnapshot> {
         avgSpeedKmPerMin:          r.avgSpeedKmPerMin,
         expressEnabled:            r.expressEnabled,
         expressSurchargeTnd:       r.expressSurchargeTnd,
+        fixedFeeEnabled:           r.fixedFeeEnabled,
+        fixedFeeTnd:               r.fixedFeeTnd,
       };
     }
     cacheExpiresAt = now + 60_000;
@@ -124,6 +128,7 @@ export interface DistanceResult {
   nightSurcharge: number;
   platformCommission: number;
   isNight: boolean;
+  isFixed: boolean;
   source: "google" | "haversine";
 }
 
@@ -138,7 +143,7 @@ export async function calculateDistance(
   const pLat = providerLat ?? BEN_GUERDANE_LAT;
   const pLng = providerLng ?? BEN_GUERDANE_LNG;
 
-  // 1. Distance
+  // 1. Distance (always compute for ETA, even in fixed mode)
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   let distanceKm: number;
   let source: "google" | "haversine" = "haversine";
@@ -154,28 +159,46 @@ export async function calculateDistance(
   // 2. ETA
   const etaMinutes = cfg.prepTimeMinutes + Math.ceil(distanceKm / cfg.avgSpeedKmPerMin);
 
-  // 3. Base fee breakdown
+  // 3. Fixed fee mode — skip distance-based calculation
+  if (cfg.fixedFeeEnabled) {
+    const deliveryFee = Math.round(cfg.fixedFeeTnd * 100) / 100;
+    const platformCommission = Math.round(deliveryFee * (cfg.platformCommissionPercent / 100) * 100) / 100;
+    return {
+      distanceKm,
+      etaMinutes,
+      deliveryFee,
+      baseFee: deliveryFee,
+      kmFee: 0,
+      nightSurcharge: 0,
+      platformCommission,
+      isNight: false,
+      isFixed: true,
+      source,
+    };
+  }
+
+  // 4. Base fee breakdown (dynamic mode)
   const baseFee = cfg.baseFee;
   const kmFee   = Math.round(cfg.ratePerKm * distanceKm * 100) / 100;
   let subtotal   = baseFee + kmFee;
 
-  // 4. Express surcharge
+  // 5. Express surcharge
   if (options?.express && cfg.expressEnabled) {
     subtotal += cfg.expressSurchargeTnd;
   }
 
-  // 5. Night surcharge
+  // 6. Night surcharge
   const night = isNightTime(cfg);
   const nightSurcharge = night
     ? Math.round(subtotal * (cfg.nightSurchargePercent / 100) * 100) / 100
     : 0;
   subtotal += nightSurcharge;
 
-  // 6. Min / Max cap
+  // 7. Min / Max cap
   subtotal = Math.max(subtotal, cfg.minFee);
   if (cfg.maxFee != null) subtotal = Math.min(subtotal, cfg.maxFee);
 
-  // 7. Platform commission (informational — not added to customer fee)
+  // 8. Platform commission (informational — not added to customer fee)
   const platformCommission = Math.round(subtotal * (cfg.platformCommissionPercent / 100) * 100) / 100;
 
   const deliveryFee = Math.round(subtotal * 100) / 100;
@@ -189,6 +212,7 @@ export async function calculateDistance(
     nightSurcharge,
     platformCommission,
     isNight: night,
+    isFixed: false,
     source,
   };
 }

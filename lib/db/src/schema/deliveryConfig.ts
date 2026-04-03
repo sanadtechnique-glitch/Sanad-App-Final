@@ -16,6 +16,8 @@ export const deliveryConfigTable = pgTable("delivery_config", {
   avgSpeedKmPerMin:         real("avg_speed_km_per_min").notNull().default(0.5),
   expressEnabled:           boolean("express_enabled").notNull().default(false),
   expressSurchargeTnd:      real("express_surcharge_tnd").notNull().default(1.0),
+  fixedFeeEnabled:          boolean("fixed_fee_enabled").notNull().default(false),
+  fixedFeeTnd:              real("fixed_fee_tnd").notNull().default(5.0),
   updatedAt:                timestamp("updated_at").defaultNow().notNull(),
 });
 

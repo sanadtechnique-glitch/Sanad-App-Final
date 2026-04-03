@@ -31,6 +31,7 @@ router.patch("/admin/delivery-config", requireAdmin, async (req, res) => {
       nightSurchargePercent, nightStartHour, nightEndHour,
       platformCommissionPercent, prepTimeMinutes, avgSpeedKmPerMin,
       expressEnabled, expressSurchargeTnd,
+      fixedFeeEnabled, fixedFeeTnd,
     } = req.body;
 
     const updates: Record<string, unknown> = {};
@@ -46,6 +47,8 @@ router.patch("/admin/delivery-config", requireAdmin, async (req, res) => {
     if (avgSpeedKmPerMin !== undefined)         updates.avgSpeedKmPerMin         = Number(avgSpeedKmPerMin);
     if (expressEnabled !== undefined)           updates.expressEnabled           = Boolean(expressEnabled);
     if (expressSurchargeTnd !== undefined)      updates.expressSurchargeTnd      = Number(expressSurchargeTnd);
+    if (fixedFeeEnabled !== undefined)          updates.fixedFeeEnabled          = Boolean(fixedFeeEnabled);
+    if (fixedFeeTnd !== undefined)              updates.fixedFeeTnd              = Number(fixedFeeTnd);
     updates.updatedAt = new Date();
 
     // Upsert: ensure row id=1 exists

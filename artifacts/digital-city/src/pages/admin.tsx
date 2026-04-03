@@ -2190,6 +2190,8 @@ interface DeliveryConfig {
   avgSpeedKmPerMin: number;
   expressEnabled: boolean;
   expressSurchargeTnd: number;
+  fixedFeeEnabled: boolean;
+  fixedFeeTnd: number;
   updatedAt: string;
 }
 
@@ -2236,6 +2238,13 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
 
   // Live preview calculation
   const previewFee = (() => {
+    const isFixed = !!form.fixedFeeEnabled;
+    if (isFixed) {
+      const total = Math.round(Number(form.fixedFeeTnd ?? 5) * 100) / 100;
+      const commission = Math.round(total * (Number(form.platformCommissionPercent ?? 0) / 100) * 100) / 100;
+      const eta = Number(form.prepTimeMinutes ?? 15) + Math.ceil(previewKm / Number(form.avgSpeedKmPerMin ?? 0.5));
+      return { total, night: 0, commission, eta, isFixed: true };
+    }
     const base = Number(form.baseFee ?? 2);
     const rate = Number(form.ratePerKm ?? 0.5);
     const min  = Number(form.minFee ?? 2);
@@ -2249,7 +2258,7 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
     if (max != null) sub = Math.min(sub, max);
     const commission = Math.round(sub * (Number(form.platformCommissionPercent ?? 0) / 100) * 100) / 100;
     const eta = Number(form.prepTimeMinutes ?? 15) + Math.ceil(previewKm / Number(form.avgSpeedKmPerMin ?? 0.5));
-    return { total: Math.round(sub * 100) / 100, night, commission, eta };
+    return { total: Math.round(sub * 100) / 100, night, commission, eta, isFixed: false };
   })();
 
   const card = "bg-white rounded-2xl p-5 border border-[#1A4D1F]/8 shadow-sm";
@@ -2277,7 +2286,56 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* ── Fixed Fee Banner ── */}
+      <div className={`rounded-2xl border-2 p-5 transition-all ${form.fixedFeeEnabled
+        ? "border-[#FFA500] bg-gradient-to-r from-[#FFF3E0] to-[#FFF9F0]"
+        : "border-[#1A4D1F]/10 bg-white"}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${form.fixedFeeEnabled ? "bg-[#FFA500]" : "bg-[#1A4D1F]/8"}`}>
+              <DollarSign size={18} className={form.fixedFeeEnabled ? "text-white" : "text-[#1A4D1F]/40"} />
+            </div>
+            <div>
+              <p className="font-black text-[#1A4D1F] text-sm">{t("تسعيرة ثابتة لجميع العملاء","Tarif fixe pour tous les clients")}</p>
+              <p className="text-xs text-[#1A4D1F]/50 mt-0.5">{t("تطبيق سعر واحد موحد بغض النظر عن المسافة — يلغي الحسابات الديناميكية","Un seul tarif appliqué quelle que soit la distance — remplace le calcul dynamique")}</p>
+            </div>
+          </div>
+          <label className="flex items-center gap-3 cursor-pointer flex-shrink-0">
+            <span className="text-xs font-bold text-[#1A4D1F]/60">{form.fixedFeeEnabled ? t("مفعّل","Actif") : t("معطّل","Inactif")}</span>
+            <button type="button"
+              onClick={() => setForm(p => ({ ...p, fixedFeeEnabled: !p.fixedFeeEnabled }))}
+              className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none ${form.fixedFeeEnabled ? "bg-[#FFA500]" : "bg-[#1A4D1F]/20"}`}>
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ${form.fixedFeeEnabled ? "translate-x-8" : "translate-x-1"}`} />
+            </button>
+          </label>
+        </div>
+        {form.fixedFeeEnabled && (
+          <div className="mt-4 pt-4 border-t border-[#FFA500]/20">
+            <div className="flex items-end gap-4">
+              <div className="flex-1 max-w-xs">
+                <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">
+                  {t("قيمة التسعيرة الثابتة (دينار تونسي)","Montant du tarif fixe (TND)")}
+                </label>
+                <input
+                  type="number" step="0.1" min="0"
+                  value={form.fixedFeeTnd ?? ""}
+                  onChange={f("fixedFeeTnd")}
+                  className="w-full rounded-xl border-2 border-[#FFA500]/60 px-4 py-3 text-lg font-black text-[#1A4D1F] bg-white focus:outline-none focus:ring-2 focus:ring-[#FFA500]/40 text-right"
+                />
+              </div>
+              <div className="pb-1 text-sm text-[#1A4D1F]/50">
+                {t("= نفس السعر لجميع الطلبات","= même prix pour toutes les commandes")}
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-xl px-4 py-2.5 border border-amber-200">
+              <AlertCircle size={14} className="flex-shrink-0" />
+              <span>{t("هذا الوضع يعطّل تلقائياً: رسوم المسافة، رسوم الليل، رسوم السريع، الحد الأدنى والأقصى","Ce mode désactive automatiquement : frais km, supplément nuit, express, min/max")}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className={`grid grid-cols-1 lg:grid-cols-3 gap-5 transition-all ${form.fixedFeeEnabled ? "opacity-40 pointer-events-none select-none" : ""}`}>
 
         {/* ── Column 1: Base Fees ── */}
         <div className="space-y-4">
@@ -2446,25 +2504,34 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[#1A4D1F]/50">{t("رسوم الانطلاق","Frais de base")}</span>
-                <span className="font-bold text-[#1A4D1F]">{Number(form.baseFee ?? 2).toFixed(3)} د.ت</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[#1A4D1F]/50">{t("رسوم المسافة","Frais km")}</span>
-                <span className="font-bold text-[#1A4D1F]">{(Number(form.ratePerKm ?? 0.5) * previewKm).toFixed(3)} د.ت</span>
-              </div>
-              {previewNight && previewFee.night > 0 && (
+              {previewFee.isFixed ? (
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-indigo-500">{t("رسوم الليل","Supplément nuit")}</span>
-                  <span className="font-bold text-indigo-500">+{previewFee.night.toFixed(3)} د.ت</span>
+                  <span className="text-[#FFA500] font-bold">{t("تسعيرة ثابتة 🔒","Tarif fixe 🔒")}</span>
+                  <span className="font-bold text-[#FFA500]">{Number(form.fixedFeeTnd ?? 5).toFixed(3)} د.ت</span>
                 </div>
-              )}
-              {previewExpress && form.expressEnabled && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-amber-600">{t("رسوم سريع","Express")}</span>
-                  <span className="font-bold text-amber-600">+{Number(form.expressSurchargeTnd ?? 1).toFixed(3)} د.ت</span>
-                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#1A4D1F]/50">{t("رسوم الانطلاق","Frais de base")}</span>
+                    <span className="font-bold text-[#1A4D1F]">{Number(form.baseFee ?? 2).toFixed(3)} د.ت</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#1A4D1F]/50">{t("رسوم المسافة","Frais km")}</span>
+                    <span className="font-bold text-[#1A4D1F]">{(Number(form.ratePerKm ?? 0.5) * previewKm).toFixed(3)} د.ت</span>
+                  </div>
+                  {previewNight && previewFee.night > 0 && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-indigo-500">{t("رسوم الليل","Supplément nuit")}</span>
+                      <span className="font-bold text-indigo-500">+{previewFee.night.toFixed(3)} د.ت</span>
+                    </div>
+                  )}
+                  {previewExpress && form.expressEnabled && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-amber-600">{t("رسوم سريع","Express")}</span>
+                      <span className="font-bold text-amber-600">+{Number(form.expressSurchargeTnd ?? 1).toFixed(3)} د.ت</span>
+                    </div>
+                  )}
+                </>
               )}
               <div className="border-t border-[#1A4D1F]/10 my-2" />
               <div className="flex items-center justify-between">
