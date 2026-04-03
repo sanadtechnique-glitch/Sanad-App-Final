@@ -18,6 +18,7 @@ export const deliveryConfigTable = pgTable("delivery_config", {
   expressSurchargeTnd:      real("express_surcharge_tnd").notNull().default(1.0),
   fixedFeeEnabled:          boolean("fixed_fee_enabled").notNull().default(false),
   fixedFeeTnd:              real("fixed_fee_tnd").notNull().default(5.0),
+  autoModeEnabled:          boolean("auto_mode_enabled").notNull().default(false),
   updatedAt:                timestamp("updated_at").defaultNow().notNull(),
 });
 

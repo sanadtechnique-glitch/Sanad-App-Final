@@ -2192,7 +2192,20 @@ interface DeliveryConfig {
   expressSurchargeTnd: number;
   fixedFeeEnabled: boolean;
   fixedFeeTnd: number;
+  autoModeEnabled: boolean;
   updatedAt: string;
+}
+
+interface AutoCtx {
+  label: string;
+  labelAr: string;
+  labelFr: string;
+  emoji: string;
+  surchargePercent: number;
+}
+interface AutoContextResp {
+  context: AutoCtx;
+  demo: { baseFee: number; kmFee: number; surchargeAmount: number; deliveryFee: number; etaMinutes: number };
 }
 
 function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string }) {
@@ -2204,16 +2217,29 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
   const [previewKm, setPreviewKm] = useState(3);
   const [previewNight, setPreviewNight] = useState(false);
   const [previewExpress, setPreviewExpress] = useState(false);
+  const [autoCtxResp, setAutoCtxResp] = useState<AutoContextResp | null>(null);
 
   const load = async () => {
     try {
-      const data = await get<DeliveryConfig>("/delivery-config");
+      const [data, autoData] = await Promise.all([
+        get<DeliveryConfig>("/delivery-config"),
+        get<AutoContextResp>("/auto-context"),
+      ]);
       setCfg(data);
       setForm(data);
+      setAutoCtxResp(autoData);
     } catch {}
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
+
+  // Refresh auto context every 30 seconds for live display
+  useEffect(() => {
+    const iv = setInterval(async () => {
+      try { setAutoCtxResp(await get<AutoContextResp>("/auto-context")); } catch {}
+    }, 30_000);
+    return () => clearInterval(iv);
+  }, []);
 
   const f = (field: keyof DeliveryConfig) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.type === "checkbox" ? e.target.checked : e.target.value;
@@ -2286,8 +2312,84 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
         )}
       </div>
 
+      {/* ── AUTO MODE BANNER ── */}
+      <div className={`rounded-2xl border-2 p-5 transition-all ${form.autoModeEnabled
+        ? "border-[#1A4D1F] bg-gradient-to-r from-[#1A4D1F]/5 to-[#1A4D1F]/10"
+        : "border-[#1A4D1F]/10 bg-white"}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${form.autoModeEnabled ? "bg-[#1A4D1F]" : "bg-[#1A4D1F]/8"}`}>
+              <Zap size={18} className={form.autoModeEnabled ? "text-[#FFA500]" : "text-[#1A4D1F]/40"} />
+            </div>
+            <div>
+              <p className="font-black text-[#1A4D1F] text-sm">{t("وضع تلقائي ذكي — بدون تدخل يدوي","Mode automatique intelligent — zéro intervention")}</p>
+              <p className="text-xs text-[#1A4D1F]/50 mt-0.5">{t("يحسب الرسوم تلقائياً حسب الوقت والطلب — ذروة، ليل، عطلة","Calcule les frais automatiquement selon l'heure et la demande")}</p>
+            </div>
+          </div>
+          <label className="flex items-center gap-3 cursor-pointer flex-shrink-0">
+            <span className="text-xs font-bold text-[#1A4D1F]/60">{form.autoModeEnabled ? t("مفعّل","Actif") : t("معطّل","Inactif")}</span>
+            <button type="button"
+              onClick={() => setForm(p => ({ ...p, autoModeEnabled: !p.autoModeEnabled }))}
+              className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none ${form.autoModeEnabled ? "bg-[#1A4D1F]" : "bg-[#1A4D1F]/20"}`}>
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ${form.autoModeEnabled ? "translate-x-8" : "translate-x-1"}`} />
+            </button>
+          </label>
+        </div>
+
+        {form.autoModeEnabled && (
+          <div className="mt-4 pt-4 border-t border-[#1A4D1F]/10 space-y-4">
+            {/* Current live context */}
+            {autoCtxResp && (
+              <div className="flex items-center gap-3 bg-[#1A4D1F]/8 rounded-xl px-4 py-3">
+                <span className="text-2xl">{autoCtxResp.context.emoji}</span>
+                <div className="flex-1">
+                  <p className="text-xs font-black text-[#1A4D1F]">{t("الوضع الحالي الآن:","Contexte actuel :")} <span className="text-[#FFA500]">{autoCtxResp.context.labelAr}</span></p>
+                  <p className="text-[10px] text-[#1A4D1F]/50 mt-0.5">{autoCtxResp.context.surchargePercent > 0
+                    ? t(`زيادة تلقائية: +${autoCtxResp.context.surchargePercent}%`, `Majoration automatique : +${autoCtxResp.context.surchargePercent}%`)
+                    : t("لا توجد زيادة — الوقت العادي","Aucune majoration — tarif standard")
+                  }</p>
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-black text-[#1A4D1F]/40">{t("مثال (3 كم):","Ex. (3 km) :")}</p>
+                  <p className="text-base font-black text-[#FFA500]">{autoCtxResp.demo.deliveryFee.toFixed(3)} <span className="text-xs">د.ت</span></p>
+                </div>
+              </div>
+            )}
+
+            {/* Schedule */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { emoji: "✅", ar: "وقت عادي",    fr: "Normal",     pct: 0,  time: t("باقي الأوقات","Reste du temps") },
+                { emoji: "☀️", ar: "ذروة الظهر",  fr: "Pointe midi", pct: 15, time: "12:00 – 14:00" },
+                { emoji: "🔥", ar: "ذروة المساء", fr: "Pointe soir", pct: 20, time: "18:00 – 21:00" },
+                { emoji: "🌙", ar: "الليل",       fr: "Nuit",        pct: 30, time: "22:00 – 06:00" },
+                { emoji: "🎉", ar: "عطلة نهاية الأسبوع", fr: "Week-end", pct: 10, time: t("جمعة + سبت","Ven + Sam") },
+              ].map(row => (
+                <div key={row.ar} className={`rounded-xl p-2.5 text-center border ${
+                  autoCtxResp?.context.surchargePercent === row.pct && autoCtxResp?.context.emoji === row.emoji
+                    ? "border-[#FFA500] bg-[#FFA500]/10" : "border-[#1A4D1F]/8 bg-[#1A4D1F]/3"}`}>
+                  <div className="text-lg mb-1">{row.emoji}</div>
+                  <div className="text-[10px] font-black text-[#1A4D1F]">{t(row.ar, row.fr)}</div>
+                  <div className={`text-xs font-black mt-0.5 ${row.pct > 0 ? "text-[#FFA500]" : "text-[#1A4D1F]/40"}`}>
+                    {row.pct > 0 ? `+${row.pct}%` : t("عادي","Standard")}
+                  </div>
+                  <div className="text-[9px] text-[#1A4D1F]/30 mt-0.5">{row.time}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-[#1A4D1F]/60 bg-[#1A4D1F]/5 rounded-xl px-4 py-2.5">
+              <Zap size={13} className="flex-shrink-0 text-[#1A4D1F]" />
+              <span>{t("رسوم أساسية: 2 د.ت + 0.5 د.ت/كم — تُطبَّق الزيادات تلقائياً دون أي تدخل","Base: 2 TND + 0.5 TND/km — majorations appliquées automatiquement")}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ── Fixed Fee Banner ── */}
-      <div className={`rounded-2xl border-2 p-5 transition-all ${form.fixedFeeEnabled
+      <div className={`rounded-2xl border-2 p-5 transition-all ${
+        form.autoModeEnabled ? "opacity-30 pointer-events-none select-none" : ""
+      } ${form.fixedFeeEnabled
         ? "border-[#FFA500] bg-gradient-to-r from-[#FFF3E0] to-[#FFF9F0]"
         : "border-[#1A4D1F]/10 bg-white"}`}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

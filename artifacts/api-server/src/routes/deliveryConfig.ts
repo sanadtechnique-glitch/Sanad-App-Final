@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { deliveryConfigTable } from "@workspace/db/schema";
 import { requireAdmin } from "../lib/authMiddleware";
 import { invalidateConfigCache } from "../lib/distance";
+import { getAutoContext, calcAutoFee } from "../lib/auto-pricing";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,13 @@ router.get("/delivery-config", async (req, res) => {
     req.log?.error({ err }, "Error fetching delivery config");
     res.status(500).json({ message: "Server error" });
   }
+});
+
+// GET /auto-context — real-time pricing context (public)
+router.get("/auto-context", (_req, res) => {
+  const ctx  = getAutoContext();
+  const demo = calcAutoFee(3); // 3 km demo calculation
+  res.json({ context: ctx, demo });
 });
 
 // PATCH /admin/delivery-config — admin only
@@ -49,6 +57,7 @@ router.patch("/admin/delivery-config", requireAdmin, async (req, res) => {
     if (expressSurchargeTnd !== undefined)      updates.expressSurchargeTnd      = Number(expressSurchargeTnd);
     if (fixedFeeEnabled !== undefined)          updates.fixedFeeEnabled          = Boolean(fixedFeeEnabled);
     if (fixedFeeTnd !== undefined)              updates.fixedFeeTnd              = Number(fixedFeeTnd);
+    if (req.body.autoModeEnabled !== undefined) updates.autoModeEnabled          = Boolean(req.body.autoModeEnabled);
     updates.updatedAt = new Date();
 
     // Upsert: ensure row id=1 exists

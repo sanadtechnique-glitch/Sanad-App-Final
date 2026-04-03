@@ -1,10 +1,11 @@
 import { db } from "@workspace/db";
 import { deliveryConfigTable } from "@workspace/db/schema";
+import { calcAutoFee, type AutoContext } from "./auto-pricing";
 
 const BEN_GUERDANE_LAT = 33.1167;
 const BEN_GUERDANE_LNG = 11.2167;
 
-// ─── Default values (used as fallback if DB not available) ───────────────────
+// ─── Default values (fallback when DB is not available) ──────────────────────
 const DEFAULTS = {
   baseFee: 2.0,
   ratePerKm: 0.5,
@@ -20,11 +21,12 @@ const DEFAULTS = {
   expressSurchargeTnd: 1.0,
   fixedFeeEnabled: false,
   fixedFeeTnd: 5.0,
+  autoModeEnabled: false,
 };
 
 export type DeliveryConfigSnapshot = typeof DEFAULTS;
 
-// ─── Cache: reload at most every 60 s to avoid per-request DB hits ───────────
+// ─── 60-second cache ─────────────────────────────────────────────────────────
 let cachedConfig: DeliveryConfigSnapshot | null = null;
 let cacheExpiresAt = 0;
 
@@ -35,7 +37,6 @@ export async function getDeliveryConfig(): Promise<DeliveryConfigSnapshot> {
   try {
     const rows = await db.select().from(deliveryConfigTable).limit(1);
     if (rows.length === 0) {
-      // Seed the default row
       await db.insert(deliveryConfigTable).values({ id: 1 }).onConflictDoNothing();
       cachedConfig = { ...DEFAULTS };
     } else {
@@ -55,6 +56,7 @@ export async function getDeliveryConfig(): Promise<DeliveryConfigSnapshot> {
         expressSurchargeTnd:       r.expressSurchargeTnd,
         fixedFeeEnabled:           r.fixedFeeEnabled,
         fixedFeeTnd:               r.fixedFeeTnd,
+        autoModeEnabled:           r.autoModeEnabled,
       };
     }
     cacheExpiresAt = now + 60_000;
@@ -70,7 +72,7 @@ export function invalidateConfigCache() {
   cacheExpiresAt = 0;
 }
 
-// ─── Haversine formula ────────────────────────────────────────────────────────
+// ─── Haversine formula (road factor × 1.35) ──────────────────────────────────
 export function haversineKm(
   lat1: number, lng1: number,
   lat2: number, lng2: number,
@@ -87,7 +89,7 @@ export function haversineKm(
   return Math.round(R * c * 1.35 * 100) / 100;
 }
 
-// ─── Google Maps Distance Matrix (optional) ───────────────────────────────────
+// ─── Google Maps (optional) ───────────────────────────────────────────────────
 async function googleMapsDistanceKm(
   originLat: number, originLng: number,
   destLat: number, destLng: number,
@@ -95,7 +97,7 @@ async function googleMapsDistanceKm(
 ): Promise<number | null> {
   try {
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originLat},${originLng}&destinations=${destLat},${destLng}&mode=driving&key=${apiKey}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    const res  = await fetch(url, { signal: AbortSignal.timeout(4000) });
     const data = await res.json() as {
       rows?: { elements?: { status: string; distance?: { value: number } }[] }[];
     };
@@ -109,7 +111,7 @@ async function googleMapsDistanceKm(
   }
 }
 
-// ─── Night surcharge helper ───────────────────────────────────────────────────
+// ─── Manual mode: night helper ────────────────────────────────────────────────
 function isNightTime(cfg: DeliveryConfigSnapshot): boolean {
   if (cfg.nightSurchargePercent === 0) return false;
   const h = new Date().getHours();
@@ -118,20 +120,23 @@ function isNightTime(cfg: DeliveryConfigSnapshot): boolean {
   return s > e ? (h >= s || h < e) : (h >= s && h < e);
 }
 
-// ─── Main calculation result ──────────────────────────────────────────────────
+// ─── Result shape ─────────────────────────────────────────────────────────────
 export interface DistanceResult {
-  distanceKm: number;
-  etaMinutes: number;
-  deliveryFee: number;
-  baseFee: number;
-  kmFee: number;
-  nightSurcharge: number;
+  distanceKm:         number;
+  etaMinutes:         number;
+  deliveryFee:        number;
+  baseFee:            number;
+  kmFee:              number;
+  nightSurcharge:     number;
   platformCommission: number;
-  isNight: boolean;
-  isFixed: boolean;
-  source: "google" | "haversine";
+  isNight:            boolean;
+  isFixed:            boolean;
+  isAuto:             boolean;
+  autoContext?:       AutoContext;
+  source:             "google" | "haversine";
 }
 
+// ─── Main entry ───────────────────────────────────────────────────────────────
 export async function calculateDistance(
   providerLat: number | null | undefined,
   providerLng: number | null | undefined,
@@ -139,11 +144,11 @@ export async function calculateDistance(
   customerLng: number,
   options?: { express?: boolean },
 ): Promise<DistanceResult> {
-  const cfg = await getDeliveryConfig();
+  const cfg  = await getDeliveryConfig();
   const pLat = providerLat ?? BEN_GUERDANE_LAT;
   const pLng = providerLng ?? BEN_GUERDANE_LNG;
 
-  // 1. Distance (always compute for ETA, even in fixed mode)
+  // ── Step 1: distance (needed for ETA in every mode) ──────────────────────
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   let distanceKm: number;
   let source: "google" | "haversine" = "haversine";
@@ -151,18 +156,38 @@ export async function calculateDistance(
   if (apiKey) {
     const gd = await googleMapsDistanceKm(pLat, pLng, customerLat, customerLng, apiKey);
     if (gd !== null) { distanceKm = gd; source = "google"; }
-    else { distanceKm = haversineKm(pLat, pLng, customerLat, customerLng); }
+    else              { distanceKm = haversineKm(pLat, pLng, customerLat, customerLng); }
   } else {
     distanceKm = haversineKm(pLat, pLng, customerLat, customerLng);
   }
 
-  // 2. ETA
-  const etaMinutes = cfg.prepTimeMinutes + Math.ceil(distanceKm / cfg.avgSpeedKmPerMin);
+  // ── Step 2: AUTO MODE — fully autonomous, zero admin intervention ─────────
+  if (cfg.autoModeEnabled) {
+    const auto = calcAutoFee(distanceKm);
+    const platformCommission = Math.round(
+      auto.deliveryFee * (cfg.platformCommissionPercent / 100) * 100,
+    ) / 100;
+    return {
+      distanceKm,
+      etaMinutes:         auto.etaMinutes,
+      deliveryFee:        auto.deliveryFee,
+      baseFee:            auto.baseFee,
+      kmFee:              auto.kmFee,
+      nightSurcharge:     auto.surchargeAmount,
+      platformCommission,
+      isNight:            auto.context.label === "night",
+      isFixed:            false,
+      isAuto:             true,
+      autoContext:        auto.context,
+      source,
+    };
+  }
 
-  // 3. Fixed fee mode — skip distance-based calculation
+  // ── Step 3: FIXED FEE MODE ────────────────────────────────────────────────
   if (cfg.fixedFeeEnabled) {
-    const deliveryFee = Math.round(cfg.fixedFeeTnd * 100) / 100;
+    const deliveryFee        = Math.round(cfg.fixedFeeTnd * 100) / 100;
     const platformCommission = Math.round(deliveryFee * (cfg.platformCommissionPercent / 100) * 100) / 100;
+    const etaMinutes         = cfg.prepTimeMinutes + Math.ceil(distanceKm / cfg.avgSpeedKmPerMin);
     return {
       distanceKm,
       etaMinutes,
@@ -173,35 +198,31 @@ export async function calculateDistance(
       platformCommission,
       isNight: false,
       isFixed: true,
+      isAuto:  false,
       source,
     };
   }
 
-  // 4. Base fee breakdown (dynamic mode)
-  const baseFee = cfg.baseFee;
-  const kmFee   = Math.round(cfg.ratePerKm * distanceKm * 100) / 100;
-  let subtotal   = baseFee + kmFee;
+  // ── Step 4: MANUAL / DYNAMIC MODE ────────────────────────────────────────
+  const etaMinutes = cfg.prepTimeMinutes + Math.ceil(distanceKm / cfg.avgSpeedKmPerMin);
+  const baseFee    = cfg.baseFee;
+  const kmFee      = Math.round(cfg.ratePerKm * distanceKm * 100) / 100;
+  let   subtotal   = baseFee + kmFee;
 
-  // 5. Express surcharge
   if (options?.express && cfg.expressEnabled) {
     subtotal += cfg.expressSurchargeTnd;
   }
 
-  // 6. Night surcharge
-  const night = isNightTime(cfg);
+  const night          = isNightTime(cfg);
   const nightSurcharge = night
     ? Math.round(subtotal * (cfg.nightSurchargePercent / 100) * 100) / 100
     : 0;
   subtotal += nightSurcharge;
-
-  // 7. Min / Max cap
-  subtotal = Math.max(subtotal, cfg.minFee);
+  subtotal  = Math.max(subtotal, cfg.minFee);
   if (cfg.maxFee != null) subtotal = Math.min(subtotal, cfg.maxFee);
 
-  // 8. Platform commission (informational — not added to customer fee)
   const platformCommission = Math.round(subtotal * (cfg.platformCommissionPercent / 100) * 100) / 100;
-
-  const deliveryFee = Math.round(subtotal * 100) / 100;
+  const deliveryFee        = Math.round(subtotal * 100) / 100;
 
   return {
     distanceKm,
@@ -213,6 +234,7 @@ export async function calculateDistance(
     platformCommission,
     isNight: night,
     isFixed: false,
+    isAuto:  false,
     source,
   };
 }
