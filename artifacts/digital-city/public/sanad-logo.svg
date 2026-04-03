@@ -1,46 +1,101 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 380" width="500" height="380">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400" width="500" height="400">
   <defs>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@700&amp;family=Outfit:wght@700&amp;display=swap');
     </style>
   </defs>
 
-  <!--
-    Arabic "سند" baseline=292, font-size=108.
-    Pin tip at y=232 (right at ن dot).
-    Pin center at y=196, radius=27. x=254 ≈ noon letter.
-  -->
-  <path
-    d="M254 169
-       C235 169 227 183 227 196
-       C227 217 254 232 254 232
-       C254 232 281 217 281 196
-       C281 183 273 169 254 169 Z"
-    fill="#006B3C"
+  <!-- ══════════════════════════════════════════
+       HEXAGONE (D) — flat-top, centred at 250,105
+       r=78 → vertices every 60°
+       top:    (250, 27)
+       TR:     (318, 66)
+       BR:     (318,144)
+       bottom: (250,183)
+       BL:     (182,144)
+       TL:     (182, 66)
+  ══════════════════════════════════════════ -->
+  <!-- Shadow / depth layer -->
+  <polygon
+    points="250,30 318,69 318,147 250,186 182,147 182,69"
+    fill="#004d2c"
+    transform="translate(4,5)"
+    opacity="0.18"
   />
-  <circle cx="254" cy="196" r="12" fill="#FFA500"/>
+  <!-- Main hexagon -->
+  <polygon
+    points="250,30 318,69 318,147 250,186 182,147 182,69"
+    fill="#006B3C"
+    stroke="#FFA500" stroke-width="5.5"
+  />
+  <!-- Inner lighter ring (B: badge detail) -->
+  <polygon
+    points="250,44 306,75 306,141 250,172 194,141 194,75"
+    fill="none"
+    stroke="rgba(255,255,255,0.18)" stroke-width="2"
+  />
 
-  <!-- Arabic: سند -->
+  <!-- ══════════════════════════════════════════
+       DOOR ICON (A) — inside hexagon, white
+       Arch: cx=250, cy=108
+  ══════════════════════════════════════════ -->
+  <!-- Arch door body -->
+  <path
+    d="M228,155 L228,108 A22,28 0 0,1 272,108 L272,155 Z"
+    fill="rgba(255,255,255,0.15)"
+    stroke="white" stroke-width="4.5" stroke-linejoin="round"
+  />
+  <!-- Arch top curve explicitly -->
+  <path
+    d="M228,108 A22,28 0 0,1 272,108"
+    fill="none" stroke="white" stroke-width="4.5"
+  />
+  <!-- Roof triangle (A element, orange) -->
+  <polygon
+    points="250,55 222,80 278,80"
+    fill="#FFA500"
+    opacity="0.95"
+  />
+  <!-- Door handle dot (orange, B element) -->
+  <circle cx="264" cy="133" r="5.5" fill="#FFA500"/>
+  <!-- Orange apex dot (B element) -->
+  <circle cx="250" cy="30" r="7" fill="#FFA500"/>
+  <!-- Side dots (B element) -->
+  <circle cx="182" cy="108" r="5" fill="#FFA500" opacity="0.7"/>
+  <circle cx="318" cy="108" r="5" fill="#FFA500" opacity="0.7"/>
+
+  <!-- ══════════════════════════════════════════
+       ARABIC TEXT — سند
+  ══════════════════════════════════════════ -->
   <text
-    x="250"
-    y="292"
+    x="250" y="295"
     text-anchor="middle"
     font-family="'Reem Kufi','Noto Kufi Arabic','Cairo',sans-serif"
-    font-size="108"
-    font-weight="700"
+    font-size="108" font-weight="700"
     fill="#006B3C"
     direction="rtl"
   >سند</text>
 
-  <!-- Latin: Sanad -->
+  <!-- ══════════════════════════════════════════
+       SPEED SWOOSH (C) — orange bar under Arabic
+  ══════════════════════════════════════════ -->
+  <!-- Full faded bar -->
+  <rect x="60" y="307" width="380" height="10" rx="5" fill="#FFA500" opacity="0.18"/>
+  <!-- Bold left segment -->
+  <rect x="60" y="307" width="160" height="10" rx="5" fill="#FFA500"/>
+  <!-- Tiny accent right -->
+  <rect x="370" y="307" width="70" height="10" rx="5" fill="#FFA500" opacity="0.55"/>
+
+  <!-- ══════════════════════════════════════════
+       LATIN TEXT — Sanad
+  ══════════════════════════════════════════ -->
   <text
-    x="250"
-    y="365"
+    x="250" y="372"
     text-anchor="middle"
     font-family="'Outfit','Montserrat','Arial',sans-serif"
-    font-size="62"
-    font-weight="700"
+    font-size="52" font-weight="700"
     fill="#006B3C"
-    letter-spacing="3"
+    letter-spacing="5"
   >Sanad</text>
+
 </svg>
