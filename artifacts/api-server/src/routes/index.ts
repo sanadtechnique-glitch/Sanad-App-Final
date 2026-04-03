@@ -14,6 +14,7 @@ import usersRouter from "./users";
 import notificationsRouter from "./notifications";
 import adsRouter from "./ads";
 import productsRouter from "./products";
+import deliveryConfigRouter from "./deliveryConfig";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(usersRouter);
 router.use(notificationsRouter);
 router.use(adsRouter);
 router.use(productsRouter);
+router.use(deliveryConfigRouter);
 
 export default router;

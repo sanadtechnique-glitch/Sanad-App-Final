@@ -11,3 +11,4 @@ export * from "./users";
 export * from "./broadcasts";
 export * from "./ads";
 export * from "./products";
+export * from "./deliveryConfig";

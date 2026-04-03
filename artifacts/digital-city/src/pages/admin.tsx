@@ -9,6 +9,7 @@ import {
   ChevronRight, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
   UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
   Image, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
+  Settings, Sliders, DollarSign, Zap, TrendingUp,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
@@ -2173,7 +2174,331 @@ function LiveMapSection({ t, lang }: { t: (ar: string, fr: string) => string; la
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map";
+// Section: Delivery Config
+// ──────────────────────────────────────────────────────────────────────────────
+interface DeliveryConfig {
+  id: number;
+  baseFee: number;
+  ratePerKm: number;
+  minFee: number;
+  maxFee: number | null;
+  nightSurchargePercent: number;
+  nightStartHour: number;
+  nightEndHour: number;
+  platformCommissionPercent: number;
+  prepTimeMinutes: number;
+  avgSpeedKmPerMin: number;
+  expressEnabled: boolean;
+  expressSurchargeTnd: number;
+  updatedAt: string;
+}
+
+function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const [cfg, setCfg] = useState<DeliveryConfig | null>(null);
+  const [form, setForm] = useState<Partial<DeliveryConfig>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [previewKm, setPreviewKm] = useState(3);
+  const [previewNight, setPreviewNight] = useState(false);
+  const [previewExpress, setPreviewExpress] = useState(false);
+
+  const load = async () => {
+    try {
+      const data = await get<DeliveryConfig>("/delivery-config");
+      setCfg(data);
+      setForm(data);
+    } catch {}
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const f = (field: keyof DeliveryConfig) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    setForm(prev => ({ ...prev, [field]: val }));
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload = { ...form };
+      if (payload.maxFee === null || payload.maxFee === undefined || String(payload.maxFee) === "") {
+        payload.maxFee = null;
+      }
+      const updated = await patch<DeliveryConfig>("/admin/delivery-config", payload);
+      setCfg(updated);
+      setForm(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {}
+    finally { setSaving(false); }
+  };
+
+  // Live preview calculation
+  const previewFee = (() => {
+    const base = Number(form.baseFee ?? 2);
+    const rate = Number(form.ratePerKm ?? 0.5);
+    const min  = Number(form.minFee ?? 2);
+    const max  = form.maxFee != null && String(form.maxFee) !== "" ? Number(form.maxFee) : null;
+    const nightPct = Number(form.nightSurchargePercent ?? 0);
+    const expressFee = form.expressEnabled && previewExpress ? Number(form.expressSurchargeTnd ?? 1) : 0;
+    let sub = base + rate * previewKm + expressFee;
+    const night = previewNight ? Math.round(sub * (nightPct / 100) * 100) / 100 : 0;
+    sub += night;
+    sub = Math.max(sub, min);
+    if (max != null) sub = Math.min(sub, max);
+    const commission = Math.round(sub * (Number(form.platformCommissionPercent ?? 0) / 100) * 100) / 100;
+    const eta = Number(form.prepTimeMinutes ?? 15) + Math.ceil(previewKm / Number(form.avgSpeedKmPerMin ?? 0.5));
+    return { total: Math.round(sub * 100) / 100, night, commission, eta };
+  })();
+
+  const card = "bg-white rounded-2xl p-5 border border-[#1A4D1F]/8 shadow-sm";
+  const label = "block text-xs font-black text-[#1A4D1F]/60 mb-1";
+  const input = "w-full rounded-xl border border-[#1A4D1F]/15 px-3 py-2 text-sm font-bold text-[#1A4D1F] bg-[#FFF9F0] focus:outline-none focus:ring-2 focus:ring-[#FFA500]/40 text-right";
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-48 text-[#1A4D1F]/40 text-sm font-bold">
+      {t("جارٍ التحميل...", "Chargement...")}
+    </div>
+  );
+
+  return (
+    <div className="space-y-6" dir="rtl">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-black text-[#1A4D1F]">{t("سيناريو عمولة التوصيل","Commission de livraison")}</h2>
+          <p className="text-xs text-[#1A4D1F]/40 mt-0.5">{t("حدّد قواعد احتساب رسوم التوصيل بمرونة كاملة","Définissez les règles de tarification de livraison")}</p>
+        </div>
+        {cfg?.updatedAt && (
+          <span className="text-[10px] text-[#1A4D1F]/30 bg-[#1A4D1F]/5 px-3 py-1 rounded-full">
+            {t("آخر تعديل:","Mis à jour :")} {new Date(cfg.updatedAt).toLocaleDateString("ar-TN")}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        {/* ── Column 1: Base Fees ── */}
+        <div className="space-y-4">
+          <div className={card}>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-[#FFA500]/15 flex items-center justify-center">
+                <DollarSign size={15} className="text-[#FFA500]" />
+              </div>
+              <span className="font-black text-[#1A4D1F] text-sm">{t("الرسوم الأساسية","Frais de base")}</span>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className={label}>{t("رسوم الانطلاق (دينار)","Frais de départ (TND)")}</label>
+                <input type="number" step="0.1" min="0" value={form.baseFee ?? ""} onChange={f("baseFee")} className={input} />
+                <p className="text-[10px] text-[#1A4D1F]/30 mt-1">{t("مبلغ ثابت لكل طلب بغض النظر عن المسافة","Montant fixe par commande quelle que soit la distance")}</p>
+              </div>
+              <div>
+                <label className={label}>{t("رسوم الكيلومتر (دينار/كم)","Tarif au km (TND/km)")}</label>
+                <input type="number" step="0.05" min="0" value={form.ratePerKm ?? ""} onChange={f("ratePerKm")} className={input} />
+                <p className="text-[10px] text-[#1A4D1F]/30 mt-1">{t("يُضاف لكل كيلومتر إضافي","Ajouté par kilomètre parcouru")}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className={card}>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-[#1A4D1F]/10 flex items-center justify-center">
+                <Sliders size={15} className="text-[#1A4D1F]" />
+              </div>
+              <span className="font-black text-[#1A4D1F] text-sm">{t("الحدود (أدنى / أقصى)","Plafonds (min / max)")}</span>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className={label}>{t("الحد الأدنى للتوصيل (دينار)","Frais minimum (TND)")}</label>
+                <input type="number" step="0.1" min="0" value={form.minFee ?? ""} onChange={f("minFee")} className={input} />
+              </div>
+              <div>
+                <label className={label}>{t("الحد الأقصى (دينار) — اتركه فارغاً للإلغاء","Plafond max (TND) — laisser vide pour désactiver")}</label>
+                <input type="number" step="0.1" min="0"
+                  value={form.maxFee == null ? "" : form.maxFee}
+                  onChange={e => setForm(p => ({ ...p, maxFee: e.target.value === "" ? null : Number(e.target.value) }))}
+                  className={input} placeholder={t("بلا سقف","Illimité")} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Column 2: Surcharges & Commission ── */}
+        <div className="space-y-4">
+          <div className={card}>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center">
+                <Moon size={15} className="text-indigo-500" />
+              </div>
+              <span className="font-black text-[#1A4D1F] text-sm">{t("رسوم الليل","Supplément nocturne")}</span>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className={label}>{t("نسبة زيادة الليل (%)","Majoration nocturne (%)")}</label>
+                <input type="number" step="1" min="0" max="100" value={form.nightSurchargePercent ?? ""} onChange={f("nightSurchargePercent")} className={input} />
+                <p className="text-[10px] text-[#1A4D1F]/30 mt-1">{t("0% = بدون رسوم ليل","0% = aucun supplément nocturne")}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={label}>{t("بداية الليل (ساعة)","Début nuit (heure)")}</label>
+                  <input type="number" step="1" min="0" max="23" value={form.nightStartHour ?? ""} onChange={f("nightStartHour")} className={input} />
+                </div>
+                <div>
+                  <label className={label}>{t("نهاية الليل (ساعة)","Fin nuit (heure)")}</label>
+                  <input type="number" step="1" min="0" max="23" value={form.nightEndHour ?? ""} onChange={f("nightEndHour")} className={input} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={card}>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-[#1A4D1F]/10 flex items-center justify-center">
+                <TrendingUp size={15} className="text-[#1A4D1F]" />
+              </div>
+              <span className="font-black text-[#1A4D1F] text-sm">{t("عمولة المنصة","Commission plateforme")}</span>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className={label}>{t("نسبة عمولة سند (%)","Commission Sanad (%)")}</label>
+                <input type="number" step="1" min="0" max="100" value={form.platformCommissionPercent ?? ""} onChange={f("platformCommissionPercent")} className={input} />
+                <p className="text-[10px] text-[#1A4D1F]/30 mt-1">{t("مقتطعة من رسوم التوصيل لصالح المنصة (معلوماتي فقط)","Prélevée sur les frais — indicatif uniquement")}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className={card}>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
+                <Zap size={15} className="text-amber-500" />
+              </div>
+              <span className="font-black text-[#1A4D1F] text-sm">{t("التوصيل السريع","Livraison express")}</span>
+            </div>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={!!form.expressEnabled} onChange={f("expressEnabled")}
+                  className="w-4 h-4 rounded accent-[#FFA500]" />
+                <span className="text-sm font-bold text-[#1A4D1F]">{t("تفعيل خيار التوصيل السريع","Activer la livraison express")}</span>
+              </label>
+              {form.expressEnabled && (
+                <div>
+                  <label className={label}>{t("رسوم إضافية للسريع (دينار)","Supplément express (TND)")}</label>
+                  <input type="number" step="0.1" min="0" value={form.expressSurchargeTnd ?? ""} onChange={f("expressSurchargeTnd")} className={input} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Column 3: ETA + Live Preview ── */}
+        <div className="space-y-4">
+          <div className={card}>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <Clock size={15} className="text-emerald-600" />
+              </div>
+              <span className="font-black text-[#1A4D1F] text-sm">{t("وقت الوصول المتوقع","Délai estimé (ETA)")}</span>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className={label}>{t("وقت التحضير (دقيقة)","Temps de préparation (min)")}</label>
+                <input type="number" step="1" min="0" value={form.prepTimeMinutes ?? ""} onChange={f("prepTimeMinutes")} className={input} />
+              </div>
+              <div>
+                <label className={label}>{t("متوسط السرعة (كم/دقيقة)","Vitesse moyenne (km/min)")}</label>
+                <input type="number" step="0.1" min="0.1" value={form.avgSpeedKmPerMin ?? ""} onChange={f("avgSpeedKmPerMin")} className={input} />
+                <p className="text-[10px] text-[#1A4D1F]/30 mt-1">{t("0.5 = 30 كم/ساعة","0.5 = 30 km/h")}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Live Preview Calculator */}
+          <div className="rounded-2xl border-2 border-[#FFA500]/40 bg-gradient-to-br from-[#FFF9F0] to-[#FFF3E0] p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-[#FFA500]/20 flex items-center justify-center">
+                <RefreshCw size={15} className="text-[#FFA500]" />
+              </div>
+              <span className="font-black text-[#1A4D1F] text-sm">{t("حاسبة مباشرة","Simulateur en direct")}</span>
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className={label}>{t("المسافة التجريبية (كم)","Distance de test (km)")}</label>
+                <input type="range" min="0.5" max="20" step="0.5" value={previewKm}
+                  onChange={e => setPreviewKm(Number(e.target.value))}
+                  className="w-full accent-[#FFA500]" />
+                <div className="text-center text-sm font-black text-[#1A4D1F]">{previewKm} كم</div>
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-[#1A4D1F]">
+                  <input type="checkbox" checked={previewNight} onChange={e => setPreviewNight(e.target.checked)} className="accent-[#FFA500]" />
+                  {t("ليل","Nuit")}
+                </label>
+                {form.expressEnabled && (
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-[#1A4D1F]">
+                    <input type="checkbox" checked={previewExpress} onChange={e => setPreviewExpress(e.target.checked)} className="accent-[#FFA500]" />
+                    {t("سريع","Express")}
+                  </label>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[#1A4D1F]/50">{t("رسوم الانطلاق","Frais de base")}</span>
+                <span className="font-bold text-[#1A4D1F]">{Number(form.baseFee ?? 2).toFixed(3)} د.ت</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[#1A4D1F]/50">{t("رسوم المسافة","Frais km")}</span>
+                <span className="font-bold text-[#1A4D1F]">{(Number(form.ratePerKm ?? 0.5) * previewKm).toFixed(3)} د.ت</span>
+              </div>
+              {previewNight && previewFee.night > 0 && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-indigo-500">{t("رسوم الليل","Supplément nuit")}</span>
+                  <span className="font-bold text-indigo-500">+{previewFee.night.toFixed(3)} د.ت</span>
+                </div>
+              )}
+              {previewExpress && form.expressEnabled && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-amber-600">{t("رسوم سريع","Express")}</span>
+                  <span className="font-bold text-amber-600">+{Number(form.expressSurchargeTnd ?? 1).toFixed(3)} د.ت</span>
+                </div>
+              )}
+              <div className="border-t border-[#1A4D1F]/10 my-2" />
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-[#1A4D1F]">{t("إجمالي رسوم التوصيل","Total livraison")}</span>
+                <span className="text-lg font-black text-[#FFA500]">{previewFee.total.toFixed(3)} <span className="text-xs">د.ت</span></span>
+              </div>
+              {Number(form.platformCommissionPercent ?? 0) > 0 && (
+                <div className="flex items-center justify-between text-xs mt-1">
+                  <span className="text-[#1A4D1F]/50">{t("عمولة سند","Commission Sanad")}</span>
+                  <span className="font-bold text-[#1A4D1F]">{previewFee.commission.toFixed(3)} د.ت</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[#1A4D1F]/50">{t("الوقت المتوقع","Délai estimé")}</span>
+                <span className="font-bold text-[#1A4D1F]">~{previewFee.eta} {t("دقيقة","min")}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Save button */}
+          <button onClick={save} disabled={saving}
+            className="w-full py-3 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2"
+            style={{ background: saved ? "#1A4D1F" : "#FFA500", color: saved ? "#FFF3E0" : "#1A4D1F" }}>
+            {saving ? <RefreshCw size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Settings size={16} />}
+            {saving ? t("جارٍ الحفظ...","Enregistrement...") : saved ? t("✓ تم الحفظ","✓ Enregistré") : t("حفظ الإعدادات","Enregistrer")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config";
 
 const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean }[] = [
   { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",       fr: "Tableau de bord" },
@@ -2189,6 +2514,7 @@ const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly
   { id: "staff",         icon: Truck,            ar: "السائقون",        fr: "Livreurs",      superOnly: true },
   { id: "delegations",   icon: Map,              ar: "المعتمديات",      fr: "Délégations",   superOnly: true },
   { id: "users",         icon: UserCog,          ar: "المستخدمون",      fr: "Utilisateurs",  superOnly: true },
+  { id: "delivery_config", icon: Settings,       ar: "عمولة التوصيل",   fr: "Commission",    superOnly: true },
 ];
 
 const ADMIN_USERNAME = "admin";
@@ -2420,6 +2746,7 @@ export default function Admin() {
             {active === "staff"         && isSuper && <DeliveryStaffSection t={t} />}
             {active === "delegations"   && isSuper && <DelegationsSection t={t} />}
             {active === "users"         && isSuper && <UsersSection t={t} />}
+            {active === "delivery_config" && isSuper && <DeliveryConfigSection t={t} />}
           </motion.div>
         </AnimatePresence>
       </main>

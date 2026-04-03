@@ -213,6 +213,39 @@ Suppliers with `category === "pharmacy"` have a `shift` field: `"day"`, `"night"
 - GPS coordinates section added: Latitude + Longitude inputs
 - Ben Guerdane defaults: 33.1167, 11.2167
 
+### Delivery Commission Scenario (عمولة التوصيل)
+
+**DB Table**: `delivery_config` (singleton row, id=1) — `lib/db/src/schema/deliveryConfig.ts`
+
+**Parameters**:
+| Field | Default | Description |
+|---|---|---|
+| `baseFee` | 2.0 TND | Fixed fee per order |
+| `ratePerKm` | 0.5 TND/km | Distance rate |
+| `minFee` | 2.0 TND | Minimum delivery fee cap |
+| `maxFee` | null | Maximum fee cap (null = no cap) |
+| `nightSurchargePercent` | 0% | Surcharge during night hours |
+| `nightStartHour` | 22 | Night start (24h clock) |
+| `nightEndHour` | 6 | Night end (24h clock) |
+| `platformCommissionPercent` | 0% | Platform's cut (informational) |
+| `prepTimeMinutes` | 15 | Preparation time for ETA |
+| `avgSpeedKmPerMin` | 0.5 | Speed for ETA (0.5 = 30 km/h) |
+| `expressEnabled` | false | Enable express delivery option |
+| `expressSurchargeTnd` | 1.0 TND | Express delivery extra fee |
+
+**Fee Formula**: `max(min(baseFee + ratePerKm×km + nightSurcharge + expressFee, maxFee), minFee)`
+
+**API Endpoints**:
+- `GET /api/delivery-config` — Public, returns current config (read by order pages)
+- `PATCH /api/admin/delivery-config` — Admin only, updates config + invalidates cache
+
+**Cache**: Config cached in memory 60 seconds to avoid per-request DB hits.
+
+**Admin UI**: New sidebar section "عمولة التوصيل / Commission" (super_admin only):
+- 3-column layout: Base Fees / Surcharges & Commission / ETA + Live Preview
+- Live calculator slider (0.5–20 km) with night/express checkboxes
+- Shows fee breakdown: base + km + night + express + platform commission + ETA
+
 ### DB Push Command
 
 ```
