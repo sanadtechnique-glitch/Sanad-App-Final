@@ -677,7 +677,7 @@ export default function Home() {
           className="flex items-center gap-2 cursor-pointer"
           onClick={() => navigate("/home")}
         >
-          <img src="/sanad-logo.svg" alt="سند" style={{ height: 88, width: "auto" }} draggable={false} />
+          <img src="/sanad-logo.svg?v=2" alt="سند" style={{ height: 88, width: "auto" }} draggable={false} />
         </motion.div>
 
         <motion.div
