@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, timestamp, integer, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -17,6 +17,7 @@ export const usersTable = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   linkedSupplierId: integer("linked_supplier_id"),
   linkedStaffId: integer("linked_staff_id"),
+  dateOfBirth: date("date_of_birth"),
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true });

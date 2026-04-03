@@ -300,10 +300,26 @@ function SignUpForm() {
   const [delegationName, setDelegationName]     = useState<string>("بنقردان");
   const [delegationOpen, setDelegationOpen]     = useState(false);
   const [delegationSearch, setDelegationSearch] = useState("");
+  const [dateOfBirth, setDateOfBirth]           = useState("");
+
+  // Max date: must be 18+ years old (today minus 18 years)
+  const today = new Date();
+  const maxDobDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
+    .toISOString().split("T")[0];
+
+  const isUnder18 = (dob: string): boolean => {
+    if (!dob) return false;
+    const d = new Date(dob);
+    if (isNaN(d.getTime())) return false;
+    const threshold = new Date(d.getFullYear() + 18, d.getMonth(), d.getDate());
+    return new Date() < threshold;
+  };
 
   const canSubmit =
     phone.trim() !== "" &&
     name.trim()  !== "" &&
+    dateOfBirth  !== "" &&
+    !isUnder18(dateOfBirth) &&
     password.trim() !== "" &&
     confirm.trim()  !== "" &&
     delegationName  !== "" &&
@@ -320,6 +336,14 @@ function SignUpForm() {
     e.preventDefault();
     setError(null);
 
+    if (!dateOfBirth) {
+      setError("تاريخ الميلاد مطلوب · La date de naissance est requise");
+      return;
+    }
+    if (isUnder18(dateOfBirth)) {
+      setError("يجب أن يكون عمرك 18 سنة على الأقل · Vous devez avoir au moins 18 ans");
+      return;
+    }
     if (password !== confirm) {
       setError("كلمة المرور غير متطابقة · Les mots de passe ne correspondent pas");
       return;
@@ -338,6 +362,7 @@ function SignUpForm() {
           phone: phone.trim(),
           name: name.trim(),
           password: password.trim(),
+          dateOfBirth: dateOfBirth.trim(),
         }),
       });
       const data = await res.json();
@@ -406,6 +431,47 @@ function SignUpForm() {
           placeholder="ما يظهر في طلباتك · Nom affiché"
           hasValue={name.length > 0}
         />
+      </div>
+
+      {/* Date of Birth */}
+      <div>
+        <FieldLabel>تاريخ الميلاد · Date de naissance <span className="text-red-400 font-black">*</span></FieldLabel>
+        <div className="relative">
+          <svg className="absolute top-1/2 -translate-y-1/2 start-3.5 pointer-events-none z-10 text-[#1A4D1F]/30" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <input
+            type="date"
+            value={dateOfBirth}
+            max={maxDobDate}
+            onChange={e => { setDateOfBirth(e.target.value); setError(null); }}
+            className="w-full ps-10 pe-4 py-3.5 rounded-xl border-2 text-right font-bold text-[#1A4D1F] outline-none transition-all appearance-none"
+            style={{
+              background: "#FFFFFF",
+              borderColor: dateOfBirth
+                ? isUnder18(dateOfBirth)
+                  ? "#ef4444"
+                  : "rgba(255,165,0,0.8)"
+                : "rgba(255,165,0,0.3)",
+              colorScheme: "light",
+            }}
+          />
+        </div>
+        {dateOfBirth && isUnder18(dateOfBirth) && (
+          <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <p className="text-xs font-bold text-red-500 text-right">
+              يجب أن يكون عمرك 18 سنة على الأقل · Vous devez avoir au moins 18 ans
+            </p>
+          </div>
+        )}
+        {!dateOfBirth && (
+          <p className="text-[11px] text-[#1A4D1F]/35 mt-1 text-right">
+            يجب أن يكون عمرك 18 سنة فأكثر · Vous devez avoir 18 ans ou plus
+          </p>
+        )}
       </div>
 
       {/* Delegation */}

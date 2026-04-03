@@ -179,9 +179,9 @@ router.post("/auth/admin-login", async (req, res) => {
 // Phone is the primary unique identifier
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/auth/client-register", async (req, res) => {
-  const { name, nickname, email, password, phone } = req.body as {
+  const { name, nickname, email, password, phone, dateOfBirth } = req.body as {
     name?: string; nickname?: string;
-    email?: string; password?: string; phone?: string;
+    email?: string; password?: string; phone?: string; dateOfBirth?: string;
   };
 
   const displayName = (nickname || name || "").trim();
@@ -203,6 +203,23 @@ router.post("/auth/client-register", async (req, res) => {
 
   if (email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
     res.status(400).json({ message: "البريد الإلكتروني غير صحيح · Adresse e-mail invalide" });
+    return;
+  }
+
+  // Date of birth validation — must be 18+ years old
+  if (!dateOfBirth || !dateOfBirth.trim()) {
+    res.status(400).json({ message: "تاريخ الميلاد مطلوب · La date de naissance est requise" });
+    return;
+  }
+  const dobDate = new Date(dateOfBirth.trim());
+  if (isNaN(dobDate.getTime())) {
+    res.status(400).json({ message: "تاريخ الميلاد غير صالح · Date de naissance invalide" });
+    return;
+  }
+  const today = new Date();
+  const age18Date = new Date(dobDate.getFullYear() + 18, dobDate.getMonth(), dobDate.getDate());
+  if (today < age18Date) {
+    res.status(400).json({ message: "يجب أن يكون عمرك 18 سنة على الأقل · Vous devez avoir au moins 18 ans" });
     return;
   }
 
@@ -231,6 +248,7 @@ router.post("/auth/client-register", async (req, res) => {
         phone: phone.trim(),
         role: "customer",
         isActive: true,
+        dateOfBirth: dateOfBirth.trim(),
       })
       .returning();
 
