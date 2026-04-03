@@ -137,21 +137,21 @@ function Router() {
 
       {/* ── Client protected pages ── */}
       <Route path="/services">
-        {() => <ProtectedRoute component={Services}      roles={["client"]} />}
+        {() => <ProtectedRoute component={Services}      roles={["client", "customer"]} />}
       </Route>
       <Route path="/order/:id">
-        {() => <ProtectedRoute component={Order}         roles={["client"]} />}
+        {() => <ProtectedRoute component={Order}         roles={["client", "customer"]} />}
       </Route>
       <Route path="/store/:id">
-        {() => <ProtectedRoute component={ProviderStore} roles={["client"]} />}
+        {() => <ProtectedRoute component={ProviderStore} roles={["client", "customer"]} />}
       </Route>
       <Route path="/hotel/:id">
-        {() => <ProtectedRoute component={HotelBooking}  roles={["client"]} />}
+        {() => <ProtectedRoute component={HotelBooking}  roles={["client", "customer"]} />}
       </Route>
 
       {/* ── Order history (multi-role) ── */}
       <Route path="/orders/history">
-        {() => <ProtectedRoute component={OrderHistory} roles={["client", "provider", "delivery"]} />}
+        {() => <ProtectedRoute component={OrderHistory} roles={["client", "customer", "provider", "delivery", "driver"]} />}
       </Route>
 
       {/* ── Deals / promotions (public) ── */}

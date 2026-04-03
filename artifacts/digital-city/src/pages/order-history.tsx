@@ -375,7 +375,7 @@ export default function OrderHistory() {
   const role = session.role as string;
 
   // ── Role meta ────────────────────────────────────────────────────────────────
-  const roleLabel = role === "client" ? t("عميل", "Client")
+  const roleLabel = (role === "client" || role === "customer") ? t("عميل", "Client")
     : role === "provider"             ? t("مزود خدمة", "Fournisseur")
     : role === "delivery"             ? t("سائق توصيل", "Livreur")
     : role;
@@ -390,7 +390,7 @@ export default function OrderHistory() {
     else setLoading(true);
     try {
       let orders: Order[] = [];
-      if (role === "client") {
+      if (role === "client" || role === "customer") {
         orders = await get<Order[]>(`/orders/customer?name=${encodeURIComponent(session.name)}`);
       } else if (role === "provider" && (session as any).supplierId) {
         orders = await get<Order[]>(`/provider/${(session as any).supplierId}/orders`);
