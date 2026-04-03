@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Logo Variations — سند</title>
+<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@700&family=Outfit:wght@700&family=Cairo:wght@700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #FFF3E0;
+    font-family: 'Cairo', sans-serif;
+    padding: 32px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .card {
+    background: white;
+    border-radius: 20px;
+    border: 2px solid rgba(255,165,0,0.25);
+    padding: 32px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 6px 24px rgba(26,77,31,0.08);
+  }
+  .card img { width: 200px; height: auto; }
+  .label {
+    text-align: center;
+    font-family: 'Cairo', sans-serif;
+  }
+  .label .letter {
+    display: inline-block;
+    width: 28px; height: 28px;
+    background: #006B3C;
+    color: white;
+    border-radius: 50%;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 28px;
+    margin-bottom: 6px;
+  }
+  .label .ar { font-size: 15px; font-weight: 700; color: #1A4D1F; }
+  .label .fr { font-size: 12px; color: #999; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <img src="/logo-a.svg" alt="Logo A">
+    <div class="label">
+      <div class="letter">A</div>
+      <div class="ar">الباب والسقف</div>
+      <div class="fr">Maison / Porte — يناسب "لباب الدار"</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <img src="/logo-b.svg" alt="Logo B">
+    <div class="label">
+      <div class="letter" style="background:#FFA500;">B</div>
+      <div class="ar">الشارة الدائرية</div>
+      <div class="fr">Badge circulaire — احترافي وكلاسيكي</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <img src="/logo-c.svg" alt="Logo C">
+    <div class="label">
+      <div class="letter">C</div>
+      <div class="ar">خط السرعة البرتقالي</div>
+      <div class="fr">Swoosh moderne — ديناميكي وعصري</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <img src="/logo-d.svg" alt="Logo D">
+    <div class="label">
+      <div class="letter" style="background:#FFA500;">D</div>
+      <div class="ar">السداسية التقنية</div>
+      <div class="fr">Hexagone tech — قوي ومعاصر</div>
+    </div>
+  </div>
+
+</body>
+</html>
