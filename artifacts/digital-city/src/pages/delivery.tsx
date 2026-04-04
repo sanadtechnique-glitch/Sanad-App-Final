@@ -299,6 +299,11 @@ export default function DeliveryDashboard() {
         body: JSON.stringify({ staffId: selected.id }),
       });
 
+      if (res.status === 401) {
+        clearSession();
+        navigate("/login");
+        return;
+      }
       if (res.status === 409) {
         // Another driver was faster — remove from our queue silently
         setIncomingQueue(prev => prev.filter(o => o.id !== order.id));

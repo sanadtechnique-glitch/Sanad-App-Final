@@ -1,6 +1,11 @@
-import { getSessionToken } from "./auth";
+import { getSessionToken, clearSession } from "./auth";
 
 const BASE = "/api";
+
+function handleSessionExpired() {
+  clearSession();
+  window.location.href = "/login";
+}
 
 export async function api<T = unknown>(
   path: string,
@@ -17,6 +22,20 @@ export async function api<T = unknown>(
     ...options,
     headers,
   });
+
+  if (res.status === 401) {
+    const err = await res.json().catch(() => ({ message: "Session expired or invalid" }));
+    const msg: string = (err as any).message ?? "";
+    if (
+      msg.includes("expired") ||
+      msg.includes("invalid") ||
+      msg.includes("Authentication required")
+    ) {
+      handleSessionExpired();
+    }
+    throw new Error(msg || "Unauthorized");
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error((err as any).message || "Request failed");
