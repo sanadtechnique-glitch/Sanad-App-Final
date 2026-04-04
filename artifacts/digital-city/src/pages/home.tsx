@@ -839,82 +839,142 @@ export default function Home() {
       </motion.section>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          2. SERVICES GRID
+          2. SERVICES GRID — redesigned
       ══════════════════════════════════════════════════════════════════════ */}
       <section className="px-4 sm:px-6 lg:px-10 mt-8">
+
+        {/* ── Section header ─────────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mb-5 text-right"
+          className="flex items-center justify-between mb-5"
+          dir="rtl"
         >
-          <h2 className="text-xl font-black text-[#1A4D1F]">
-            {t("خدماتنا", "Nos Services")}
-          </h2>
-          <p className="text-sm font-medium" style={{ color: "rgba(46,125,50,0.5)" }}>
-            {t("اختر الخدمة المناسبة", "Choisissez votre service")}
-          </p>
+          <div className="flex items-center gap-2.5">
+            <span className="w-1.5 h-7 rounded-full bg-[#FFA500] block flex-shrink-0" />
+            <div>
+              <h2 className="text-xl font-black text-[#1A4D1F] leading-tight">
+                {t("خدماتنا", "Nos Services")}
+              </h2>
+              <p className="text-xs font-medium leading-none mt-0.5" style={{ color: "rgba(46,125,50,0.45)" }}>
+                {t("اختر الخدمة المناسبة", "Choisissez votre service")}
+              </p>
+            </div>
+          </div>
+          <Link href="/services">
+            <button
+              className="text-[11px] font-black px-3 py-1.5 rounded-full border transition-all active:scale-95"
+              style={{
+                color: "#FFA500",
+                borderColor: "rgba(255,165,0,0.35)",
+                background: "rgba(255,165,0,0.07)",
+              }}
+            >
+              {t("عرض الكل", "Voir tout")} ←
+            </button>
+          </Link>
         </motion.div>
 
-        <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-3 sm:gap-4">
-          {CATEGORIES.map((cat, i) => {
-            const Icon = cat.icon;
-            const label = lang === "ar" ? cat.ar : cat.fr;
-            return (
-              <motion.div
-                key={cat.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + i * 0.05, type: "spring", stiffness: 280, damping: 22 }}
-              >
-                <Link href={`/services?category=${cat.id}`}>
-                  <div className="flex flex-col items-center text-center gap-2 cursor-pointer group">
-                    <div
-                      className="w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105"
-                      style={{
-                        border: "2.5px solid rgba(46,125,50,0.65)",
-                        background: "rgba(46,125,50,0.06)",
-                      }}
-                    >
-                      <Icon size={24} style={{ color: "#1A4D1F" }} />
-                    </div>
-                    <p className="font-black text-[11px] leading-snug" style={{ color: "#1A4D1F" }}>
-                      {label}
-                    </p>
-                  </div>
-                </Link>
-              </motion.div>
-            );
-          })}
-        </div>
+        {/* ── Category cards grid ────────────────────────────────────────── */}
+        {(() => {
+          const ACCENTS = ["#FFA500", "#1A4D1F", "#006B3C", "#D97706"];
+          return (
+            <div className="grid grid-cols-4 gap-2.5">
+              {CATEGORIES.map((cat, i) => {
+                const Icon = cat.icon;
+                const accent = ACCENTS[i % ACCENTS.length];
+                const bgAlpha = accent === "#FFA500" || accent === "#D97706" ? "rgba(255,165,0,0.07)" : "rgba(26,77,31,0.05)";
+                const borderAlpha = accent === "#FFA500" || accent === "#D97706" ? "rgba(255,165,0,0.22)" : "rgba(26,77,31,0.14)";
+                const iconBg = accent === "#FFA500" || accent === "#D97706" ? "rgba(255,165,0,0.13)" : "rgba(26,77,31,0.09)";
+                return (
+                  <motion.div
+                    key={cat.id}
+                    initial={{ opacity: 0, y: 18, scale: 0.94 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ delay: 0.12 + i * 0.06, type: "spring", stiffness: 300, damping: 24 }}
+                  >
+                    <Link href={`/services?category=${cat.id}`}>
+                      <div
+                        className="relative flex flex-col items-center text-center gap-2 pt-4 pb-3 px-1.5 rounded-2xl cursor-pointer group overflow-hidden transition-all duration-200 active:scale-95"
+                        style={{ background: bgAlpha, border: `1.5px solid ${borderAlpha}` }}
+                      >
+                        {/* Top accent line */}
+                        <div
+                          className="absolute top-0 inset-x-0 h-[3px] rounded-t-2xl transition-all duration-300 group-hover:h-[5px]"
+                          style={{ background: accent }}
+                        />
+
+                        {/* Icon container */}
+                        <div
+                          className="w-11 h-11 rounded-[14px] flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
+                          style={{ background: iconBg }}
+                        >
+                          <Icon size={20} style={{ color: accent }} strokeWidth={2} />
+                        </div>
+
+                        {/* Labels */}
+                        <div className="leading-tight">
+                          <p className="font-black text-[11px]" style={{ color: "#1A4D1F" }}>
+                            {cat.ar}
+                          </p>
+                          <p className="text-[8.5px] font-semibold mt-0.5" style={{ color: "rgba(26,77,31,0.38)" }}>
+                            {cat.fr}
+                          </p>
+                        </div>
+
+                        {/* Subtle shine on hover */}
+                        <div
+                          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
+                          style={{ background: `radial-gradient(ellipse at 50% 0%, ${accent}18 0%, transparent 65%)` }}
+                        />
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* ── Taxi quick-link ──────────────────────────────────────────────── */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.55, type: "spring", stiffness: 260, damping: 22 }}
-          className="mt-5"
+          transition={{ delay: 0.1, type: "spring", stiffness: 260, damping: 22 }}
+          className="mt-4"
         >
           <Link href="/taxi">
             <div
-              className="rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all hover:opacity-90 active:scale-95"
-              style={{ background: "linear-gradient(135deg, #1A4D1F 0%, #006B3C 100%)" }}
+              className="rounded-2xl px-4 py-3.5 flex items-center justify-between cursor-pointer transition-all active:scale-[0.98] overflow-hidden relative"
+              style={{ background: "linear-gradient(135deg, #0D3311 0%, #1A4D1F 45%, #006B3C 100%)" }}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(255,165,0,0.2)" }}>
-                  <span className="text-2xl">🚕</span>
+              {/* Decorative circle background */}
+              <div className="absolute -left-8 -top-8 w-32 h-32 rounded-full opacity-10" style={{ background: "#FFA500" }} />
+              <div className="absolute -right-4 -bottom-4 w-20 h-20 rounded-full opacity-[0.07]" style={{ background: "#FFA500" }} />
+
+              <div className="flex items-center gap-3 relative z-10">
+                <div
+                  className="w-11 h-11 rounded-[14px] flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(255,165,0,0.18)", border: "1.5px solid rgba(255,165,0,0.3)" }}
+                >
+                  <span className="text-xl leading-none">🚕</span>
                 </div>
-                <div className="text-right">
-                  <p className="text-white font-black text-base leading-none mb-0.5">
+                <div dir="rtl">
+                  <p className="text-white font-black text-sm leading-tight">
                     {lang === "ar" ? "اطلب تاكسي" : "Commander un Taxi"}
                   </p>
-                  <p className="text-green-200 text-xs font-medium">
-                    {lang === "ar" ? "توصيل لباب الدار · سريع وآمن" : "Rapide et sûr · à votre porte"}
+                  <p className="text-[10px] font-medium mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>
+                    {lang === "ar" ? "سريع · آمن · لباب الدار" : "Rapide · Sûr · À votre porte"}
                   </p>
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "#FFA500" }}>
-                <span className="text-white font-black text-lg">←</span>
+
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 relative z-10"
+                style={{ background: "#FFA500", boxShadow: "0 0 12px rgba(255,165,0,0.5)" }}
+              >
+                <span className="text-white font-black text-base leading-none" style={{ direction: "ltr" }}>→</span>
               </div>
             </div>
           </Link>
