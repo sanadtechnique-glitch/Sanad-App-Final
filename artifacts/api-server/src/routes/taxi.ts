@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { taxiDriversTable, taxiRequestsTable, usersTable } from "@workspace/db/schema";
 import { eq, and, not, inArray, gte, lte, desc } from "drizzle-orm";
-import { emitTaxiRequest, emitTaxiResponse } from "../lib/socket";
+import { emitTaxiRequest, emitTaxiResponse, emitTaxiDriverUpdate } from "../lib/socket";
 import { requireAuth } from "../lib/authMiddleware";
 
 const router = Router();
@@ -184,13 +184,9 @@ router.post("/taxi/request/:id/accept", requireAuth, async (req, res) => {
     .where(eq(taxiRequestsTable.id, id))
     .returning();
 
-  // Mark driver as unavailable
-  await db
-    .update(taxiDriversTable)
-    .set({ isAvailable: false })
-    .where(eq(taxiDriversTable.id, taxiDriver.id));
+  // NOTE: driver stays available until customer confirms
 
-  // Notify customer
+  // Notify customer — waiting for their confirmation
   if (request.customerId) {
     emitTaxiResponse(request.customerId, {
       requestId:   id,
@@ -205,6 +201,94 @@ router.post("/taxi/request/:id/accept", requireAuth, async (req, res) => {
   }
 
   res.json(updated);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOMER — POST /api/taxi/request/:id/confirm  (customer confirms driver ETA)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/taxi/request/:id/confirm", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid ID" }); return; }
+
+  const [request] = await db
+    .select()
+    .from(taxiRequestsTable)
+    .where(eq(taxiRequestsTable.id, id));
+
+  if (!request || request.status !== "accepted") {
+    res.status(400).json({ message: "الطلب غير قابل للتأكيد · Demande non confirmable" });
+    return;
+  }
+
+  await db
+    .update(taxiRequestsTable)
+    .set({ status: "in_progress", updatedAt: new Date() })
+    .where(eq(taxiRequestsTable.id, id));
+
+  // Mark driver as unavailable now that the ride is confirmed
+  if (request.assignedDriverId) {
+    await db
+      .update(taxiDriversTable)
+      .set({ isAvailable: false })
+      .where(eq(taxiDriversTable.id, request.assignedDriverId));
+
+    // Notify driver: customer confirmed → go pick them up
+    const [driverUser] = await db
+      .select({ userId: taxiDriversTable.userId })
+      .from(taxiDriversTable)
+      .where(eq(taxiDriversTable.id, request.assignedDriverId));
+
+    if (driverUser) {
+      emitTaxiDriverUpdate(driverUser.userId, {
+        status:        "confirmed",
+        requestId:     id,
+        customerName:  request.customerName,
+        pickupAddress: request.pickupAddress,
+      });
+    }
+  }
+
+  res.json({ success: true });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOMER — POST /api/taxi/request/:id/decline  (customer rejects driver ETA)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/taxi/request/:id/decline", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid ID" }); return; }
+
+  const [request] = await db
+    .select()
+    .from(taxiRequestsTable)
+    .where(eq(taxiRequestsTable.id, id));
+
+  if (!request || request.status !== "accepted") {
+    res.status(400).json({ message: "الطلب غير قابل للرفض · Demande non refusable" });
+    return;
+  }
+
+  await db
+    .update(taxiRequestsTable)
+    .set({ status: "cancelled", updatedAt: new Date() })
+    .where(eq(taxiRequestsTable.id, id));
+
+  // Notify driver: customer declined → they stay available
+  if (request.assignedDriverId) {
+    const [driverUser] = await db
+      .select({ userId: taxiDriversTable.userId })
+      .from(taxiDriversTable)
+      .where(eq(taxiDriversTable.id, request.assignedDriverId));
+
+    if (driverUser) {
+      emitTaxiDriverUpdate(driverUser.userId, {
+        status:    "declined",
+        requestId: id,
+      });
+    }
+  }
+
+  res.json({ success: true });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -302,7 +386,7 @@ router.post("/taxi/request/:id/reject", requireAuth, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DRIVER — GET /api/taxi/driver/current  (driver sees pending request for them)
+// DRIVER — GET /api/taxi/driver/current  (driver full state: pending / awaiting / active)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/taxi/driver/current", requireAuth, async (req, res) => {
   const driverUserId = (req as any).authSession?.userId;
@@ -314,23 +398,31 @@ router.get("/taxi/driver/current", requireAuth, async (req, res) => {
 
   if (!taxiDriver) { res.status(403).json({ message: "غير مرخص" }); return; }
 
-  const [request] = await db
-    .select()
-    .from(taxiRequestsTable)
-    .where(
-      and(
-        eq(taxiRequestsTable.assignedDriverId, taxiDriver.id),
-        eq(taxiRequestsTable.status, "pending")
-      )
-    )
-    .orderBy(taxiRequestsTable.createdAt)
-    .limit(1);
+  const [pendingReq, awaitingReq, activeReq] = await Promise.all([
+    // Driver received request, waiting for their accept/reject
+    db.select().from(taxiRequestsTable)
+      .where(and(eq(taxiRequestsTable.assignedDriverId, taxiDriver.id), eq(taxiRequestsTable.status, "pending")))
+      .orderBy(taxiRequestsTable.createdAt).limit(1).then(r => r[0] ?? null),
+    // Driver accepted + set ETA, waiting for customer confirmation
+    db.select().from(taxiRequestsTable)
+      .where(and(eq(taxiRequestsTable.assignedDriverId, taxiDriver.id), eq(taxiRequestsTable.status, "accepted")))
+      .limit(1).then(r => r[0] ?? null),
+    // Customer confirmed → driver en route
+    db.select().from(taxiRequestsTable)
+      .where(and(eq(taxiRequestsTable.assignedDriverId, taxiDriver.id), eq(taxiRequestsTable.status, "in_progress")))
+      .limit(1).then(r => r[0] ?? null),
+  ]);
 
-  res.json({ driver: taxiDriver, pendingRequest: request ?? null });
+  res.json({
+    driver:          taxiDriver,
+    pendingRequest:  pendingReq,
+    awaitingRequest: awaitingReq,
+    activeRequest:   activeReq,
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DRIVER — GET /api/taxi/driver/accepted  (driver sees their accepted ride)
+// DRIVER — GET /api/taxi/driver/accepted  (kept for backward compat — returns in_progress)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/taxi/driver/accepted", requireAuth, async (req, res) => {
   const driverUserId = (req as any).authSession?.userId;
@@ -348,12 +440,12 @@ router.get("/taxi/driver/accepted", requireAuth, async (req, res) => {
     .where(
       and(
         eq(taxiRequestsTable.assignedDriverId, taxiDriver.id),
-        eq(taxiRequestsTable.status, "accepted")
+        eq(taxiRequestsTable.status, "in_progress")
       )
     )
     .limit(1);
 
-  res.json({ driver: taxiDriver, acceptedRequest: request ?? null });
+  res.json({ driver: taxiDriver, activeRequest: request ?? null });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -77,6 +77,13 @@ export function emitTaxiResponse(customerId: number, payload: Record<string, unk
   } catch {}
 }
 
+// Notify a taxi driver of a customer action (confirmed / declined)
+export function emitTaxiDriverUpdate(driverUserId: number, payload: Record<string, unknown>) {
+  try {
+    getIO().to(`taxi_driver:${driverUserId}`).emit("taxi_update", payload);
+  } catch {}
+}
+
 // Emit generic order status change
 export function emitOrderStatus(orderId: number, status: string, extra?: Record<string, unknown> & { order?: { customerId?: number | null } }) {
   try {

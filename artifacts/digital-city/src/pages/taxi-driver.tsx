@@ -5,9 +5,9 @@ import { getSession } from "@/lib/auth";
 
 const API = "/api";
 
-type DriverView = "loading" | "unavailable" | "waiting" | "incoming" | "active" | "no_auth";
+type DriverView = "loading" | "unavailable" | "waiting" | "incoming" | "awaiting_customer" | "active" | "no_auth";
 
-interface PendingRequest {
+interface RideInfo {
   id: number;
   customerName: string;
   customerPhone: string | null;
@@ -18,15 +18,14 @@ interface PendingRequest {
   fixedAmount: number | null;
 }
 
-interface ActiveRequest {
-  id: number;
-  customerName: string;
-  customerPhone: string | null;
-  pickupAddress: string;
-  dropoffAddress: string | null;
+interface PendingRequest extends RideInfo {}
+
+interface AwaitingRequest extends RideInfo {
+  etaMinutes: number;
+}
+
+interface ActiveRequest extends RideInfo {
   etaMinutes: number | null;
-  commissionType: "meter" | "fixed";
-  fixedAmount: number | null;
 }
 
 interface DriverInfo {
@@ -43,13 +42,14 @@ export default function TaxiDriverPage() {
   const [, navigate] = useLocation();
   const session   = getSession();
 
-  const [view,           setView]           = useState<DriverView>("loading");
-  const [driver,         setDriver]         = useState<DriverInfo | null>(null);
-  const [pendingRequest, setPendingRequest] = useState<PendingRequest | null>(null);
-  const [activeRequest,  setActiveRequest]  = useState<ActiveRequest | null>(null);
-  const [etaInput,       setEtaInput]       = useState("5");
-  const [error,          setError]          = useState("");
-  const [actionLoading,  setActionLoading]  = useState(false);
+  const [view,             setView]             = useState<DriverView>("loading");
+  const [driver,           setDriver]           = useState<DriverInfo | null>(null);
+  const [pendingRequest,   setPendingRequest]   = useState<PendingRequest | null>(null);
+  const [awaitingRequest,  setAwaitingRequest]  = useState<AwaitingRequest | null>(null);
+  const [activeRequest,    setActiveRequest]    = useState<ActiveRequest | null>(null);
+  const [etaInput,         setEtaInput]         = useState("5");
+  const [error,            setError]            = useState("");
+  const [actionLoading,    setActionLoading]    = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
   const [activeTab,      setActiveTab]      = useState<"status" | "history">("status");
@@ -75,29 +75,28 @@ export default function TaxiDriverPage() {
   async function fetchDriverState() {
     if (!token) { setView("no_auth"); return; }
 
-    // Check for accepted ride first
-    const [currentRes, acceptedRes] = await Promise.all([
-      fetch(`${API}/taxi/driver/current`,  { headers }),
-      fetch(`${API}/taxi/driver/accepted`, { headers }),
-    ]);
+    const res = await fetch(`${API}/taxi/driver/current`, { headers });
 
-    if (currentRes.status === 403 || acceptedRes.status === 403) {
-      setView("no_auth"); return;
-    }
+    if (res.status === 403) { setView("no_auth"); return; }
 
-    const currentData  = currentRes.ok  ? await currentRes.json()  : null;
-    const acceptedData = acceptedRes.ok ? await acceptedRes.json() : null;
+    const data = res.ok ? await res.json() : null;
 
-    if (currentData?.driver) {
-      setDriver(currentData.driver);
+    if (data?.driver) {
+      setDriver(data.driver);
 
-      if (acceptedData?.acceptedRequest) {
-        setActiveRequest(acceptedData.acceptedRequest);
+      if (data.activeRequest) {
+        // Customer confirmed → driver en route
+        setActiveRequest(data.activeRequest);
         setView("active");
-      } else if (currentData.pendingRequest) {
-        setPendingRequest(currentData.pendingRequest);
+      } else if (data.awaitingRequest) {
+        // Driver accepted + set ETA, waiting for customer confirmation
+        setAwaitingRequest(data.awaitingRequest);
+        setView("awaiting_customer");
+      } else if (data.pendingRequest) {
+        // Driver received a new request
+        setPendingRequest(data.pendingRequest);
         setView("incoming");
-      } else if (!currentData.driver.isAvailable) {
+      } else if (!data.driver.isAvailable) {
         setView("unavailable");
       } else {
         setView("waiting");
@@ -141,6 +140,18 @@ export default function TaxiDriverPage() {
       setView("incoming");
     });
 
+    // Customer confirmed or declined the ETA
+    socket.on("taxi_update", (payload: { status: string }) => {
+      if (payload.status === "confirmed") {
+        // Customer confirmed → refresh to get in_progress state from server
+        fetchDriverState();
+      } else if (payload.status === "declined") {
+        // Customer declined → back to waiting
+        setAwaitingRequest(null);
+        setView("waiting");
+      }
+    });
+
     // Poll every 15s as fallback
     pollRef.current = setInterval(fetchDriverState, 15000);
 
@@ -167,18 +178,20 @@ export default function TaxiDriverPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.message || "خطأ"); setActionLoading(false); return; }
 
-      setActiveRequest({
-        id:            pendingRequest.id,
-        customerName:  pendingRequest.customerName,
-        customerPhone: pendingRequest.customerPhone,
-        pickupAddress: pendingRequest.pickupAddress,
+      // Move to awaiting_customer — waiting for customer to confirm the ETA
+      setAwaitingRequest({
+        id:             pendingRequest.id,
+        customerName:   pendingRequest.customerName,
+        customerPhone:  pendingRequest.customerPhone,
+        pickupAddress:  pendingRequest.pickupAddress,
         dropoffAddress: pendingRequest.dropoffAddress,
-        etaMinutes:    eta,
+        notes:          pendingRequest.notes,
         commissionType: pendingRequest.commissionType,
-        fixedAmount:   pendingRequest.fixedAmount,
+        fixedAmount:    pendingRequest.fixedAmount,
+        etaMinutes:     eta,
       });
       setPendingRequest(null);
-      setView("active");
+      setView("awaiting_customer");
     } catch { setError("تعذّر الاتصال بالخادم"); }
     setActionLoading(false);
   }
@@ -332,6 +345,83 @@ export default function TaxiDriverPage() {
               >
                 {actionLoading ? "..." : "قبول · Accepter"}
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── AWAITING CUSTOMER CONFIRMATION ────────────────────────────────────────
+  if (view === "awaiting_customer" && awaitingRequest) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ background: "#FFF3E0" }}>
+        <div className="py-4 px-4 text-center animate-pulse" style={{ background: "#FFA500" }}>
+          <h1 className="text-white text-lg font-black">⏳ في انتظار تأكيد الزبون</h1>
+          <p className="text-white text-xs">En attente de confirmation client…</p>
+        </div>
+        <div className="flex-1 p-4 max-w-sm mx-auto w-full" dir="rtl">
+          <div className="bg-white rounded-2xl shadow-lg p-5 mb-4">
+            <div className="flex items-center gap-3 mb-4 pb-3 border-b">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#FFF3E0" }}>
+                <span className="text-xl">👤</span>
+              </div>
+              <div>
+                <p className="font-bold" style={{ color: "#1A4D1F" }}>{awaitingRequest.customerName}</p>
+                {awaitingRequest.customerPhone && (
+                  <a href={`tel:${awaitingRequest.customerPhone}`} className="text-sm text-blue-600">
+                    📞 {awaitingRequest.customerPhone}
+                  </a>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div className="flex gap-3">
+                <span>📍</span>
+                <div>
+                  <p className="text-xs text-gray-400">نقطة الانطلاق</p>
+                  <p className="font-bold text-sm" style={{ color: "#1A4D1F" }}>{awaitingRequest.pickupAddress}</p>
+                </div>
+              </div>
+              {awaitingRequest.dropoffAddress && (
+                <div className="flex gap-3">
+                  <span>🏁</span>
+                  <div>
+                    <p className="text-xs text-gray-400">الوجهة</p>
+                    <p className="font-bold text-sm" style={{ color: "#1A4D1F" }}>{awaitingRequest.dropoffAddress}</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-3">
+                <span>💵</span>
+                <div>
+                  <p className="text-xs text-gray-400">الأجرة</p>
+                  <p className="font-bold text-sm" style={{ color: "#1A4D1F" }}>
+                    {awaitingRequest.commissionType === "fixed"
+                      ? `${awaitingRequest.fixedAmount?.toFixed(3)} دينار (ثابت)`
+                      : "⏱ عدّاد"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span>⏰</span>
+                <div>
+                  <p className="text-xs text-gray-400">وقت الوصول المقترح</p>
+                  <p className="font-bold text-xl" style={{ color: "#FFA500" }}>{awaitingRequest.etaMinutes} دقيقة</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl p-3 text-center" style={{ background: "#FFF3E0" }}>
+              <p className="text-sm font-bold" style={{ color: "#1A4D1F" }}>قبلت الطلب ✅</p>
+              <p className="text-xs text-gray-500 mt-1">الزبون يراجع عرضك الآن…</p>
+              <p className="text-xs text-gray-400">Le client examine votre offre…</p>
+              <div className="flex justify-center gap-2 mt-3">
+                {[0,1,2].map(i => (
+                  <div key={i} className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#FFA500", animationDelay: `${i * 0.2}s` }} />
+                ))}
+              </div>
             </div>
           </div>
         </div>

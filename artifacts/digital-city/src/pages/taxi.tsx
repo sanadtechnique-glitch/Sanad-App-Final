@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 
 const API = "/api";
 
-type RequestStatus = "idle" | "searching" | "pending" | "accepted" | "completed" | "cancelled" | "no_driver" | "error";
+type RequestStatus = "idle" | "searching" | "pending" | "accepted" | "in_progress" | "completed" | "cancelled" | "no_driver" | "error";
 
 interface DriverInfo {
   name: string;
@@ -55,12 +55,13 @@ export default function TaxiPage() {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError,   setGpsError]   = useState("");
 
-  const [requestId,  setRequestId]  = useState<number | null>(null);
-  const [status,     setStatus]     = useState<RequestStatus>("idle");
-  const [etaMinutes, setEtaMinutes] = useState<number | null>(null);
-  const [driverInfo, setDriverInfo] = useState<DriverInfo | null>(null);
-  const [error,      setError]      = useState("");
-  const [loading,    setLoading]    = useState(false);
+  const [requestId,      setRequestId]      = useState<number | null>(null);
+  const [status,         setStatus]         = useState<RequestStatus>("idle");
+  const [etaMinutes,     setEtaMinutes]     = useState<number | null>(null);
+  const [driverInfo,     setDriverInfo]     = useState<DriverInfo | null>(null);
+  const [error,          setError]          = useState("");
+  const [loading,        setLoading]        = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -151,18 +152,28 @@ export default function TaxiPage() {
 
   // ── polling fallback (every 8 seconds) ────────────────────────────────────
   useEffect(() => {
-    if (!requestId || status === "accepted" || status === "no_driver" || status === "idle") return;
+    if (!requestId || status === "accepted" || status === "in_progress" || status === "no_driver" || status === "idle") return;
 
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetch(`${API}/taxi/request/${requestId}/status`);
         if (!res.ok) return;
         const data: TaxiRequest = await res.json();
-        setStatus(data.status);
         if (data.status === "accepted") {
+          setStatus("accepted");
           setEtaMinutes(data.etaMinutes ?? null);
           setDriverInfo(data.driverInfo ?? null);
           clearInterval(pollRef.current!);
+        } else if (data.status === "in_progress") {
+          setStatus("in_progress");
+          setEtaMinutes(data.etaMinutes ?? null);
+          setDriverInfo(data.driverInfo ?? null);
+          clearInterval(pollRef.current!);
+        } else if (data.status === "cancelled") {
+          reset();
+          clearInterval(pollRef.current!);
+        } else {
+          setStatus(data.status);
         }
       } catch {}
     }, 8000);
@@ -194,7 +205,7 @@ export default function TaxiPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerId:    session?.id ?? undefined,
+          customerId:    session?.userId ?? undefined,
           customerName:  customerName.trim(),
           pickupAddress: pickupAddress.trim(),
           pickupLat:     pickupLat ?? undefined,
@@ -230,6 +241,28 @@ export default function TaxiPage() {
     setNotes("");
   }
 
+  // ── Confirm driver ETA ─────────────────────────────────────────────────────
+  async function handleConfirm() {
+    if (!requestId) return;
+    setConfirmLoading(true);
+    try {
+      const res = await fetch(`${API}/taxi/request/${requestId}/confirm`, { method: "POST" });
+      if (res.ok) setStatus("in_progress");
+    } catch {}
+    setConfirmLoading(false);
+  }
+
+  // ── Decline driver ETA (cancel request) ───────────────────────────────────
+  async function handleDecline() {
+    if (!requestId) return;
+    setConfirmLoading(true);
+    try {
+      await fetch(`${API}/taxi/request/${requestId}/decline`, { method: "POST" });
+      reset();
+    } catch {}
+    setConfirmLoading(false);
+  }
+
   // ── STATUS SCREENS ─────────────────────────────────────────────────────────
   if (status === "searching" || status === "pending") {
     return (
@@ -255,55 +288,120 @@ export default function TaxiPage() {
 
   if (status === "accepted" && driverInfo) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ background: "#FFF3E0" }}>
-        <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-6 text-center">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "#1A4D1F" }}>
-            <span className="text-3xl">🚕</span>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ background: "#FFF3E0" }} dir="rtl">
+        <div className="w-full max-w-sm">
+          {/* Driver offered ETA */}
+          <div className="bg-white rounded-2xl shadow-lg p-5 mb-4">
+            <p className="text-center font-bold text-base mb-1" style={{ color: "#1A4D1F" }}>🚕 قبل السائق طلبك!</p>
+            <p className="text-center text-xs text-gray-500 mb-4">Le chauffeur a accepté — confirmez-vous ?</p>
+
+            {/* ETA — highlighted */}
+            <div className="rounded-2xl p-4 mb-4 text-center" style={{ background: "#FFF3E0" }}>
+              <p className="text-xs text-gray-500 mb-1">وقت وصوله المقدّر · ETA proposé</p>
+              <p className="text-5xl font-black" style={{ color: "#FFA500" }}>{etaMinutes}</p>
+              <p className="text-sm font-bold" style={{ color: "#1A4D1F" }}>دقيقة · minutes</p>
+            </div>
+
+            {/* Driver info */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                <span className="text-xl">👤</span>
+                <div>
+                  <p className="font-bold text-sm" style={{ color: "#1A4D1F" }}>{driverInfo.name}</p>
+                  <p className="text-xs text-gray-400">السائق · Chauffeur</p>
+                </div>
+              </div>
+              <a href={`tel:${driverInfo.phone}`} className="flex items-center gap-3 p-3 rounded-xl bg-green-50">
+                <span className="text-xl">📞</span>
+                <div>
+                  <p className="font-bold text-sm text-green-700">{driverInfo.phone}</p>
+                  <p className="text-xs text-gray-400">اتصل به · Appeler</p>
+                </div>
+              </a>
+              {(driverInfo.carModel || driverInfo.carPlate) && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                  <span className="text-xl">🚗</span>
+                  <div>
+                    <p className="font-bold text-sm" style={{ color: "#1A4D1F" }}>
+                      {[driverInfo.carColor, driverInfo.carModel].filter(Boolean).join(" ")}
+                    </p>
+                    {driverInfo.carPlate && <p className="text-xs text-gray-400">لوحة: {driverInfo.carPlate}</p>}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <h2 className="text-2xl font-bold mb-1" style={{ color: "#1A4D1F" }}>تم قبول الطلب!</h2>
-          <p className="text-gray-500 text-sm mb-5">Demande acceptée !</p>
+
+          {/* Confirm / Decline buttons */}
+          <button
+            onClick={handleConfirm}
+            disabled={confirmLoading}
+            className="w-full py-4 rounded-2xl text-white font-black text-lg mb-3 shadow-lg"
+            style={{ background: confirmLoading ? "#9ca3af" : "#006B3C" }}
+          >
+            {confirmLoading ? "⏳..." : "✅ أوافق · Je confirme"}
+          </button>
+          <button
+            onClick={handleDecline}
+            disabled={confirmLoading}
+            className="w-full py-3 rounded-2xl font-bold text-sm"
+            style={{ background: "transparent", color: "#ef4444", border: "2px solid #ef4444" }}
+          >
+            ❌ لا أوافق على هذا الوقت · Refuser
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "in_progress") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ background: "#FFF3E0" }} dir="rtl">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-6 text-center">
+          <div className="text-6xl mb-4">🚕💨</div>
+          <h2 className="text-2xl font-black mb-1" style={{ color: "#1A4D1F" }}>السائق في الطريق!</h2>
+          <p className="text-gray-500 text-sm mb-5">Le chauffeur est en route !</p>
 
           {etaMinutes && (
-            <div className="rounded-xl p-4 mb-4" style={{ background: "#FFF3E0" }}>
-              <p className="text-4xl font-black" style={{ color: "#FFA500" }}>{etaMinutes} دق</p>
-              <p className="text-sm text-gray-500">وقت الوصول · ETA</p>
+            <div className="rounded-2xl p-4 mb-4" style={{ background: "#FFF3E0" }}>
+              <p className="text-4xl font-black" style={{ color: "#FFA500" }}>{etaMinutes}</p>
+              <p className="text-sm text-gray-500">دقيقة · minutes</p>
             </div>
           )}
 
-          <div className="text-right space-y-2 mb-6">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-              <span className="text-xl">👤</span>
-              <div>
-                <p className="font-bold text-sm" style={{ color: "#1A4D1F" }}>{driverInfo.name}</p>
-                <p className="text-xs text-gray-400">السائق · Chauffeur</p>
-              </div>
-            </div>
-            <a href={`tel:${driverInfo.phone}`} className="flex items-center gap-3 p-3 rounded-lg bg-green-50">
-              <span className="text-xl">📞</span>
-              <div>
-                <p className="font-bold text-sm text-green-700">{driverInfo.phone}</p>
-                <p className="text-xs text-gray-400">اتصل · Appeler</p>
-              </div>
-            </a>
-            {(driverInfo.carModel || driverInfo.carPlate) && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-                <span className="text-xl">🚗</span>
+          {driverInfo && (
+            <div className="space-y-2 text-right mb-5">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                <span className="text-xl">👤</span>
                 <div>
-                  <p className="font-bold text-sm" style={{ color: "#1A4D1F" }}>
-                    {[driverInfo.carColor, driverInfo.carModel].filter(Boolean).join(" ")}
-                  </p>
-                  {driverInfo.carPlate && <p className="text-xs text-gray-400">لوحة: {driverInfo.carPlate}</p>}
+                  <p className="font-bold text-sm" style={{ color: "#1A4D1F" }}>{driverInfo.name}</p>
+                  <p className="text-xs text-gray-400">السائق · Chauffeur</p>
                 </div>
               </div>
-            )}
-          </div>
+              <a href={`tel:${driverInfo.phone}`} className="flex items-center gap-3 p-3 rounded-xl bg-green-50">
+                <span className="text-xl">📞</span>
+                <p className="font-bold text-sm text-green-700">{driverInfo.phone}</p>
+              </a>
+              {(driverInfo.carModel || driverInfo.carPlate) && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                  <span className="text-xl">🚗</span>
+                  <div>
+                    <p className="font-bold text-sm" style={{ color: "#1A4D1F" }}>
+                      {[driverInfo.carColor, driverInfo.carModel].filter(Boolean).join(" ")}
+                    </p>
+                    {driverInfo.carPlate && <p className="text-xs text-gray-400">لوحة: {driverInfo.carPlate}</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             onClick={reset}
-            className="w-full py-3 rounded-xl text-white font-bold"
+            className="w-full py-3 rounded-xl text-white font-bold text-sm"
             style={{ background: "#1A4D1F" }}
           >
-            طلب تاكسي جديد · Nouveau taxi
+            🏁 طلب تاكسي جديد · Nouveau taxi
           </button>
         </div>
       </div>
