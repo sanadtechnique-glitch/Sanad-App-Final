@@ -1107,11 +1107,12 @@ const SOURCE_LABEL: Record<"users" | "providers" | "drivers", { ar: string; colo
 };
 
 const ROLE_OPTIONS: { value: string; ar: string; fr: string; color: string }[] = [
-  { value: "super_admin", ar: "مدير عام",    fr: "Super Admin",  color: "#0D3311" },
-  { value: "manager",     ar: "مسؤول",       fr: "Manager",      color: "#1A4D1F" },
-  { value: "provider",    ar: "مزود / تاجر", fr: "Fournisseur",  color: "#1A4D1F" },
-  { value: "driver",      ar: "موزع",        fr: "Livreur",      color: "#0D3311" },
-  { value: "customer",    ar: "زبون",        fr: "Client",       color: "#FFA500" },
+  { value: "super_admin",  ar: "مدير عام",       fr: "Super Admin",   color: "#0D3311" },
+  { value: "manager",      ar: "مسؤول",          fr: "Manager",       color: "#1A4D1F" },
+  { value: "provider",     ar: "مزود / تاجر",    fr: "Fournisseur",   color: "#1A4D1F" },
+  { value: "driver",       ar: "موزع",           fr: "Livreur",       color: "#0D3311" },
+  { value: "taxi_driver",  ar: "سائق تاكسي",     fr: "Chauffeur taxi",color: "#FFA500" },
+  { value: "customer",     ar: "زبون",           fr: "Client",        color: "#006B3C" },
 ];
 
 function RoleBadge({ role }: { role: string }) {

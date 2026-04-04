@@ -21,22 +21,42 @@ interface TaxiRequest {
   driverInfo?: DriverInfo | null;
 }
 
-// ── helpers ────────────────────────────────────────────────────────────────────
 function getSession() {
   try { return JSON.parse(localStorage.getItem("sanad_session") || "null"); } catch { return null; }
+}
+
+// ── Reverse-geocode coordinates to a human-readable address
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ar`,
+      { headers: { "Accept-Language": "ar" } }
+    );
+    const json = await res.json();
+    if (json?.display_name) {
+      // Shorten to suburb + city
+      const parts = json.display_name.split(",");
+      return parts.slice(0, 3).join("،").trim();
+    }
+  } catch {}
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 }
 
 export default function TaxiPage() {
   const [, navigate] = useLocation();
   const session = getSession();
 
-  const [customerName,    setCustomerName]    = useState(session?.username || "");
-  const [customerPhone,   setCustomerPhone]   = useState(session?.phone    || "");
-  const [pickupAddress,   setPickupAddress]   = useState("");
-  const [dropoffAddress,  setDropoffAddress]  = useState("");
-  const [notes,           setNotes]           = useState("");
-  const [commissionType,  setCommissionType]  = useState<"meter" | "fixed">("meter");
-  const [fixedAmount,     setFixedAmount]     = useState("");
+  const [customerName,   setCustomerName]   = useState(session?.name || session?.username || "");
+  const [pickupAddress,  setPickupAddress]  = useState("");
+  const [pickupLat,      setPickupLat]      = useState<number | null>(null);
+  const [pickupLng,      setPickupLng]      = useState<number | null>(null);
+  const [dropoffAddress, setDropoffAddress] = useState("");
+  const [notes,          setNotes]          = useState("");
+  const [commissionType, setCommissionType] = useState<"meter" | "fixed">("meter");
+  const [fixedAmount,    setFixedAmount]    = useState("");
+
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError,   setGpsError]   = useState("");
 
   const [requestId,  setRequestId]  = useState<number | null>(null);
   const [status,     setStatus]     = useState<RequestStatus>("idle");
@@ -47,6 +67,58 @@ export default function TaxiPage() {
 
   const socketRef = useRef<Socket | null>(null);
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Auto-request GPS on mount (non-blocking) ──────────────────────────────
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setPickupLat(lat);
+        setPickupLng(lng);
+        const addr = await reverseGeocode(lat, lng);
+        setPickupAddress(addr);
+        setGpsLoading(false);
+      },
+      () => {
+        setGpsLoading(false);
+        // Silent — user can type manually
+      },
+      { timeout: 8000, maximumAge: 60000 }
+    );
+  }, []);
+
+  // ── Manual GPS button ──────────────────────────────────────────────────────
+  function requestGps() {
+    if (!navigator.geolocation) {
+      setGpsError("المتصفح لا يدعم تحديد الموقع · GPS non supporté");
+      return;
+    }
+    setGpsError("");
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setPickupLat(lat);
+        setPickupLng(lng);
+        const addr = await reverseGeocode(lat, lng);
+        setPickupAddress(addr);
+        setGpsLoading(false);
+      },
+      (err) => {
+        setGpsLoading(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setGpsError("لم يُسمح بالوصول للموقع. أدخله يدوياً · Accès refusé");
+        } else {
+          setGpsError("تعذّر تحديد الموقع · Position introuvable");
+        }
+      },
+      { timeout: 10000 }
+    );
+  }
 
   // ── socket (real-time driver response) ────────────────────────────────────
   useEffect(() => {
@@ -94,8 +166,6 @@ export default function TaxiPage() {
           setEtaMinutes(data.etaMinutes ?? null);
           setDriverInfo(data.driverInfo ?? null);
           clearInterval(pollRef.current!);
-        } else if (data.status === "searching" && !data.driverInfo) {
-          // still searching
         }
       } catch {}
     }, 8000);
@@ -108,8 +178,12 @@ export default function TaxiPage() {
     e.preventDefault();
     setError("");
 
-    if (!customerName.trim() || !pickupAddress.trim()) {
-      setError("يرجى إدخال الاسم وعنوان الانطلاق · Nom et adresse requis");
+    if (!customerName.trim()) {
+      setError("يرجى إدخال اسمك · Votre nom est requis");
+      return;
+    }
+    if (!pickupAddress.trim()) {
+      setError("يرجى تحديد نقطة الانطلاق · Adresse de départ requise");
       return;
     }
     if (commissionType === "fixed" && (!fixedAmount || parseFloat(fixedAmount) <= 0)) {
@@ -125,8 +199,9 @@ export default function TaxiPage() {
         body: JSON.stringify({
           customerId:    session?.id ?? undefined,
           customerName:  customerName.trim(),
-          customerPhone: customerPhone.trim() || undefined,
           pickupAddress: pickupAddress.trim(),
+          pickupLat:     pickupLat ?? undefined,
+          pickupLng:     pickupLng ?? undefined,
           dropoffAddress: dropoffAddress.trim() || undefined,
           notes:          notes.trim() || undefined,
           commissionType,
@@ -152,6 +227,8 @@ export default function TaxiPage() {
     setDriverInfo(null);
     setError("");
     setPickupAddress("");
+    setPickupLat(null);
+    setPickupLng(null);
     setDropoffAddress("");
     setNotes("");
   }
@@ -256,7 +333,7 @@ export default function TaxiPage() {
     <div className="min-h-screen pb-20" style={{ background: "#FFF3E0" }}>
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 pt-4 pb-3 flex items-center gap-3" style={{ background: "#1A4D1F" }}>
-        <button onClick={() => navigate(-1)} className="text-white text-xl">←</button>
+        <button onClick={() => window.history.back()} className="text-white text-xl">←</button>
         <div>
           <h1 className="text-white text-lg font-bold">طلب تاكسي 🚕</h1>
           <p className="text-green-200 text-xs">Commander un taxi</p>
@@ -264,50 +341,72 @@ export default function TaxiPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="p-4 space-y-4 max-w-lg mx-auto">
-        {/* Customer info */}
+
+        {/* Customer name */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <h2 className="font-bold mb-3 text-sm" style={{ color: "#1A4D1F" }}>معلوماتك · Vos informations</h2>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">الاسم الكامل · Nom complet *</label>
-              <input
-                value={customerName}
-                onChange={e => setCustomerName(e.target.value)}
-                className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none"
-                style={{ borderColor: "#1A4D1F" }}
-                placeholder="اسمك الكامل"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">رقم الهاتف · Téléphone</label>
-              <input
-                value={customerPhone}
-                onChange={e => setCustomerPhone(e.target.value)}
-                className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none"
-                style={{ borderColor: "#1A4D1F" }}
-                placeholder="+216 XX XXX XXX"
-                dir="ltr"
-              />
-            </div>
+          <h2 className="font-bold mb-3 text-sm" style={{ color: "#1A4D1F" }}>اسمك · Votre nom</h2>
+          <input
+            value={customerName}
+            onChange={e => setCustomerName(e.target.value)}
+            className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none"
+            style={{ borderColor: "#1A4D1F" }}
+            placeholder="الاسم الكامل · Nom complet"
+            required
+          />
+        </div>
+
+        {/* Pickup — GPS auto-detect */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <h2 className="font-bold mb-3 text-sm" style={{ color: "#1A4D1F" }}>نقطة الانطلاق · Départ</h2>
+
+          {/* GPS Button */}
+          <button
+            type="button"
+            onClick={requestGps}
+            disabled={gpsLoading}
+            className="w-full mb-3 py-3 rounded-xl border-2 border-dashed flex items-center justify-center gap-2 font-bold text-sm transition-all"
+            style={{
+              borderColor: pickupLat ? "#006B3C" : "#FFA500",
+              background:  pickupLat ? "#f0fdf4" : "#FFFBF0",
+              color:       pickupLat ? "#006B3C" : "#1A4D1F",
+            }}
+          >
+            {gpsLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "#FFA500", borderTopColor: "transparent" }} />
+                جارٍ تحديد موقعك...
+              </>
+            ) : pickupLat ? (
+              <>✅ تم تحديد موقعك تلقائياً · Position détectée</>
+            ) : (
+              <>📍 تحديد موقعي تلقائياً · Détecter ma position</>
+            )}
+          </button>
+
+          {gpsError && (
+            <p className="text-orange-600 text-xs text-center mb-2">{gpsError}</p>
+          )}
+
+          {/* Manual address input — always shown for editing */}
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">
+              {pickupLat ? "العنوان المُكتشف (يمكنك التعديل)" : "أو اكتب العنوان يدوياً · Ou saisir l'adresse"}
+            </label>
+            <input
+              value={pickupAddress}
+              onChange={e => { setPickupAddress(e.target.value); if (!e.target.value) { setPickupLat(null); setPickupLng(null); } }}
+              className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none"
+              style={{ borderColor: pickupLat ? "#006B3C" : "#FFA500" }}
+              placeholder="حيّ، شارع، علامة مميّزة..."
+              required
+            />
           </div>
         </div>
 
-        {/* Addresses */}
+        {/* Dropoff + Notes */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <h2 className="font-bold mb-3 text-sm" style={{ color: "#1A4D1F" }}>نقطة الانطلاق والوصول · Trajets</h2>
+          <h2 className="font-bold mb-3 text-sm" style={{ color: "#1A4D1F" }}>الوجهة والتفاصيل · Destination & Détails</h2>
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">📍 نقطة الانطلاق · Départ *</label>
-              <input
-                value={pickupAddress}
-                onChange={e => setPickupAddress(e.target.value)}
-                className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none"
-                style={{ borderColor: "#FFA500" }}
-                placeholder="حيّ، شارع، علامة مميّزة..."
-                required
-              />
-            </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">🏁 الوجهة · Destination (facultatif)</label>
               <input
@@ -319,7 +418,7 @@ export default function TaxiPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">ملاحظات · Notes</label>
+              <label className="block text-xs text-gray-500 mb-1">💬 ملاحظات · Notes</label>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
@@ -343,9 +442,9 @@ export default function TaxiPage() {
                 onClick={() => setCommissionType(type)}
                 className="flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all"
                 style={{
-                  borderColor:      commissionType === type ? "#FFA500" : "#e5e7eb",
-                  background:       commissionType === type ? "#FFF3E0" : "white",
-                  color:            commissionType === type ? "#1A4D1F" : "#6b7280",
+                  borderColor: commissionType === type ? "#FFA500" : "#e5e7eb",
+                  background:  commissionType === type ? "#FFF3E0" : "white",
+                  color:       commissionType === type ? "#1A4D1F" : "#6b7280",
                 }}
               >
                 {type === "meter" ? "⏱ عدّاد · Compteur" : "💵 مبلغ ثابت · Fixe"}

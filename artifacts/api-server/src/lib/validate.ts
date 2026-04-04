@@ -11,7 +11,7 @@ export function isValidPassword(pw: string): boolean {
 }
 
 /** Valid role values in the system */
-const VALID_ROLES = new Set(["customer", "admin", "manager", "super_admin", "provider", "driver"]);
+const VALID_ROLES = new Set(["customer", "admin", "manager", "super_admin", "provider", "driver", "taxi_driver", "delivery"]);
 export function isValidRole(role: string): boolean {
   return VALID_ROLES.has(role);
 }
