@@ -51,6 +51,20 @@ export default function TaxiDriverPage() {
   const [error,          setError]          = useState("");
   const [actionLoading,  setActionLoading]  = useState(false);
 
+  const today = new Date().toISOString().slice(0, 10);
+  const [activeTab,      setActiveTab]      = useState<"status" | "history">("status");
+  const [dateFrom,       setDateFrom]       = useState(today);
+  const [dateTo,         setDateTo]         = useState(today);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyData,    setHistoryData]    = useState<{
+    rides: Array<{
+      id: number; customerName: string; pickupAddress: string;
+      dropoffAddress: string | null; commissionType: string;
+      fixedAmount: number | null; createdAt: string;
+    }>;
+    total: number; fixedCount: number; meterCount: number; totalFixed: number;
+  } | null>(null);
+
   const socketRef  = useRef<Socket | null>(null);
   const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -90,6 +104,21 @@ export default function TaxiDriverPage() {
       }
     } else {
       setView("no_auth");
+    }
+  }
+
+  // ── Load history ───────────────────────────────────────────────────────────
+  async function loadHistory() {
+    if (!token) return;
+    setHistoryLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (dateFrom) params.set("from", dateFrom);
+      if (dateTo)   params.set("to",   dateTo);
+      const res = await fetch(`${API}/taxi/driver/history?${params}`, { headers });
+      if (res.ok) setHistoryData(await res.json());
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
@@ -379,42 +408,211 @@ export default function TaxiDriverPage() {
     );
   }
 
-  // ── WAITING / UNAVAILABLE ──────────────────────────────────────────────────
+  // ── WAITING / UNAVAILABLE (with tabs) ─────────────────────────────────────
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: "#FFF3E0" }}>
-      <div className="w-full max-w-sm text-center">
-        <div className="text-7xl mb-4">{view === "waiting" ? "🚕" : "⛔"}</div>
+    <div className="min-h-screen flex flex-col" style={{ background: "#FFF3E0" }}>
+      {/* Header */}
+      <div className="py-3 px-4 text-center" style={{ background: "#1A4D1F" }}>
+        <h1 className="text-white text-base font-black">🚕 لوحة سائق التاكسي</h1>
+        <p className="text-green-200 text-xs">Tableau de bord chauffeur</p>
+      </div>
 
-        {driver && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm mb-6">
-            <p className="font-bold text-lg" style={{ color: "#1A4D1F" }}>{driver.name}</p>
-            <p className="text-gray-400 text-sm">{driver.phone}</p>
+      {/* Driver info bar */}
+      {driver && (
+        <div className="px-4 py-3 flex items-center gap-3" style={{ background: "#006B3C" }}>
+          <span className="text-2xl">👤</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-bold text-sm truncate">{driver.name}</p>
             {(driver.carModel || driver.carPlate) && (
-              <p className="text-sm mt-1 text-gray-500">
+              <p className="text-green-200 text-xs truncate">
                 🚗 {[driver.carColor, driver.carModel].filter(Boolean).join(" ")}
-                {driver.carPlate && ` · لوحة: ${driver.carPlate}`}
+                {driver.carPlate && ` · ${driver.carPlate}`}
               </p>
             )}
           </div>
-        )}
+          <span
+            className="text-xs px-2 py-1 rounded-full font-bold"
+            style={{
+              background: view === "waiting" ? "#FFA500" : "#ef4444",
+              color: "white",
+            }}
+          >
+            {view === "waiting" ? "متاح" : "غير متاح"}
+          </span>
+        </div>
+      )}
 
-        <h2 className="text-xl font-bold mb-2" style={{ color: "#1A4D1F" }}>
-          {view === "waiting" ? "في انتظار الطلبات..." : "غير متاح حالياً"}
-        </h2>
-        <p className="text-gray-500 text-sm mb-8">
-          {view === "waiting"
-            ? "En attente de nouvelles demandes…"
-            : "Vous êtes marqué comme non disponible"}
-        </p>
-
-        {view === "waiting" && (
-          <div className="flex justify-center gap-2">
-            {[0,1,2].map(i => (
-              <div key={i} className="w-3 h-3 rounded-full animate-bounce" style={{ background: "#FFA500", animationDelay: `${i * 0.2}s` }} />
-            ))}
-          </div>
-        )}
+      {/* Tabs */}
+      <div className="flex border-b" style={{ background: "white" }}>
+        {([
+          { key: "status",  ar: "الحالة",    fr: "Statut",     icon: "📡" },
+          { key: "history", ar: "السجل",     fr: "Historique", icon: "📋" },
+        ] as const).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => {
+              setActiveTab(tab.key);
+              if (tab.key === "history" && !historyData) loadHistory();
+            }}
+            className="flex-1 py-3 text-sm font-bold flex flex-col items-center gap-0.5 transition-colors"
+            style={{
+              color:       activeTab === tab.key ? "#1A4D1F" : "#9ca3af",
+              borderBottom: activeTab === tab.key ? "3px solid #FFA500" : "3px solid transparent",
+            }}
+          >
+            <span>{tab.icon}</span>
+            <span>{tab.ar}</span>
+            <span className="text-xs font-normal" style={{ color: activeTab === tab.key ? "#006B3C" : "#d1d5db" }}>{tab.fr}</span>
+          </button>
+        ))}
       </div>
+
+      {/* ── TAB: STATUS ── */}
+      {activeTab === "status" && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="text-7xl mb-4">{view === "waiting" ? "🚕" : "⛔"}</div>
+          <h2 className="text-xl font-bold mb-2 text-center" style={{ color: "#1A4D1F" }}>
+            {view === "waiting" ? "في انتظار الطلبات..." : "غير متاح حالياً"}
+          </h2>
+          <p className="text-gray-500 text-sm mb-8 text-center">
+            {view === "waiting"
+              ? "En attente de nouvelles demandes…"
+              : "Vous êtes marqué comme non disponible"}
+          </p>
+          {view === "waiting" && (
+            <div className="flex justify-center gap-2">
+              {[0,1,2].map(i => (
+                <div key={i} className="w-3 h-3 rounded-full animate-bounce" style={{ background: "#FFA500", animationDelay: `${i * 0.2}s` }} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB: HISTORY ── */}
+      {activeTab === "history" && (
+        <div className="flex-1 overflow-y-auto p-4" dir="rtl">
+
+          {/* Date filter */}
+          <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+            <p className="font-bold text-sm mb-3" style={{ color: "#1A4D1F" }}>📅 فلتر التاريخ · Filtre par date</p>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">من · Du</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="w-full border rounded-xl px-3 py-2 text-sm"
+                  style={{ borderColor: "rgba(26,77,31,0.3)" }}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">إلى · Au</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="w-full border rounded-xl px-3 py-2 text-sm"
+                  style={{ borderColor: "rgba(26,77,31,0.3)" }}
+                />
+              </div>
+            </div>
+            <button
+              onClick={loadHistory}
+              disabled={historyLoading}
+              className="w-full py-2.5 rounded-xl text-white font-bold text-sm"
+              style={{ background: historyLoading ? "#9ca3af" : "#1A4D1F" }}
+            >
+              {historyLoading ? "⏳ جارٍ التحميل..." : "🔍 بحث · Rechercher"}
+            </button>
+          </div>
+
+          {/* Summary cards */}
+          {historyData && (
+            <>
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="bg-white rounded-2xl shadow-sm p-3 text-center">
+                  <p className="text-2xl font-black" style={{ color: "#1A4D1F" }}>{historyData.total}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">إجمالي الرحلات</p>
+                  <p className="text-xs text-gray-400">Total courses</p>
+                </div>
+                <div className="bg-white rounded-2xl shadow-sm p-3 text-center">
+                  <p className="text-2xl font-black" style={{ color: "#FFA500" }}>{historyData.fixedCount}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">بالسعر الثابت</p>
+                  <p className="text-xs text-gray-400">Prix fixe</p>
+                </div>
+                <div className="bg-white rounded-2xl shadow-sm p-3 text-center">
+                  <p className="text-2xl font-black" style={{ color: "#006B3C" }}>{historyData.meterCount}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">بالعدّاد</p>
+                  <p className="text-xs text-gray-400">Au compteur</p>
+                </div>
+              </div>
+
+              {/* Total fixed commission */}
+              {historyData.totalFixed > 0 && (
+                <div className="rounded-2xl p-4 mb-4 text-center" style={{ background: "#1A4D1F" }}>
+                  <p className="text-green-200 text-xs mb-1">مجموع العمولات الثابتة · Total commissions fixes</p>
+                  <p className="text-white text-3xl font-black">{historyData.totalFixed.toFixed(3)}</p>
+                  <p className="text-green-300 text-sm">دينار تونسي · DT</p>
+                </div>
+              )}
+
+              {/* Rides list */}
+              {historyData.rides.length === 0 ? (
+                <div className="text-center py-10 text-gray-400">
+                  <p className="text-4xl mb-3">🗂</p>
+                  <p className="text-sm">لا توجد رحلات في هذه الفترة</p>
+                  <p className="text-xs">Aucune course pour cette période</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {historyData.rides.map((ride, idx) => (
+                    <div key={ride.id} className="bg-white rounded-2xl shadow-sm p-4">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
+                            style={{ background: "#1A4D1F" }}>#{historyData.total - idx}</span>
+                          <p className="font-bold text-sm" style={{ color: "#1A4D1F" }}>{ride.customerName}</p>
+                        </div>
+                        <span
+                          className="text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0"
+                          style={{
+                            background: ride.commissionType === "fixed" ? "#FFA500" : "#e0f2fe",
+                            color:      ride.commissionType === "fixed" ? "white"   : "#0284c7",
+                          }}
+                        >
+                          {ride.commissionType === "fixed"
+                            ? `${ride.fixedAmount?.toFixed(3)} DT`
+                            : "⏱ عدّاد"}
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-xs text-gray-500">
+                        <p>📍 {ride.pickupAddress}</p>
+                        {ride.dropoffAddress && <p>🏁 {ride.dropoffAddress}</p>}
+                        <p className="text-gray-400">
+                          {new Date(ride.createdAt).toLocaleDateString("ar-TN", {
+                            year: "numeric", month: "short", day: "numeric",
+                            hour: "2-digit", minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {!historyData && !historyLoading && (
+            <div className="text-center py-10 text-gray-400">
+              <p className="text-4xl mb-3">📅</p>
+              <p className="text-sm">اختر نطاق التاريخ ثم اضغط بحث</p>
+              <p className="text-xs">Choisissez une période et appuyez sur Rechercher</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { taxiDriversTable, taxiRequestsTable, usersTable } from "@workspace/db/schema";
-import { eq, and, not, inArray } from "drizzle-orm";
+import { eq, and, not, inArray, gte, lte, desc } from "drizzle-orm";
 import { emitTaxiRequest, emitTaxiResponse } from "../lib/socket";
 import { requireAuth } from "../lib/authMiddleware";
 
@@ -387,6 +387,56 @@ router.post("/taxi/driver/complete/:id", requireAuth, async (req, res) => {
     .where(eq(taxiDriversTable.id, taxiDriver.id));
 
   res.json({ success: true });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DRIVER — GET /api/taxi/driver/history  (completed rides + commission totals)
+// Query params: from=YYYY-MM-DD  to=YYYY-MM-DD
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/taxi/driver/history", requireAuth, async (req, res) => {
+  const driverUserId = (req as any).authSession?.userId;
+  const { from, to } = req.query as { from?: string; to?: string };
+
+  const [taxiDriver] = await db
+    .select()
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
+
+  if (!taxiDriver) { res.status(403).json({ message: "غير مرخص" }); return; }
+
+  const conditions: any[] = [
+    eq(taxiRequestsTable.assignedDriverId, taxiDriver.id),
+    eq(taxiRequestsTable.status, "completed"),
+  ];
+
+  if (from) {
+    const fromDate = new Date(from);
+    fromDate.setHours(0, 0, 0, 0);
+    conditions.push(gte(taxiRequestsTable.createdAt, fromDate));
+  }
+  if (to) {
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+    conditions.push(lte(taxiRequestsTable.createdAt, toDate));
+  }
+
+  const rides = await db
+    .select()
+    .from(taxiRequestsTable)
+    .where(and(...conditions))
+    .orderBy(desc(taxiRequestsTable.createdAt));
+
+  const totalFixed = rides
+    .filter(r => r.commissionType === "fixed" && r.fixedAmount)
+    .reduce((sum, r) => sum + (r.fixedAmount ?? 0), 0);
+
+  res.json({
+    rides,
+    total:      rides.length,
+    fixedCount: rides.filter(r => r.commissionType === "fixed").length,
+    meterCount: rides.filter(r => r.commissionType === "meter").length,
+    totalFixed,
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
