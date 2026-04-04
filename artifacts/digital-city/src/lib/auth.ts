@@ -1,6 +1,6 @@
 // Legacy roles (used in existing flows: login.tsx, layout.tsx, etc.)
 export type Role = "client" | "provider" | "delivery" | "admin"
-  | "super_admin" | "manager" | "driver" | "customer";
+  | "super_admin" | "manager" | "driver" | "customer" | "taxi_driver";
 
 // New role values for the privilege system
 export type AppRole = "super_admin" | "manager" | "provider" | "driver" | "customer";

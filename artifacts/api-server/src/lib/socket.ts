@@ -28,6 +28,10 @@ export function initSocket(httpServer: HttpServer): SocketIOServer {
     if (role === "provider") {
       socket.join(`provider:${userId}`);
     }
+    if (role === "taxi_driver" && userId) {
+      socket.join("taxi_drivers");
+      socket.join(`taxi_driver:${userId}`);
+    }
   });
 
   return io;
@@ -55,6 +59,21 @@ export function emitOrderTaken(orderId: number, driverName: string, customerId?:
       getIO().to(`customer:${customerId}`).emit("order_status", { orderId, status: "driver_accepted", driverName });
     }
     getIO().to("admins").emit("order_updated", { orderId });
+  } catch {}
+}
+
+// ── TAXI ──────────────────────────────────────────────────────────────────────
+// Notify a specific taxi driver of a new ride request
+export function emitTaxiRequest(driverUserId: number, request: Record<string, unknown>) {
+  try {
+    getIO().to(`taxi_driver:${driverUserId}`).emit("taxi_request", request);
+  } catch {}
+}
+
+// Notify customer of driver response (accepted with ETA, or rejected/no_driver)
+export function emitTaxiResponse(customerId: number, payload: Record<string, unknown>) {
+  try {
+    getIO().to(`customer:${customerId}`).emit("taxi_response", payload);
   } catch {}
 }
 

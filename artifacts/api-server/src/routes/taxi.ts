@@ -1,0 +1,476 @@
+import { Router } from "express";
+import { db } from "@workspace/db";
+import { taxiDriversTable, taxiRequestsTable, usersTable } from "@workspace/db/schema";
+import { eq, and, not, inArray } from "drizzle-orm";
+import { emitTaxiRequest, emitTaxiResponse } from "../lib/socket";
+import { requireAuth } from "../lib/authMiddleware";
+
+const router = Router();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Parse rejected driver IDs list stored as comma-separated string */
+function parseRejected(raw: string | null): number[] {
+  if (!raw) return [];
+  return raw.split(",").map(Number).filter(n => !isNaN(n) && n > 0);
+}
+
+/** Find the next available taxi driver excluding already-rejected ones */
+async function findNextDriver(rejectedIds: number[]): Promise<typeof taxiDriversTable.$inferSelect | null> {
+  let query = db
+    .select()
+    .from(taxiDriversTable)
+    .where(
+      and(
+        eq(taxiDriversTable.isAvailable, true),
+        eq(taxiDriversTable.isActive, true),
+        rejectedIds.length > 0
+          ? not(inArray(taxiDriversTable.id, rejectedIds))
+          : undefined
+      )
+    )
+    .limit(1);
+
+  const [driver] = await query;
+  return driver ?? null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC — GET /api/taxi/request/:id/status  (customer polls)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/taxi/request/:id/status", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid ID" }); return; }
+
+  const [request] = await db
+    .select()
+    .from(taxiRequestsTable)
+    .where(eq(taxiRequestsTable.id, id));
+
+  if (!request) { res.status(404).json({ message: "Request not found" }); return; }
+
+  let driverInfo: { name: string; phone: string; carModel: string | null; carColor: string | null; carPlate: string | null } | null = null;
+  if (request.assignedDriverId) {
+    const [d] = await db
+      .select()
+      .from(taxiDriversTable)
+      .where(eq(taxiDriversTable.id, request.assignedDriverId));
+    if (d) {
+      driverInfo = { name: d.name, phone: d.phone, carModel: d.carModel, carColor: d.carColor, carPlate: d.carPlate };
+    }
+  }
+
+  res.json({ ...request, driverInfo });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOMER — POST /api/taxi/request  (create a new taxi request)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/taxi/request", async (req, res) => {
+  const {
+    customerId, customerName, customerPhone,
+    pickupAddress, pickupLat, pickupLng,
+    dropoffAddress, notes,
+    commissionType, fixedAmount,
+  } = req.body as {
+    customerId?: number;
+    customerName: string;
+    customerPhone?: string;
+    pickupAddress: string;
+    pickupLat?: number;
+    pickupLng?: number;
+    dropoffAddress?: string;
+    notes?: string;
+    commissionType: "meter" | "fixed";
+    fixedAmount?: number;
+  };
+
+  if (!customerName?.trim() || !pickupAddress?.trim()) {
+    res.status(400).json({ message: "الاسم وعنوان الانطلاق مطلوبان · Nom et adresse requis" });
+    return;
+  }
+  if (commissionType === "fixed" && (!fixedAmount || fixedAmount <= 0)) {
+    res.status(400).json({ message: "يرجى تحديد المبلغ الثابت · Montant fixe requis" });
+    return;
+  }
+
+  // Find first available driver
+  const firstDriver = await findNextDriver([]);
+
+  const [request] = await db
+    .insert(taxiRequestsTable)
+    .values({
+      customerId:       customerId ?? null,
+      customerName:     customerName.trim(),
+      customerPhone:    customerPhone?.trim() ?? null,
+      pickupAddress:    pickupAddress.trim(),
+      pickupLat:        pickupLat ?? null,
+      pickupLng:        pickupLng ?? null,
+      dropoffAddress:   dropoffAddress?.trim() ?? null,
+      notes:            notes?.trim() ?? null,
+      commissionType,
+      fixedAmount:      fixedAmount ?? null,
+      status:           firstDriver ? "pending" : "searching",
+      assignedDriverId: firstDriver?.id ?? null,
+      rejectedDriverIds: "",
+    })
+    .returning();
+
+  // Notify the first driver if found
+  if (firstDriver) {
+    // Get driver's userId to send socket event
+    const [driverUser] = await db
+      .select({ userId: taxiDriversTable.userId })
+      .from(taxiDriversTable)
+      .where(eq(taxiDriversTable.id, firstDriver.id));
+
+    if (driverUser) {
+      emitTaxiRequest(driverUser.userId, {
+        requestId:     request.id,
+        customerName:  request.customerName,
+        customerPhone: request.customerPhone,
+        pickupAddress: request.pickupAddress,
+        dropoffAddress: request.dropoffAddress,
+        notes:         request.notes,
+        commissionType: request.commissionType,
+        fixedAmount:   request.fixedAmount,
+      });
+    }
+  }
+
+  res.status(201).json(request);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DRIVER — POST /api/taxi/request/:id/accept
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/taxi/request/:id/accept", requireAuth, async (req, res) => {
+  const id   = parseInt(req.params.id);
+  const { etaMinutes } = req.body as { etaMinutes: number };
+  const driverUserId = (req as any).authSession?.userId;
+
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid ID" }); return; }
+  if (!etaMinutes || etaMinutes < 1) {
+    res.status(400).json({ message: "وقت الوصول مطلوب · ETA requis" });
+    return;
+  }
+
+  // Get the taxi driver record linked to this user
+  const [taxiDriver] = await db
+    .select()
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
+
+  if (!taxiDriver) {
+    res.status(403).json({ message: "غير مرخص · Non autorisé" });
+    return;
+  }
+
+  const [request] = await db
+    .select()
+    .from(taxiRequestsTable)
+    .where(eq(taxiRequestsTable.id, id));
+
+  if (!request || request.status !== "pending" || request.assignedDriverId !== taxiDriver.id) {
+    res.status(400).json({ message: "الطلب غير متاح · Demande non disponible" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(taxiRequestsTable)
+    .set({ status: "accepted", etaMinutes, updatedAt: new Date() })
+    .where(eq(taxiRequestsTable.id, id))
+    .returning();
+
+  // Mark driver as unavailable
+  await db
+    .update(taxiDriversTable)
+    .set({ isAvailable: false })
+    .where(eq(taxiDriversTable.id, taxiDriver.id));
+
+  // Notify customer
+  if (request.customerId) {
+    emitTaxiResponse(request.customerId, {
+      requestId:   id,
+      status:      "accepted",
+      etaMinutes,
+      driverName:  taxiDriver.name,
+      driverPhone: taxiDriver.phone,
+      carModel:    taxiDriver.carModel,
+      carColor:    taxiDriver.carColor,
+      carPlate:    taxiDriver.carPlate,
+    });
+  }
+
+  res.json(updated);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DRIVER — POST /api/taxi/request/:id/reject
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/taxi/request/:id/reject", requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const driverUserId = (req as any).authSession?.userId;
+
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid ID" }); return; }
+
+  const [taxiDriver] = await db
+    .select()
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
+
+  if (!taxiDriver) {
+    res.status(403).json({ message: "غير مرخص · Non autorisé" });
+    return;
+  }
+
+  const [request] = await db
+    .select()
+    .from(taxiRequestsTable)
+    .where(eq(taxiRequestsTable.id, id));
+
+  if (!request || request.status !== "pending" || request.assignedDriverId !== taxiDriver.id) {
+    res.status(400).json({ message: "الطلب غير متاح · Demande non disponible" });
+    return;
+  }
+
+  // Add this driver to rejected list
+  const rejectedIds = parseRejected(request.rejectedDriverIds);
+  rejectedIds.push(taxiDriver.id);
+  const rejectedStr = rejectedIds.join(",");
+
+  // Find next driver
+  const nextDriver = await findNextDriver(rejectedIds);
+
+  if (nextDriver) {
+    // Assign to next driver
+    await db
+      .update(taxiRequestsTable)
+      .set({
+        status: "pending",
+        assignedDriverId: nextDriver.id,
+        rejectedDriverIds: rejectedStr,
+        updatedAt: new Date(),
+      })
+      .where(eq(taxiRequestsTable.id, id));
+
+    // Notify next driver
+    const [nextDriverUser] = await db
+      .select({ userId: taxiDriversTable.userId })
+      .from(taxiDriversTable)
+      .where(eq(taxiDriversTable.id, nextDriver.id));
+
+    if (nextDriverUser) {
+      emitTaxiRequest(nextDriverUser.userId, {
+        requestId:     request.id,
+        customerName:  request.customerName,
+        customerPhone: request.customerPhone,
+        pickupAddress: request.pickupAddress,
+        dropoffAddress: request.dropoffAddress,
+        notes:         request.notes,
+        commissionType: request.commissionType,
+        fixedAmount:   request.fixedAmount,
+      });
+    }
+
+    res.json({ status: "searching", message: "تم إرسال الطلب لسائق آخر" });
+  } else {
+    // No driver available — inform customer
+    await db
+      .update(taxiRequestsTable)
+      .set({
+        status: "searching",
+        assignedDriverId: null,
+        rejectedDriverIds: rejectedStr,
+        updatedAt: new Date(),
+      })
+      .where(eq(taxiRequestsTable.id, id));
+
+    // Notify customer: no driver found
+    if (request.customerId) {
+      emitTaxiResponse(request.customerId, {
+        requestId: id,
+        status:    "no_driver",
+        message:   "لا يوجد سائق متاح حالياً · Aucun chauffeur disponible",
+      });
+    }
+
+    res.json({ status: "no_driver", message: "لا يوجد سائق متاح حالياً" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DRIVER — GET /api/taxi/driver/current  (driver sees pending request for them)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/taxi/driver/current", requireAuth, async (req, res) => {
+  const driverUserId = (req as any).authSession?.userId;
+
+  const [taxiDriver] = await db
+    .select()
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
+
+  if (!taxiDriver) { res.status(403).json({ message: "غير مرخص" }); return; }
+
+  const [request] = await db
+    .select()
+    .from(taxiRequestsTable)
+    .where(
+      and(
+        eq(taxiRequestsTable.assignedDriverId, taxiDriver.id),
+        eq(taxiRequestsTable.status, "pending")
+      )
+    )
+    .orderBy(taxiRequestsTable.createdAt)
+    .limit(1);
+
+  res.json({ driver: taxiDriver, pendingRequest: request ?? null });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DRIVER — GET /api/taxi/driver/accepted  (driver sees their accepted ride)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/taxi/driver/accepted", requireAuth, async (req, res) => {
+  const driverUserId = (req as any).authSession?.userId;
+
+  const [taxiDriver] = await db
+    .select()
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
+
+  if (!taxiDriver) { res.status(403).json({ message: "غير مرخص" }); return; }
+
+  const [request] = await db
+    .select()
+    .from(taxiRequestsTable)
+    .where(
+      and(
+        eq(taxiRequestsTable.assignedDriverId, taxiDriver.id),
+        eq(taxiRequestsTable.status, "accepted")
+      )
+    )
+    .limit(1);
+
+  res.json({ driver: taxiDriver, acceptedRequest: request ?? null });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DRIVER — POST /api/taxi/driver/complete/:id  (complete the ride)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/taxi/driver/complete/:id", requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const driverUserId = (req as any).authSession?.userId;
+
+  const [taxiDriver] = await db
+    .select()
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
+
+  if (!taxiDriver) { res.status(403).json({ message: "غير مرخص" }); return; }
+
+  await db
+    .update(taxiRequestsTable)
+    .set({ status: "completed", updatedAt: new Date() })
+    .where(
+      and(
+        eq(taxiRequestsTable.id, id),
+        eq(taxiRequestsTable.assignedDriverId, taxiDriver.id)
+      )
+    );
+
+  // Make driver available again
+  await db
+    .update(taxiDriversTable)
+    .set({ isAvailable: true })
+    .where(eq(taxiDriversTable.id, taxiDriver.id));
+
+  res.json({ success: true });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN — GET /api/admin/taxi/drivers
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/admin/taxi/drivers", requireAuth, async (req, res) => {
+  const drivers = await db.select().from(taxiDriversTable).orderBy(taxiDriversTable.id);
+  res.json(drivers);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN — POST /api/admin/taxi/drivers  (register new taxi driver)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/admin/taxi/drivers", requireAuth, async (req, res) => {
+  const { name, phone, password, carModel, carColor, carPlate } = req.body as {
+    name: string; phone: string; password: string;
+    carModel?: string; carColor?: string; carPlate?: string;
+  };
+
+  if (!name?.trim() || !phone?.trim() || !password?.trim()) {
+    res.status(400).json({ message: "الاسم والهاتف وكلمة المرور مطلوبة" });
+    return;
+  }
+
+  // Create user with taxi_driver role
+  const baseUsername = `taxi_${phone.trim().replace(/\D/g, "")}`;
+
+  const [user] = await db
+    .insert(usersTable)
+    .values({
+      username: baseUsername,
+      name: name.trim(),
+      phone: phone.trim(),
+      password: password.trim(),
+      role: "taxi_driver",
+      isActive: true,
+    })
+    .returning();
+
+  const [driver] = await db
+    .insert(taxiDriversTable)
+    .values({
+      userId:   user.id,
+      name:     name.trim(),
+      phone:    phone.trim(),
+      carModel: carModel?.trim() ?? null,
+      carColor: carColor?.trim() ?? null,
+      carPlate: carPlate?.trim() ?? null,
+    })
+    .returning();
+
+  res.status(201).json({ user, driver });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN — PATCH /api/admin/taxi/drivers/:id  (toggle availability / edit)
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch("/admin/taxi/drivers/:id", requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { isAvailable, isActive, carModel, carColor, carPlate } = req.body;
+
+  const updates: Partial<typeof taxiDriversTable.$inferInsert> = {};
+  if (isAvailable !== undefined) updates.isAvailable = isAvailable;
+  if (isActive    !== undefined) updates.isActive    = isActive;
+  if (carModel    !== undefined) updates.carModel    = carModel;
+  if (carColor    !== undefined) updates.carColor    = carColor;
+  if (carPlate    !== undefined) updates.carPlate    = carPlate;
+
+  const [updated] = await db
+    .update(taxiDriversTable)
+    .set(updates)
+    .where(eq(taxiDriversTable.id, id))
+    .returning();
+
+  res.json(updated);
+});
+
+// ADMIN — GET /api/admin/taxi/requests
+router.get("/admin/taxi/requests", requireAuth, async (req, res) => {
+  const requests = await db
+    .select()
+    .from(taxiRequestsTable)
+    .orderBy(taxiRequestsTable.createdAt);
+  res.json(requests);
+});
+
+export default router;

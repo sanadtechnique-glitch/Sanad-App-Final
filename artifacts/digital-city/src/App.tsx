@@ -18,6 +18,8 @@ import Delivery     from "./pages/delivery";
 import Login        from "./pages/login";
 import OrderHistory from "./pages/order-history";
 import Deals        from "./pages/deals";
+import TaxiPage     from "./pages/taxi";
+import TaxiDriver   from "./pages/taxi-driver";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +36,7 @@ const ROLE_HOME: Record<Role, string> = {
   driver:      "/delivery",
   delivery:    "/delivery",
   customer:    "/home",
+  taxi_driver: "/taxi-driver",
 };
 
 const SPLASH_KEY = "sanad_splash_seen";
@@ -166,6 +169,12 @@ function Router() {
       </Route>
       <Route path="/delivery">
         {() => <ProtectedRoute component={Delivery} roles={["delivery"]} />}
+      </Route>
+
+      {/* ── Taxi pages ── */}
+      <Route path="/taxi" component={TaxiPage} />
+      <Route path="/taxi-driver">
+        {() => <ProtectedRoute component={TaxiDriver} roles={["taxi_driver", "admin", "super_admin", "manager"]} />}
       </Route>
 
       <Route component={NotFound} />

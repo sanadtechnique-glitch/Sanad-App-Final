@@ -863,6 +863,38 @@ export default function Home() {
             );
           })}
         </div>
+
+        {/* ── Taxi quick-link ──────────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55, type: "spring", stiffness: 260, damping: 22 }}
+          className="mt-5"
+        >
+          <Link href="/taxi">
+            <div
+              className="rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all hover:opacity-90 active:scale-95"
+              style={{ background: "linear-gradient(135deg, #1A4D1F 0%, #006B3C 100%)" }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(255,165,0,0.2)" }}>
+                  <span className="text-2xl">🚕</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-black text-base leading-none mb-0.5">
+                    {lang === "ar" ? "اطلب تاكسي" : "Commander un Taxi"}
+                  </p>
+                  <p className="text-green-200 text-xs font-medium">
+                    {lang === "ar" ? "توصيل لباب الدار · سريع وآمن" : "Rapide et sûr · à votre porte"}
+                  </p>
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "#FFA500" }}>
+                <span className="text-white font-black text-lg">←</span>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
       </section>
 
       {/* ══════════════════════════════════════════════════════════════════════

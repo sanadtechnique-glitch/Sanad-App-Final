@@ -15,6 +15,7 @@ import notificationsRouter from "./notifications";
 import adsRouter from "./ads";
 import productsRouter from "./products";
 import deliveryConfigRouter from "./deliveryConfig";
+import taxiRouter from "./taxi";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(notificationsRouter);
 router.use(adsRouter);
 router.use(productsRouter);
 router.use(deliveryConfigRouter);
+router.use(taxiRouter);
 
 export default router;
