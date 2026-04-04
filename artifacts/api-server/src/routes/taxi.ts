@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { taxiDriversTable, taxiRequestsTable, usersTable } from "@workspace/db/schema";
 import { eq, and, not, inArray, gte, lte, desc } from "drizzle-orm";
 import { emitTaxiRequest, emitTaxiResponse, emitTaxiDriverUpdate } from "../lib/socket";
-import { requireAuth } from "../lib/authMiddleware";
+import { requireAuth, requireAdmin } from "../lib/authMiddleware";
 
 const router = Router();
 
@@ -632,7 +632,7 @@ router.get("/taxi/customer/history", requireAuth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — GET /api/admin/taxi/drivers
 // ─────────────────────────────────────────────────────────────────────────────
-router.get("/admin/taxi/drivers", requireAuth, async (req, res) => {
+router.get("/admin/taxi/drivers", requireAdmin, async (req, res) => {
   const drivers = await db.select().from(taxiDriversTable).orderBy(taxiDriversTable.id);
   res.json(drivers);
 });
@@ -640,7 +640,7 @@ router.get("/admin/taxi/drivers", requireAuth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — POST /api/admin/taxi/drivers  (register new taxi driver)
 // ─────────────────────────────────────────────────────────────────────────────
-router.post("/admin/taxi/drivers", requireAuth, async (req, res) => {
+router.post("/admin/taxi/drivers", requireAdmin, async (req, res) => {
   const { name, phone, password, carModel, carColor, carPlate } = req.body as {
     name: string; phone: string; password: string;
     carModel?: string; carColor?: string; carPlate?: string;
@@ -684,7 +684,7 @@ router.post("/admin/taxi/drivers", requireAuth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — PATCH /api/admin/taxi/drivers/:id  (toggle availability / edit)
 // ─────────────────────────────────────────────────────────────────────────────
-router.patch("/admin/taxi/drivers/:id", requireAuth, async (req, res) => {
+router.patch("/admin/taxi/drivers/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   const { isAvailable, isActive, carModel, carColor, carPlate } = req.body;
 
@@ -704,8 +704,24 @@ router.patch("/admin/taxi/drivers/:id", requireAuth, async (req, res) => {
   res.json(updated);
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN — DELETE /api/admin/taxi/drivers/:id
+// ─────────────────────────────────────────────────────────────────────────────
+router.delete("/admin/taxi/drivers/:id", requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid ID" }); return; }
+  try {
+    const [driver] = await db.select({ userId: taxiDriversTable.userId }).from(taxiDriversTable).where(eq(taxiDriversTable.id, id));
+    await db.delete(taxiDriversTable).where(eq(taxiDriversTable.id, id));
+    if (driver?.userId) {
+      await db.delete(usersTable).where(eq(usersTable.id, driver.userId));
+    }
+    res.json({ success: true });
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+});
+
 // ADMIN — GET /api/admin/taxi/requests
-router.get("/admin/taxi/requests", requireAuth, async (req, res) => {
+router.get("/admin/taxi/requests", requireAdmin, async (req, res) => {
   const requests = await db
     .select()
     .from(taxiRequestsTable)

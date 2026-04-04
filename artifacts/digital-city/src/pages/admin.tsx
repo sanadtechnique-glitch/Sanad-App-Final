@@ -834,6 +834,264 @@ function DelegationsSection({ t }: { t: (ar: string, fr: string) => string }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Section: Taxi Drivers
+// ──────────────────────────────────────────────────────────────────────────────
+interface TaxiDriver {
+  id: number; userId: number; name: string; phone: string;
+  carModel?: string | null; carColor?: string | null; carPlate?: string | null;
+  isAvailable: boolean; isActive: boolean; createdAt: string;
+}
+
+const EMPTY_TAXI_FORM = { name: "", phone: "", password: "", carModel: "", carColor: "", carPlate: "", isAvailable: true, isActive: true };
+
+function TaxiDriversSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const [items, setItems]   = useState<TaxiDriver[]>([]);
+  const [modal, setModal]   = useState<null | "add" | TaxiDriver>(null);
+  const [form, setForm]     = useState({ ...EMPTY_TAXI_FORM });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr]       = useState("");
+
+  const load = () => get<TaxiDriver[]>("/admin/taxi/drivers").then(setItems).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    setErr(""); setSaving(true);
+    try {
+      if (modal === "add") {
+        if (!form.name.trim() || !form.phone.trim() || !form.password.trim()) {
+          setErr(t("الاسم والهاتف وكلمة المرور مطلوبة", "Nom, téléphone et mot de passe requis")); setSaving(false); return;
+        }
+        await post("/admin/taxi/drivers", form);
+      } else {
+        await patch(`/admin/taxi/drivers/${(modal as TaxiDriver).id}`, {
+          carModel: form.carModel, carColor: form.carColor, carPlate: form.carPlate,
+          isAvailable: form.isAvailable, isActive: form.isActive,
+        });
+      }
+      setModal(null); load();
+    } catch (e: any) { setErr(e.message || t("خطأ في الحفظ", "Erreur")); }
+    finally { setSaving(false); }
+  };
+
+  const toggleAvail = async (d: TaxiDriver) => {
+    await patch(`/admin/taxi/drivers/${d.id}`, { isAvailable: !d.isAvailable });
+    setItems(prev => prev.map(x => x.id === d.id ? { ...x, isAvailable: !d.isAvailable } : x));
+  };
+
+  const toggleActive = async (d: TaxiDriver) => {
+    await patch(`/admin/taxi/drivers/${d.id}`, { isActive: !d.isActive });
+    setItems(prev => prev.map(x => x.id === d.id ? { ...x, isActive: !d.isActive } : x));
+  };
+
+  const remove = async (id: number) => {
+    if (!confirm(t("حذف هذا السائق؟ سيتم حذف حسابه أيضاً.", "Supprimer ce chauffeur ? Son compte sera aussi supprimé."))) return;
+    await del(`/admin/taxi/drivers/${id}`); load();
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl font-black text-[#1A4D1F]">{t("سائقو التاكسي", "Chauffeurs Taxi")}</h2>
+          <p className="text-xs text-[#1A4D1F]/50 font-bold mt-0.5">
+            {t(`${items.length} سائق مسجّل`, `${items.length} chauffeur(s) enregistré(s)`)}
+          </p>
+        </div>
+        <GoldBtn onClick={() => { setForm({ ...EMPTY_TAXI_FORM }); setErr(""); setModal("add"); }}>
+          <Plus size={14} /> {t("إضافة سائق تاكسي", "Ajouter chauffeur")}
+        </GoldBtn>
+      </div>
+
+      {/* Stats bar */}
+      <div className="flex gap-3 flex-wrap text-sm">
+        <span className="px-3 py-1 rounded-full bg-emerald-400/10 text-emerald-500 border border-emerald-400/20 font-bold">
+          {items.filter(d => d.isAvailable && d.isActive).length} {t("متاح", "disponible(s)")}
+        </span>
+        <span className="px-3 py-1 rounded-full bg-amber-400/10 text-amber-500 border border-amber-400/20 font-bold">
+          {items.filter(d => !d.isAvailable && d.isActive).length} {t("مشغول", "occupé(s)")}
+        </span>
+        <span className="px-3 py-1 rounded-full bg-red-400/10 text-red-400 border border-red-400/20 font-bold">
+          {items.filter(d => !d.isActive).length} {t("معطّل", "désactivé(s)")}
+        </span>
+      </div>
+
+      {/* Empty state */}
+      {items.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-[#FFA500]/40 p-12 text-center bg-[#FFA500]/5">
+          <div className="text-5xl mb-3">🚕</div>
+          <p className="font-black text-[#1A4D1F]/60 text-base">{t("لا يوجد سائقو تاكسي مسجّلون بعد", "Aucun chauffeur taxi enregistré")}</p>
+          <p className="text-xs text-[#1A4D1F]/30 mt-1 font-bold">
+            {t("أضف سائقاً ليتلقى طلبات التاكسي من العملاء", "Ajoutez un chauffeur pour recevoir les demandes clients")}
+          </p>
+        </div>
+      )}
+
+      {/* Drivers grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {items.map(d => (
+          <div key={d.id} className={cn(
+            "rounded-2xl overflow-hidden border transition-all",
+            d.isActive ? "border-[#1A4D1F]/10 bg-[#FFFDE7]" : "border-red-200 bg-red-50/50 opacity-70"
+          )}>
+            {/* Header strip */}
+            <div className="flex items-center gap-3 px-4 py-3"
+              style={{ background: d.isActive && d.isAvailable ? "rgba(26,77,31,0.06)" : d.isActive ? "rgba(255,165,0,0.08)" : "rgba(239,68,68,0.05)" }}
+            >
+              {/* Avatar */}
+              <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-white text-base shadow flex-shrink-0"
+                style={{ background: d.isActive ? (d.isAvailable ? "#1A4D1F" : "#FFA500") : "#ef4444" }}>
+                🚕
+              </div>
+              <div className="flex-1 min-w-0" dir="rtl">
+                <p className="font-black text-[#1A4D1F] text-sm truncate">{d.name}</p>
+                <p className="text-xs text-[#1A4D1F]/50 font-bold">{d.phone}</p>
+              </div>
+              {/* Status badge */}
+              <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 border",
+                !d.isActive ? "bg-red-100 text-red-500 border-red-200" :
+                d.isAvailable ? "bg-emerald-400/15 text-emerald-500 border-emerald-400/25" :
+                "bg-amber-400/15 text-amber-500 border-amber-400/25"
+              )}>
+                {!d.isActive ? t("● معطّل","● Désactivé") : d.isAvailable ? t("● متاح","● Disponible") : t("● مشغول","● Occupé")}
+              </span>
+            </div>
+
+            {/* Car info */}
+            {(d.carModel || d.carColor || d.carPlate) && (
+              <div className="px-4 py-2 border-t border-[#1A4D1F]/5" dir="rtl">
+                <p className="text-[11px] text-[#1A4D1F]/50 font-bold">
+                  🚗 {[d.carModel, d.carColor, d.carPlate].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-t border-[#1A4D1F]/5 gap-2 flex-wrap">
+              {/* Availability toggle */}
+              <button
+                onClick={() => toggleAvail(d)}
+                disabled={!d.isActive}
+                className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all disabled:opacity-40",
+                  d.isAvailable
+                    ? "bg-emerald-400/10 text-emerald-500 border-emerald-400/25 hover:bg-amber-400/10 hover:text-amber-500 hover:border-amber-400/25"
+                    : "bg-amber-400/10 text-amber-500 border-amber-400/25 hover:bg-emerald-400/10 hover:text-emerald-500 hover:border-emerald-400/25"
+                )}
+              >
+                {d.isAvailable ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
+                {d.isAvailable ? t("متاح → مشغول", "Disponible") : t("مشغول → متاح", "Occupé")}
+              </button>
+
+              <div className="flex gap-2">
+                {/* Active toggle */}
+                <button
+                  onClick={() => toggleActive(d)}
+                  className={cn("p-2 rounded-xl border transition-all text-xs",
+                    d.isActive
+                      ? "bg-[#1A4D1F]/8 text-[#1A4D1F]/50 border-[#1A4D1F]/10 hover:bg-red-400/10 hover:text-red-400 hover:border-red-400/20"
+                      : "bg-emerald-400/10 text-emerald-500 border-emerald-400/20 hover:bg-emerald-400/20"
+                  )}
+                  title={d.isActive ? t("تعطيل الحساب","Désactiver") : t("تفعيل الحساب","Activer")}
+                >
+                  <Power size={13} />
+                </button>
+                {/* Edit */}
+                <button
+                  onClick={() => {
+                    setForm({ name: d.name, phone: d.phone, password: "", carModel: d.carModel || "", carColor: d.carColor || "", carPlate: d.carPlate || "", isAvailable: d.isAvailable, isActive: d.isActive });
+                    setErr(""); setModal(d);
+                  }}
+                  className="p-2 rounded-xl bg-[#1A4D1F]/8 text-[#1A4D1F]/50 hover:text-[#1A4D1F] hover:bg-[#1A4D1F]/15 border border-[#1A4D1F]/10 transition-all"
+                >
+                  <Pencil size={13} />
+                </button>
+                {/* Delete */}
+                <button
+                  onClick={() => remove(d.id)}
+                  className="p-2 rounded-xl bg-red-400/8 text-red-400/50 hover:text-red-400 hover:bg-red-400/15 border border-red-400/10 transition-all"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Modal */}
+      <Modal
+        open={!!modal}
+        onClose={() => setModal(null)}
+        title={modal === "add" ? t("إضافة سائق تاكسي جديد", "Ajouter un chauffeur taxi") : t("تعديل معلومات السائق", "Modifier le chauffeur")}
+      >
+        {err && <div className="mb-3 p-3 rounded-xl bg-red-400/10 text-red-500 text-xs font-bold border border-red-400/20">{err}</div>}
+
+        {/* Identity */}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("الاسم الكامل", "Nom complet")}>
+            <Input
+              value={form.name}
+              onChange={v => setForm(f => ({ ...f, name: v }))}
+              placeholder={t("محمد علي", "Mohamed Ali")}
+            />
+          </Field>
+          <Field label={t("رقم الهاتف", "Téléphone")}>
+            <Input
+              value={form.phone}
+              onChange={v => setForm(f => ({ ...f, phone: v }))}
+              placeholder="+21698..."
+            />
+          </Field>
+        </div>
+
+        {modal === "add" && (
+          <Field label={t("كلمة المرور", "Mot de passe")}>
+            <Input value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} placeholder="..." />
+          </Field>
+        )}
+
+        <div className="border-t border-[#1A4D1F]/10 my-1 pt-1">
+          <p className="text-[11px] font-black text-[#1A4D1F]/40 mb-2">{t("معلومات السيارة (اختياري)", "Informations véhicule (optionnel)")}</p>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label={t("موديل السيارة", "Modèle")}>
+              <Input value={form.carModel} onChange={v => setForm(f => ({ ...f, carModel: v }))} placeholder="Clio" />
+            </Field>
+            <Field label={t("لون السيارة", "Couleur")}>
+              <Input value={form.carColor} onChange={v => setForm(f => ({ ...f, carColor: v }))} placeholder={t("أبيض","Blanc")} />
+            </Field>
+            <Field label={t("رقم اللوحة", "Immatriculation")}>
+              <Input value={form.carPlate} onChange={v => setForm(f => ({ ...f, carPlate: v }))} placeholder="123TN456" />
+            </Field>
+          </div>
+        </div>
+
+        <Field label={t("متاح لاستقبال الطلبات", "Disponible pour les courses")}>
+          <Toggle checked={form.isAvailable} onChange={v => setForm(f => ({ ...f, isAvailable: v }))} />
+        </Field>
+
+        {modal !== "add" && (
+          <Field label={t("الحساب مفعّل", "Compte actif")}>
+            <Toggle checked={form.isActive} onChange={v => setForm(f => ({ ...f, isActive: v }))} />
+          </Field>
+        )}
+
+        <GoldBtn onClick={save} className="w-full justify-center mt-2" disabled={saving}>
+          {saving ? t("جاري الحفظ...", "Enregistrement...") : modal === "add" ? t("إنشاء السائق", "Créer le chauffeur") : t("حفظ التعديلات", "Enregistrer")}
+        </GoldBtn>
+
+        {modal === "add" && (
+          <div className="mt-3 p-3 rounded-xl bg-[#FFA500]/10 border border-[#FFA500]/20">
+            <p className="text-[11px] font-bold text-[#FFA500]/80 text-center">
+              {t("سيتمكن السائق من تسجيل الدخول برقم هاتفه وكلمة المرور من صفحة تسجيل الدخول",
+                 "Le chauffeur pourra se connecter avec son téléphone et mot de passe")}
+            </p>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Section: Promo Banners (Home Page Promo Slides)
 // ──────────────────────────────────────────────────────────────────────────────
 const EMPTY_BANNER_FORM = {
@@ -2755,7 +3013,7 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config";
+type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config";
 
 const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean }[] = [
   { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",       fr: "Tableau de bord" },
@@ -2769,6 +3027,7 @@ const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly
   { id: "suppliers",     icon: Users,            ar: "المزودون",        fr: "Fournisseurs",  superOnly: true },
   { id: "articles",      icon: ShoppingBag,      ar: "المنتجات",        fr: "Articles",      superOnly: true },
   { id: "staff",         icon: Truck,            ar: "السائقون",        fr: "Livreurs",      superOnly: true },
+  { id: "taxi_drivers",  icon: Car,              ar: "سائقو التاكسي",   fr: "Chauffeurs Taxi", superOnly: true },
   { id: "delegations",   icon: Map,              ar: "المعتمديات",      fr: "Délégations",   superOnly: true },
   { id: "users",         icon: UserCog,          ar: "المستخدمون",      fr: "Utilisateurs",  superOnly: true },
   { id: "delivery_config", icon: Settings,       ar: "عمولة التوصيل",   fr: "Commission",    superOnly: true },
@@ -3001,6 +3260,7 @@ export default function Admin() {
             {active === "suppliers"     && isSuper && <SuppliersSection t={t} lang={lang} />}
             {active === "articles"      && isSuper && <ArticlesSection t={t} lang={lang} />}
             {active === "staff"         && isSuper && <DeliveryStaffSection t={t} />}
+            {active === "taxi_drivers"  && isSuper && <TaxiDriversSection t={t} />}
             {active === "delegations"   && isSuper && <DelegationsSection t={t} />}
             {active === "users"         && isSuper && <UsersSection t={t} />}
             {active === "delivery_config" && isSuper && <DeliveryConfigSection t={t} />}
