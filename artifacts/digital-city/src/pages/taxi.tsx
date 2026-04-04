@@ -66,26 +66,38 @@ export default function TaxiPage() {
   const socketRef = useRef<Socket | null>(null);
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ── Shared GPS success/error handlers ────────────────────────────────────
+  async function onGpsSuccess(pos: GeolocationPosition) {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    setPickupLat(lat);
+    setPickupLng(lng);
+    const addr = await reverseGeocode(lat, lng);
+    setPickupAddress(addr);
+    setGpsLoading(false);
+    setGpsError("");
+  }
+
+  function onGpsError(err: GeolocationPositionError) {
+    setGpsLoading(false);
+    if (err.code === err.PERMISSION_DENIED) {
+      setGpsError("لم يُسمح بالوصول للموقع — أدخل العنوان يدوياً · Permission refusée, saisir manuellement");
+    } else if (err.code === err.POSITION_UNAVAILABLE) {
+      setGpsError("الموقع غير متاح حالياً · Position indisponible");
+    } else {
+      setGpsError("انتهت مهلة تحديد الموقع · Délai dépassé");
+    }
+  }
+
   // ── Auto-request GPS on mount (non-blocking) ──────────────────────────────
   useEffect(() => {
     if (!navigator.geolocation) return;
     setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setPickupLat(lat);
-        setPickupLng(lng);
-        const addr = await reverseGeocode(lat, lng);
-        setPickupAddress(addr);
-        setGpsLoading(false);
-      },
-      () => {
-        setGpsLoading(false);
-        // Silent — user can type manually
-      },
-      { timeout: 8000, maximumAge: 60000 }
-    );
+    navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
+      timeout: 12000,
+      maximumAge: 30000,
+      enableHighAccuracy: false,
+    });
   }, []);
 
   // ── Manual GPS button ──────────────────────────────────────────────────────
@@ -96,26 +108,10 @@ export default function TaxiPage() {
     }
     setGpsError("");
     setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setPickupLat(lat);
-        setPickupLng(lng);
-        const addr = await reverseGeocode(lat, lng);
-        setPickupAddress(addr);
-        setGpsLoading(false);
-      },
-      (err) => {
-        setGpsLoading(false);
-        if (err.code === err.PERMISSION_DENIED) {
-          setGpsError("لم يُسمح بالوصول للموقع. أدخله يدوياً · Accès refusé");
-        } else {
-          setGpsError("تعذّر تحديد الموقع · Position introuvable");
-        }
-      },
-      { timeout: 10000 }
-    );
+    navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError, {
+      timeout: 15000,
+      enableHighAccuracy: false,
+    });
   }
 
   // ── socket (real-time driver response) ────────────────────────────────────
@@ -192,6 +188,10 @@ export default function TaxiPage() {
     }
     if (!pickupAddress.trim()) {
       setError("يرجى تحديد نقطة الانطلاق · Adresse de départ requise");
+      return;
+    }
+    if (commissionType === "fixed" && !dropoffAddress.trim()) {
+      setError("الوجهة إلزامية عند اختيار السعر الثابت · Destination obligatoire pour tarif fixe");
       return;
     }
     if (commissionType === "fixed" && (!fixedAmount || parseFloat(fixedAmount) <= 0)) {
@@ -499,17 +499,26 @@ export default function TaxiPage() {
         </div>
 
         {/* Dropoff + Notes */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <h2 className="font-bold mb-3 text-sm" style={{ color: "#1A4D1F" }}>الوجهة والتفاصيل · Destination & Détails</h2>
+        <div className="bg-white rounded-2xl p-4 shadow-sm" style={commissionType === "fixed" && !dropoffAddress.trim() ? { outline: "2px solid #FFA500", outlineOffset: "2px" } : {}}>
+          <h2 className="font-bold mb-3 text-sm flex items-center gap-2" style={{ color: "#1A4D1F" }}>
+            الوجهة والتفاصيل · Destination & Détails
+            {commissionType === "fixed" && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#FFA500", color: "white" }}>إلزامي</span>
+            )}
+          </h2>
           <div className="space-y-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">🏁 الوجهة · Destination (facultatif)</label>
+              <label className="block text-xs mb-1 font-semibold" style={{ color: commissionType === "fixed" ? "#FFA500" : "#6b7280" }}>
+                🏁 الوجهة · Destination
+                {commissionType === "fixed" ? " (مطلوب لأجرة ثابتة) *" : " (اختياري · facultatif)"}
+              </label>
               <input
                 value={dropoffAddress}
                 onChange={e => setDropoffAddress(e.target.value)}
-                className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none"
-                style={{ borderColor: "#1A4D1F" }}
-                placeholder="إن كنت تعرف الوجهة"
+                className="w-full border-2 rounded-xl px-4 py-2.5 text-sm focus:outline-none"
+                style={{ borderColor: commissionType === "fixed" ? (dropoffAddress.trim() ? "#006B3C" : "#FFA500") : "#1A4D1F" }}
+                placeholder={commissionType === "fixed" ? "⚠️ أدخل الوجهة (مطلوب للسعر الثابت)" : "إن كنت تعرف الوجهة"}
+                required={commissionType === "fixed"}
               />
             </div>
             <div>
