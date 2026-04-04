@@ -17,6 +17,7 @@ import productsRouter from "./products";
 import deliveryConfigRouter from "./deliveryConfig";
 import taxiRouter from "./taxi";
 import tickerRouter from "./ticker";
+import uploadRouter from "./upload";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(productsRouter);
 router.use(deliveryConfigRouter);
 router.use(taxiRouter);
 router.use(tickerRouter);
+router.use(uploadRouter);
 
 export default router;

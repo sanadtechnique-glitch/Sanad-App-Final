@@ -6,6 +6,8 @@ export const tickerAdsTable = pgTable("ticker_ads", {
   id: serial("id").primaryKey(),
   textAr: text("text_ar").notNull(),
   textFr: text("text_fr"),
+  imageUrl: text("image_url"),
+  linkUrl: text("link_url"),
   supplierId: integer("supplier_id"),
   bgColor: varchar("bg_color", { length: 30 }).default("#1A4D1F"),
   textColor: varchar("text_color", { length: 30 }).default("#FFFFFF"),

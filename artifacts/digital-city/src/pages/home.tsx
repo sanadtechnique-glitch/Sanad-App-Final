@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { AdBanner } from "@/components/ad-banner";
-import { TickerBanner } from "@/components/TickerBanner";
+import { AdCarousel } from "@/components/AdCarousel";
 import { useLang } from "@/lib/language";
 import { getSession, clearSession } from "@/lib/auth";
 import { get } from "@/lib/admin-api";
@@ -1013,9 +1013,9 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* ── Ticker Ad Banner ──────────────────────────────────────────────────── */}
+      {/* ── Ad Carousel ───────────────────────────────────────────────────────── */}
       <div className="px-4 sm:px-6 lg:px-10 mt-4">
-        <TickerBanner />
+        <AdCarousel height={110} />
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════

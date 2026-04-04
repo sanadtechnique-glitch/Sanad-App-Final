@@ -8,8 +8,8 @@ import {
   X, Check, Clock, CheckCircle, AlertCircle, Star,
   ChevronRight, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
   UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
-  Image, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
-  Settings, Sliders, DollarSign, Zap, TrendingUp,
+  Image, ImageIcon, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
+  Settings, Sliders, DollarSign, Zap, TrendingUp, Upload,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
@@ -1947,7 +1947,7 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
 
 // ──────────────────────────────────────────────────────────────────────────────
 // ── Ticker Section ────────────────────────────────────────────────────────────
-interface TickerRow { id: number; textAr: string; textFr: string | null; supplierId: number | null; bgColor: string; textColor: string; isActive: boolean; sortOrder: number; }
+interface TickerRow { id: number; textAr: string; textFr: string | null; imageUrl: string | null; linkUrl: string | null; supplierId: number | null; bgColor: string; textColor: string; isActive: boolean; sortOrder: number; }
 interface SupplierMinimal { id: number; nameAr: string; name: string; }
 
 function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
@@ -1958,13 +1958,17 @@ function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [editing, setEditing]       = useState<TickerRow | null>(null);
   const [filterSup, setFilterSup]   = useState<string>("all");
 
-  const [textAr, setTextAr]       = useState("");
-  const [textFr, setTextFr]       = useState("");
+  const [textAr, setTextAr]         = useState("");
+  const [textFr, setTextFr]         = useState("");
   const [supplierId, setSupplierId] = useState<string>("");
-  const [bgColor, setBgColor]     = useState("#1A4D1F");
-  const [textColor, setTextColor] = useState("#FFFFFF");
-  const [sortOrder, setSortOrder] = useState("0");
-  const [saving, setSaving]       = useState(false);
+  const [bgColor, setBgColor]       = useState("#1A4D1F");
+  const [textColor, setTextColor]   = useState("#FFFFFF");
+  const [sortOrder, setSortOrder]   = useState("0");
+  const [imageUrl, setImageUrl]     = useState("");
+  const [linkUrl, setLinkUrl]       = useState("");
+  const [uploading, setUploading]   = useState(false);
+  const [saving, setSaving]         = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setLoading(true);
@@ -1977,19 +1981,38 @@ function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
 
   const openAdd = () => {
     setEditing(null);
-    setTextAr(""); setTextFr(""); setSupplierId(""); setBgColor("#1A4D1F"); setTextColor("#FFFFFF"); setSortOrder("0");
+    setTextAr(""); setTextFr(""); setSupplierId(""); setBgColor("#1A4D1F"); setTextColor("#FFFFFF"); setSortOrder("0"); setImageUrl(""); setLinkUrl("");
     setShowForm(true);
   };
   const openEdit = (r: TickerRow) => {
     setEditing(r);
     setTextAr(r.textAr); setTextFr(r.textFr || ""); setSupplierId(r.supplierId ? String(r.supplierId) : "");
     setBgColor(r.bgColor); setTextColor(r.textColor); setSortOrder(String(r.sortOrder));
+    setImageUrl(r.imageUrl || ""); setLinkUrl(r.linkUrl || "");
     setShowForm(true);
   };
+
+  const uploadImage = async (file: File) => {
+    setUploading(true);
+    const session = getSession();
+    const form = new FormData();
+    form.append("image", file);
+    try {
+      const res = await fetch("/api/admin/upload/ad", {
+        method: "POST",
+        headers: { "x-session-token": session?.token || "" },
+        body: form,
+      });
+      const data = await res.json();
+      if (data.url) setImageUrl(data.url);
+    } catch { }
+    setUploading(false);
+  };
+
   const save = async () => {
     if (!textAr.trim()) return;
     setSaving(true);
-    const body = { textAr, textFr: textFr || null, supplierId: supplierId || null, bgColor, textColor, sortOrder: parseInt(sortOrder) || 0 };
+    const body = { textAr, textFr: textFr || null, supplierId: supplierId || null, bgColor, textColor, sortOrder: parseInt(sortOrder) || 0, imageUrl: imageUrl || null, linkUrl: linkUrl || null };
     if (editing) await patch(`/admin/ticker/${editing.id}`, body);
     else await post("/admin/ticker", body);
     setSaving(false);
@@ -2048,10 +2071,12 @@ function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
               <motion.div key={ad.id} layout
                 className="rounded-2xl border p-4"
                 style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.12)" }}>
-                {/* Preview strip */}
-                <div className="rounded-lg overflow-hidden mb-3" style={{ background: ad.bgColor, height: 32 }}>
-                  <div className="flex items-center h-full px-3 overflow-hidden">
-                    <span className="text-xs font-bold truncate" style={{ color: ad.textColor }}>{ad.textAr}</span>
+                {/* Preview banner */}
+                <div className="rounded-xl overflow-hidden mb-3 relative" style={{ background: ad.bgColor, height: 72 }}>
+                  {ad.imageUrl && <img src={ad.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+                  {ad.imageUrl && <div className="absolute inset-0" style={{ background: "linear-gradient(to left, rgba(0,0,0,0.5), transparent 60%)" }} />}
+                  <div className="absolute inset-0 flex items-center px-3" dir="rtl">
+                    <span className="text-xs font-bold truncate drop-shadow" style={{ color: ad.imageUrl ? "#fff" : ad.textColor }}>{ad.textAr}</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between" dir="rtl">
@@ -2061,6 +2086,7 @@ function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
                       <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-full", ad.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600")}>
                         {ad.isActive ? t("نشط","Actif") : t("معطّل","Inactif")}
                       </span>
+                      {ad.imageUrl && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{t("صورة","Image")}</span>}
                     </div>
                     {ad.textFr && <p className="text-xs text-[#1A4D1F]/30 mt-1 truncate">{ad.textFr}</p>}
                   </div>
@@ -2101,7 +2127,36 @@ function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
                   <X size={16} className="text-[#1A4D1F]/60" />
                 </button>
               </div>
-              <div className="space-y-4" dir="rtl">
+              <div className="space-y-4 max-h-[65vh] overflow-y-auto pb-1" dir="rtl">
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("صورة الإعلان (اختياري)","Image publicitaire (optionnel)")}</label>
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); }} />
+                  <div className="flex gap-2 items-start">
+                    {imageUrl ? (
+                      <div className="relative w-24 h-16 rounded-xl overflow-hidden border border-[#1A4D1F]/20 flex-shrink-0">
+                        <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                        <button onClick={() => setImageUrl("")} className="absolute top-0.5 right-0.5 bg-black/50 rounded-full p-0.5">
+                          <X size={10} className="text-white" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-24 h-16 rounded-xl border-2 border-dashed border-[#1A4D1F]/20 flex items-center justify-center flex-shrink-0 bg-white/50">
+                        <ImageIcon size={18} className="text-[#1A4D1F]/20" />
+                      </div>
+                    )}
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                        className="flex items-center justify-center gap-2 w-full py-2 rounded-xl text-xs font-black border-2 border-dashed border-[#1A4D1F]/30 text-[#1A4D1F]/60 hover:bg-[#1A4D1F]/5 transition-all disabled:opacity-50">
+                        {uploading ? <><RefreshCw size={12} className="animate-spin" /> {t("جاري الرفع...","Envoi...")}</> : <><Upload size={12} /> {t("رفع صورة","Télécharger")}</>}
+                      </button>
+                      <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("أو الصق رابط الصورة","Ou coller l'URL de l'image")}
+                        className="w-full rounded-lg px-2.5 py-1.5 text-xs font-bold border border-[#1A4D1F]/20 outline-none focus:border-[#1A4D1F]" style={{ background: "#fff", color: "#1A4D1F" }} dir="ltr" />
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("النص بالعربية *","Texte arabe *")}</label>
                   <input value={textAr} onChange={e => setTextAr(e.target.value)} placeholder={t("مثال: عروض حصرية هذا الأسبوع!","Ex: Offres exclusives cette semaine!")}
@@ -2112,6 +2167,14 @@ function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
                   <input value={textFr} onChange={e => setTextFr(e.target.value)} placeholder="Ex: Offres exclusives cette semaine!"
                     className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border border-[#1A4D1F]/20 outline-none focus:border-[#1A4D1F]" style={{ background: "#fff", color: "#1A4D1F" }} />
                 </div>
+
+                {/* Link URL */}
+                <div>
+                  <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("رابط النقر (اختياري)","URL du clic (optionnel)")}</label>
+                  <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://..."
+                    className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border border-[#1A4D1F]/20 outline-none focus:border-[#1A4D1F]" style={{ background: "#fff", color: "#1A4D1F" }} dir="ltr" />
+                </div>
+
                 <div>
                   <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("خاص بمزود (اختياري)","Fournisseur (optionnel)")}</label>
                   <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
@@ -2120,28 +2183,32 @@ function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
                     {suppliers.map(s => <option key={s.id} value={s.id}>{s.nameAr}</option>)}
                   </select>
                 </div>
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("لون الخلفية","Couleur fond")}</label>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="w-10 h-9 rounded-lg border border-[#1A4D1F]/20 cursor-pointer" />
-                      <span className="text-xs font-bold text-[#1A4D1F]/40">{bgColor}</span>
+                {!imageUrl && (
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("لون الخلفية","Couleur fond")}</label>
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="w-10 h-9 rounded-lg border border-[#1A4D1F]/20 cursor-pointer" />
+                        <span className="text-xs font-bold text-[#1A4D1F]/40">{bgColor}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("لون النص","Couleur texte")}</label>
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="w-10 h-9 rounded-lg border border-[#1A4D1F]/20 cursor-pointer" />
+                        <span className="text-xs font-bold text-[#1A4D1F]/40">{textColor}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("لون النص","Couleur texte")}</label>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="w-10 h-9 rounded-lg border border-[#1A4D1F]/20 cursor-pointer" />
-                      <span className="text-xs font-bold text-[#1A4D1F]/40">{textColor}</span>
-                    </div>
-                  </div>
-                </div>
+                )}
                 {/* Live preview */}
                 <div>
                   <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("معاينة","Aperçu")}</label>
-                  <div className="rounded-lg overflow-hidden" style={{ background: bgColor, height: 34 }}>
-                    <div className="flex items-center h-full px-4">
-                      <span className="text-xs font-bold" style={{ color: textColor }}>{textAr || t("نص الإشهار سيظهر هنا...","Le texte publicitaire s'affichera ici...")}</span>
+                  <div className="rounded-xl overflow-hidden relative" style={{ background: imageUrl ? "#000" : bgColor, height: 72 }}>
+                    {imageUrl && <img src={imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />}
+                    {imageUrl && <div className="absolute inset-0" style={{ background: "linear-gradient(to left, rgba(0,0,0,0.5), transparent 60%)" }} />}
+                    <div className="absolute inset-0 flex items-center px-4" dir="rtl">
+                      <span className="text-xs font-bold drop-shadow" style={{ color: imageUrl ? "#fff" : textColor }}>{textAr || t("نص الإشهار سيظهر هنا...","Le texte publicitaire s'affichera ici...")}</span>
                     </div>
                   </div>
                 </div>

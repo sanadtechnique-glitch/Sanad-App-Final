@@ -51,12 +51,14 @@ router.get("/admin/ticker", requireAdmin, async (req, res) => {
 
 // ── ADMIN: POST /admin/ticker — create ───────────────────────────────────────
 router.post("/admin/ticker", requireAdmin, async (req, res) => {
-  const { textAr, textFr, supplierId, bgColor, textColor, sortOrder } = req.body;
+  const { textAr, textFr, supplierId, bgColor, textColor, sortOrder, imageUrl, linkUrl } = req.body;
   if (!textAr) return res.status(400).json({ message: "textAr is required" });
   try {
     const [ad] = await db.insert(tickerAdsTable).values({
       textAr,
       textFr: textFr || null,
+      imageUrl: imageUrl || null,
+      linkUrl: linkUrl || null,
       supplierId: supplierId ? parseInt(supplierId) : null,
       bgColor: bgColor || "#1A4D1F",
       textColor: textColor || "#FFFFFF",
@@ -73,7 +75,7 @@ router.post("/admin/ticker", requireAdmin, async (req, res) => {
 router.patch("/admin/ticker/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
-  const { textAr, textFr, bgColor, textColor, isActive, sortOrder } = req.body;
+  const { textAr, textFr, bgColor, textColor, isActive, sortOrder, imageUrl, linkUrl } = req.body;
   try {
     const updates: Partial<typeof tickerAdsTable.$inferInsert> = {};
     if (textAr !== undefined) updates.textAr = textAr;
@@ -82,6 +84,8 @@ router.patch("/admin/ticker/:id", requireAdmin, async (req, res) => {
     if (textColor !== undefined) updates.textColor = textColor;
     if (isActive !== undefined) updates.isActive = isActive;
     if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+    if (imageUrl !== undefined) updates.imageUrl = imageUrl || null;
+    if (linkUrl !== undefined) updates.linkUrl = linkUrl || null;
     const [updated] = await db.update(tickerAdsTable).set(updates).where(eq(tickerAdsTable.id, id)).returning();
     if (!updated) return res.status(404).json({ message: "Not found" });
     res.json(updated);

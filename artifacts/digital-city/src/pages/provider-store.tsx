@@ -6,7 +6,7 @@ import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
 import { get } from "@/lib/admin-api";
 import { Plus, Minus, Package, Star, ArrowRight, ChevronLeft } from "lucide-react";
-import { TickerBanner } from "@/components/TickerBanner";
+import { AdCarousel } from "@/components/AdCarousel";
 import { cn } from "@/lib/utils";
 
 interface Supplier {
@@ -130,9 +130,9 @@ export default function ProviderStore() {
           )}
         </motion.div>
 
-        {/* Ticker Ad Banner for this supplier */}
+        {/* Ad Carousel for this supplier */}
         <div className="mb-6">
-          <TickerBanner supplierId={parseInt(id!)} />
+          <AdCarousel supplierId={parseInt(id!)} height={100} />
         </div>
 
         {/* Section title */}
