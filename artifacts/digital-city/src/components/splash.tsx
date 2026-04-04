@@ -35,7 +35,7 @@ export function Splash({ onDone }: SplashProps) {
           >
             {/* Sanad logo */}
             <img
-              src="/sanad-logo.svg?v=4"
+              src="/sanad-logo.svg?v=5"
               alt="سند · Sanad"
               style={{ height: "360px", width: "auto" }}
               draggable={false}

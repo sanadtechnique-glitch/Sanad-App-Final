@@ -50,12 +50,14 @@
     d="M228,108 A22,28 0 0,1 272,108"
     fill="none" stroke="white" stroke-width="4.5"
   />
-  <!-- Roof triangle (A element, orange) -->
-  <polygon
-    points="250,55 222,80 278,80"
+  <!-- Location pin replacing roof triangle — same color, same area -->
+  <path
+    d="M 250,47 A 17,17 0 0 1 267,64 Q 263,81 250,94 Q 237,81 233,64 A 17,17 0 0 1 250,47 Z"
     fill="#FFA500"
     opacity="0.95"
   />
+  <!-- Inner dot (hole) of the pin -->
+  <circle cx="250" cy="63" r="6" fill="#006B3C" opacity="0.80"/>
   <!-- Door handle dot (orange, B element) -->
   <circle cx="264" cy="133" r="5.5" fill="#FFA500"/>
   <!-- Orange apex dot (B element) -->
