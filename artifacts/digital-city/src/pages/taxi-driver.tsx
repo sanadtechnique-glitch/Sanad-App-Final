@@ -47,6 +47,7 @@ export default function TaxiDriverPage() {
   const [pendingRequest,   setPendingRequest]   = useState<PendingRequest | null>(null);
   const [awaitingRequest,  setAwaitingRequest]  = useState<AwaitingRequest | null>(null);
   const [activeRequest,    setActiveRequest]    = useState<ActiveRequest | null>(null);
+  const [queuedRequest,    setQueuedRequest]    = useState<PendingRequest | null>(null); // while in active ride
   const [etaInput,         setEtaInput]         = useState("5");
   const [error,            setError]            = useState("");
   const [actionLoading,    setActionLoading]    = useState(false);
@@ -88,12 +89,16 @@ export default function TaxiDriverPage() {
         // Customer confirmed → driver en route
         setActiveRequest(data.activeRequest);
         setView("active");
+        // If there's ALSO a pending request, queue it for after the ride
+        if (data.pendingRequest) {
+          setQueuedRequest(data.pendingRequest);
+        }
       } else if (data.awaitingRequest) {
         // Driver accepted + set ETA, waiting for customer confirmation
         setAwaitingRequest(data.awaitingRequest);
         setView("awaiting_customer");
       } else if (data.pendingRequest) {
-        // Driver received a new request
+        // Driver received a new request (not currently on a ride)
         setPendingRequest(data.pendingRequest);
         setView("incoming");
       } else if (!data.driver.isAvailable) {
@@ -135,9 +140,18 @@ export default function TaxiDriverPage() {
     });
     socketRef.current = socket;
 
-    socket.on("taxi_request", (req: PendingRequest) => {
-      setPendingRequest(req);
-      setView("incoming");
+    socket.on("taxi_request", (req: PendingRequest & { isQueued?: boolean }) => {
+      setView(currentView => {
+        if (currentView === "active" || currentView === "awaiting_customer") {
+          // Driver is busy — queue it silently (show banner)
+          setQueuedRequest(req);
+          return currentView; // don't change view
+        } else {
+          // Driver is free — show incoming screen
+          setPendingRequest(req);
+          return "incoming";
+        }
+      });
     });
 
     // Customer confirmed or declined the ETA
@@ -217,7 +231,16 @@ export default function TaxiDriverPage() {
       await fetch(`${API}/taxi/driver/complete/${activeRequest.id}`, { method: "POST", headers });
       setActiveRequest(null);
       setDriver(prev => prev ? { ...prev, isAvailable: true } : prev);
-      setView("waiting");
+
+      // If there's a queued request, go directly to incoming screen
+      if (queuedRequest) {
+        setPendingRequest(queuedRequest);
+        setQueuedRequest(null);
+        setEtaInput("5");
+        setView("incoming");
+      } else {
+        setView("waiting");
+      }
     } catch { setError("تعذّر الاتصال بالخادم"); }
     setActionLoading(false);
   }
@@ -436,6 +459,46 @@ export default function TaxiDriverPage() {
         <div className="py-4 px-4 text-center" style={{ background: "#1A4D1F" }}>
           <h1 className="text-white text-lg font-black">🚕 رحلة نشطة · Course active</h1>
         </div>
+
+        {/* ── Queued request banner ─────────────────────────────────────── */}
+        {queuedRequest && (
+          <div
+            className="mx-4 mt-3 rounded-2xl p-4 shadow-lg border-2 animate-pulse"
+            style={{ background: "#FFF3E0", borderColor: "#FFA500" }}
+            dir="rtl"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-black text-sm" style={{ color: "#FFA500" }}>
+                🔔 طلب جديد ينتظرك بعد هذه الرحلة!
+              </p>
+              <button
+                onClick={() => setQueuedRequest(null)}
+                className="text-gray-400 text-xs hover:text-gray-600"
+              >✕</button>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold" style={{ color: "#1A4D1F" }}>
+                👤 {queuedRequest.customerName}
+                {queuedRequest.customerPhone && (
+                  <span className="text-blue-600 mr-2">· {queuedRequest.customerPhone}</span>
+                )}
+              </p>
+              <p className="text-xs text-gray-600">📍 {queuedRequest.pickupAddress}</p>
+              {queuedRequest.dropoffAddress && (
+                <p className="text-xs text-gray-600">🏁 {queuedRequest.dropoffAddress}</p>
+              )}
+              <p className="text-xs font-bold" style={{ color: "#1A4D1F" }}>
+                💵 {queuedRequest.commissionType === "fixed"
+                  ? `${queuedRequest.fixedAmount?.toFixed(3)} دينار (ثابت)`
+                  : "⏱ عدّاد"}
+              </p>
+            </div>
+            <p className="text-xs text-center mt-2 text-gray-500">
+              أنهِ رحلتك الحالية وستُعرض عليك تلقائياً ✅
+            </p>
+          </div>
+        )}
+
         <div className="flex-1 p-4 max-w-sm mx-auto w-full">
           <div className="bg-white rounded-2xl shadow-lg p-5">
             <div className="flex items-center gap-3 mb-4 pb-3 border-b">

@@ -19,7 +19,7 @@ function parseRejected(raw: string | null): number[] {
 
 /** Find the next available taxi driver excluding already-rejected ones */
 async function findNextDriver(rejectedIds: number[]): Promise<typeof taxiDriversTable.$inferSelect | null> {
-  let query = db
+  const [driver] = await db
     .select()
     .from(taxiDriversTable)
     .where(
@@ -32,8 +32,36 @@ async function findNextDriver(rejectedIds: number[]): Promise<typeof taxiDrivers
       )
     )
     .limit(1);
+  return driver ?? null;
+}
 
-  const [driver] = await query;
+/**
+ * Find a driver who is currently on an active (in_progress) ride.
+ * Used as fallback when no available driver exists — notify them of a new request
+ * so they can handle it after finishing the current ride.
+ */
+async function findBusyDriver(rejectedIds: number[]): Promise<typeof taxiDriversTable.$inferSelect | null> {
+  // Find drivers who have an in_progress ride assigned to them
+  const [activeReq] = await db
+    .select({ assignedDriverId: taxiRequestsTable.assignedDriverId })
+    .from(taxiRequestsTable)
+    .where(eq(taxiRequestsTable.status, "in_progress"))
+    .limit(1);
+
+  if (!activeReq?.assignedDriverId) return null;
+  if (rejectedIds.includes(activeReq.assignedDriverId)) return null;
+
+  const [driver] = await db
+    .select()
+    .from(taxiDriversTable)
+    .where(
+      and(
+        eq(taxiDriversTable.id, activeReq.assignedDriverId),
+        eq(taxiDriversTable.isActive, true)
+      )
+    )
+    .limit(1);
+
   return driver ?? null;
 }
 
@@ -96,46 +124,52 @@ router.post("/taxi/request", async (req, res) => {
     return;
   }
 
-  // Find first available driver
+  // 1) Try to find an available driver first
   const firstDriver = await findNextDriver([]);
+  // 2) If no available driver, try a busy one (currently on an in_progress ride)
+  const busyDriver  = firstDriver ? null : await findBusyDriver([]);
+
+  const chosenDriver  = firstDriver ?? busyDriver;
+  const isBusyDriver  = !firstDriver && !!busyDriver;
 
   const [request] = await db
     .insert(taxiRequestsTable)
     .values({
-      customerId:       customerId ?? null,
-      customerName:     customerName.trim(),
-      customerPhone:    customerPhone?.trim() ?? null,
-      pickupAddress:    pickupAddress.trim(),
-      pickupLat:        pickupLat ?? null,
-      pickupLng:        pickupLng ?? null,
-      dropoffAddress:   dropoffAddress?.trim() ?? null,
-      notes:            notes?.trim() ?? null,
+      customerId:        customerId ?? null,
+      customerName:      customerName.trim(),
+      customerPhone:     customerPhone?.trim() ?? null,
+      pickupAddress:     pickupAddress.trim(),
+      pickupLat:         pickupLat ?? null,
+      pickupLng:         pickupLng ?? null,
+      dropoffAddress:    dropoffAddress?.trim() ?? null,
+      notes:             notes?.trim() ?? null,
       commissionType,
-      fixedAmount:      fixedAmount ?? null,
-      status:           firstDriver ? "pending" : "searching",
-      assignedDriverId: firstDriver?.id ?? null,
+      fixedAmount:       fixedAmount ?? null,
+      // Busy driver gets "pending" too — they'll see a queued banner and handle it after current ride
+      status:            chosenDriver ? "pending" : "searching",
+      assignedDriverId:  chosenDriver?.id ?? null,
       rejectedDriverIds: "",
     })
     .returning();
 
-  // Notify the first driver if found
-  if (firstDriver) {
-    // Get driver's userId to send socket event
+  // Notify the chosen driver via socket
+  if (chosenDriver) {
     const [driverUser] = await db
       .select({ userId: taxiDriversTable.userId })
       .from(taxiDriversTable)
-      .where(eq(taxiDriversTable.id, firstDriver.id));
+      .where(eq(taxiDriversTable.id, chosenDriver.id));
 
     if (driverUser) {
       emitTaxiRequest(driverUser.userId, {
-        requestId:     request.id,
-        customerName:  request.customerName,
-        customerPhone: request.customerPhone,
-        pickupAddress: request.pickupAddress,
+        requestId:      request.id,
+        customerName:   request.customerName,
+        customerPhone:  request.customerPhone,
+        pickupAddress:  request.pickupAddress,
         dropoffAddress: request.dropoffAddress,
-        notes:         request.notes,
+        notes:          request.notes,
         commissionType: request.commissionType,
-        fixedAmount:   request.fixedAmount,
+        fixedAmount:    request.fixedAmount,
+        isQueued:       isBusyDriver,   // <-- tells driver it's for after current ride
       });
     }
   }
