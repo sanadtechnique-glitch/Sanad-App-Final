@@ -124,6 +124,29 @@ router.post("/taxi/request", async (req, res) => {
     return;
   }
 
+  // Block customer from making a new request if they already have an active one
+  if (customerId) {
+    const [existingActive] = await db
+      .select({ id: taxiRequestsTable.id, status: taxiRequestsTable.status })
+      .from(taxiRequestsTable)
+      .where(
+        and(
+          eq(taxiRequestsTable.customerId, customerId),
+          inArray(taxiRequestsTable.status, ["searching", "pending", "accepted", "in_progress"])
+        )
+      )
+      .limit(1);
+
+    if (existingActive) {
+      res.status(409).json({
+        message: "لديك رحلة نشطة بالفعل · Vous avez déjà une course en cours",
+        existingRequestId: existingActive.id,
+        existingStatus: existingActive.status,
+      });
+      return;
+    }
+  }
+
   // 1) Try to find an available driver first
   const firstDriver = await findNextDriver([]);
   // 2) If no available driver, try a busy one (currently on an in_progress ride)

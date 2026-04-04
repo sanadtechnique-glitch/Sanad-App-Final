@@ -217,6 +217,19 @@ export default function TaxiPage() {
         }),
       });
 
+      // Customer already has an active ride
+      if (res.status === 409) {
+        const data = await res.json();
+        setLoading(false);
+        setError(data.message || "لديك رحلة نشطة بالفعل");
+        // Resume tracking the existing ride
+        if (data.existingRequestId) {
+          setRequestId(data.existingRequestId);
+          setStatus(data.existingStatus ?? "pending");
+        }
+        return;
+      }
+
       const data = await res.json();
       if (!res.ok) { setError(data.message || "خطأ · Erreur"); setLoading(false); return; }
 
