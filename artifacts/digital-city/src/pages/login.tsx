@@ -643,7 +643,7 @@ export default function LoginPage() {
           className="flex flex-col items-center mb-8"
         >
           <img
-            src="/sanad-logo.svg?v=3"
+            src="/sanad-logo.svg?v=4"
             alt="سند · Sanad"
             style={{ height: "280px", width: "auto" }}
             draggable={false}

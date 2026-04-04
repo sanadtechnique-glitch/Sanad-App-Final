@@ -77,14 +77,12 @@
   >سند</text>
 
   <!-- ══════════════════════════════════════════
-       SPEED SWOOSH (C) — orange bar under Arabic
+       YELLOW UNDERLINE — directly under سند
   ══════════════════════════════════════════ -->
-  <!-- Full faded bar -->
-  <rect x="60" y="307" width="380" height="10" rx="5" fill="#FFA500" opacity="0.18"/>
-  <!-- Bold left segment -->
-  <rect x="60" y="307" width="160" height="10" rx="5" fill="#FFA500"/>
-  <!-- Tiny accent right -->
-  <rect x="370" y="307" width="70" height="10" rx="5" fill="#FFA500" opacity="0.55"/>
+  <!-- Main yellow underline under سند -->
+  <rect x="118" y="304" width="264" height="11" rx="5.5" fill="#FFA500"/>
+  <!-- Subtle glow layer -->
+  <rect x="118" y="304" width="264" height="11" rx="5.5" fill="#FFD700" opacity="0.35"/>
 
   <!-- ══════════════════════════════════════════
        LATIN TEXT — Sanad
