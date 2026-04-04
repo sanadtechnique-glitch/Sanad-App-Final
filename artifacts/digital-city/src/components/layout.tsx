@@ -437,7 +437,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ background: "#FFA500" }}
       >
         {/* Logo */}
-        <img src="/sanad-logo.svg?v=2" alt="سند" style={{ height: 104, width: "auto" }} draggable={false} />
+        <img src="/sanad-logo.svg?v=3" alt="سند" style={{ height: 104, width: "auto" }} draggable={false} />
 
         {/* Nav icons */}
         <nav className="flex flex-col gap-7">
@@ -583,7 +583,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ background: "#FFA500" }}
       >
         {/* Logo */}
-        <img src="/sanad-logo.svg?v=2" alt="سند" style={{ height: 88, width: "auto" }} draggable={false} />
+        <img src="/sanad-logo.svg?v=3" alt="سند" style={{ height: 88, width: "auto" }} draggable={false} />
 
         {/* User greeting (mobile — center) */}
         {session ? (
