@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import {
   usersTable, serviceProvidersTable, deliveryStaffTable,
   ordersTable, productsTable, ratingsTable, hotelBookingsTable,
+  taxiDriversTable,
 } from "@workspace/db/schema";
 import { eq, ne } from "drizzle-orm";
 import { createSession } from "../lib/sessionStore";
@@ -431,6 +432,17 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
         linkedStaffId: linkedStaffId ?? null,
       })
       .returning();
+
+    // Auto-create taxi_drivers record when role is taxi_driver
+    if (role === "taxi_driver") {
+      await db.insert(taxiDriversTable).values({
+        userId:   user.id,
+        name:     user.name,
+        phone:    user.phone ?? phone?.trim() ?? "",
+        isAvailable: true,
+        isActive: user.isActive,
+      }).onConflictDoNothing();
+    }
 
     const { password: _pw, ...safeUser } = user;
     res.status(201).json(safeUser);
