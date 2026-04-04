@@ -720,6 +720,37 @@ router.delete("/admin/taxi/drivers/:id", requireAdmin, async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DRIVER — PATCH /api/taxi/driver/status  (toggle isAvailable)
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch("/taxi/driver/status", requireAuth, async (req, res) => {
+  const session = (req as any).authSession;
+  const { isAvailable } = req.body as { isAvailable: boolean };
+
+  if (typeof isAvailable !== "boolean") {
+    res.status(400).json({ message: "isAvailable (boolean) requis" });
+    return;
+  }
+
+  const [driver] = await db
+    .select()
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, session.userId));
+
+  if (!driver) {
+    res.status(404).json({ message: "Chauffeur non trouvé" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(taxiDriversTable)
+    .set({ isAvailable })
+    .where(eq(taxiDriversTable.id, driver.id))
+    .returning();
+
+  res.json(updated);
+});
+
 // ADMIN — GET /api/admin/taxi/requests
 router.get("/admin/taxi/requests", requireAdmin, async (req, res) => {
   const requests = await db

@@ -505,7 +505,10 @@ export default function OrderHistory() {
     return null;
   }
 
-  const role = session.role as string;
+  const role        = session.role as string;
+  const sessionName = session.name;
+  const supplierId  = (session as any).supplierId as number | undefined;
+  const staffId     = (session as any).staffId    as number | undefined;
 
   // ── Role meta ────────────────────────────────────────────────────────────────
   const roleLabel = (role === "client" || role === "customer") ? t("عميل", "Client")
@@ -525,15 +528,15 @@ export default function OrderHistory() {
       let orders: Order[] = [];
       if (role === "client" || role === "customer") {
         const [regularOrders, taxis] = await Promise.allSettled([
-          get<Order[]>(`/orders/customer?name=${encodeURIComponent(session.name)}`),
+          get<Order[]>(`/orders/customer?name=${encodeURIComponent(sessionName)}`),
           get<TaxiRide[]>("/taxi/customer/history"),
         ]);
         if (regularOrders.status === "fulfilled") orders = regularOrders.value;
         if (taxis.status === "fulfilled") setTaxiRides(taxis.value);
-      } else if (role === "provider" && (session as any).supplierId) {
-        orders = await get<Order[]>(`/provider/${(session as any).supplierId}/orders`);
-      } else if (role === "delivery" && (session as any).staffId) {
-        orders = await get<Order[]>(`/delivery/staff/${(session as any).staffId}/orders`);
+      } else if (role === "provider" && supplierId) {
+        orders = await get<Order[]>(`/provider/${supplierId}/orders`);
+      } else if (role === "delivery" && staffId) {
+        orders = await get<Order[]>(`/delivery/staff/${staffId}/orders`);
       }
       setAllOrders(orders);
     } catch {
@@ -542,7 +545,7 @@ export default function OrderHistory() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [role, session]);
+  }, [role, sessionName, supplierId, staffId]);
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
 

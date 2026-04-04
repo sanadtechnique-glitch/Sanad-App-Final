@@ -223,6 +223,25 @@ export default function TaxiDriverPage() {
     setActionLoading(false);
   }
 
+  // ── Toggle availability ────────────────────────────────────────────────────
+  async function handleToggleAvailability() {
+    if (!token || !driver) return;
+    const newVal = !driver.isAvailable;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`${API}/taxi/driver/status`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ isAvailable: newVal }),
+      });
+      if (res.ok) {
+        setDriver(prev => prev ? { ...prev, isAvailable: newVal } : prev);
+        setView(newVal ? "waiting" : "unavailable");
+      }
+    } catch { setError("تعذّر تغيير الحالة"); }
+    setActionLoading(false);
+  }
+
   // ── Complete ride ──────────────────────────────────────────────────────────
   async function handleComplete() {
     if (!activeRequest) return;
@@ -627,18 +646,34 @@ export default function TaxiDriverPage() {
           <h2 className="text-xl font-bold mb-2 text-center" style={{ color: "#1A4D1F" }}>
             {view === "waiting" ? "في انتظار الطلبات..." : "غير متاح حالياً"}
           </h2>
-          <p className="text-gray-500 text-sm mb-8 text-center">
+          <p className="text-gray-500 text-sm mb-6 text-center">
             {view === "waiting"
               ? "En attente de nouvelles demandes…"
               : "Vous êtes marqué comme non disponible"}
           </p>
           {view === "waiting" && (
-            <div className="flex justify-center gap-2">
+            <div className="flex justify-center gap-2 mb-6">
               {[0,1,2].map(i => (
                 <div key={i} className="w-3 h-3 rounded-full animate-bounce" style={{ background: "#FFA500", animationDelay: `${i * 0.2}s` }} />
               ))}
             </div>
           )}
+          {/* Availability toggle button */}
+          <button
+            onClick={handleToggleAvailability}
+            disabled={actionLoading}
+            className="flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-md"
+            style={{
+              background: actionLoading ? "#9ca3af" : view === "waiting" ? "#ef4444" : "#1A4D1F",
+              color: "white",
+              opacity: actionLoading ? 0.7 : 1,
+            }}
+          >
+            {actionLoading ? "..." : view === "waiting"
+              ? "⛔ تعطيل · Passer hors ligne"
+              : "✅ تفعيل · Passer en ligne"}
+          </button>
+          {error && <p className="text-red-500 text-xs mt-3 text-center">{error}</p>}
         </div>
       )}
 
