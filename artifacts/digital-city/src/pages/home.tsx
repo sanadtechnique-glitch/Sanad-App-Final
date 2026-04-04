@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { AdBanner } from "@/components/ad-banner";
+import { TickerBanner } from "@/components/TickerBanner";
 import { useLang } from "@/lib/language";
 import { getSession, clearSession } from "@/lib/auth";
 import { get } from "@/lib/admin-api";
@@ -1011,6 +1012,11 @@ export default function Home() {
           </Link>
         </motion.div>
       </section>
+
+      {/* ── Ticker Ad Banner ──────────────────────────────────────────────────── */}
+      <div className="px-4 sm:px-6 lg:px-10 mt-4">
+        <TickerBanner />
+      </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
           3. MY ORDERS — shown only for logged-in clients

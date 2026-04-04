@@ -16,6 +16,7 @@ import adsRouter from "./ads";
 import productsRouter from "./products";
 import deliveryConfigRouter from "./deliveryConfig";
 import taxiRouter from "./taxi";
+import tickerRouter from "./ticker";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(adsRouter);
 router.use(productsRouter);
 router.use(deliveryConfigRouter);
 router.use(taxiRouter);
+router.use(tickerRouter);
 
 export default router;

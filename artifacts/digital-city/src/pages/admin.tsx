@@ -1946,6 +1946,226 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// ── Ticker Section ────────────────────────────────────────────────────────────
+interface TickerRow { id: number; textAr: string; textFr: string | null; supplierId: number | null; bgColor: string; textColor: string; isActive: boolean; sortOrder: number; }
+interface SupplierMinimal { id: number; nameAr: string; name: string; }
+
+function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const [ads, setAds]               = useState<TickerRow[]>([]);
+  const [suppliers, setSuppliers]   = useState<SupplierMinimal[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [showForm, setShowForm]     = useState(false);
+  const [editing, setEditing]       = useState<TickerRow | null>(null);
+  const [filterSup, setFilterSup]   = useState<string>("all");
+
+  const [textAr, setTextAr]       = useState("");
+  const [textFr, setTextFr]       = useState("");
+  const [supplierId, setSupplierId] = useState<string>("");
+  const [bgColor, setBgColor]     = useState("#1A4D1F");
+  const [textColor, setTextColor] = useState("#FFFFFF");
+  const [sortOrder, setSortOrder] = useState("0");
+  const [saving, setSaving]       = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const [a, s] = await Promise.all([get<TickerRow[]>("/admin/ticker"), get<SupplierMinimal[]>("/suppliers")]);
+    setAds(a || []);
+    setSuppliers(s || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const openAdd = () => {
+    setEditing(null);
+    setTextAr(""); setTextFr(""); setSupplierId(""); setBgColor("#1A4D1F"); setTextColor("#FFFFFF"); setSortOrder("0");
+    setShowForm(true);
+  };
+  const openEdit = (r: TickerRow) => {
+    setEditing(r);
+    setTextAr(r.textAr); setTextFr(r.textFr || ""); setSupplierId(r.supplierId ? String(r.supplierId) : "");
+    setBgColor(r.bgColor); setTextColor(r.textColor); setSortOrder(String(r.sortOrder));
+    setShowForm(true);
+  };
+  const save = async () => {
+    if (!textAr.trim()) return;
+    setSaving(true);
+    const body = { textAr, textFr: textFr || null, supplierId: supplierId || null, bgColor, textColor, sortOrder: parseInt(sortOrder) || 0 };
+    if (editing) await patch(`/admin/ticker/${editing.id}`, body);
+    else await post("/admin/ticker", body);
+    setSaving(false);
+    setShowForm(false);
+    await load();
+  };
+  const toggle = async (r: TickerRow) => {
+    await patch(`/admin/ticker/${r.id}`, { isActive: !r.isActive });
+    await load();
+  };
+  const remove = async (id: number) => {
+    if (!confirm(t("هل أنت متأكد؟", "Confirmer la suppression?"))) return;
+    await del(`/admin/ticker/${id}`);
+    await load();
+  };
+
+  const filtered = filterSup === "all" ? ads : filterSup === "global" ? ads.filter(a => !a.supplierId) : ads.filter(a => String(a.supplierId) === filterSup);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-lg font-black text-[#1A4D1F]">{t("شريط الإشهار", "Ticker Publicitaire")}</h2>
+          <p className="text-xs text-[#1A4D1F]/40">{t("نصوص تتحرك كشريط أسفل كل قسم أو في الرئيسية", "Texte défilant sur la page d'accueil ou profils")}</p>
+        </div>
+        <button onClick={openAdd}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-black hover:opacity-90"
+          style={{ background: "#1A4D1F" }}>
+          <Plus size={15} /> {t("إضافة نص", "Ajouter")}
+        </button>
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex gap-2 mb-5 overflow-x-auto pb-1" dir="rtl">
+        {[{ key: "all", label: t("الكل","Tout") }, { key: "global", label: t("الرئيسية","Accueil") }, ...suppliers.map(s => ({ key: String(s.id), label: s.nameAr }))].map(tab => (
+          <button key={tab.key} onClick={() => setFilterSup(tab.key)}
+            className={cn("px-3 py-1 rounded-full text-xs font-black whitespace-nowrap transition-all", filterSup === tab.key ? "text-white" : "text-[#1A4D1F]/50 border border-[#1A4D1F]/20")}
+            style={filterSup === tab.key ? { background: "#1A4D1F" } : {}}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><RefreshCw size={20} className="animate-spin text-[#1A4D1F]/30" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16">
+          <Radio size={36} className="mx-auto mb-3 text-[#1A4D1F]/20" />
+          <p className="font-black text-[#1A4D1F]/30">{t("لا توجد نصوص", "Aucun ticker")}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(ad => {
+            const supName = ad.supplierId ? (suppliers.find(s => s.id === ad.supplierId)?.nameAr || `#${ad.supplierId}`) : t("الرئيسية","Accueil");
+            return (
+              <motion.div key={ad.id} layout
+                className="rounded-2xl border p-4"
+                style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.12)" }}>
+                {/* Preview strip */}
+                <div className="rounded-lg overflow-hidden mb-3" style={{ background: ad.bgColor, height: 32 }}>
+                  <div className="flex items-center h-full px-3 overflow-hidden">
+                    <span className="text-xs font-bold truncate" style={{ color: ad.textColor }}>{ad.textAr}</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between" dir="rtl">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-black text-[#1A4D1F]/50 px-2 py-0.5 rounded-full border border-[#1A4D1F]/10">{supName}</span>
+                      <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-full", ad.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600")}>
+                        {ad.isActive ? t("نشط","Actif") : t("معطّل","Inactif")}
+                      </span>
+                    </div>
+                    {ad.textFr && <p className="text-xs text-[#1A4D1F]/30 mt-1 truncate">{ad.textFr}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 ms-3">
+                    <button onClick={() => toggle(ad)} className="p-2 rounded-lg hover:bg-[#1A4D1F]/10 transition-all">
+                      {ad.isActive ? <ToggleRight size={18} className="text-green-600" /> : <ToggleLeft size={18} className="text-[#1A4D1F]/30" />}
+                    </button>
+                    <button onClick={() => openEdit(ad)} className="p-2 rounded-lg hover:bg-[#1A4D1F]/10 transition-all">
+                      <Pencil size={14} className="text-[#1A4D1F]/50" />
+                    </button>
+                    <button onClick={() => remove(ad.id)} className="p-2 rounded-lg hover:bg-red-50 transition-all">
+                      <Trash2 size={14} className="text-red-400" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.5)" }}
+            onClick={() => setShowForm(false)}>
+            <motion.div initial={{ scale: 0.93, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.93, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl p-6 shadow-2xl"
+              style={{ background: "#FFF3E0" }}
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-5" dir="rtl">
+                <h3 className="font-black text-[#1A4D1F]">
+                  {editing ? t("تعديل النص","Modifier") : t("نص إشهاري جديد","Nouveau ticker")}
+                </h3>
+                <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-[#1A4D1F]/10">
+                  <X size={16} className="text-[#1A4D1F]/60" />
+                </button>
+              </div>
+              <div className="space-y-4" dir="rtl">
+                <div>
+                  <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("النص بالعربية *","Texte arabe *")}</label>
+                  <input value={textAr} onChange={e => setTextAr(e.target.value)} placeholder={t("مثال: عروض حصرية هذا الأسبوع!","Ex: Offres exclusives cette semaine!")}
+                    className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border border-[#1A4D1F]/20 outline-none focus:border-[#1A4D1F]" style={{ background: "#fff", color: "#1A4D1F" }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("النص بالفرنسية","Texte français")}</label>
+                  <input value={textFr} onChange={e => setTextFr(e.target.value)} placeholder="Ex: Offres exclusives cette semaine!"
+                    className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border border-[#1A4D1F]/20 outline-none focus:border-[#1A4D1F]" style={{ background: "#fff", color: "#1A4D1F" }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("خاص بمزود (اختياري)","Fournisseur (optionnel)")}</label>
+                  <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
+                    className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border border-[#1A4D1F]/20 outline-none focus:border-[#1A4D1F]" style={{ background: "#fff", color: "#1A4D1F" }}>
+                    <option value="">{t("الرئيسية (عام)","Page d'accueil (général)")}</option>
+                    {suppliers.map(s => <option key={s.id} value={s.id}>{s.nameAr}</option>)}
+                  </select>
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("لون الخلفية","Couleur fond")}</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="w-10 h-9 rounded-lg border border-[#1A4D1F]/20 cursor-pointer" />
+                      <span className="text-xs font-bold text-[#1A4D1F]/40">{bgColor}</span>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("لون النص","Couleur texte")}</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="w-10 h-9 rounded-lg border border-[#1A4D1F]/20 cursor-pointer" />
+                      <span className="text-xs font-bold text-[#1A4D1F]/40">{textColor}</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Live preview */}
+                <div>
+                  <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("معاينة","Aperçu")}</label>
+                  <div className="rounded-lg overflow-hidden" style={{ background: bgColor, height: 34 }}>
+                    <div className="flex items-center h-full px-4">
+                      <span className="text-xs font-bold" style={{ color: textColor }}>{textAr || t("نص الإشهار سيظهر هنا...","Le texte publicitaire s'affichera ici...")}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={save} disabled={saving || !textAr.trim()}
+                  className="flex-1 py-2.5 rounded-xl text-white font-black text-sm disabled:opacity-50"
+                  style={{ background: "#1A4D1F" }}>
+                  {saving ? <RefreshCw size={14} className="animate-spin mx-auto" /> : t("حفظ","Enregistrer")}
+                </button>
+                <button onClick={() => setShowForm(false)}
+                  className="px-5 py-2.5 rounded-xl font-black text-sm text-[#1A4D1F]/60 border border-[#1A4D1F]/20">
+                  {t("إلغاء","Annuler")}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // ── Ads Section ───────────────────────────────────────────────────────────────
 interface AdRow { id: number; title: string; imageUrl?: string; isActive: boolean; expiresAt?: string; clickCount: number; createdAt: string; }
 
@@ -3013,7 +3233,7 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config";
+type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker";
 
 const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean }[] = [
   { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",       fr: "Tableau de bord" },
@@ -3021,6 +3241,7 @@ const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly
   { id: "live_map",      icon: Map,              ar: "الخريطة المباشرة", fr: "Carte live" },
   { id: "hotelBookings", icon: Hotel,            ar: "حجوزات الفنادق",  fr: "Réservations Hôtel" },
   { id: "banners",       icon: Megaphone,        ar: "الإعلانات",       fr: "Publicités" },
+  { id: "ticker",        icon: Radio,            ar: "شريط الإشهار",    fr: "Ticker Pub" },
   { id: "ads",           icon: Image,            ar: "إعلانات متقدمة",  fr: "Ads avancées" },
   { id: "broadcast",     icon: Radio,            ar: "بث إشعار",        fr: "Diffusion" },
   { id: "categories",    icon: Tag,              ar: "الفئات",          fr: "Catégories",    superOnly: true },
@@ -3254,6 +3475,7 @@ export default function Admin() {
             {active === "live_map"      && <LiveMapSection t={t} lang={lang} />}
             {active === "hotelBookings" && <HotelBookingsSection t={t} lang={lang} />}
             {active === "banners"       && <BannersSection t={t} />}
+            {active === "ticker"        && <TickerSection t={t} />}
             {active === "ads"           && <AdsSection t={t} />}
             {active === "broadcast"     && <BroadcastSection t={t} lang={lang} />}
             {active === "categories"    && isSuper && <CategoriesSection t={t} />}
