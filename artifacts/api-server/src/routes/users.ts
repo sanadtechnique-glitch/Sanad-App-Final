@@ -44,7 +44,7 @@ router.post("/auth/login", async (req, res) => {
       return;
     }
 
-    const token = createSession(user.id, user.role, user.username ?? user.name);
+    const token = await createSession(user.id, user.role, user.username ?? user.name);
     const { password: _pw, ...safeUser } = user;
 
     // Provider: attach supplierId
@@ -121,7 +121,7 @@ router.post("/auth/admin-login", async (req, res) => {
     if (!user.isActive) { res.status(403).json({ message: "Account is deactivated" }); return; }
     if (user.password !== password.trim()) { res.status(401).json({ message: "Wrong password" }); return; }
 
-    const token = createSession(user.id, user.role, user.username ?? user.name);
+    const token = await createSession(user.id, user.role, user.username ?? user.name);
     const { password: _pw, ...safeUser } = user;
 
     if (user.role === "provider") {
@@ -253,7 +253,7 @@ router.post("/auth/client-register", async (req, res) => {
       })
       .returning();
 
-    const token = createSession(user.id, user.role, user.username ?? user.name);
+    const token = await createSession(user.id, user.role, user.username ?? user.name);
     const { password: _pw, ...safeUser } = user;
     res.status(201).json({ ...safeUser, token });
   } catch (err: any) {
@@ -307,7 +307,7 @@ router.post("/auth/client-login", async (req, res) => {
       return;
     }
 
-    const token = createSession(user.id, user.role, user.username ?? user.name);
+    const token = await createSession(user.id, user.role, user.username ?? user.name);
     const { password: _pw, ...safeUser } = user;
     res.json({ ...safeUser, token });
   } catch (err) {
