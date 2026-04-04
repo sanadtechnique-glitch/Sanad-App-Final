@@ -876,92 +876,94 @@ export default function Home() {
           </Link>
         </motion.div>
 
-        {/* ── Category cards grid — vivid gradient tiles ─────────────────── */}
+        {/* ── Horizontal scrollable category row ─────────────────────────── */}
         {(() => {
-          const CAT_THEME: Record<string, { from: string; to: string; shadow: string }> = {
-            restaurant: { from: "#E8820A", to: "#FFA500", shadow: "#E8820A" },
-            pharmacy:   { from: "#005C2E", to: "#00875A", shadow: "#005C2E" },
-            lawyer:     { from: "#0D3311", to: "#2D6A31", shadow: "#0D3311" },
-            grocery:    { from: "#B85C00", to: "#E8960A", shadow: "#B85C00" },
-            mechanic:   { from: "#1A4D1F", to: "#2E7D32", shadow: "#1A4D1F" },
-            doctor:     { from: "#D97706", to: "#F59E0B", shadow: "#D97706" },
-            car:        { from: "#006B3C", to: "#00A05A", shadow: "#006B3C" },
-            hotel:      { from: "#C67C00", to: "#FFA500", shadow: "#C67C00" },
+          const CAT_THEME: Record<string, { from: string; to: string; glow: string }> = {
+            restaurant: { from: "#E8820A", to: "#FFA500", glow: "#FFA50066" },
+            pharmacy:   { from: "#005432", to: "#007A48", glow: "#006B3C55" },
+            lawyer:     { from: "#0D3311", to: "#1A4D1F", glow: "#1A4D1F55" },
+            grocery:    { from: "#B85C00", to: "#E8960A", glow: "#E8960A55" },
+            mechanic:   { from: "#1A4D1F", to: "#2E7D32", glow: "#2E7D3255" },
+            doctor:     { from: "#C96B00", to: "#F59E0B", glow: "#F59E0B55" },
+            car:        { from: "#00613A", to: "#009955", glow: "#00995555" },
+            hotel:      { from: "#A86A00", to: "#D4930A", glow: "#D4930A55" },
           };
           return (
-            <div className="grid grid-cols-2 gap-3">
+            <div
+              className="flex gap-4 overflow-x-auto pb-3"
+              style={{ scrollbarWidth: "none", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
+            >
               {CATEGORIES.map((cat, i) => {
                 const Icon = cat.icon;
-                const theme = CAT_THEME[cat.id] ?? { from: "#1A4D1F", to: "#006B3C", shadow: "#1A4D1F" };
+                const theme = CAT_THEME[cat.id] ?? { from: "#1A4D1F", to: "#006B3C", glow: "#1A4D1F55" };
                 return (
                   <motion.div
                     key={cat.id}
-                    initial={{ opacity: 0, scale: 0.88, y: 16 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ delay: 0.08 + i * 0.05, type: "spring", stiffness: 320, damping: 26 }}
+                    initial={{ opacity: 0, x: 24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.06 + i * 0.05, type: "spring", stiffness: 300, damping: 26 }}
+                    style={{ scrollSnapAlign: "start", flexShrink: 0 }}
                   >
                     <Link href={`/services?category=${cat.id}`}>
-                      <div
-                        className="relative rounded-[22px] overflow-hidden cursor-pointer active:scale-95 transition-transform duration-150"
-                        style={{
-                          background: `linear-gradient(145deg, ${theme.from} 0%, ${theme.to} 100%)`,
-                          boxShadow: `0 6px 22px ${theme.shadow}50`,
-                          height: 115,
-                        }}
-                      >
-                        {/* Watermark icon (large, behind content) */}
-                        <div
-                          className="absolute -bottom-3 -right-3 pointer-events-none"
-                          style={{ opacity: 0.13 }}
-                        >
-                          <Icon size={76} color="white" strokeWidth={1.5} />
-                        </div>
+                      <div className="flex flex-col items-center gap-2.5 cursor-pointer group active:scale-95 transition-transform duration-150" style={{ width: 72 }}>
 
-                        {/* Top-left shine overlay */}
+                        {/* Gradient circle */}
                         <div
-                          className="absolute top-0 left-0 right-0 h-1/2 pointer-events-none"
-                          style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.10) 0%, transparent 100%)" }}
-                        />
-
-                        {/* Diagonal stripe texture */}
-                        <div
-                          className="absolute inset-0 pointer-events-none"
+                          className="relative flex items-center justify-center transition-transform duration-200 group-hover:scale-105"
                           style={{
-                            backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 12px)",
+                            width: 64,
+                            height: 64,
+                            borderRadius: 20,
+                            background: `linear-gradient(145deg, ${theme.from} 0%, ${theme.to} 100%)`,
+                            boxShadow: `0 6px 18px ${theme.glow}`,
                           }}
-                        />
-
-                        {/* Content */}
-                        <div className="relative h-full flex flex-col justify-center items-center gap-2.5 px-3 z-10">
-                          {/* Icon pill */}
+                        >
+                          {/* Inner shine */}
                           <div
-                            className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                            style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(4px)" }}
-                          >
-                            <Icon size={24} color="white" strokeWidth={2} />
-                          </div>
-
-                          {/* Labels */}
-                          <div className="text-center leading-tight">
-                            <p className="font-black text-[14px] text-white leading-none">
-                              {cat.ar}
-                            </p>
-                            <p className="text-[10px] font-semibold mt-1" style={{ color: "rgba(255,255,255,0.60)" }}>
-                              {cat.fr}
-                            </p>
-                          </div>
+                            className="absolute top-0 inset-x-0 h-1/2 rounded-t-[20px] pointer-events-none"
+                            style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 100%)" }}
+                          />
+                          <Icon size={26} color="white" strokeWidth={2} />
                         </div>
 
-                        {/* Bottom glow line */}
-                        <div
-                          className="absolute bottom-0 inset-x-0 h-[2px] pointer-events-none"
-                          style={{ background: "rgba(255,255,255,0.20)" }}
-                        />
+                        {/* Arabic label */}
+                        <p
+                          className="font-black text-[12px] text-center leading-tight"
+                          style={{ color: "#1A4D1F", width: 72 }}
+                        >
+                          {cat.ar}
+                        </p>
                       </div>
                     </Link>
                   </motion.div>
                 );
               })}
+
+              {/* "See all" pill at the end */}
+              <motion.div
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.55, type: "spring", stiffness: 300, damping: 26 }}
+                style={{ scrollSnapAlign: "start", flexShrink: 0 }}
+              >
+                <Link href="/services">
+                  <div className="flex flex-col items-center gap-2.5 cursor-pointer group active:scale-95 transition-transform duration-150" style={{ width: 72 }}>
+                    <div
+                      className="flex items-center justify-center transition-transform duration-200 group-hover:scale-105"
+                      style={{
+                        width: 64, height: 64, borderRadius: 20,
+                        background: "rgba(26,77,31,0.07)",
+                        border: "2px dashed rgba(26,77,31,0.25)",
+                      }}
+                    >
+                      <span className="font-black text-2xl" style={{ color: "#1A4D1F" }}>+</span>
+                    </div>
+                    <p className="font-black text-[11px] text-center leading-tight" style={{ color: "#1A4D1F", width: 72 }}>
+                      {lang === "ar" ? "الكل" : "Tout"}
+                    </p>
+                  </div>
+                </Link>
+              </motion.div>
             </div>
           );
         })()}
