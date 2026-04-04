@@ -876,57 +876,86 @@ export default function Home() {
           </Link>
         </motion.div>
 
-        {/* ── Category cards grid ────────────────────────────────────────── */}
+        {/* ── Category cards grid — vivid gradient tiles ─────────────────── */}
         {(() => {
-          const ACCENTS = ["#FFA500", "#1A4D1F", "#006B3C", "#D97706"];
+          const CAT_THEME: Record<string, { from: string; to: string; shadow: string }> = {
+            restaurant: { from: "#E8820A", to: "#FFA500", shadow: "#E8820A" },
+            pharmacy:   { from: "#005C2E", to: "#00875A", shadow: "#005C2E" },
+            lawyer:     { from: "#0D3311", to: "#2D6A31", shadow: "#0D3311" },
+            grocery:    { from: "#B85C00", to: "#E8960A", shadow: "#B85C00" },
+            mechanic:   { from: "#1A4D1F", to: "#2E7D32", shadow: "#1A4D1F" },
+            doctor:     { from: "#D97706", to: "#F59E0B", shadow: "#D97706" },
+            car:        { from: "#006B3C", to: "#00A05A", shadow: "#006B3C" },
+            hotel:      { from: "#C67C00", to: "#FFA500", shadow: "#C67C00" },
+          };
           return (
-            <div className="grid grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 gap-3">
               {CATEGORIES.map((cat, i) => {
                 const Icon = cat.icon;
-                const accent = ACCENTS[i % ACCENTS.length];
-                const bgAlpha = accent === "#FFA500" || accent === "#D97706" ? "rgba(255,165,0,0.07)" : "rgba(26,77,31,0.05)";
-                const borderAlpha = accent === "#FFA500" || accent === "#D97706" ? "rgba(255,165,0,0.22)" : "rgba(26,77,31,0.14)";
-                const iconBg = accent === "#FFA500" || accent === "#D97706" ? "rgba(255,165,0,0.13)" : "rgba(26,77,31,0.09)";
+                const theme = CAT_THEME[cat.id] ?? { from: "#1A4D1F", to: "#006B3C", shadow: "#1A4D1F" };
                 return (
                   <motion.div
                     key={cat.id}
-                    initial={{ opacity: 0, y: 18, scale: 0.94 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ delay: 0.12 + i * 0.06, type: "spring", stiffness: 300, damping: 24 }}
+                    initial={{ opacity: 0, scale: 0.88, y: 16 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ delay: 0.08 + i * 0.05, type: "spring", stiffness: 320, damping: 26 }}
                   >
                     <Link href={`/services?category=${cat.id}`}>
                       <div
-                        className="relative flex flex-col items-center text-center gap-2 pt-4 pb-3 px-1.5 rounded-2xl cursor-pointer group overflow-hidden transition-all duration-200 active:scale-95"
-                        style={{ background: bgAlpha, border: `1.5px solid ${borderAlpha}` }}
+                        className="relative rounded-[22px] overflow-hidden cursor-pointer active:scale-95 transition-transform duration-150"
+                        style={{
+                          background: `linear-gradient(145deg, ${theme.from} 0%, ${theme.to} 100%)`,
+                          boxShadow: `0 6px 22px ${theme.shadow}50`,
+                          height: 115,
+                        }}
                       >
-                        {/* Top accent line */}
+                        {/* Watermark icon (large, behind content) */}
                         <div
-                          className="absolute top-0 inset-x-0 h-[3px] rounded-t-2xl transition-all duration-300 group-hover:h-[5px]"
-                          style={{ background: accent }}
+                          className="absolute -bottom-3 -right-3 pointer-events-none"
+                          style={{ opacity: 0.13 }}
+                        >
+                          <Icon size={76} color="white" strokeWidth={1.5} />
+                        </div>
+
+                        {/* Top-left shine overlay */}
+                        <div
+                          className="absolute top-0 left-0 right-0 h-1/2 pointer-events-none"
+                          style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.10) 0%, transparent 100%)" }}
                         />
 
-                        {/* Icon container */}
+                        {/* Diagonal stripe texture */}
                         <div
-                          className="w-11 h-11 rounded-[14px] flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
-                          style={{ background: iconBg }}
-                        >
-                          <Icon size={20} style={{ color: accent }} strokeWidth={2} />
+                          className="absolute inset-0 pointer-events-none"
+                          style={{
+                            backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 12px)",
+                          }}
+                        />
+
+                        {/* Content */}
+                        <div className="relative h-full flex flex-col justify-center items-center gap-2.5 px-3 z-10">
+                          {/* Icon pill */}
+                          <div
+                            className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                            style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(4px)" }}
+                          >
+                            <Icon size={24} color="white" strokeWidth={2} />
+                          </div>
+
+                          {/* Labels */}
+                          <div className="text-center leading-tight">
+                            <p className="font-black text-[14px] text-white leading-none">
+                              {cat.ar}
+                            </p>
+                            <p className="text-[10px] font-semibold mt-1" style={{ color: "rgba(255,255,255,0.60)" }}>
+                              {cat.fr}
+                            </p>
+                          </div>
                         </div>
 
-                        {/* Labels */}
-                        <div className="leading-tight">
-                          <p className="font-black text-[11px]" style={{ color: "#1A4D1F" }}>
-                            {cat.ar}
-                          </p>
-                          <p className="text-[8.5px] font-semibold mt-0.5" style={{ color: "rgba(26,77,31,0.38)" }}>
-                            {cat.fr}
-                          </p>
-                        </div>
-
-                        {/* Subtle shine on hover */}
+                        {/* Bottom glow line */}
                         <div
-                          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
-                          style={{ background: `radial-gradient(ellipse at 50% 0%, ${accent}18 0%, transparent 65%)` }}
+                          className="absolute bottom-0 inset-x-0 h-[2px] pointer-events-none"
+                          style={{ background: "rgba(255,255,255,0.20)" }}
                         />
                       </div>
                     </Link>
