@@ -589,6 +589,47 @@ router.get("/taxi/driver/history", requireAuth, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CUSTOMER — GET /api/taxi/customer/history  (all rides for a logged-in customer)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/taxi/customer/history", requireAuth, async (req, res) => {
+  const customerUserId = (req as any).authSession?.userId;
+  const { from, to } = req.query as { from?: string; to?: string };
+
+  const conditions: any[] = [eq(taxiRequestsTable.customerId, customerUserId)];
+
+  if (from) {
+    const fromDate = new Date(from);
+    fromDate.setHours(0, 0, 0, 0);
+    conditions.push(gte(taxiRequestsTable.createdAt, fromDate));
+  }
+  if (to) {
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+    conditions.push(lte(taxiRequestsTable.createdAt, toDate));
+  }
+
+  const rides = await db
+    .select()
+    .from(taxiRequestsTable)
+    .where(and(...conditions))
+    .orderBy(desc(taxiRequestsTable.createdAt));
+
+  // Attach driver info for each ride that had a driver
+  const driverIds = [...new Set(rides.map(r => r.assignedDriverId).filter(Boolean))] as number[];
+  const drivers = driverIds.length > 0
+    ? await db.select().from(taxiDriversTable).where(inArray(taxiDriversTable.id, driverIds))
+    : [];
+  const driverMap = Object.fromEntries(drivers.map(d => [d.id, d]));
+
+  const enriched = rides.map(r => ({
+    ...r,
+    driver: r.assignedDriverId ? (driverMap[r.assignedDriverId] ?? null) : null,
+  }));
+
+  res.json(enriched);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — GET /api/admin/taxi/drivers
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/admin/taxi/drivers", requireAuth, async (req, res) => {

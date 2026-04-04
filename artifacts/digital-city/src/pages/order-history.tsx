@@ -14,6 +14,138 @@ import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notification-bell";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+interface TaxiRide {
+  id: number;
+  customerName: string;
+  customerPhone: string | null;
+  pickupAddress: string;
+  dropoffAddress: string | null;
+  notes: string | null;
+  commissionType: "meter" | "fixed";
+  fixedAmount: number | null;
+  status: string;
+  etaMinutes: number | null;
+  createdAt: string;
+  updatedAt: string;
+  driver: {
+    name: string;
+    phone: string;
+    carModel: string | null;
+    carColor: string | null;
+    carPlate: string | null;
+  } | null;
+}
+
+const TAXI_STATUS: Record<string, { ar: string; fr: string; color: string; bg: string }> = {
+  searching:   { ar: "بحث عن سائق",        fr: "Recherche chauffeur",  color: "#F59E0B", bg: "#FEF3C7" },
+  pending:     { ar: "بانتظار السائق",      fr: "En attente chauffeur", color: "#3B82F6", bg: "#EFF6FF" },
+  accepted:    { ar: "السائق قبل",          fr: "Acceptée",             color: "#8B5CF6", bg: "#F5F3FF" },
+  in_progress: { ar: "جارية",              fr: "En cours",             color: "#FFA500", bg: "#FFF7ED" },
+  completed:   { ar: "مكتملة",             fr: "Terminée",             color: "#1A4D1F", bg: "#F0FDF4" },
+  cancelled:   { ar: "ملغاة",             fr: "Annulée",              color: "#EF4444", bg: "#FEF2F2" },
+};
+
+function TaxiRideCard({ ride, lang, expanded, onToggle }: {
+  ride: TaxiRide; lang: string; expanded: boolean; onToggle: () => void;
+}) {
+  const t = (ar: string, fr: string) => lang === "ar" ? ar : fr;
+  const cfg = TAXI_STATUS[ride.status] ?? TAXI_STATUS.pending;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border overflow-hidden"
+      style={{ background: "#FFFDE7", borderColor: `${cfg.color}25`, boxShadow: `0 2px 12px -2px ${cfg.color}15` }}
+    >
+      <button onClick={onToggle} className="w-full text-start px-4 pt-4 pb-3 flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className="flex items-center gap-1 text-xs font-black text-[#1A4D1F]/50">🚕 #{ride.id}</span>
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-black border"
+              style={{ color: cfg.color, background: cfg.bg, borderColor: `${cfg.color}30` }}
+            >
+              {lang === "ar" ? cfg.ar : cfg.fr}
+            </span>
+            {ride.commissionType === "fixed" && ride.fixedAmount != null && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-black border"
+                style={{ color: "#1A4D1F", background: "#F0FDF4", borderColor: "#1A4D1F30" }}>
+                {ride.fixedAmount.toFixed(3)} TND
+              </span>
+            )}
+            {ride.commissionType === "meter" && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-black border"
+                style={{ color: "#6B7280", background: "#F3F4F6", borderColor: "#6B728030" }}>
+                ⏱ {t("عدّاد", "Compteur")}
+              </span>
+            )}
+          </div>
+          <p className="text-[#1A4D1F] font-black text-sm leading-tight">📍 {ride.pickupAddress}</p>
+          {ride.dropoffAddress && (
+            <p className="text-[#1A4D1F]/50 text-xs mt-0.5">🏁 {ride.dropoffAddress}</p>
+          )}
+        </div>
+        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+          <span className="text-[10px] text-[#1A4D1F]/30 font-bold">
+            {new Date(ride.createdAt).toLocaleDateString(lang === "ar" ? "ar-TN" : "fr-TN", { day: "2-digit", month: "short", year: "numeric" })}
+          </span>
+          <span className="text-[10px] text-[#1A4D1F]/30">
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </span>
+        </div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }} className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 pt-1 border-t border-[#1A4D1F]/8 space-y-2.5">
+              {ride.driver && (
+                <div className="rounded-xl p-3 space-y-1.5" style={{ background: "#F0FDF4" }}>
+                  <p className="text-xs font-black" style={{ color: "#1A4D1F" }}>👤 {ride.driver.name}</p>
+                  {ride.driver.phone && (
+                    <a href={`tel:${ride.driver.phone}`} className="flex items-center gap-1 text-xs text-blue-600 font-bold">
+                      <Phone size={11} /> {ride.driver.phone}
+                    </a>
+                  )}
+                  {(ride.driver.carModel || ride.driver.carPlate) && (
+                    <p className="text-xs text-[#1A4D1F]/60">
+                      🚗 {[ride.driver.carColor, ride.driver.carModel].filter(Boolean).join(" ")}
+                      {ride.driver.carPlate && ` · ${ride.driver.carPlate}`}
+                    </p>
+                  )}
+                </div>
+              )}
+              {ride.etaMinutes && (
+                <div className="flex items-center gap-2">
+                  <Clock size={13} className="text-[#1A4D1F]/40" />
+                  <p className="text-sm text-[#1A4D1F]/70">{t("وقت الوصول:", "ETA:")} <strong>{ride.etaMinutes} {t("دقيقة", "min")}</strong></p>
+                </div>
+              )}
+              {ride.notes && (
+                <div className="flex items-start gap-2">
+                  <FileText size={13} className="text-[#1A4D1F]/40 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-[#1A4D1F]/60">{ride.notes}</p>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Clock size={13} className="text-[#1A4D1F]/40 flex-shrink-0" />
+                <p className="text-xs text-[#1A4D1F]/30">
+                  {t("آخر تحديث:", "Mis à jour:")} {new Date(ride.updatedAt).toLocaleString(lang === "ar" ? "ar-TN" : "fr-TN")}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 interface Order {
   id: number;
   customerName: string;
@@ -356,9 +488,10 @@ export default function OrderHistory() {
   const session = getSession();
 
   const [allOrders, setAllOrders]           = useState<Order[]>([]);
+  const [taxiRides, setTaxiRides]           = useState<TaxiRide[]>([]);
   const [loading, setLoading]               = useState(true);
   const [refreshing, setRefreshing]         = useState(false);
-  const [tab, setTab]                       = useState<"ongoing" | "history">("ongoing");
+  const [tab, setTab]                       = useState<"ongoing" | "history" | "taxi">("ongoing");
   const [search, setSearch]                 = useState("");
   const [statusFilter, setStatusFilter]     = useState("all");
   const [dateFrom, setDateFrom]             = useState("");
@@ -391,7 +524,12 @@ export default function OrderHistory() {
     try {
       let orders: Order[] = [];
       if (role === "client" || role === "customer") {
-        orders = await get<Order[]>(`/orders/customer?name=${encodeURIComponent(session.name)}`);
+        const [regularOrders, taxis] = await Promise.allSettled([
+          get<Order[]>(`/orders/customer?name=${encodeURIComponent(session.name)}`),
+          get<TaxiRide[]>("/taxi/customer/history"),
+        ]);
+        if (regularOrders.status === "fulfilled") orders = regularOrders.value;
+        if (taxis.status === "fulfilled") setTaxiRides(taxis.value);
       } else if (role === "provider" && (session as any).supplierId) {
         orders = await get<Order[]>(`/provider/${(session as any).supplierId}/orders`);
       } else if (role === "delivery" && (session as any).staffId) {
@@ -436,6 +574,30 @@ export default function OrderHistory() {
 
   const ongoingCount = useMemo(() => allOrders.filter(o => ONGOING_STATUSES.includes(o.status)).length, [allOrders]);
   const historyCount = useMemo(() => allOrders.filter(o => HISTORY_STATUSES.includes(o.status)).length, [allOrders]);
+  const taxiCount    = taxiRides.length;
+
+  // Filtered taxi rides (search + date)
+  const filteredTaxiRides = useMemo(() => {
+    return taxiRides.filter(r => {
+      if (search.trim()) {
+        const s = search.toLowerCase();
+        if (
+          !String(r.id).includes(s) &&
+          !r.pickupAddress.toLowerCase().includes(s) &&
+          !(r.dropoffAddress ?? "").toLowerCase().includes(s) &&
+          !(r.driver?.name ?? "").toLowerCase().includes(s)
+        ) return false;
+      }
+      if (dateFrom) {
+        if (new Date(r.createdAt) < new Date(dateFrom)) return false;
+      }
+      if (dateTo) {
+        const to = new Date(dateTo); to.setHours(23, 59, 59, 999);
+        if (new Date(r.createdAt) > to) return false;
+      }
+      return true;
+    });
+  }, [taxiRides, search, dateFrom, dateTo]);
 
   const paginatedOrders = filteredOrders.slice(0, page * PAGE_SIZE);
   const hasMore = paginatedOrders.length < filteredOrders.length;
@@ -518,20 +680,22 @@ export default function OrderHistory() {
         {/* ── Tabs ─────────────────────────────────────────────────────────── */}
         <div className="flex rounded-2xl overflow-hidden border border-[#1A4D1F]/15" style={{ background: "#FFFDE7" }}>
           {([
-            { key: "ongoing", ar: "في طور الإنجاز", fr: "En cours", count: ongoingCount, icon: Clock },
-            { key: "history", ar: "الطلبات السابقة", fr: "Historique",  count: historyCount, icon: CheckCircle },
-          ] as const).map(({ key, ar, fr, count, icon: Icon }) => (
+            { key: "ongoing", ar: "جارية",     fr: "En cours",   count: ongoingCount, emoji: "⏳" },
+            { key: "history", ar: "السابقة",   fr: "Historique", count: historyCount, emoji: "✅" },
+            ...((role === "client" || role === "customer") ? [
+              { key: "taxi", ar: "تاكسي 🚕",  fr: "Taxi 🚕",    count: taxiCount,    emoji: "🚕" },
+            ] : []),
+          ] as const).map(({ key, ar, fr, count }) => (
             <button
               key={key}
-              onClick={() => { setTab(key); setPage(1); setExpandedId(null); }}
+              onClick={() => { setTab(key as any); setPage(1); setExpandedId(null); setSearch(""); setStatusFilter("all"); }}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-black transition-all border-b-2",
+                "flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-black transition-all border-b-2",
                 tab === key
                   ? "text-[#1A4D1F] border-[#1A4D1F]"
                   : "text-[#1A4D1F]/30 border-transparent hover:text-[#1A4D1F]/50"
               )}
             >
-              <Icon size={14} />
               {lang === "ar" ? ar : fr}
               <span className={cn(
                 "text-[10px] font-black px-1.5 py-0.5 rounded-full",
@@ -544,14 +708,34 @@ export default function OrderHistory() {
         </div>
 
         {/* ── Filter Bar ───────────────────────────────────────────────────── */}
-        <FilterBar
-          lang={lang} tab={tab}
-          search={search} setSearch={setSearch}
-          statusFilter={statusFilter} setStatusFilter={setStatusFilter}
-          dateFrom={dateFrom} setDateFrom={setDateFrom}
-          dateTo={dateTo} setDateTo={setDateTo}
-          activeCount={activeFilters} onClear={clearFilters}
-        />
+        {tab !== "taxi" && (
+          <FilterBar
+            lang={lang} tab={tab as "ongoing" | "history"}
+            search={search} setSearch={setSearch}
+            statusFilter={statusFilter} setStatusFilter={setStatusFilter}
+            dateFrom={dateFrom} setDateFrom={setDateFrom}
+            dateTo={dateTo} setDateTo={setDateTo}
+            activeCount={activeFilters} onClear={clearFilters}
+          />
+        )}
+        {tab === "taxi" && (
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <Search size={14} className={cn("absolute top-1/2 -translate-y-1/2 text-[#1A4D1F]/30", lang === "ar" ? "right-3" : "left-3")} />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={lang === "ar" ? "البحث بالعنوان أو السائق..." : "Rechercher par adresse ou chauffeur..."}
+                className={cn("w-full bg-[#FFFDE7] border border-[#1A4D1F]/15 rounded-xl py-2.5 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/20 focus:outline-none focus:border-[#1A4D1F]/40", lang === "ar" ? "pr-9 pl-3" : "pl-9 pr-3")}
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className={cn("absolute top-1/2 -translate-y-1/2 text-[#1A4D1F]/30 hover:text-[#1A4D1F]", lang === "ar" ? "left-3" : "right-3")}>
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Results summary ───────────────────────────────────────────────── */}
         {(activeFilters > 0 || search) && (
@@ -565,80 +749,113 @@ export default function OrderHistory() {
           </motion.p>
         )}
 
-        {/* ── Order list ───────────────────────────────────────────────────── */}
-        <AnimatePresence mode="wait">
-          {filteredOrders.length === 0 ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center py-16 gap-4"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-[#FFFDE7] border border-[#1A4D1F]/10 flex items-center justify-center shadow-sm">
-                {tab === "ongoing"
-                  ? <Clock size={24} className="text-[#1A4D1F]/20" />
-                  : <ShoppingBag size={24} className="text-[#1A4D1F]/20" />
-                }
-              </div>
-              <div className="text-center">
-                <p className="font-black text-[#1A4D1F]/40 text-base">
-                  {activeFilters > 0 || search
-                    ? t("لا توجد نتائج مطابقة", "Aucun résultat trouvé")
-                    : tab === "ongoing"
-                      ? t("لا توجد طلبات نشطة", "Aucune commande en cours")
-                      : t("لا يوجد سجل طلبات بعد", "Aucun historique disponible")
-                  }
-                </p>
-                <p className="text-xs text-[#1A4D1F]/25 mt-1 font-bold">
-                  {activeFilters > 0 || search
-                    ? t("جرّب تغيير الفلاتر", "Essayez de modifier vos filtres")
-                    : t("ستظهر طلباتك هنا", "Vos commandes apparaîtront ici")
-                  }
-                </p>
-              </div>
-              {(activeFilters > 0 || search) && (
-                <button
-                  onClick={clearFilters}
-                  className="px-4 py-2 rounded-xl text-xs font-black text-[#1A4D1F] border border-[#1A4D1F]/20 hover:bg-[#1A4D1F]/5 transition-all"
-                >
-                  {t("مسح الفلاتر", "Effacer les filtres")}
-                </button>
-              )}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="list"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="space-y-3"
-            >
-              {paginatedOrders.map(order => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  lang={lang}
-                  expanded={expandedId === order.id}
-                  onToggle={() => setExpandedId(expandedId === order.id ? null : order.id)}
-                  role={role}
-                />
-              ))}
-
-              {/* Load More */}
-              {hasMore && (
-                <div ref={bottomRef} className="pt-2 text-center">
-                  <button
-                    onClick={() => setPage(p => p + 1)}
-                    className="px-6 py-3 rounded-xl font-black text-sm border border-[#1A4D1F]/20 text-[#1A4D1F] hover:bg-[#1A4D1F]/5 transition-all inline-flex items-center gap-2"
-                  >
-                    <ChevronDown size={14} />
-                    {t(`تحميل المزيد (${filteredOrders.length - paginatedOrders.length})`, `Charger plus (${filteredOrders.length - paginatedOrders.length})`)}
-                  </button>
+        {/* ── Taxi ride list ────────────────────────────────────────────────── */}
+        {tab === "taxi" && (
+          <AnimatePresence mode="wait">
+            {filteredTaxiRides.length === 0 ? (
+              <motion.div key="taxi-empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="flex flex-col items-center justify-center py-16 gap-4"
+              >
+                <div className="text-5xl">🚕</div>
+                <div className="text-center">
+                  <p className="font-black text-[#1A4D1F]/40 text-base">
+                    {search ? t("لا توجد نتائج مطابقة", "Aucun résultat trouvé") : t("لا توجد رحلات تاكسي بعد", "Aucun trajet taxi")}
+                  </p>
+                  <p className="text-xs text-[#1A4D1F]/25 mt-1 font-bold">
+                    {t("رحلاتك ستظهر هنا", "Vos trajets apparaîtront ici")}
+                  </p>
                 </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </motion.div>
+            ) : (
+              <motion.div key="taxi-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+                {filteredTaxiRides.map(ride => (
+                  <TaxiRideCard
+                    key={ride.id}
+                    ride={ride}
+                    lang={lang}
+                    expanded={expandedId === ride.id}
+                    onToggle={() => setExpandedId(expandedId === ride.id ? null : ride.id)}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+
+        {/* ── Regular order list ────────────────────────────────────────────── */}
+        {tab !== "taxi" && (
+          <AnimatePresence mode="wait">
+            {filteredOrders.length === 0 ? (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center justify-center py-16 gap-4"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-[#FFFDE7] border border-[#1A4D1F]/10 flex items-center justify-center shadow-sm">
+                  {tab === "ongoing"
+                    ? <Clock size={24} className="text-[#1A4D1F]/20" />
+                    : <ShoppingBag size={24} className="text-[#1A4D1F]/20" />
+                  }
+                </div>
+                <div className="text-center">
+                  <p className="font-black text-[#1A4D1F]/40 text-base">
+                    {activeFilters > 0 || search
+                      ? t("لا توجد نتائج مطابقة", "Aucun résultat trouvé")
+                      : tab === "ongoing"
+                        ? t("لا توجد طلبات نشطة", "Aucune commande en cours")
+                        : t("لا يوجد سجل طلبات بعد", "Aucun historique disponible")
+                    }
+                  </p>
+                  <p className="text-xs text-[#1A4D1F]/25 mt-1 font-bold">
+                    {activeFilters > 0 || search
+                      ? t("جرّب تغيير الفلاتر", "Essayez de modifier vos filtres")
+                      : t("ستظهر طلباتك هنا", "Vos commandes apparaîtront ici")
+                    }
+                  </p>
+                </div>
+                {(activeFilters > 0 || search) && (
+                  <button
+                    onClick={clearFilters}
+                    className="px-4 py-2 rounded-xl text-xs font-black text-[#1A4D1F] border border-[#1A4D1F]/20 hover:bg-[#1A4D1F]/5 transition-all"
+                  >
+                    {t("مسح الفلاتر", "Effacer les filtres")}
+                  </button>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="list"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-3"
+              >
+                {paginatedOrders.map(order => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    lang={lang}
+                    expanded={expandedId === order.id}
+                    onToggle={() => setExpandedId(expandedId === order.id ? null : order.id)}
+                    role={role}
+                  />
+                ))}
+                {hasMore && (
+                  <div ref={bottomRef} className="pt-2 text-center">
+                    <button
+                      onClick={() => setPage(p => p + 1)}
+                      className="px-6 py-3 rounded-xl font-black text-sm border border-[#1A4D1F]/20 text-[#1A4D1F] hover:bg-[#1A4D1F]/5 transition-all inline-flex items-center gap-2"
+                    >
+                      <ChevronDown size={14} />
+                      {t(`تحميل المزيد (${filteredOrders.length - paginatedOrders.length})`, `Charger plus (${filteredOrders.length - paginatedOrders.length})`)}
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
       </div>
     </div>
   );
