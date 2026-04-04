@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAppLogo } from "@/lib/useAppLogo";
 
 interface SplashProps {
   onDone: () => void;
@@ -7,6 +8,7 @@ interface SplashProps {
 
 export function Splash({ onDone }: SplashProps) {
   const [visible, setVisible] = useState(true);
+  const appLogo = useAppLogo();
 
   useEffect(() => {
     const timer = setTimeout(() => setVisible(false), 2700);
@@ -35,7 +37,7 @@ export function Splash({ onDone }: SplashProps) {
           >
             {/* Sanad logo */}
             <img
-              src="/sanad-logo.svg?v=5"
+              src={appLogo}
               alt="سند · Sanad"
               style={{ height: "360px", width: "auto" }}
               draggable={false}

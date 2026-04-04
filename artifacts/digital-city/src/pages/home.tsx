@@ -6,6 +6,7 @@ import { AdCarousel } from "@/components/AdCarousel";
 import { useLang } from "@/lib/language";
 import { getSession, clearSession } from "@/lib/auth";
 import { get } from "@/lib/admin-api";
+import { useAppLogo } from "@/lib/useAppLogo";
 import { useSocket } from "@/lib/use-socket";
 import {
   Utensils, Pill, Scale, ShoppingCart, Wrench, Stethoscope,
@@ -675,6 +676,7 @@ export default function Home() {
   const { lang, t, isRTL } = useLang();
   const [, navigate] = useLocation();
   const session = getSession();
+  const appLogo = useAppLogo();
 
   return (
     <div
@@ -702,7 +704,7 @@ export default function Home() {
           className="flex items-center gap-2 cursor-pointer"
           onClick={() => navigate("/home")}
         >
-          <img src="/sanad-logo.svg?v=5" alt="سند" style={{ height: 88, width: "auto" }} draggable={false} />
+          <img src={appLogo} alt="سند" style={{ height: 88, width: "auto" }} draggable={false} />
         </motion.div>
 
         <motion.div

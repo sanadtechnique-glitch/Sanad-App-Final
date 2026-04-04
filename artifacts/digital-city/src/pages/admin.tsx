@@ -3300,7 +3300,151 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker";
+// ── Appearance Section (Logo Upload) ─────────────────────────────────────────
+function AppearanceSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const [logoUrl, setLogoUrl]       = useState("");
+  const [uploading, setUploading]   = useState(false);
+  const [saving, setSaving]         = useState(false);
+  const [saved, setSaved]           = useState(false);
+  const [loading, setLoading]       = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    get<{ key: string; value: string | null }>("/app-settings/app_logo_url")
+      .then(d => { if (d?.value) setLogoUrl(d.value); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const uploadLogo = async (file: File) => {
+    setUploading(true);
+    const session = getSession();
+    const form = new FormData();
+    form.append("image", file);
+    try {
+      const res = await fetch("/api/admin/upload/logo", {
+        method: "POST",
+        headers: { "x-session-token": session?.token || "" },
+        body: form,
+      });
+      const data = await res.json();
+      if (data.url) setLogoUrl(data.url);
+    } catch { }
+    setUploading(false);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await fetch("/api/admin/app-settings/app_logo_url", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-token": getSession()?.token || "",
+        },
+        body: JSON.stringify({ value: logoUrl || null }),
+      });
+      // Update all logo instances globally
+      const { setLogoUrl: setGlobalLogo } = await import("@/lib/useAppLogo");
+      setGlobalLogo(logoUrl || "/sanad-logo.svg?v=5");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch { }
+    setSaving(false);
+  };
+
+  const reset = async () => {
+    setLogoUrl("");
+    await fetch("/api/admin/app-settings/app_logo_url", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-session-token": getSession()?.token || "",
+      },
+      body: JSON.stringify({ value: null }),
+    });
+    const { setLogoUrl: setGlobalLogo } = await import("@/lib/useAppLogo");
+    setGlobalLogo("/sanad-logo.svg?v=5");
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-lg font-black text-[#1A4D1F]">{t("المظهر والشعار", "Apparence & Logo")}</h2>
+          <p className="text-xs text-[#1A4D1F]/40">{t("شعار التطبيق يظهر في الرئيسية وصفحة التحميل", "Le logo s'affiche sur l'accueil et l'écran de chargement")}</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><RefreshCw size={20} className="animate-spin text-[#1A4D1F]/30" /></div>
+      ) : (
+        <div className="space-y-6">
+          {/* Current logo preview */}
+          <div className="rounded-2xl border p-5" style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.12)" }}>
+            <p className="text-xs font-black text-[#1A4D1F]/50 mb-3">{t("الشعار الحالي", "Logo actuel")}</p>
+            <div className="flex items-center justify-center py-5 rounded-xl" style={{ background: "#FFA500" }}>
+              <img
+                src={logoUrl || "/sanad-logo.svg?v=5"}
+                alt="شعار سند"
+                style={{ height: 80, width: "auto", objectFit: "contain" }}
+                onError={e => { (e.target as HTMLImageElement).src = "/sanad-logo.svg?v=5"; }}
+              />
+            </div>
+          </div>
+
+          {/* Upload zone */}
+          <div className="rounded-2xl border p-5 space-y-4" style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.12)" }}>
+            <p className="text-xs font-black text-[#1A4D1F]/50">{t("رفع شعار جديد", "Télécharger un nouveau logo")}</p>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(f); }} />
+
+            <div className="flex gap-3">
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm border-2 border-dashed border-[#1A4D1F]/30 text-[#1A4D1F]/70 hover:bg-[#1A4D1F]/5 transition-all disabled:opacity-50">
+                {uploading
+                  ? <><RefreshCw size={15} className="animate-spin" /> {t("جاري الرفع...","Envoi en cours...")}</>
+                  : <><Upload size={15} /> {t("اختر ملف","Choisir un fichier")}</>}
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black text-[#1A4D1F]/50 mb-1.5">{t("أو الصق رابط الشعار","Ou coller l'URL du logo")}</label>
+              <input
+                value={logoUrl}
+                onChange={e => setLogoUrl(e.target.value)}
+                placeholder="https://example.com/logo.png"
+                dir="ltr"
+                className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border border-[#1A4D1F]/20 outline-none focus:border-[#1A4D1F]"
+                style={{ background: "#fff", color: "#1A4D1F" }}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={save} disabled={saving}
+                className="flex-1 py-2.5 rounded-xl text-white font-black text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ background: "#1A4D1F" }}>
+                {saving
+                  ? <><RefreshCw size={14} className="animate-spin" /> {t("حفظ...","Enregistrement...")}</>
+                  : saved
+                  ? <><Check size={14} /> {t("✓ تم الحفظ","✓ Enregistré")}</>
+                  : <>{t("حفظ الشعار","Enregistrer le logo")}</>}
+              </button>
+              {logoUrl && logoUrl !== "/sanad-logo.svg?v=5" && (
+                <button onClick={reset}
+                  className="px-4 py-2.5 rounded-xl font-black text-sm text-[#1A4D1F]/60 border border-[#1A4D1F]/20 hover:bg-[#1A4D1F]/5 transition-all">
+                  {t("إعادة الافتراضي","Réinitialiser")}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance";
 
 const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean }[] = [
   { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",       fr: "Tableau de bord" },
@@ -3319,6 +3463,7 @@ const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly
   { id: "delegations",   icon: Map,              ar: "المعتمديات",      fr: "Délégations",   superOnly: true },
   { id: "users",         icon: UserCog,          ar: "المستخدمون",      fr: "Utilisateurs",  superOnly: true },
   { id: "delivery_config", icon: Settings,       ar: "عمولة التوصيل",   fr: "Commission",    superOnly: true },
+  { id: "appearance",      icon: Image,           ar: "المظهر والشعار",  fr: "Apparence",     superOnly: true },
 ];
 
 const ADMIN_USERNAME = "admin";
@@ -3553,6 +3698,7 @@ export default function Admin() {
             {active === "delegations"   && isSuper && <DelegationsSection t={t} />}
             {active === "users"         && isSuper && <UsersSection t={t} />}
             {active === "delivery_config" && isSuper && <DeliveryConfigSection t={t} />}
+            {active === "appearance"      && isSuper && <AppearanceSection t={t} />}
           </motion.div>
         </AnimatePresence>
       </main>

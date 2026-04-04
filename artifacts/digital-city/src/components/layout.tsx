@@ -8,6 +8,7 @@ import { getSession, clearSession } from "@/lib/auth";
 import { useNotifications } from "@/lib/notifications";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdBanner } from "@/components/ad-banner";
+import { useAppLogo } from "@/lib/useAppLogo";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ROLE BADGE HELPER
@@ -407,6 +408,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { t, lang, isRTL } = useLang();
   const [cartOpen, setCartOpen] = useState(false);
   const session = getSession();
+  const appLogo = useAppLogo();
 
   const handleLogout = () => {
     clearSession();
@@ -437,7 +439,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ background: "#FFA500" }}
       >
         {/* Logo */}
-        <img src="/sanad-logo.svg?v=5" alt="سند" style={{ height: 104, width: "auto" }} draggable={false} />
+        <img src={appLogo} alt="سند" style={{ height: 104, width: "auto" }} draggable={false} />
 
         {/* Nav icons */}
         <nav className="flex flex-col gap-7">
@@ -583,7 +585,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         style={{ background: "#FFA500" }}
       >
         {/* Logo */}
-        <img src="/sanad-logo.svg?v=5" alt="سند" style={{ height: 88, width: "auto" }} draggable={false} />
+        <img src={appLogo} alt="سند" style={{ height: 88, width: "auto" }} draggable={false} />
 
         {/* User greeting (mobile — center) */}
         {session ? (

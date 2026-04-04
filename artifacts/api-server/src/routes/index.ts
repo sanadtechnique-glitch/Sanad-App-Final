@@ -18,6 +18,7 @@ import deliveryConfigRouter from "./deliveryConfig";
 import taxiRouter from "./taxi";
 import tickerRouter from "./ticker";
 import uploadRouter from "./upload";
+import appSettingsRouter from "./appSettings";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(deliveryConfigRouter);
 router.use(taxiRouter);
 router.use(tickerRouter);
 router.use(uploadRouter);
+router.use(appSettingsRouter);
 
 export default router;
