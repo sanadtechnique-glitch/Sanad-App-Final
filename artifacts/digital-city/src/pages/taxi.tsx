@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { io, Socket } from "socket.io-client";
 
-const API = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/digital-city", "") + "/api-server/api";
+const API = "/api";
 
 type RequestStatus = "idle" | "searching" | "pending" | "accepted" | "completed" | "cancelled" | "no_driver" | "error";
 
@@ -52,11 +52,10 @@ export default function TaxiPage() {
   useEffect(() => {
     if (!session?.id) return;
 
-    const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/digital-city", "");
-    const socket = io(`${window.location.origin}${baseUrl}/api-server`, {
-      path: `${baseUrl}/api-server/socket.io`,
+    const socket = io(window.location.origin, {
       query: { role: session.role, userId: session.id },
       transports: ["websocket", "polling"],
+      reconnection: true,
     });
     socketRef.current = socket;
 

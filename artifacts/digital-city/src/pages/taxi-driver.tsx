@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { io, Socket } from "socket.io-client";
 
-const API = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/digital-city", "") + "/api-server/api";
+const API = "/api";
 
 function getSession() {
   try { return JSON.parse(localStorage.getItem("sanad_session") || "null"); } catch { return null; }
@@ -103,11 +103,10 @@ export default function TaxiDriverPage() {
     fetchDriverState();
 
     // Socket: incoming new request
-    const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/digital-city", "");
-    const socket  = io(`${window.location.origin}${baseUrl}/api-server`, {
-      path:       `${baseUrl}/api-server/socket.io`,
+    const socket = io(window.location.origin, {
       query:      { role: "taxi_driver", userId: session.id },
       transports: ["websocket", "polling"],
+      reconnection: true,
     });
     socketRef.current = socket;
 
