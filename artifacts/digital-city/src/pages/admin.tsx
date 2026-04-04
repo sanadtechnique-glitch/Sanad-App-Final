@@ -33,7 +33,13 @@ interface Supplier { id: number; name: string; nameAr: string; category: string;
 interface Article { id: number; supplierId: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; originalPrice?: number; discountedPrice?: number; isAvailable: boolean; supplierName?: string; }
 interface DeliveryStaff { id: number; name: string; nameAr: string; phone: string; zone?: string; isAvailable: boolean; }
 interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
-interface PromoBanner { id: number; titleAr: string; titleFr: string; imageUrl?: string; link?: string; bgColor?: string; isActive: boolean; startsAt?: string; endsAt?: string; }
+interface PromoBanner {
+  id: number; titleAr: string; titleFr: string;
+  subtitleAr?: string; subtitleFr?: string;
+  imageUrl?: string; link?: string;
+  bgColor?: string; bgFrom?: string; bgTo?: string; accent?: string;
+  isActive: boolean; startsAt?: string; endsAt?: string;
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Status config
@@ -828,19 +834,28 @@ function DelegationsSection({ t }: { t: (ar: string, fr: string) => string }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Section: Promo Banners
+// Section: Promo Banners (Home Page Promo Slides)
 // ──────────────────────────────────────────────────────────────────────────────
+const EMPTY_BANNER_FORM = {
+  titleAr: "", titleFr: "",
+  subtitleAr: "", subtitleFr: "",
+  imageUrl: "",
+  bgFrom: "#1A4D1F", bgTo: "#0D3311", accent: "#FFA500",
+  isActive: true, startsAt: "", endsAt: "",
+};
+
 function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [items, setItems] = useState<PromoBanner[]>([]);
   const [modal, setModal] = useState<null | "add" | PromoBanner>(null);
-  const [form, setForm] = useState({ titleAr:"", titleFr:"", imageUrl:"", bgColor:"#1A4D1F", isActive:true, startsAt:"", endsAt:"" });
+  const [form, setForm] = useState({ ...EMPTY_BANNER_FORM });
 
   const load = () => get<PromoBanner[]>("/admin/banners").then(setItems).catch(() => {});
   useEffect(() => { load(); }, []);
 
   const save = async () => {
-    if (modal === "add") await post("/admin/banners", form);
-    else await patch(`/admin/banners/${(modal as PromoBanner).id}`, form);
+    const payload = { ...form };
+    if (modal === "add") await post("/admin/banners", payload);
+    else await patch(`/admin/banners/${(modal as PromoBanner).id}`, payload);
     setModal(null); load();
   };
 
@@ -850,73 +865,90 @@ function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
   };
 
   const remove = async (id: number) => {
-    if (!confirm(t("حذف؟","Supprimer ?"))) return;
+    if (!confirm(t("حذف هذه الشريحة؟","Supprimer cette diapositive ?"))) return;
     await del(`/admin/banners/${id}`); load();
+  };
+
+  const openEdit = (b: PromoBanner) => {
+    setForm({
+      titleAr: b.titleAr, titleFr: b.titleFr,
+      subtitleAr: b.subtitleAr || "", subtitleFr: b.subtitleFr || "",
+      imageUrl: b.imageUrl || "",
+      bgFrom: b.bgFrom || "#1A4D1F", bgTo: b.bgTo || "#0D3311", accent: b.accent || "#FFA500",
+      isActive: b.isActive, startsAt: "", endsAt: "",
+    });
+    setModal(b);
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-black text-[#1A4D1F]">{t("الإعلانات","Bannières Publicitaires")}</h2>
-        <GoldBtn onClick={() => { setForm({titleAr:"",titleFr:"",imageUrl:"",bgColor:"#1A4D1F",isActive:true,startsAt:"",endsAt:""}); setModal("add"); }}>
-          <Plus size={14}/>{t("إضافة إعلان","Ajouter bannière")}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl font-black text-[#1A4D1F]">{t("عروض الصفحة الرئيسية","Diapositives d'accueil")}</h2>
+          <p className="text-xs text-[#1A4D1F]/50 font-bold mt-0.5">{t("تظهر في أعلى الصفحة الرئيسية للعملاء","Apparaissent en haut de la page d'accueil")}</p>
+        </div>
+        <GoldBtn onClick={() => { setForm({ ...EMPTY_BANNER_FORM }); setModal("add"); }}>
+          <Plus size={14}/>{t("إضافة شريحة","Ajouter diapositive")}
         </GoldBtn>
       </div>
+
       {/* Summary stats */}
-      <div className="flex gap-3 text-sm">
+      <div className="flex gap-3 text-sm flex-wrap">
         <span className="px-3 py-1 rounded-full bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 font-bold">
-          {items.filter(b => b.isActive).length} {t("نشط","actif(s)")}
+          {items.filter(b => b.isActive).length} {t("مباشر","en direct")}
         </span>
         <span className="px-3 py-1 rounded-full bg-[#1A4D1F]/5 text-[#1A4D1F]/40 border border-[#1A4D1F]/10 font-bold">
-          {items.filter(b => !b.isActive).length} {t("متوقف","inactif(s)")}
+          {items.filter(b => !b.isActive).length} {t("متوقف","masqué(s)")}
         </span>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
         {items.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[#1A4D1F]/20 p-10 text-center">
-            <Megaphone size={32} className="mx-auto text-[#1A4D1F]/20 mb-2" />
-            <p className="text-[#1A4D1F]/40 text-sm">{t("لا توجد إعلانات بعد","Aucune annonce pour l'instant")}</p>
+            <Image size={32} className="mx-auto text-[#1A4D1F]/20 mb-2" />
+            <p className="text-[#1A4D1F]/40 text-sm font-bold">{t("لا توجد شرائح بعد","Aucune diapositive pour l'instant")}</p>
+            <p className="text-[#1A4D1F]/25 text-xs mt-1">{t("أضف شريحة لتظهر في الصفحة الرئيسية","Ajoutez une diapositive pour l'afficher sur la page d'accueil")}</p>
           </div>
         )}
-        {items.map(b => (
+        {items.map((b, idx) => (
           <div key={b.id} className="rounded-2xl overflow-hidden border border-[#1A4D1F]/10 bg-[#FFFDE7]">
-            {/* Mini preview strip */}
+            {/* Preview strip */}
             <div
-              className="h-16 flex items-center px-5 gap-4 relative overflow-hidden"
-              style={{ background: b.bgColor ? b.bgColor + "25" : "rgba(46,125,50,0.08)" }}
+              className="h-20 flex items-center px-5 gap-4 relative overflow-hidden"
+              style={{ background: `linear-gradient(135deg, ${b.bgFrom || b.bgColor || "#1A4D1F"} 0%, ${b.bgTo || "#0D3311"} 100%)` }}
             >
-              {b.imageUrl ? (
-                <img src={b.imageUrl} alt="" className="h-10 w-14 object-cover rounded-lg flex-shrink-0 shadow" />
-              ) : (
-                <div className="h-10 w-10 rounded-xl flex-shrink-0 flex items-center justify-center shadow"
-                  style={{ background: b.bgColor || "#1A4D1F" }}>
-                  <Megaphone size={16} className="text-white" />
-                </div>
-              )}
-              <div dir="rtl" className="flex-1 min-w-0">
-                <p className="font-black text-[#1A4D1F] text-sm truncate">{b.titleAr}</p>
-                <p className="text-[#1A4D1F]/50 text-xs truncate">{b.titleFr}</p>
+              {/* Accent circle */}
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 w-16 h-16 rounded-full opacity-20"
+                style={{ background: b.accent || "#FFA500" }} />
+              {/* Text */}
+              <div dir="rtl" className="flex-1 min-w-0 relative z-10">
+                {b.subtitleAr && (
+                  <p className="text-[10px] font-black mb-0.5 truncate" style={{ color: b.accent || "#FFA500", textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{b.subtitleAr}</p>
+                )}
+                <p className="font-black text-white text-sm truncate" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{b.titleAr}</p>
+                <p className="text-white/60 text-xs truncate">{b.titleFr}</p>
               </div>
+              {/* Order badge */}
+              <span className="text-white/50 text-[10px] font-black flex-shrink-0">#{idx + 1}</span>
               {/* Live/Hidden badge */}
               <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-black flex-shrink-0",
-                b.isActive ? "bg-emerald-400/15 text-emerald-500 border border-emerald-400/25" : "bg-zinc-400/10 text-zinc-400 border border-zinc-400/20")}>
-                {b.isActive ? t("● مباشر","● Live") : t("○ متوقف","○ Caché")}
+                b.isActive ? "bg-white/20 text-white border border-white/30" : "bg-black/20 text-white/50 border border-white/10")}>
+                {b.isActive ? t("● مباشر","● Live") : t("○ مخفي","○ Caché")}
               </span>
             </div>
 
             {/* Controls row */}
             <div className="flex items-center justify-between px-4 py-3 gap-3 border-t border-[#1A4D1F]/5">
-              <div className="flex items-center gap-2 min-w-0">
-                {false && (
-                  <a href="#"
-                    className="text-[10px] text-[#1A4D1F]/40 hover:text-[#1A4D1F] truncate max-w-[180px] flex items-center gap-1">
-                    <ExternalLink size={10} /> {b.link}
-                  </a>
-                )}
+              <div className="flex items-center gap-2">
+                {/* Color swatches */}
+                <div className="flex gap-1">
+                  <span className="w-4 h-4 rounded-full border border-white shadow-sm" style={{ background: b.bgFrom || b.bgColor || "#1A4D1F" }} title={t("لون البداية","Début")} />
+                  <span className="w-4 h-4 rounded-full border border-white shadow-sm" style={{ background: b.bgTo || "#0D3311" }} title={t("لون النهاية","Fin")} />
+                  <span className="w-4 h-4 rounded-full border border-white shadow-sm" style={{ background: b.accent || "#FFA500" }} title={t("لون التمييز","Accent")} />
+                </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Live / Hidden toggle */}
+                {/* Toggle */}
                 <button
                   onClick={() => toggleActive(b.id, b.isActive)}
                   className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all",
@@ -929,20 +961,11 @@ function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
                   {b.isActive ? t("إيقاف","Désactiver") : t("تفعيل","Activer")}
                 </button>
                 {/* Edit */}
-                <button
-                  onClick={() => {
-                    setForm({ titleAr: b.titleAr, titleFr: b.titleFr, imageUrl: b.imageUrl || "", bgColor: b.bgColor || "#1A4D1F", isActive: b.isActive, startsAt: "", endsAt: "" });
-                    setModal(b);
-                  }}
-                  className="p-2 rounded-xl bg-[#1A4D1F]/8 text-[#1A4D1F]/50 hover:text-[#1A4D1F] hover:bg-[#1A4D1F]/15 transition-all"
-                >
+                <button onClick={() => openEdit(b)} className="p-2 rounded-xl bg-[#1A4D1F]/8 text-[#1A4D1F]/50 hover:text-[#1A4D1F] hover:bg-[#1A4D1F]/15 transition-all">
                   <Pencil size={13} />
                 </button>
                 {/* Delete */}
-                <button
-                  onClick={() => remove(b.id)}
-                  className="p-2 rounded-xl bg-red-400/8 text-red-400/50 hover:text-red-400 hover:bg-red-400/15 transition-all"
-                >
+                <button onClick={() => remove(b.id)} className="p-2 rounded-xl bg-red-400/8 text-red-400/50 hover:text-red-400 hover:bg-red-400/15 transition-all">
                   <Trash2 size={13} />
                 </button>
               </div>
@@ -950,24 +973,88 @@ function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
           </div>
         ))}
       </div>
-      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === "add" ? t("إضافة إعلان","Ajouter bannière") : t("تعديل","Modifier")}>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("العنوان عربي","Titre arabe")}><Input value={form.titleAr} onChange={v => setForm(f => ({...f, titleAr: v}))} placeholder="عرض خاص!" /></Field>
-          <Field label={t("العنوان فرنسي","Titre français")}><Input value={form.titleFr} onChange={v => setForm(f => ({...f, titleFr: v}))} placeholder="Offre spéciale!" /></Field>
-        </div>
-        <Field label={t("رابط الصورة","URL de l'image")}><Input value={form.imageUrl} onChange={v => setForm(f => ({...f, imageUrl: v}))} placeholder="https://..." /></Field>
-        <Field label={t("لون الخلفية","Couleur de fond")}>
-          <div className="flex items-center gap-3">
-            <input type="color" value={form.bgColor} onChange={e => setForm(f => ({...f, bgColor: e.target.value}))} className="w-12 h-10 rounded-lg border border-[#1A4D1F]/10 bg-transparent cursor-pointer" />
-            <Input value={form.bgColor} onChange={v => setForm(f => ({...f, bgColor: v}))} />
+
+      {/* Modal */}
+      <Modal
+        open={!!modal}
+        onClose={() => setModal(null)}
+        title={modal === "add" ? t("إضافة شريحة جديدة","Ajouter diapositive") : t("تعديل الشريحة","Modifier diapositive")}
+      >
+        {/* Live Preview */}
+        <div
+          className="relative w-full overflow-hidden rounded-xl mb-4"
+          style={{ aspectRatio: "16/7", minHeight: 100, background: `linear-gradient(135deg, ${form.bgFrom} 0%, ${form.bgTo} 100%)` }}
+        >
+          <div className="absolute inset-0 opacity-10"
+            style={{ backgroundImage: "radial-gradient(circle at 20% 50%, rgba(255,255,255,0.30) 0%, transparent 52%), radial-gradient(circle at 80% 50%, rgba(255,255,255,0.18) 0%, transparent 52%)" }} />
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 w-16 h-16 rounded-full opacity-20" style={{ background: form.accent }} />
+          <div className="absolute inset-0 flex items-center justify-center px-8" dir="rtl">
+            <div className="text-center w-full relative z-10">
+              {form.subtitleAr && (
+                <p className="text-[10px] font-black mb-1 leading-snug" style={{ color: form.accent, textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>
+                  {form.subtitleAr}
+                </p>
+              )}
+              <p className="text-base font-black text-white leading-snug" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
+                {form.titleAr || t("العنوان هنا","Titre ici")}
+              </p>
+            </div>
           </div>
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("تاريخ البداية","Date début")}><Input type="date" value={form.startsAt} onChange={v => setForm(f => ({...f, startsAt: v}))} /></Field>
-          <Field label={t("تاريخ النهاية","Date fin")}><Input type="date" value={form.endsAt} onChange={v => setForm(f => ({...f, endsAt: v}))} /></Field>
+          <div className="absolute bottom-1.5 right-2 text-[9px] font-bold text-white/40">{t("معاينة مباشرة","Aperçu en direct")}</div>
         </div>
-        <Field label={t("نشط","Actif")}><Toggle checked={form.isActive} onChange={v => setForm(f => ({...f, isActive: v}))} /></Field>
-        <GoldBtn onClick={save} className="w-full justify-center">{t("حفظ","Enregistrer")}</GoldBtn>
+
+        {/* Form fields */}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("العنوان (عربي)","Titre (arabe)")}>
+            <Input value={form.titleAr} onChange={v => setForm(f => ({...f, titleAr: v}))} placeholder="عرض خاص!" />
+          </Field>
+          <Field label={t("العنوان (فرنسي)","Titre (français)")}>
+            <Input value={form.titleFr} onChange={v => setForm(f => ({...f, titleFr: v}))} placeholder="Offre spéciale!" />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("النص الثانوي (عربي)","Sous-titre (arabe)")}>
+            <Input value={form.subtitleAr} onChange={v => setForm(f => ({...f, subtitleAr: v}))} placeholder="وصف قصير..." />
+          </Field>
+          <Field label={t("النص الثانوي (فرنسي)","Sous-titre (français)")}>
+            <Input value={form.subtitleFr} onChange={v => setForm(f => ({...f, subtitleFr: v}))} placeholder="Description courte..." />
+          </Field>
+        </div>
+
+        {/* Colors */}
+        <div className="grid grid-cols-3 gap-3">
+          <Field label={t("لون البداية","Couleur début")}>
+            <div className="flex items-center gap-2">
+              <input type="color" value={form.bgFrom} onChange={e => setForm(f => ({...f, bgFrom: e.target.value}))} className="w-10 h-9 rounded-lg border border-[#1A4D1F]/10 cursor-pointer flex-shrink-0" />
+              <Input value={form.bgFrom} onChange={v => setForm(f => ({...f, bgFrom: v}))} />
+            </div>
+          </Field>
+          <Field label={t("لون النهاية","Couleur fin")}>
+            <div className="flex items-center gap-2">
+              <input type="color" value={form.bgTo} onChange={e => setForm(f => ({...f, bgTo: e.target.value}))} className="w-10 h-9 rounded-lg border border-[#1A4D1F]/10 cursor-pointer flex-shrink-0" />
+              <Input value={form.bgTo} onChange={v => setForm(f => ({...f, bgTo: v}))} />
+            </div>
+          </Field>
+          <Field label={t("لون التمييز","Couleur accent")}>
+            <div className="flex items-center gap-2">
+              <input type="color" value={form.accent} onChange={e => setForm(f => ({...f, accent: e.target.value}))} className="w-10 h-9 rounded-lg border border-[#1A4D1F]/10 cursor-pointer flex-shrink-0" />
+              <Input value={form.accent} onChange={v => setForm(f => ({...f, accent: v}))} />
+            </div>
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("تاريخ البداية (اختياري)","Date début (optionnel)")}>
+            <Input type="date" value={form.startsAt} onChange={v => setForm(f => ({...f, startsAt: v}))} />
+          </Field>
+          <Field label={t("تاريخ الانتهاء (اختياري)","Date fin (optionnel)")}>
+            <Input type="date" value={form.endsAt} onChange={v => setForm(f => ({...f, endsAt: v}))} />
+          </Field>
+        </div>
+        <Field label={t("مباشر على الصفحة الرئيسية","En direct sur la page d'accueil")}>
+          <Toggle checked={form.isActive} onChange={v => setForm(f => ({...f, isActive: v}))} />
+        </Field>
+        <GoldBtn onClick={save} className="w-full justify-center mt-2">{t("حفظ الشريحة","Enregistrer la diapositive")}</GoldBtn>
       </Modal>
     </div>
   );

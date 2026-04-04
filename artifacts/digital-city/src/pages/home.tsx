@@ -33,12 +33,12 @@ function getRoleBadge(role: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PANORAMIC PROMO SLIDES
 // ─────────────────────────────────────────────────────────────────────────────
-const PROMO_SLIDES = [
+const DEFAULT_SLIDES = [
   {
     id: 1,
     imageUrl: "",
-    titleAr: "عروض رمضان الحصرية",
-    titleFr: "Offres exclusives Ramadan",
+    titleAr: "عروض حصرية",
+    titleFr: "Offres exclusives",
     subtitleAr: "أفضل العروض من مطاعم ومحلات المدينة",
     subtitleFr: "Les meilleures offres des restaurants de la ville",
     bgFrom: "#1A4D1F",
@@ -68,6 +68,18 @@ const PROMO_SLIDES = [
     accent: "#FFA500",
   },
 ];
+
+interface PromoSlide {
+  id: number;
+  titleAr: string;
+  titleFr: string;
+  subtitleAr?: string | null;
+  subtitleFr?: string | null;
+  imageUrl?: string | null;
+  bgFrom?: string | null;
+  bgTo?: string | null;
+  accent?: string | null;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SERVICE CATEGORIES
@@ -509,21 +521,29 @@ function MyOrdersSection({ name, t }: { name: string; t: (ar: string, fr: string
 // ─────────────────────────────────────────────────────────────────────────────
 function PromoSlider({ lang }: { lang: string }) {
   const [active, setActive] = useState(0);
+  const [slides, setSlides] = useState<PromoSlide[]>(DEFAULT_SLIDES);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    get<PromoSlide[]>("/banners").then(data => {
+      if (Array.isArray(data) && data.length > 0) setSlides(data);
+    }).catch(() => {});
+  }, []);
 
   const resetTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setActive(i => (i + 1) % PROMO_SLIDES.length);
+      setActive(i => (i + 1) % slides.length);
     }, 5000);
   };
 
   useEffect(() => {
+    setActive(0);
     resetTimer();
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
+  }, [slides]);
 
-  const slide = PROMO_SLIDES[active];
+  const slide = slides[active] ?? slides[0];
 
   const goTo = (idx: number) => {
     setActive(idx);
@@ -551,7 +571,7 @@ function PromoSlider({ lang }: { lang: string }) {
           transition={{ duration: 0.45, ease: "easeInOut" }}
           className="absolute inset-0 flex items-center justify-center px-10 sm:px-16"
           style={{
-            background: `linear-gradient(135deg, ${slide.bgFrom} 0%, ${slide.bgTo} 100%)`,
+            background: `linear-gradient(135deg, ${slide.bgFrom || "#1A4D1F"} 0%, ${slide.bgTo || "#0D3311"} 100%)`,
           }}
         >
           {/* Subtle pattern overlay */}
@@ -565,11 +585,11 @@ function PromoSlider({ lang }: { lang: string }) {
           {/* Accent circle decoration */}
           <div
             className="absolute right-5 top-1/2 -translate-y-1/2 w-24 h-24 rounded-full opacity-15"
-            style={{ background: slide.accent }}
+            style={{ background: slide.accent || "#FFA500" }}
           />
           <div
             className="absolute left-5 bottom-2 w-14 h-14 rounded-full opacity-8"
-            style={{ background: slide.accent }}
+            style={{ background: slide.accent || "#FFA500" }}
           />
 
           {/* Text block */}
@@ -605,26 +625,30 @@ function PromoSlider({ lang }: { lang: string }) {
       </AnimatePresence>
 
       {/* Nav arrows */}
-      <button
-        onClick={() => goTo((active - 1 + PROMO_SLIDES.length) % PROMO_SLIDES.length)}
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all"
-        style={{ background: "rgba(46,125,50,0.35)", backdropFilter: "blur(4px)" }}
-        aria-label="Previous"
-      >
-        <ChevronRight size={14} className="text-white" />
-      </button>
-      <button
-        onClick={() => goTo((active + 1) % PROMO_SLIDES.length)}
-        className="absolute left-2.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all"
-        style={{ background: "rgba(46,125,50,0.35)", backdropFilter: "blur(4px)" }}
-        aria-label="Next"
-      >
-        <ChevronLeft size={14} className="text-white" />
-      </button>
+      {slides.length > 1 && (
+        <button
+          onClick={() => goTo((active - 1 + slides.length) % slides.length)}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all"
+          style={{ background: "rgba(46,125,50,0.35)", backdropFilter: "blur(4px)" }}
+          aria-label="Previous"
+        >
+          <ChevronRight size={14} className="text-white" />
+        </button>
+      )}
+      {slides.length > 1 && (
+        <button
+          onClick={() => goTo((active + 1) % slides.length)}
+          className="absolute left-2.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all"
+          style={{ background: "rgba(46,125,50,0.35)", backdropFilter: "blur(4px)" }}
+          aria-label="Next"
+        >
+          <ChevronLeft size={14} className="text-white" />
+        </button>
+      )}
 
       {/* Dot indicators */}
       <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
-        {PROMO_SLIDES.map((_, i) => (
+        {slides.map((_, i) => (
           <button
             key={i}
             onClick={() => goTo(i)}
