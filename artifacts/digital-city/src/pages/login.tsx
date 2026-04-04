@@ -216,9 +216,15 @@ function LoginForm() {
         return;
       }
 
-      if (role === "customer") {
+      if (role === "customer" || role === "client") {
         setSession({ role: "client", name: data.name, userId: data.id, token: data.token });
         navigate("/");
+        return;
+      }
+
+      if (role === "taxi_driver") {
+        setSession({ role: "taxi_driver", name: data.name, userId: data.id, token: data.token });
+        navigate("/taxi-driver");
         return;
       }
 

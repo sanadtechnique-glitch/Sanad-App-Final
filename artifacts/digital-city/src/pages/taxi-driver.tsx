@@ -1,12 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { io, Socket } from "socket.io-client";
+import { getSession } from "@/lib/auth";
 
 const API = "/api";
-
-function getSession() {
-  try { return JSON.parse(localStorage.getItem("sanad_session") || "null"); } catch { return null; }
-}
 
 type DriverView = "loading" | "unavailable" | "waiting" | "incoming" | "active" | "no_auth";
 
@@ -98,13 +95,13 @@ export default function TaxiDriverPage() {
 
   // ── Mount: initial fetch + socket ─────────────────────────────────────────
   useEffect(() => {
-    if (!session?.id) { setView("no_auth"); return; }
+    if (!session?.userId) { setView("no_auth"); return; }
 
     fetchDriverState();
 
     // Socket: incoming new request
     const socket = io(window.location.origin, {
-      query:      { role: "taxi_driver", userId: session.id },
+      query:      { role: "taxi_driver", userId: session.userId },
       transports: ["websocket", "polling"],
       reconnection: true,
     });

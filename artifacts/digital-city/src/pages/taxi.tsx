@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { io, Socket } from "socket.io-client";
+import { getSession } from "@/lib/auth";
 
 const API = "/api";
 
@@ -19,10 +20,6 @@ interface TaxiRequest {
   status: RequestStatus;
   etaMinutes?: number;
   driverInfo?: DriverInfo | null;
-}
-
-function getSession() {
-  try { return JSON.parse(localStorage.getItem("sanad_session") || "null"); } catch { return null; }
 }
 
 // ── Reverse-geocode coordinates to a human-readable address
@@ -122,10 +119,10 @@ export default function TaxiPage() {
 
   // ── socket (real-time driver response) ────────────────────────────────────
   useEffect(() => {
-    if (!session?.id) return;
+    if (!session?.userId) return;
 
     const socket = io(window.location.origin, {
-      query: { role: session.role, userId: session.id },
+      query: { role: session.role, userId: session.userId },
       transports: ["websocket", "polling"],
       reconnection: true,
     });
