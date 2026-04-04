@@ -18,3 +18,9 @@ id = "rZveh_GfmH8jlw1BPEtii"
 uri = "file://artifacts/digital-city/public/sanad-logo-white.svg"
 type = "image"
 title = "شعار سند — أبيض (SVG)"
+
+[[outputs]]
+id = "mRV2fFZGHN7etebUfW_ba"
+uri = "file://artifacts/digital-city/public/sanad-logo.jpg"
+type = "image"
+title = "شعار سند — JPG"
