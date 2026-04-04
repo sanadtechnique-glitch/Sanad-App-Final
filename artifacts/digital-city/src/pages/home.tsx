@@ -86,14 +86,14 @@ interface PromoSlide {
 // SERVICE CATEGORIES
 // ─────────────────────────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { id: "restaurant", icon: Utensils,     ar: "مطاعم",    fr: "Restaurants" },
-  { id: "pharmacy",   icon: Pill,         ar: "صيدلية",   fr: "Pharmacie"   },
-  { id: "lawyer",     icon: Scale,        ar: "محامي",    fr: "Avocat"      },
-  { id: "grocery",    icon: ShoppingCart, ar: "بقالة",    fr: "Épicerie"    },
-  { id: "mechanic",   icon: Wrench,       ar: "ميكانيكي", fr: "Mécanicien"  },
-  { id: "doctor",     icon: Stethoscope,  ar: "طبيب",     fr: "Médecin"     },
-  { id: "car",        icon: Car,          ar: "سيارات",   fr: "Voitures"    },
-  { id: "hotel",      icon: Hotel,        ar: "فنادق",    fr: "Hôtels"      },
+  { id: "restaurant", icon: Utensils,     ar: "مطاعم",    fr: "Restaurants", href: null },
+  { id: "pharmacy",   icon: Pill,         ar: "صيدلية",   fr: "Pharmacie",   href: null },
+  { id: "lawyer",     icon: Scale,        ar: "محامي",    fr: "Avocat",      href: null },
+  { id: "grocery",    icon: ShoppingCart, ar: "بقالة",    fr: "Épicerie",    href: null },
+  { id: "taxi",       icon: Car,          ar: "تاكسي",    fr: "Taxi",        href: "/taxi" },
+  { id: "mechanic",   icon: Wrench,       ar: "ميكانيكي", fr: "Mécanicien",  href: null },
+  { id: "doctor",     icon: Stethoscope,  ar: "طبيب",     fr: "Médecin",     href: null },
+  { id: "hotel",      icon: Hotel,        ar: "فنادق",    fr: "Hôtels",      href: null },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -884,9 +884,9 @@ export default function Home() {
             pharmacy:   { from: "#005432", to: "#007A48", glow: "#006B3C55" },
             lawyer:     { from: "#0D3311", to: "#1A4D1F", glow: "#1A4D1F55" },
             grocery:    { from: "#B85C00", to: "#E8960A", glow: "#E8960A55" },
+            taxi:       { from: "#D4850A", to: "#FFA500", glow: "#FFA50099" },
             mechanic:   { from: "#1A4D1F", to: "#2E7D32", glow: "#2E7D3255" },
             doctor:     { from: "#C96B00", to: "#F59E0B", glow: "#F59E0B55" },
-            car:        { from: "#00613A", to: "#009955", glow: "#00995555" },
             hotel:      { from: "#A86A00", to: "#D4930A", glow: "#D4930A55" },
           };
           return (
@@ -905,7 +905,7 @@ export default function Home() {
                     transition={{ delay: 0.06 + i * 0.05, type: "spring", stiffness: 300, damping: 26 }}
                     style={{ scrollSnapAlign: "start", flexShrink: 0 }}
                   >
-                    <Link href={`/services?category=${cat.id}`}>
+                    <Link href={cat.href ?? `/services?category=${cat.id}`}>
                       <div className="flex flex-col items-center gap-2.5 cursor-pointer group active:scale-95 transition-transform duration-150" style={{ width: 72 }}>
 
                         {/* Gradient circle */}
@@ -969,48 +969,6 @@ export default function Home() {
           );
         })()}
 
-        {/* ── Taxi quick-link ──────────────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, type: "spring", stiffness: 260, damping: 22 }}
-          className="mt-4"
-        >
-          <Link href="/taxi">
-            <div
-              className="rounded-2xl px-4 py-3.5 flex items-center justify-between cursor-pointer transition-all active:scale-[0.98] overflow-hidden relative"
-              style={{ background: "linear-gradient(135deg, #0D3311 0%, #1A4D1F 45%, #006B3C 100%)" }}
-            >
-              {/* Decorative circle background */}
-              <div className="absolute -left-8 -top-8 w-32 h-32 rounded-full opacity-10" style={{ background: "#FFA500" }} />
-              <div className="absolute -right-4 -bottom-4 w-20 h-20 rounded-full opacity-[0.07]" style={{ background: "#FFA500" }} />
-
-              <div className="flex items-center gap-3 relative z-10">
-                <div
-                  className="w-11 h-11 rounded-[14px] flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(255,165,0,0.18)", border: "1.5px solid rgba(255,165,0,0.3)" }}
-                >
-                  <span className="text-xl leading-none">🚕</span>
-                </div>
-                <div dir="rtl">
-                  <p className="text-white font-black text-sm leading-tight">
-                    {lang === "ar" ? "اطلب تاكسي" : "Commander un Taxi"}
-                  </p>
-                  <p className="text-[10px] font-medium mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>
-                    {lang === "ar" ? "سريع · آمن · لباب الدار" : "Rapide · Sûr · À votre porte"}
-                  </p>
-                </div>
-              </div>
-
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 relative z-10"
-                style={{ background: "#FFA500", boxShadow: "0 0 12px rgba(255,165,0,0.5)" }}
-              >
-                <span className="text-white font-black text-base leading-none" style={{ direction: "ltr" }}>→</span>
-              </div>
-            </div>
-          </Link>
-        </motion.div>
       </section>
 
       {/* ── Ad Carousel ───────────────────────────────────────────────────────── */}

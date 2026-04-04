@@ -40,13 +40,13 @@ export function AdCarousel({ supplierId, className = "", height = 110 }: AdCarou
     setTimeout(() => {
       setCurrent(idx);
       setAnimating(false);
-    }, 280);
+    }, 350);
   };
 
   const next = () => goTo((current + 1) % slides.length);
   const prev = () => goTo((current - 1 + slides.length) % slides.length);
 
-  // Auto-rotate every 4s
+  // Auto-rotate every 5s
   useEffect(() => {
     if (slides.length <= 1) return;
     timerRef.current = setInterval(() => {
@@ -54,8 +54,8 @@ export function AdCarousel({ supplierId, className = "", height = 110 }: AdCarou
       setTimeout(() => {
         setCurrent(c => (c + 1) % slides.length);
         setAnimating(false);
-      }, 280);
-    }, 4000);
+      }, 350);
+    }, 5000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [slides.length]);
 
@@ -67,71 +67,88 @@ export function AdCarousel({ supplierId, className = "", height = 110 }: AdCarou
   const content = (
     <div
       className={`relative overflow-hidden rounded-2xl ${className}`}
-      style={{ height, background: slide.bgColor }}
+      style={{
+        height,
+        background: slide.imageUrl
+          ? "transparent"
+          : `${slide.bgColor}22`,
+        backdropFilter: "blur(0px)",
+        border: slide.imageUrl ? "none" : `1.5px solid ${slide.bgColor}33`,
+      }}
     >
-      {/* Background image */}
+      {/* Background image — crossfade */}
       {slide.imageUrl && (
         <img
           src={slide.imageUrl}
           alt={text}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ opacity: animating ? 0 : 1, transition: "opacity 0.28s ease" }}
+          className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+          style={{
+            opacity: animating ? 0 : 1,
+            transition: "opacity 0.35s ease",
+          }}
         />
       )}
 
-      {/* Overlay gradient for text readability */}
+      {/* Subtle gradient overlay for text readability (image slides) */}
       {slide.imageUrl && (
         <div
-          className="absolute inset-0"
-          style={{ background: "linear-gradient(to left, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 60%, transparent 100%)" }}
+          className="absolute inset-0 rounded-2xl"
+          style={{
+            background: "linear-gradient(to left, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.08) 55%, transparent 100%)",
+            opacity: animating ? 0 : 1,
+            transition: "opacity 0.35s ease",
+          }}
+        />
+      )}
+
+      {/* Transparent slide — soft tinted bg */}
+      {!slide.imageUrl && (
+        <div
+          className="absolute inset-0 rounded-2xl"
+          style={{
+            background: `linear-gradient(135deg, ${slide.bgColor}18 0%, ${slide.bgColor}30 100%)`,
+            opacity: animating ? 0 : 1,
+            transition: "opacity 0.35s ease",
+          }}
         />
       )}
 
       {/* Text content */}
       <div
-        className="absolute inset-0 flex items-center px-4"
+        className="absolute inset-0 flex items-center px-5"
         style={{
           opacity: animating ? 0 : 1,
-          transition: "opacity 0.28s ease",
+          transition: "opacity 0.35s ease",
           direction: "rtl",
         }}
       >
-        {!slide.imageUrl && (
-          <div className="flex-1">
-            <p
-              className="font-black text-sm leading-tight truncate"
-              style={{ color: slide.textColor }}
-            >
-              {text}
-            </p>
-          </div>
-        )}
-        {slide.imageUrl && (
-          <div className="flex-1 text-right">
-            <p
-              className="font-black text-sm leading-tight drop-shadow-md"
-              style={{ color: "#FFFFFF", textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}
-            >
-              {text}
-            </p>
-          </div>
-        )}
+        <div className="flex-1 min-w-0">
+          <p
+            className="font-black text-sm leading-snug truncate drop-shadow-sm"
+            style={{
+              color: slide.imageUrl ? "#FFFFFF" : slide.textColor,
+              textShadow: slide.imageUrl ? "0 1px 6px rgba(0,0,0,0.55)" : "none",
+            }}
+          >
+            {text}
+          </p>
+        </div>
       </div>
 
-      {/* Navigation arrows — only if multiple slides */}
+      {/* Navigation arrows */}
       {slides.length > 1 && (
         <>
           <button
             onClick={e => { e.preventDefault(); prev(); }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center z-10 transition-all hover:scale-110"
-            style={{ background: "rgba(0,0,0,0.25)" }}
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center z-10 transition-all hover:scale-110 active:scale-95"
+            style={{ background: "rgba(0,0,0,0.18)" }}
           >
             <ChevronLeft size={14} color="#fff" />
           </button>
           <button
             onClick={e => { e.preventDefault(); next(); }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center z-10 transition-all hover:scale-110"
-            style={{ background: "rgba(0,0,0,0.25)" }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center z-10 transition-all hover:scale-110 active:scale-95"
+            style={{ background: "rgba(0,0,0,0.18)" }}
           >
             <ChevronRight size={14} color="#fff" />
           </button>
@@ -140,17 +157,17 @@ export function AdCarousel({ supplierId, className = "", height = 110 }: AdCarou
 
       {/* Dot indicators */}
       {slides.length > 1 && (
-        <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-10">
+        <div className="absolute bottom-2.5 left-0 right-0 flex justify-center gap-1.5 z-10">
           {slides.map((_, i) => (
             <button
               key={i}
               onClick={e => { e.preventDefault(); goTo(i); }}
-              className="transition-all"
+              className="transition-all duration-300"
               style={{
-                width: i === current ? 18 : 6,
+                width: i === current ? 20 : 6,
                 height: 6,
                 borderRadius: 3,
-                background: i === current ? "#FFA500" : "rgba(255,255,255,0.5)",
+                background: i === current ? "#FFA500" : "rgba(26,77,31,0.3)",
               }}
             />
           ))}
@@ -159,7 +176,6 @@ export function AdCarousel({ supplierId, className = "", height = 110 }: AdCarou
     </div>
   );
 
-  // Wrap in link if linkUrl provided
   if (slide.linkUrl) {
     return (
       <a href={slide.linkUrl} target="_blank" rel="noopener noreferrer" className="block">
