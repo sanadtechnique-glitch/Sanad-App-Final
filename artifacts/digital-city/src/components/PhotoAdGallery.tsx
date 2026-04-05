@@ -1,101 +1,88 @@
 import { useState, useEffect } from "react";
 import { get } from "@/lib/admin-api";
-import { ImageIcon } from "lucide-react";
 
-interface AdSlide {
+interface Partner {
   id: number;
+  textAr: string;
+  textFr: string | null;
   imageUrl: string | null;
   linkUrl: string | null;
-  bgColor: string;
 }
 
 export function PhotoAdGallery() {
-  const [ads, setAds] = useState<AdSlide[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    get<AdSlide[]>("/ticker")
+    get<Partner[]>("/ticker")
       .then(data => {
         const withImages = data.filter(d => d.imageUrl && d.imageUrl.trim() !== "");
-        setAds(withImages.slice(0, 5));
+        setPartners(withImages.slice(0, 8));
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
   }, []);
 
-  const slots: (AdSlide | null)[] = [
-    ads[0] ?? null,
-    ads[1] ?? null,
-    ads[2] ?? null,
-    ads[3] ?? null,
-    ads[4] ?? null,
-  ];
-
-  const renderSlot = (slot: AdSlide | null, idx: number) => {
-    const inner = (
-      <div
-        className="relative overflow-hidden rounded-xl w-full"
-        style={{
-          aspectRatio: "1 / 1",
-          background: slot?.imageUrl
-            ? undefined
-            : "rgba(26,77,31,0.06)",
-          border: slot?.imageUrl ? "none" : "1.5px dashed rgba(26,77,31,0.15)",
-        }}
-      >
-        {slot?.imageUrl ? (
-          <img
-            src={slot.imageUrl}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-            draggable={false}
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-1 opacity-20">
-              <ImageIcon size={16} color="#1A4D1F" />
-              <span className="text-[9px] font-bold text-[#1A4D1F]">{idx + 1}</span>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-
-    if (slot?.linkUrl) {
-      return (
-        <a
-          key={idx}
-          href={slot.linkUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block flex-1 min-w-0 transition-transform hover:scale-105 active:scale-95"
-        >
-          {inner}
-        </a>
-      );
-    }
-    return (
-      <div key={idx} className="flex-1 min-w-0">
-        {inner}
-      </div>
-    );
-  };
-
-  if (!loaded) return null;
+  if (!loaded || partners.length === 0) return null;
 
   return (
     <div>
-      {/* Label */}
       <p
-        className="text-xs font-black mb-3 tracking-widest uppercase"
-        style={{ color: "rgba(26,77,31,0.40)", fontFamily: "'Outfit',sans-serif", letterSpacing: "0.18em" }}
+        className="text-xs font-black mb-4 tracking-widest uppercase text-right"
+        style={{ color: "rgba(26,77,31,0.35)", fontFamily: "'Outfit',sans-serif", letterSpacing: "0.18em" }}
       >
         Partenaires
       </p>
 
-      {/* 5 images in one row */}
-      <div className="flex gap-2.5">
-        {slots.map((slot, idx) => renderSlot(slot, idx))}
+      <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+        {partners.map(p => {
+          const card = (
+            <div key={p.id} className="flex flex-col items-center gap-1.5 flex-shrink-0" style={{ width: 64 }}>
+              {/* Name above photo */}
+              <span
+                className="text-center leading-tight w-full"
+                style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  color: "rgba(26,77,31,0.65)",
+                  fontFamily: "'Cairo',sans-serif",
+                  wordBreak: "break-word",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+              >
+                {p.textAr}
+              </span>
+              {/* Transparent photo */}
+              <div className="w-14 h-14 flex items-center justify-center" style={{ background: "transparent" }}>
+                <img
+                  src={p.imageUrl!}
+                  alt={p.textAr}
+                  className="w-full h-full object-contain"
+                  draggable={false}
+                  onError={e => { (e.currentTarget.parentElement!.parentElement!).style.display = "none"; }}
+                />
+              </div>
+            </div>
+          );
+
+          if (p.linkUrl) {
+            return (
+              <a
+                key={p.id}
+                href={p.linkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-transform hover:scale-110 active:scale-95"
+              >
+                {card}
+              </a>
+            );
+          }
+          return card;
+        })}
       </div>
     </div>
   );
