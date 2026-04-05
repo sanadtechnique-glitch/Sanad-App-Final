@@ -24,3 +24,15 @@ id = "mRV2fFZGHN7etebUfW_ba"
 uri = "file://artifacts/digital-city/public/sanad-logo.jpg"
 type = "image"
 title = "شعار سند — JPG"
+
+[[outputs]]
+id = "N-1ltG2q5Ed6Iy-hSW7Of"
+uri = "file://sanad-android.zip"
+type = "unspecified"
+title = "Sanad Android Project (sanad-android.tar.gz)"
+
+[[outputs]]
+id = "t1rx7jaH4p1c7SAv8Qcr3"
+uri = "file://sanad-android.tar.gz"
+type = "unspecified"
+title = "Sanad · Android Project (tar.gz)"

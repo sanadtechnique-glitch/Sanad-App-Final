@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sanad</string>
+    <string name="title_activity_main">Sanad</string>
+    <string name="package_name">com.sanad.benguerdane</string>
+    <string name="custom_url_scheme">com.sanad.benguerdane</string>
+</resources>
