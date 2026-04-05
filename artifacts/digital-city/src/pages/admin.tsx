@@ -3308,7 +3308,9 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [loading, setLoading]       = useState(true);
   const [activeAgency, setActiveAgency] = useState<any | null>(null);
   const [showCarForm, setShowCarForm]   = useState(false);
+  const [showAgencyForm, setShowAgencyForm] = useState(false);
   const [carForm, setCarForm] = useState({ make: "", model: "", year: "", color: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "", description: "" });
+  const [agencyForm, setAgencyForm] = useState({ nameAr: "", name: "", phone: "", address: "", photoUrl: "" });
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<"cars" | "bookings">("cars");
 
@@ -3333,6 +3335,33 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
     }).finally(() => setLoading(false));
   }, []);
 
+  const addAgency = async () => {
+    if (!agencyForm.nameAr || !agencyForm.name) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-session-token": getSession()?.token || "" },
+        body: JSON.stringify({ ...agencyForm, category: "car_rental" }),
+      });
+      const agency = await res.json();
+      setAgencies(prev => [...prev, agency]);
+      setAgencyForm({ nameAr: "", name: "", phone: "", address: "", photoUrl: "" });
+      setShowAgencyForm(false);
+      setActiveAgency(agency);
+    } finally { setSaving(false); }
+  };
+
+  const deleteAgency = async (id: number) => {
+    if (!confirm(t("هل أنت متأكد من حذف هذه الوكالة؟","Supprimer cette agence ?"))) return;
+    await fetch(`/api/admin/suppliers/${id}`, {
+      method: "DELETE",
+      headers: { "x-session-token": getSession()?.token || "" },
+    });
+    setAgencies(prev => prev.filter(a => a.id !== id));
+    if (activeAgency?.id === id) setActiveAgency(null);
+  };
+
   const addCar = async () => {
     if (!activeAgency || !carForm.make || !carForm.model || !carForm.pricePerDay) return;
     setSaving(true);
@@ -3347,6 +3376,15 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
       setCarForm({ make: "", model: "", year: "", color: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "", description: "" });
       setShowCarForm(false);
     } finally { setSaving(false); }
+  };
+
+  const deleteCar = async (carId: number) => {
+    if (!confirm(t("حذف هذه السيارة؟","Supprimer cette voiture ?"))) return;
+    await fetch(`/api/admin/car-rental/cars/${carId}`, {
+      method: "DELETE",
+      headers: { "x-session-token": getSession()?.token || "" },
+    });
+    setCars(prev => prev.filter(c => c.id !== carId));
   };
 
   const toggleCar = async (carId: number, isAvailable: boolean) => {
