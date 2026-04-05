@@ -5,7 +5,7 @@ import { getSession, clearSession } from "@/lib/auth";
 import {
   Power, Clock, Truck, Star, RefreshCw, MessageCircle, ChevronRight,
   Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon, History,
-  Plus, Trash2, Pencil, ToggleLeft, ToggleRight, AlertTriangle, KeyRound, Calendar, Phone,
+  Plus, Trash2, Pencil, ToggleLeft, ToggleRight, AlertTriangle, KeyRound, Calendar, Phone, Scale, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -294,11 +294,13 @@ export default function ProviderDashboard() {
   const [pendingCount, setPendingCount] = useState(0);
   const [hasNewOrder, setHasNewOrder] = useState(false);
   const [photoModal, setPhotoModal] = useState<string | null>(null);
-  const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos" | "lawyer">("pending");
   const [driverNotif, setDriverNotif] = useState<Notification | null>(null);
-  const [carBookings, setCarBookings] = useState<any[]>([]);
-  const [sosRequests, setSosRequests] = useState<any[]>([]);
-  const [sosLoading, setSosLoading]   = useState(false);
+  const [carBookings, setCarBookings]       = useState<any[]>([]);
+  const [sosRequests, setSosRequests]       = useState<any[]>([]);
+  const [sosLoading, setSosLoading]         = useState(false);
+  const [lawyerRequests, setLawyerRequests] = useState<any[]>([]);
+  const [lawyerLoading, setLawyerLoading]   = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const providerNotifPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -399,6 +401,32 @@ export default function ProviderDashboard() {
     setSosLoading(false);
   };
 
+  const loadLawyerRequests = async (provider: Supplier) => {
+    setLawyerLoading(true);
+    try {
+      const session = getSession();
+      const res = await fetch(`/api/lawyer-requests/my/${provider.id}`, {
+        headers: { "x-session-token": session?.token || "" },
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setLawyerRequests(data);
+    } catch {}
+    setLawyerLoading(false);
+  };
+
+  const updateLawyerRequest = async (requestId: number, status: "accepted" | "rejected") => {
+    const session = getSession();
+    try {
+      const res = await fetch(`/api/lawyer-requests/${requestId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-session-token": session?.token || "" },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      setLawyerRequests(prev => prev.map(r => r.id === requestId ? data : r));
+    } catch {}
+  };
+
   const acceptSos = async (sosId: number, provider: Supplier) => {
     const session = getSession();
     try {
@@ -428,7 +456,8 @@ export default function ProviderDashboard() {
     startPolling(provider);
     startProviderNotifPolling(provider);
     if (provider.category === "car_rental") loadCarBookings(provider);
-    loadSosRequests(provider);
+    if (provider.category === "lawyer") loadLawyerRequests(provider);
+    else loadSosRequests(provider);
   };
 
   const updateStatus = async (orderId: number, status: string) => {
@@ -624,7 +653,10 @@ export default function ProviderDashboard() {
             { id: "all",      label: t("الطلبات","Cmds") },
             { id: "products", label: t("منتجات","Produits"), icon: <Package size={10} /> },
             ...(selected.category === "car_rental" ? [{ id: "bookings", label: t("حجوزات","Réserv."), icon: <KeyRound size={10} /> }] : []),
-            { id: "sos",      label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true },
+            ...(selected.category === "lawyer"
+              ? [{ id: "lawyer", label: t("قضايا","Dossiers"), icon: <Scale size={10} />, badge: lawyerRequests.filter(r=>r.status==="pending").length }]
+              : [{ id: "sos", label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true }]
+            ),
           ].map((tb: any) => (
             <button key={tb.id} onClick={() => setTab(tb.id)}
               className={cn("flex-shrink-0 flex-1 py-2 rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1",
@@ -780,6 +812,110 @@ export default function ProviderDashboard() {
                     )}
                     {mine && sos.status === "accepted" && (
                       <div className="mt-2 text-center text-xs font-black text-emerald-500">{t("أنت تتكفل بهذا الطلب", "Vous gérez cette demande")}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Lawyer Requests */}
+        {tab === "lawyer" && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black opacity-50" style={{ color: "#1A4D1F" }}>{t("طلبات الاستشارة القانونية", "Demandes de consultation")}</p>
+              <button onClick={() => loadLawyerRequests(selected)} className="p-1.5 rounded-lg" style={{ background: "#1A4D1F22" }}>
+                <RefreshCw size={12} style={{ color: "#1A4D1F" }} />
+              </button>
+            </div>
+            {lawyerLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="w-6 h-6 rounded-full border-2 border-[#1A4D1F]/20 border-t-[#1A4D1F] animate-spin" />
+              </div>
+            ) : lawyerRequests.length === 0 ? (
+              <div className="flex flex-col items-center py-12 gap-2 opacity-30">
+                <Scale size={32} style={{ color: "#1A4D1F" }} />
+                <p className="text-sm font-bold" style={{ color: "#1A4D1F" }}>{t("لا توجد طلبات بعد", "Aucune demande pour l'instant")}</p>
+              </div>
+            ) : lawyerRequests.map(req => {
+              const CASE_LABELS: Record<string, { ar: string; fr: string }> = {
+                criminal:       { ar: "جنائي",  fr: "Pénal" },
+                civil:          { ar: "مدني",   fr: "Civil" },
+                administrative: { ar: "إداري",  fr: "Administratif" },
+                commercial:     { ar: "تجاري",  fr: "Commercial" },
+                family:         { ar: "أسري",   fr: "Familial" },
+                real_estate:    { ar: "عقاري",  fr: "Immobilier" },
+                other:          { ar: "أخرى",   fr: "Autre" },
+              };
+              const STATUS_LAWYER: Record<string, { ar: string; fr: string; bg: string; color: string }> = {
+                pending:  { ar: "في الانتظار", fr: "En attente",  bg: "#FEF3C7", color: "#92400E" },
+                accepted: { ar: "مقبول",       fr: "Accepté",     bg: "#D1FAE5", color: "#059669" },
+                rejected: { ar: "مرفوض",       fr: "Refusé",      bg: "#FEE2E2", color: "#DC2626" },
+              };
+              const ct = CASE_LABELS[req.caseType] || CASE_LABELS.other;
+              const st = STATUS_LAWYER[req.status] || STATUS_LAWYER.pending;
+              const reqPhotos = (() => { try { return JSON.parse(req.photos || "[]"); } catch { return []; } })();
+              return (
+                <div key={req.id} className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid #1A4D1F11" }}>
+                  <div className="flex items-center justify-between px-4 py-2.5" style={{ background: "#1A4D1F08" }}>
+                    <div className="flex items-center gap-2">
+                      <Scale size={11} style={{ color: "#1A4D1F" }} />
+                      <span className="text-xs font-black" style={{ color: "#1A4D1F" }}>
+                        #{req.id.toString().padStart(4, "0")} · {lang === "ar" ? ct.ar : ct.fr}
+                      </span>
+                    </div>
+                    <span className="text-xs font-black px-2.5 py-0.5 rounded-full" style={{ background: st.bg, color: st.color }}>
+                      {lang === "ar" ? st.ar : st.fr}
+                    </span>
+                  </div>
+                  <div className="p-4 space-y-2">
+                    <p className="font-black text-sm" style={{ color: "#1A4D1F" }}>{req.customerName}</p>
+                    <p className="text-xs flex items-center gap-1 opacity-50" style={{ color: "#1A4D1F" }}>
+                      <Phone size={10} />{req.customerPhone}
+                    </p>
+                    <p className="text-xs flex items-center gap-1 opacity-60" style={{ color: "#1A4D1F" }}>
+                      <FileText size={10} />
+                      {t("المحكمة:", "Tribunal:")} {req.court}
+                    </p>
+                    {req.notes && (
+                      <p className="text-xs p-2.5 rounded-xl opacity-70" style={{ color: "#1A4D1F", background: "#FFF3E0" }}>
+                        {req.notes}
+                      </p>
+                    )}
+                    {reqPhotos.length > 0 && (
+                      <div className="flex gap-2 flex-wrap pt-1">
+                        {reqPhotos.map((url: string, i: number) => (
+                          <button
+                            key={i}
+                            onClick={() => setPhotoModal(url)}
+                            className="w-16 h-16 rounded-xl overflow-hidden border border-[#1A4D1F]/10"
+                          >
+                            <img src={url} alt="doc" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs opacity-30 flex items-center gap-1" style={{ color: "#1A4D1F" }}>
+                      <Clock size={10} />{timeAgo(req.createdAt, lang)}
+                    </p>
+                    {req.status === "pending" && (
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={() => updateLawyerRequest(req.id, "accepted")}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-black text-sm"
+                          style={{ background: "#1A4D1F", color: "white" }}
+                        >
+                          <Check size={14} /> {t("قبول", "Accepter")}
+                        </button>
+                        <button
+                          onClick={() => updateLawyerRequest(req.id, "rejected")}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-black text-sm"
+                          style={{ background: "#FEE2E2", color: "#DC2626" }}
+                        >
+                          <X size={14} /> {t("رفض", "Refuser")}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

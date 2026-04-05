@@ -19,3 +19,4 @@ export * from "./sessions";
 export * from "./appSettings";
 export * from "./carRental";
 export * from "./sosRequests";
+export * from "./lawyerRequests";

@@ -10,7 +10,7 @@ import {
   ChevronRight, ChevronDown, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
   UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
   Image, ImageIcon, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
-  Settings, Sliders, DollarSign, Zap, TrendingUp, Upload, AlertTriangle, KeyRound, Stethoscope,
+  Settings, Sliders, DollarSign, Zap, TrendingUp, Upload, AlertTriangle, KeyRound, Stethoscope, Scale, FileText, Phone,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
@@ -4075,8 +4075,170 @@ function AppearanceSection({ t }: { t: (ar: string, fr: string) => string }) {
   );
 }
 
+// ── Lawyer Requests Section ───────────────────────────────────────────────────
+function LawyerRequestsSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [filter, setFilter]     = useState("all");
+  const [photoModal, setPhotoModal] = useState<string | null>(null);
+
+  const CASE_LABELS: Record<string, { ar: string; fr: string }> = {
+    criminal:       { ar: "جنائي",  fr: "Pénal" },
+    civil:          { ar: "مدني",   fr: "Civil" },
+    administrative: { ar: "إداري",  fr: "Administratif" },
+    commercial:     { ar: "تجاري",  fr: "Commercial" },
+    family:         { ar: "أسري",   fr: "Familial" },
+    real_estate:    { ar: "عقاري",  fr: "Immobilier" },
+    other:          { ar: "أخرى",   fr: "Autre" },
+  };
+
+  const STATUS_LABELS: Record<string, { ar: string; fr: string; color: string; bg: string }> = {
+    pending:  { ar: "في الانتظار", fr: "En attente", color: "#92400E", bg: "#FEF3C7" },
+    accepted: { ar: "مقبول",       fr: "Accepté",    color: "#059669", bg: "#D1FAE5" },
+    rejected: { ar: "مرفوض",       fr: "Refusé",     color: "#DC2626", bg: "#FEE2E2" },
+  };
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/lawyer-requests", {
+        headers: { "x-session-token": getSession()?.token || "" },
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setRequests(data);
+    } finally { setLoading(false); }
+  };
+
+  const updateStatus = async (id: number, status: string) => {
+    try {
+      await fetch(`/api/lawyer-requests/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-session-token": getSession()?.token || "" },
+        body: JSON.stringify({ status }),
+      });
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    } catch {}
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const filtered = filter === "all" ? requests : requests.filter(r => r.status === filter);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Scale size={18} style={{ color: "#1A4D1F" }} />
+          <h2 className="text-base font-black" style={{ color: "#1A4D1F" }}>{t("طلبات المحامين", "Dossiers Avocats")}</h2>
+          <span className="px-2 py-0.5 rounded-full text-xs font-black" style={{ background: "#1A4D1F22", color: "#1A4D1F" }}>{requests.length}</span>
+        </div>
+        <button onClick={load} className="p-2 rounded-xl" style={{ background: "#1A4D1F22" }}>
+          <RefreshCw size={14} style={{ color: "#1A4D1F" }} />
+        </button>
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex gap-1 p-1 rounded-xl" style={{ background: "#1A4D1F0A" }}>
+        {["all", "pending", "accepted", "rejected"].map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            className="flex-1 py-2 rounded-lg text-xs font-black transition-all"
+            style={{
+              background: filter === f ? "#1A4D1F" : "transparent",
+              color: filter === f ? "white" : "#1A4D1F88",
+            }}>
+            {f === "all" ? t("الكل", "Tout") : (STATUS_LABELS[f] ? (lang === "ar" ? STATUS_LABELS[f].ar : STATUS_LABELS[f].fr) : f)}
+          </button>
+        ))}
+      </div>
+
+      {/* Photo modal */}
+      <AnimatePresence>
+        {photoModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.92)" }} onClick={() => setPhotoModal(null)}>
+            <motion.img initial={{ scale: 0.9 }} animate={{ scale: 1 }} src={photoModal}
+              className="max-w-sm w-full rounded-2xl" alt="doc" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-6 h-6 rounded-full border-2 border-[#1A4D1F]/20 border-t-[#1A4D1F] animate-spin" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center py-12 gap-2 opacity-30">
+          <Scale size={32} style={{ color: "#1A4D1F" }} />
+          <p className="text-sm font-bold" style={{ color: "#1A4D1F" }}>{t("لا توجد طلبات", "Aucune demande")}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(req => {
+            const ct = CASE_LABELS[req.caseType] || CASE_LABELS.other;
+            const st = STATUS_LABELS[req.status] || STATUS_LABELS.pending;
+            const reqPhotos = (() => { try { return JSON.parse(req.photos || "[]"); } catch { return []; } })();
+            return (
+              <div key={req.id} className="rounded-2xl overflow-hidden border" style={{ background: "white", borderColor: "#1A4D1F11" }}>
+                <div className="flex items-center justify-between px-4 py-2.5" style={{ background: "#1A4D1F08" }}>
+                  <div className="flex items-center gap-2">
+                    <Scale size={11} style={{ color: "#1A4D1F" }} />
+                    <span className="text-xs font-black" style={{ color: "#1A4D1F" }}>
+                      #{req.id.toString().padStart(4, "0")} · {lang === "ar" ? ct.ar : ct.fr}
+                    </span>
+                    <span className="text-xs opacity-40" style={{ color: "#1A4D1F" }}>→ {req.lawyerName}</span>
+                  </div>
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full" style={{ background: st.bg, color: st.color }}>
+                    {lang === "ar" ? st.ar : st.fr}
+                  </span>
+                </div>
+                <div className="p-4 space-y-2">
+                  <p className="font-black text-sm" style={{ color: "#1A4D1F" }}>{req.customerName}</p>
+                  <p className="text-xs flex items-center gap-1 opacity-50" style={{ color: "#1A4D1F" }}>
+                    <Phone size={10} />{req.customerPhone}
+                  </p>
+                  <p className="text-xs flex items-center gap-1 opacity-60" style={{ color: "#1A4D1F" }}>
+                    <FileText size={10} />{t("المحكمة:", "Tribunal:")} {req.court}
+                  </p>
+                  {req.notes && (
+                    <p className="text-xs p-2.5 rounded-xl opacity-60" style={{ background: "#FFF3E0", color: "#1A4D1F" }}>{req.notes}</p>
+                  )}
+                  {reqPhotos.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {reqPhotos.map((url: string, i: number) => (
+                        <button key={i} onClick={() => setPhotoModal(url)}
+                          className="w-14 h-14 rounded-xl overflow-hidden border border-[#1A4D1F]/10">
+                          <img src={url} alt="doc" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {req.status === "pending" && (
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={() => updateStatus(req.id, "accepted")}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl font-black text-xs"
+                        style={{ background: "#1A4D1F", color: "white" }}>
+                        <Check size={12} /> {t("قبول", "Accepter")}
+                      </button>
+                      <button onClick={() => updateStatus(req.id, "rejected")}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl font-black text-xs"
+                        style={{ background: "#FEE2E2", color: "#DC2626" }}>
+                        <X size={12} /> {t("رفض", "Refuser")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests";
+type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests";
 
 type NavItem = { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean };
 type NavGroup = { id: string; icon: React.FC<any>; ar: string; fr: string; color: string; items: NavItem[] };
@@ -4120,7 +4282,8 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "hotelBookings", icon: Hotel,         ar: "حجوزات الفنادق",  fr: "Réservations Hôtel" },
       { id: "taxi_drivers",  icon: Car,            ar: "سائقو التاكسي",  fr: "Chauffeurs Taxi",  superOnly: true },
       { id: "car_rental",    icon: Car,            ar: "كراء السيارات",   fr: "Location auto",    superOnly: true },
-      { id: "sos_requests",  icon: AlertTriangle,  ar: "طلبات SOS",       fr: "Demandes SOS",     superOnly: true },
+      { id: "sos_requests",     icon: AlertTriangle,  ar: "طلبات SOS",       fr: "Demandes SOS",     superOnly: true },
+      { id: "lawyer_requests",  icon: Scale,          ar: "طلبات المحامين",  fr: "Dossiers Avocats", superOnly: true },
     ],
   },
   {
@@ -4431,6 +4594,7 @@ export default function Admin() {
             {active === "appearance"      && isSuper && <AppearanceSection t={t} />}
             {active === "car_rental"      && isSuper && <CarRentalSection t={t} />}
             {active === "sos_requests"    && isSuper && <SosSection t={t} />}
+            {active === "lawyer_requests" && isSuper && <LawyerRequestsSection t={t} lang={lang} />}
           </motion.div>
         </AnimatePresence>
       </main>

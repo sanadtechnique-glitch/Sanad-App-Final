@@ -94,7 +94,7 @@ const CATEGORIES = [
   { id: "taxi",        icon: Car,            ar: "تاكسي",          fr: "Taxi",          href: "/taxi" },
   { id: "car_rental",  icon: KeyRound,       ar: "كراء سيارات",    fr: "Location auto", href: "/car-rental" },
   { id: "sos",         icon: AlertTriangle,  ar: "SOS",            fr: "SOS",           href: "/sos" },
-  { id: "lawyer",      icon: Scale,          ar: "محامي",          fr: "Avocat",        href: null },
+  { id: "lawyer",      icon: Scale,          ar: "محامي",          fr: "Avocat",        href: "/lawyer" },
   { id: "hotel",       icon: Hotel,          ar: "فنادق",          fr: "Hôtels",        href: null },
   { id: "mechanic",    icon: Wrench,         ar: "ميكانيكي",       fr: "Mécanicien",    href: null },
 ];

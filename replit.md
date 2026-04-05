@@ -251,3 +251,55 @@ Suppliers with `category === "pharmacy"` have a `shift` field: `"day"`, `"night"
 ```
 pnpm --filter @workspace/db run push
 ```
+
+## Lawyer Request System (New)
+
+### Overview
+Full lawyer consultation request flow: customer browses lawyers → selects one → submits a form → lawyer accepts/rejects.
+
+### DB Table: `lawyer_requests`
+- `id` serial PK
+- `customerId` integer (nullable, linked to user)
+- `customerName`, `customerPhone` — required
+- `lawyerId` integer (links to service_providers with category="lawyer")
+- `lawyerName` text
+- `caseType` enum: criminal/civil/administrative/commercial/family/real_estate/other
+- `court` text — the competent court name
+- `photos` text (JSON array of image URLs stored in `/uploads/lawyer-docs/`)
+- `notes` text
+- `status` enum: pending/accepted/rejected
+- `createdAt`, `updatedAt`
+
+### Frontend Page: `/lawyer`
+- Lists all service_providers with category="lawyer"
+- Shows availability badge, rating, description, phone
+- Tap a lawyer → slide-up form modal:
+  - Customer name & phone (pre-filled from session)
+  - Case type (7 categories, grid selection)
+  - Court name (text input)
+  - Optional notes (textarea)
+  - Optional photos (up to 5, uploaded to `/api/lawyer-requests/upload`)
+- Submit → POST /api/lawyer-requests
+- History tab shows customer's own past requests with status
+
+### Provider Dashboard
+- If category="lawyer", the SOS tab is replaced with "قضايا/Dossiers" tab
+- Shows all requests for that lawyer with Accept/Reject buttons
+- Clicking a document photo opens a full-screen preview
+
+### Admin Panel
+- New sidebar section: تزويد الخدمات → طلبات المحامين (super_admin only)
+- Filter by status: all/pending/accepted/rejected
+- Admin can also Accept/Reject requests
+
+### API Endpoints
+- `GET /api/lawyers` — public, returns all service_providers with category="lawyer"
+- `POST /api/lawyer-requests/upload` — public, stores photo in /uploads/lawyer-docs/
+- `POST /api/lawyer-requests` — public, submit a new request
+- `GET /api/lawyer-requests/my-customer/:customerId` — customer's own requests
+- `GET /api/lawyer-requests/my/:lawyerId` — requireAuth, lawyer's requests
+- `GET /api/admin/lawyer-requests` — requireAdmin, all requests
+- `PATCH /api/lawyer-requests/:id/status` — requireAuth, accept or reject
+
+### Adding Lawyers
+Lawyers are added as suppliers (service_providers) with category="lawyer" via the admin panel (تزويد المنتوجات → المزودون). They login with role="provider" and their supplierId must be set.
