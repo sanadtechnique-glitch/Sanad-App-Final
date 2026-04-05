@@ -4075,26 +4075,65 @@ function AppearanceSection({ t }: { t: (ar: string, fr: string) => string }) {
 // ──────────────────────────────────────────────────────────────────────────────
 type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests";
 
-const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean }[] = [
-  { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",       fr: "Tableau de bord" },
-  { id: "orders",        icon: Package,          ar: "الطلبات",         fr: "Commandes" },
-  { id: "live_map",      icon: Map,              ar: "الخريطة المباشرة", fr: "Carte live" },
-  { id: "hotelBookings", icon: Hotel,            ar: "حجوزات الفنادق",  fr: "Réservations Hôtel" },
-  { id: "banners",       icon: Megaphone,        ar: "الإعلانات",       fr: "Publicités" },
-  { id: "ticker",        icon: Radio,            ar: "شريط الإشهار",    fr: "Ticker Pub" },
-  { id: "ads",           icon: Image,            ar: "إعلانات متقدمة",  fr: "Ads avancées" },
-  { id: "broadcast",     icon: Radio,            ar: "بث إشعار",        fr: "Diffusion" },
-  { id: "categories",    icon: Tag,              ar: "الفئات",          fr: "Catégories",    superOnly: true },
-  { id: "suppliers",     icon: Users,            ar: "المزودون",        fr: "Fournisseurs",  superOnly: true },
-  { id: "articles",      icon: ShoppingBag,      ar: "المنتجات",        fr: "Articles",      superOnly: true },
-  { id: "staff",         icon: Truck,            ar: "السائقون",        fr: "Livreurs",      superOnly: true },
-  { id: "taxi_drivers",  icon: Car,              ar: "سائقو التاكسي",   fr: "Chauffeurs Taxi", superOnly: true },
-  { id: "delegations",   icon: Map,              ar: "المعتمديات",      fr: "Délégations",   superOnly: true },
-  { id: "users",         icon: UserCog,          ar: "المستخدمون",      fr: "Utilisateurs",  superOnly: true },
-  { id: "delivery_config", icon: Settings,       ar: "عمولة التوصيل",   fr: "Commission",    superOnly: true },
-  { id: "appearance",      icon: Image,           ar: "المظهر والشعار",  fr: "Apparence",     superOnly: true },
-  { id: "car_rental",      icon: Car,             ar: "كراء السيارات",   fr: "Location auto", superOnly: true },
-  { id: "sos_requests",    icon: AlertTriangle,   ar: "طلبات SOS",       fr: "Demandes SOS",  superOnly: true },
+type NavItem = { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean };
+type NavGroup = { id: string; icon: React.FC<any>; ar: string; fr: string; color: string; items: NavItem[] };
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "overview_group",
+    icon: LayoutDashboard,
+    ar: "نظرة عامة",
+    fr: "Vue générale",
+    color: "#1A4D1F",
+    items: [
+      { id: "overview",  icon: LayoutDashboard, ar: "لوحة المعلومات", fr: "Tableau de bord" },
+      { id: "orders",    icon: Package,          ar: "الطلبات",        fr: "Commandes" },
+      { id: "live_map",  icon: Map,              ar: "الخريطة المباشرة", fr: "Carte live" },
+      { id: "users",     icon: UserCog,          ar: "المستخدمون",     fr: "Utilisateurs",  superOnly: true },
+    ],
+  },
+  {
+    id: "products_group",
+    icon: ShoppingBag,
+    ar: "تزويد المنتوجات",
+    fr: "Produits & Livraison",
+    color: "#B45309",
+    items: [
+      { id: "categories",     icon: Tag,       ar: "الفئات",          fr: "Catégories",    superOnly: true },
+      { id: "suppliers",      icon: Users,     ar: "المزودون",        fr: "Fournisseurs",  superOnly: true },
+      { id: "articles",       icon: ShoppingBag, ar: "المنتجات",      fr: "Articles",      superOnly: true },
+      { id: "staff",          icon: Truck,     ar: "السائقون",        fr: "Livreurs",      superOnly: true },
+      { id: "delegations",    icon: Map,       ar: "المعتمديات",      fr: "Délégations",   superOnly: true },
+      { id: "delivery_config",icon: Settings,  ar: "عمولة التوصيل",  fr: "Commission",    superOnly: true },
+    ],
+  },
+  {
+    id: "services_group",
+    icon: Stethoscope,
+    ar: "تزويد الخدمات",
+    fr: "Services",
+    color: "#1565C0",
+    items: [
+      { id: "hotelBookings", icon: Hotel,         ar: "حجوزات الفنادق",  fr: "Réservations Hôtel" },
+      { id: "taxi_drivers",  icon: Car,            ar: "سائقو التاكسي",  fr: "Chauffeurs Taxi",  superOnly: true },
+      { id: "car_rental",    icon: Car,            ar: "كراء السيارات",   fr: "Location auto",    superOnly: true },
+      { id: "sos_requests",  icon: AlertTriangle,  ar: "طلبات SOS",       fr: "Demandes SOS",     superOnly: true },
+    ],
+  },
+  {
+    id: "marketing_group",
+    icon: Megaphone,
+    ar: "الإشهار والإشعار",
+    fr: "Pub & Notifications",
+    color: "#7C3AED",
+    items: [
+      { id: "banners",    icon: Megaphone, ar: "الإعلانات",       fr: "Publicités" },
+      { id: "ticker",     icon: Radio,     ar: "شريط الإشهار",   fr: "Ticker Pub" },
+      { id: "ads",        icon: Image,     ar: "إعلانات متقدمة", fr: "Ads avancées" },
+      { id: "broadcast",  icon: Radio,     ar: "بث إشعار",       fr: "Diffusion" },
+      { id: "appearance", icon: Image,     ar: "المظهر والشعار", fr: "Apparence",  superOnly: true },
+    ],
+  },
 ];
 
 const ADMIN_USERNAME = "admin";
@@ -4234,8 +4273,17 @@ export default function Admin() {
   // Whether the current user has full super-admin privileges
   const isSuper = isSuperAdmin(session?.role as any);
 
-  // Filter nav items based on role
-  const visibleNav = NAV.filter(item => isSuper || !item.superOnly);
+  // Find which group the active section belongs to and open it by default
+  const findGroupId = (sectionId: Section) =>
+    NAV_GROUPS.find(g => g.items.some(i => i.id === sectionId))?.id ?? NAV_GROUPS[0].id;
+
+  const [openGroup, setOpenGroup] = useState<string>(() => findGroupId("overview"));
+
+  const handleSetActive = (id: Section) => {
+    setActive(id);
+    setOpenGroup(findGroupId(id));
+    setSidebarOpen(false);
+  };
 
   const adminLogout = () => { clearSession(); navigate("/home"); };
 
@@ -4243,58 +4291,106 @@ export default function Admin() {
     <div className="min-h-screen bg-background flex" dir={isRTL ? "rtl" : "ltr"}>
       {/* ── Sidebar ── */}
       <aside className={cn(
-        "fixed top-0 h-screen z-40 flex flex-col bg-[#FFA500] border-[#1A4D1F]/20",
+        "fixed top-0 h-screen z-40 flex flex-col border-[#1A4D1F]/20",
         "transition-all duration-300",
         isRTL ? "right-0 border-l" : "left-0 border-r",
-        sidebarOpen ? "w-56" : "w-16 md:w-56"
-      )}>
+        sidebarOpen ? "w-64" : "w-16 md:w-64"
+      )} style={{ background: "#1A4D1F" }}>
+
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-[#1A4D1F]/5">
-          <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
-            <img src="/sanad-logo.svg?v=5" alt="سند" style={{ height: 72, width: "auto" }} draggable={false} />
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-white/10">
+          <div className="w-9 h-9 flex items-center justify-center flex-shrink-0 rounded-xl"
+            style={{ background: "rgba(255,163,0,0.15)" }}>
+            <img src="/sanad-logo.svg?v=5" alt="سند" style={{ height: 36, width: "auto", filter: "brightness(10)" }} draggable={false} />
           </div>
           <div className="hidden md:block overflow-hidden flex-1 min-w-0">
-            <p className="text-xs font-black text-[#1A4D1F] leading-tight">{t("لوحة التحكم","Admin Panel")}</p>
-            <p className="text-[10px] text-[#1A4D1F] font-bold truncate">{session?.name ?? "Admin"}</p>
-            {/* Role badge */}
+            <p className="text-xs font-black text-white/90 leading-tight">{t("لوحة التحكم","Admin Panel")}</p>
+            <p className="text-[10px] text-white/50 font-bold truncate">{session?.name ?? "Admin"}</p>
             {session?.role && (
-              <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[9px] font-black border"
-                style={(() => {
-                  const r = ROLE_OPTIONS.find(o => o.value === session.role) ?? ROLE_OPTIONS[0];
-                  return { color: r.color, borderColor: r.color + "40", background: r.color + "15" };
-                })()}>
+              <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[9px] font-black"
+                style={{ background: "#FFA50030", color: "#FFA500" }}>
                 {ROLE_OPTIONS.find(o => o.value === session.role)?.ar ?? session.role}
               </span>
             )}
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2">
-          {visibleNav.map(item => {
-            const Icon = item.icon;
-            const isAct = active === item.id;
+        {/* ── Nav Groups ── */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
+          {NAV_GROUPS.map(group => {
+            const visibleItems = group.items.filter(item => isSuper || !item.superOnly);
+            if (visibleItems.length === 0) return null;
+            const isOpen = openGroup === group.id;
+            const groupHasActive = visibleItems.some(i => i.id === active);
+            const GroupIcon = group.icon;
             return (
-              <button key={item.id} onClick={() => { setActive(item.id); setSidebarOpen(false); }}
-                className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-bold",
-                  isAct ? "bg-[#1A4D1F]/15 text-[#1A4D1F] border border-[#1A4D1F]/20" : "text-[#1A4D1F]/40 hover:text-[#1A4D1F] hover:bg-[#1A4D1F]/5")}>
-                <Icon size={17} className="flex-shrink-0" />
-                <span className="hidden md:block truncate">{lang === "ar" ? item.ar : item.fr}</span>
-              </button>
+              <div key={group.id}>
+                {/* Group header */}
+                <button
+                  onClick={() => setOpenGroup(isOpen ? "" : group.id)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+                  style={{
+                    background: groupHasActive ? group.color + "30" : isOpen ? "rgba(255,255,255,0.08)" : "transparent",
+                    color: groupHasActive ? group.color === "#1A4D1F" ? "#FFA500" : group.color : "rgba(255,255,255,0.55)",
+                  }}
+                >
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: groupHasActive ? group.color + "40" : "rgba(255,255,255,0.10)" }}>
+                    <GroupIcon size={13} style={{ color: groupHasActive ? (group.color === "#1A4D1F" ? "#FFA500" : group.color) : "rgba(255,255,255,0.6)" }} />
+                  </div>
+                  <span className="hidden md:block flex-1 text-xs font-black truncate text-start">
+                    {lang === "ar" ? group.ar : group.fr}
+                  </span>
+                  <ChevronDown
+                    size={12}
+                    className="hidden md:block flex-shrink-0 transition-transform duration-200"
+                    style={{
+                      transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                      color: "rgba(255,255,255,0.35)",
+                    }}
+                  />
+                </button>
+
+                {/* Group items */}
+                {isOpen && (
+                  <div className="mt-0.5 space-y-0.5 ml-2 pl-2 border-l border-white/10">
+                    {visibleItems.map(item => {
+                      const Icon = item.icon;
+                      const isAct = active === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleSetActive(item.id)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all"
+                          style={{
+                            background: isAct ? "#FFA500" : "transparent",
+                            color: isAct ? "#1A4D1F" : "rgba(255,255,255,0.50)",
+                          }}
+                        >
+                          <Icon size={14} className="flex-shrink-0" />
+                          <span className="hidden md:block truncate text-xs font-bold">
+                            {lang === "ar" ? item.ar : item.fr}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
 
         {/* Back to app + Logout */}
-        <div className="px-2 py-3 border-t border-[#1A4D1F]/5 space-y-1">
-          <a href="/" className={cn("flex items-center gap-3 px-3 py-2.5 rounded-xl text-[#1A4D1F]/30 hover:text-[#1A4D1F] hover:bg-[#1A4D1F]/5 transition-all text-sm font-bold")}>
+        <div className="px-2 py-3 border-t border-white/10 space-y-1">
+          <a href="/" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/30 hover:text-white hover:bg-white/5 transition-all text-sm font-bold">
             <ChevronRight size={17} className={cn("flex-shrink-0", isRTL ? "rotate-0" : "rotate-180")} />
-            <span className="hidden md:block">{t("العودة للتطبيق","Retour à l'app")}</span>
+            <span className="hidden md:block text-xs">{t("العودة للتطبيق","Retour à l'app")}</span>
           </a>
           <button onClick={adminLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-black transition-all"
-            style={{ background: "#1A4D1F", color: "#000" }}>
-            <Power size={17} className="flex-shrink-0" />
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-black transition-all"
+            style={{ background: "#FFA500", color: "#1A4D1F" }}>
+            <Power size={15} className="flex-shrink-0" />
             <span className="hidden md:block">{t("تسجيل الخروج","Déconnexion")}</span>
           </button>
         </div>
