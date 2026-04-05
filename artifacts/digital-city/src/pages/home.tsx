@@ -977,11 +977,6 @@ export default function Home() {
 
       </section>
 
-      {/* ── Ad Carousel ───────────────────────────────────────────────────────── */}
-      <div className="px-4 sm:px-6 lg:px-10 mt-4">
-        <AdCarousel height={110} />
-      </div>
-
       {/* ══════════════════════════════════════════════════════════════════════
           3. MY ORDERS — shown only for logged-in clients
       ══════════════════════════════════════════════════════════════════════ */}
