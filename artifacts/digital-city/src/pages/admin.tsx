@@ -4403,7 +4403,7 @@ export default function Admin() {
           <button onClick={() => setSidebarOpen(o => !o)} className="p-2 rounded-xl bg-[#1A4D1F]/5 text-[#1A4D1F]/40">
             <LayoutDashboard size={18} />
           </button>
-          <p className="text-sm font-black text-[#1A4D1F]">{lang === "ar" ? visibleNav.find(n=>n.id===active)?.ar : visibleNav.find(n=>n.id===active)?.fr}</p>
+          <p className="text-sm font-black text-[#1A4D1F]">{(() => { const item = NAV_GROUPS.flatMap(g => g.items).find(n => n.id === active); return lang === "ar" ? item?.ar : item?.fr; })()}</p>
           <NotificationBell lang={lang} role={session?.role as any || "admin"} />
         </div>
 
