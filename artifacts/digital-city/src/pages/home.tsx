@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { AdBanner } from "@/components/ad-banner";
-import { AdCarousel } from "@/components/AdCarousel";
+import { PhotoAdGallery } from "@/components/PhotoAdGallery";
 import { useLang } from "@/lib/language";
 import { getSession, clearSession } from "@/lib/auth";
 import { get } from "@/lib/admin-api";
@@ -1077,10 +1077,10 @@ export default function Home() {
       </motion.section>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          GLOBAL AD BANNER
+          PHOTO AD GALLERY — 5 image slots, no text
       ══════════════════════════════════════════════════════════════════════ */}
       <div className="px-4 sm:px-6 lg:px-10 mt-8">
-        <AdBanner />
+        <PhotoAdGallery />
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
