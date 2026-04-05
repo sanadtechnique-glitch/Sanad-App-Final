@@ -6,10 +6,10 @@ import {
   LayoutDashboard, Package, Tag, Users, ShoppingBag,
   Truck, Map, Megaphone, RefreshCw, Plus, Pencil, Trash2,
   X, Check, Clock, CheckCircle, AlertCircle, Star,
-  ChevronRight, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
+  ChevronRight, ChevronDown, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
   UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
   Image, ImageIcon, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
-  Settings, Sliders, DollarSign, Zap, TrendingUp, Upload, AlertTriangle, KeyRound,
+  Settings, Sliders, DollarSign, Zap, TrendingUp, Upload, AlertTriangle, KeyRound, Stethoscope,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
@@ -4397,7 +4397,7 @@ export default function Admin() {
       </aside>
 
       {/* ── Main content ── */}
-      <main className={cn("flex-1 min-w-0 p-4 md:p-8 pb-24", isRTL ? "mr-16 md:mr-56" : "ml-16 md:ml-56")}>
+      <main className={cn("flex-1 min-w-0 p-4 md:p-8 pb-24", isRTL ? "mr-16 md:mr-64" : "ml-16 md:ml-64")}>
         {/* Mobile header */}
         <div className="flex items-center justify-between mb-6 md:hidden">
           <button onClick={() => setSidebarOpen(o => !o)} className="p-2 rounded-xl bg-[#1A4D1F]/5 text-[#1A4D1F]/40">
