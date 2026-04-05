@@ -13,7 +13,7 @@ import {
   Car, Hotel, LogIn, UserCircle, ChevronLeft, ChevronRight,
   MapPin, Truck, Eye, Grid, LogOut, Clock, CheckCircle, XCircle,
   Package, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Bike,
-  Percent, Tag, Phone, ArrowLeft,
+  Percent, Tag, Phone, ArrowLeft, AlertTriangle, KeyRound,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,14 +87,16 @@ interface PromoSlide {
 // SERVICE CATEGORIES
 // ─────────────────────────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { id: "restaurant", icon: Utensils,     ar: "مطاعم",    fr: "Restaurants", href: null },
-  { id: "pharmacy",   icon: Pill,         ar: "صيدلية",   fr: "Pharmacie",   href: null },
-  { id: "lawyer",     icon: Scale,        ar: "محامي",    fr: "Avocat",      href: null },
-  { id: "grocery",    icon: ShoppingCart, ar: "بقالة",    fr: "Épicerie",    href: null },
-  { id: "taxi",       icon: Car,          ar: "تاكسي",    fr: "Taxi",        href: "/taxi" },
-  { id: "mechanic",   icon: Wrench,       ar: "ميكانيكي", fr: "Mécanicien",  href: null },
-  { id: "doctor",     icon: Stethoscope,  ar: "طبيب",     fr: "Médecin",     href: null },
-  { id: "hotel",      icon: Hotel,        ar: "فنادق",    fr: "Hôtels",      href: null },
+  { id: "restaurant",  icon: Utensils,       ar: "مطاعم",          fr: "Restaurants",   href: null },
+  { id: "grocery",     icon: ShoppingCart,   ar: "بقالة",          fr: "Épicerie",      href: null },
+  { id: "pharmacy",    icon: Pill,           ar: "صيدلية",         fr: "Pharmacie",     href: null },
+  { id: "doctor",      icon: Stethoscope,    ar: "طبيب",           fr: "Médecin",       href: null },
+  { id: "taxi",        icon: Car,            ar: "تاكسي",          fr: "Taxi",          href: "/taxi" },
+  { id: "car_rental",  icon: KeyRound,       ar: "كراء سيارات",    fr: "Location auto", href: "/car-rental" },
+  { id: "sos",         icon: AlertTriangle,  ar: "SOS",            fr: "SOS",           href: "/sos" },
+  { id: "lawyer",      icon: Scale,          ar: "محامي",          fr: "Avocat",        href: null },
+  { id: "hotel",       icon: Hotel,          ar: "فنادق",          fr: "Hôtels",        href: null },
+  { id: "mechanic",    icon: Wrench,         ar: "ميكانيكي",       fr: "Mécanicien",    href: null },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -890,6 +892,8 @@ export default function Home() {
             mechanic:   { from: "#1A4D1F", to: "#2E7D32", glow: "#2E7D3255" },
             doctor:     { from: "#C96B00", to: "#F59E0B", glow: "#F59E0B55" },
             hotel:      { from: "#A86A00", to: "#D4930A", glow: "#D4930A55" },
+            car_rental: { from: "#1565C0", to: "#1976D2", glow: "#1976D255" },
+            sos:        { from: "#B91C1C", to: "#EF4444", glow: "#EF444499" },
           };
           return (
             <div

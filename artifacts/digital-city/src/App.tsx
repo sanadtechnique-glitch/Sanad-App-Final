@@ -20,6 +20,8 @@ import OrderHistory from "./pages/order-history";
 import Deals        from "./pages/deals";
 import TaxiPage     from "./pages/taxi";
 import TaxiDriver   from "./pages/taxi-driver";
+import CarRental    from "./pages/car-rental";
+import SosPage      from "./pages/sos";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -176,6 +178,10 @@ function Router() {
       <Route path="/taxi-driver">
         {() => <ProtectedRoute component={TaxiDriver} roles={["taxi_driver", "admin", "super_admin", "manager"]} />}
       </Route>
+
+      {/* ── Car rental & SOS ── */}
+      <Route path="/car-rental" component={CarRental} />
+      <Route path="/sos" component={SosPage} />
 
       <Route component={NotFound} />
     </Switch>

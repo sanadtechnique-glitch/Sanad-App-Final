@@ -5,7 +5,7 @@ import { getSession, clearSession } from "@/lib/auth";
 import {
   Power, Clock, Truck, Star, RefreshCw, MessageCircle, ChevronRight,
   Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon, History,
-  Plus, Trash2, Pencil, ToggleLeft, ToggleRight,
+  Plus, Trash2, Pencil, ToggleLeft, ToggleRight, AlertTriangle, KeyRound, Calendar, Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -294,8 +294,11 @@ export default function ProviderDashboard() {
   const [pendingCount, setPendingCount] = useState(0);
   const [hasNewOrder, setHasNewOrder] = useState(false);
   const [photoModal, setPhotoModal] = useState<string | null>(null);
-  const [tab, setTab] = useState<"pending" | "all" | "products">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos">("pending");
   const [driverNotif, setDriverNotif] = useState<Notification | null>(null);
+  const [carBookings, setCarBookings] = useState<any[]>([]);
+  const [sosRequests, setSosRequests] = useState<any[]>([]);
+  const [sosLoading, setSosLoading]   = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const providerNotifPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -370,11 +373,62 @@ export default function ProviderDashboard() {
     }, 5000);
   }, []);
 
+  const loadCarBookings = async (provider: Supplier) => {
+    try {
+      const session = getSession();
+      const res = await fetch(`/api/car-rental/bookings?agencyId=${provider.id}`, {
+        headers: { "x-session-token": session?.token || "" },
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setCarBookings(data);
+    } catch {}
+  };
+
+  const loadSosRequests = async (provider: Supplier) => {
+    setSosLoading(true);
+    try {
+      const session = getSession();
+      const lat = provider.latitude ?? "";
+      const lng = provider.longitude ?? "";
+      const res = await fetch(`/api/sos/nearby?lat=${lat}&lng=${lng}`, {
+        headers: { "x-session-token": session?.token || "" },
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setSosRequests(data);
+    } catch {}
+    setSosLoading(false);
+  };
+
+  const acceptSos = async (sosId: number, provider: Supplier) => {
+    const session = getSession();
+    try {
+      const res = await fetch(`/api/sos/${sosId}/accept`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-session-token": session?.token || "" },
+        body: JSON.stringify({ providerId: provider.id, providerName: lang === "ar" ? provider.nameAr : provider.name }),
+      });
+      if (res.status === 409) return alert(t("تم قبول هذا الطلب مسبقاً", "Déjà accepté par un autre"));
+      setSosRequests(prev => prev.map(s => s.id === sosId ? { ...s, status: "accepted", assignedProviderId: provider.id } : s));
+    } catch {}
+  };
+
+  const updateCarBooking = async (bookingId: number, status: string) => {
+    const session = getSession();
+    await fetch(`/api/car-rental/bookings/${bookingId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-session-token": session?.token || "" },
+      body: JSON.stringify({ status }),
+    });
+    setCarBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b));
+  };
+
   const selectProvider = async (provider: Supplier) => {
     setSelected(provider); setTab("pending");
     await loadOrders(provider);
     startPolling(provider);
     startProviderNotifPolling(provider);
+    if (provider.category === "car_rental") loadCarBookings(provider);
+    loadSosRequests(provider);
   };
 
   const updateStatus = async (orderId: number, status: string) => {
@@ -564,17 +618,26 @@ export default function ProviderDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: "#FFFDE7" }}>
-          {(["pending", "all", "products"] as const).map(tb => (
-            <button key={tb} onClick={() => setTab(tb)}
-              className={cn("flex-1 py-2 rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1.5",
-                tab === tb ? "bg-[#1A4D1F] text-black" : "text-[#1A4D1F]/40 hover:text-[#1A4D1F]")}>
-              {tb === "pending"
-                ? <>{t("جديد", "Nouv.")} {pendingOrders.length > 0 && <span className={cn("px-1.5 py-0.5 rounded-full text-xs", tab === tb ? "bg-[#FFA500]/20 text-black" : "bg-amber-400/20 text-amber-400")}>{pendingOrders.length}</span>}</>
-                : tb === "all"
-                  ? t("الطلبات", "Commandes")
-                  : <><Package size={11} />{t("المنتجات", "Produits")}</>
-              }
+        <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: "#FFFDE7" }}>
+          {[
+            { id: "pending",  label: t("جديد","Nouv."), badge: pendingOrders.length },
+            { id: "all",      label: t("الطلبات","Cmds") },
+            { id: "products", label: t("منتجات","Produits"), icon: <Package size={10} /> },
+            ...(selected.category === "car_rental" ? [{ id: "bookings", label: t("حجوزات","Réserv."), icon: <KeyRound size={10} /> }] : []),
+            { id: "sos",      label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true },
+          ].map((tb: any) => (
+            <button key={tb.id} onClick={() => setTab(tb.id)}
+              className={cn("flex-shrink-0 flex-1 py-2 rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1",
+                tab === tb.id
+                  ? tb.danger ? "bg-red-500 text-white" : "bg-[#1A4D1F] text-white"
+                  : tb.danger ? "text-red-400 hover:text-red-500" : "text-[#1A4D1F]/40 hover:text-[#1A4D1F]")}>
+              {tb.icon}{tb.label}
+              {tb.badge > 0 && (
+                <span className={cn("px-1.5 py-0.5 rounded-full text-xs font-black",
+                  tab === tb.id ? "bg-white/20 text-white" : tb.danger ? "bg-red-400/20 text-red-400" : "bg-amber-400/20 text-amber-400")}>
+                  {tb.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -584,8 +647,149 @@ export default function ProviderDashboard() {
           <ProductsManager providerId={selected.id} t={t} lang={lang} />
         )}
 
+        {/* Car Rental Bookings */}
+        {tab === "bookings" && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black opacity-50" style={{ color: "#1A4D1F" }}>{t("حجوزات السيارات", "Réservations voitures")}</p>
+              <button onClick={() => loadCarBookings(selected)} className="p-1.5 rounded-lg" style={{ background: "#1A4D1F22" }}>
+                <RefreshCw size={12} style={{ color: "#1A4D1F" }} />
+              </button>
+            </div>
+            {carBookings.length === 0 ? (
+              <div className="flex flex-col items-center py-12 gap-2 opacity-30">
+                <KeyRound size={32} style={{ color: "#1A4D1F" }} />
+                <p className="text-sm font-bold" style={{ color: "#1A4D1F" }}>{t("لا توجد حجوزات", "Aucune réservation")}</p>
+              </div>
+            ) : carBookings.map(b => {
+              const statusColors: Record<string, { bg: string; color: string }> = {
+                pending:   { bg: "#FEF3C7", color: "#92400E" },
+                confirmed: { bg: "#DBEAFE", color: "#1D4ED8" },
+                rejected:  { bg: "#FEE2E2", color: "#DC2626" },
+                active:    { bg: "#D1FAE5", color: "#059669" },
+                completed: { bg: "#EDE9FE", color: "#6D28D9" },
+                cancelled: { bg: "#F3F4F6", color: "#6B7280" },
+              };
+              const sc = statusColors[b.status] || statusColors.pending;
+              const statusLabel: Record<string, { ar: string; fr: string }> = {
+                pending:   { ar: "في الانتظار", fr: "En attente" },
+                confirmed: { ar: "مؤكد",        fr: "Confirmé" },
+                rejected:  { ar: "مرفوض",       fr: "Refusé" },
+                active:    { ar: "نشط",         fr: "Actif" },
+                completed: { ar: "مكتمل",       fr: "Terminé" },
+                cancelled: { ar: "ملغي",        fr: "Annulé" },
+              };
+              return (
+                <div key={b.id} className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid #1A4D1F11" }}>
+                  <div className="flex items-center justify-between px-4 py-2.5" style={{ background: "#1A4D1F08" }}>
+                    <span className="text-xs font-black" style={{ color: "#1A4D1F" }}>#{b.id} · سيارة #{b.carId}</span>
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ color: sc.color, background: sc.bg }}>
+                      {lang === "ar" ? statusLabel[b.status]?.ar : statusLabel[b.status]?.fr}
+                    </span>
+                  </div>
+                  <div className="p-4">
+                    <p className="font-black text-sm" style={{ color: "#1A4D1F" }}>{b.customerName}</p>
+                    <p className="text-xs opacity-50 flex items-center gap-1" style={{ color: "#1A4D1F" }}><Phone size={10} />{b.customerPhone}</p>
+                    <div className="flex items-center gap-2 mt-2 text-xs font-bold" style={{ color: "#1A4D1F" }}>
+                      <Calendar size={11} />{b.startDate} → {b.endDate} ({b.durationDays} {t("يوم", "j")})
+                    </div>
+                    <p className="text-sm font-black mt-1" style={{ color: "#FFA500" }}>{b.totalPrice} {t("د.ت", "TND")}</p>
+                    {b.notes && <p className="text-xs mt-1 opacity-40" style={{ color: "#1A4D1F" }}>{b.notes}</p>}
+                    {b.status === "pending" && (
+                      <div className="flex gap-2 mt-3">
+                        <button onClick={() => updateCarBooking(b.id, "confirmed")}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl font-black text-xs"
+                          style={{ background: "#1A4D1F", color: "#fff" }}>
+                          <Check size={12} /> {t("تأكيد", "Confirmer")}
+                        </button>
+                        <button onClick={() => updateCarBooking(b.id, "rejected")}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl font-black text-xs"
+                          style={{ background: "#FEE2E2", color: "#DC2626" }}>
+                          <X size={12} /> {t("رفض", "Refuser")}
+                        </button>
+                      </div>
+                    )}
+                    {b.status === "confirmed" && (
+                      <button onClick={() => updateCarBooking(b.id, "active")}
+                        className="mt-3 w-full py-2 rounded-xl font-black text-xs flex items-center justify-center gap-1.5"
+                        style={{ background: "#D1FAE5", color: "#059669" }}>
+                        {t("تأكيد الاستلام → نشط", "Confirmer remise → Actif")}
+                      </button>
+                    )}
+                    {b.status === "active" && (
+                      <button onClick={() => updateCarBooking(b.id, "completed")}
+                        className="mt-3 w-full py-2 rounded-xl font-black text-xs flex items-center justify-center gap-1.5"
+                        style={{ background: "#EDE9FE", color: "#6D28D9" }}>
+                        {t("إنهاء الكراء ✓", "Terminer ✓")}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* SOS requests */}
+        {tab === "sos" && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black opacity-50" style={{ color: "#1A4D1F" }}>{t("طلبات SOS القريبة", "Demandes SOS proches")}</p>
+              <button onClick={() => loadSosRequests(selected)} className="p-1.5 rounded-lg" style={{ background: "#EF444422" }}>
+                <RefreshCw size={12} style={{ color: "#EF4444" }} />
+              </button>
+            </div>
+            {sosLoading ? (
+              <div className="flex justify-center py-12"><div className="w-6 h-6 rounded-full border-2 border-red-400/20 border-t-red-400 animate-spin" /></div>
+            ) : sosRequests.length === 0 ? (
+              <div className="flex flex-col items-center py-12 gap-2 opacity-30">
+                <AlertTriangle size={32} style={{ color: "#EF4444" }} />
+                <p className="text-sm font-bold" style={{ color: "#1A4D1F" }}>{t("لا توجد طلبات SOS", "Aucune demande SOS")}</p>
+              </div>
+            ) : sosRequests.map(sos => {
+              const CAT_LABELS: Record<string, { ar: string; fr: string; color: string }> = {
+                mechanic:  { ar: "ميكانيكي", fr: "Mécanicien", color: "#F59E0B" },
+                doctor:    { ar: "طبيب",     fr: "Médecin",    color: "#3B82F6" },
+                emergency: { ar: "طوارئ",    fr: "Urgence",    color: "#EF4444" },
+                other:     { ar: "أخرى",     fr: "Autre",      color: "#6B7280" },
+              };
+              const cat = CAT_LABELS[sos.category] || CAT_LABELS.other;
+              const mine = sos.assignedProviderId === selected.id;
+              return (
+                <div key={sos.id} className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: `1px solid ${cat.color}33` }}>
+                  <div className="flex items-center justify-between px-4 py-2.5" style={{ background: cat.color + "15" }}>
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle size={12} style={{ color: cat.color }} />
+                      <span className="text-xs font-black" style={{ color: cat.color }}>{lang === "ar" ? cat.ar : cat.fr}</span>
+                    </div>
+                    <span className="text-xs font-black" style={{ color: sos.status === "accepted" ? "#059669" : "#92400E" }}>
+                      {sos.status === "accepted" ? t("مقبول ✓", "Accepté ✓") : t("في الانتظار", "En attente")}
+                    </span>
+                  </div>
+                  <div className="p-4">
+                    <p className="font-black text-sm" style={{ color: "#1A4D1F" }}>{sos.customerName}</p>
+                    <p className="text-xs flex items-center gap-1 opacity-50" style={{ color: "#1A4D1F" }}><Phone size={10} />{sos.customerPhone}</p>
+                    <p className="text-xs flex items-center gap-1 mt-1 opacity-50" style={{ color: "#1A4D1F" }}><MapPin size={10} />{sos.lat.toFixed(4)}, {sos.lng.toFixed(4)}</p>
+                    {sos.description && <p className="text-xs mt-2 p-2 rounded-lg opacity-70" style={{ color: "#1A4D1F", background: "#FFF3E0" }}>{sos.description}</p>}
+                    {sos.status === "pending" && (
+                      <button onClick={() => acceptSos(sos.id, selected)}
+                        className="mt-3 w-full py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2"
+                        style={{ background: "#EF4444", color: "#fff" }}>
+                        <Check size={14} /> {t("قبول الطلب", "Accepter")}
+                      </button>
+                    )}
+                    {mine && sos.status === "accepted" && (
+                      <div className="mt-2 text-center text-xs font-black text-emerald-500">{t("أنت تتكفل بهذا الطلب", "Vous gérez cette demande")}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Orders */}
-        {tab !== "products" && (loading ? (
+        {(tab === "pending" || tab === "all") && (loading ? (
           <div className="flex justify-center py-16">
             <div className="w-7 h-7 border-[3px] border-[#1A4D1F] border-t-transparent rounded-full animate-spin" />
           </div>

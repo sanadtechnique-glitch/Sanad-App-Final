@@ -9,7 +9,7 @@ import {
   ChevronRight, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
   UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
   Image, ImageIcon, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
-  Settings, Sliders, DollarSign, Zap, TrendingUp, Upload,
+  Settings, Sliders, DollarSign, Zap, TrendingUp, Upload, AlertTriangle, KeyRound,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
@@ -3300,6 +3300,347 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// ── Car Rental Section ────────────────────────────────────────────────────────
+function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const [agencies, setAgencies]     = useState<any[]>([]);
+  const [cars, setCars]             = useState<any[]>([]);
+  const [bookings, setBookings]     = useState<any[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [activeAgency, setActiveAgency] = useState<any | null>(null);
+  const [showCarForm, setShowCarForm]   = useState(false);
+  const [carForm, setCarForm] = useState({ make: "", model: "", year: "", color: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "", description: "" });
+  const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState<"cars" | "bookings">("cars");
+
+  const STATUS_LABELS: Record<string, { ar: string; fr: string; color: string; bg: string }> = {
+    pending:   { ar: "في الانتظار", fr: "En attente", color: "#92400E", bg: "#FEF3C7" },
+    confirmed: { ar: "مؤكد",        fr: "Confirmé",   color: "#1D4ED8", bg: "#DBEAFE" },
+    rejected:  { ar: "مرفوض",       fr: "Refusé",     color: "#DC2626", bg: "#FEE2E2" },
+    active:    { ar: "نشط",         fr: "Actif",      color: "#059669", bg: "#D1FAE5" },
+    completed: { ar: "مكتمل",       fr: "Terminé",    color: "#6D28D9", bg: "#EDE9FE" },
+    cancelled: { ar: "ملغي",        fr: "Annulé",     color: "#6B7280", bg: "#F3F4F6" },
+  };
+
+  useEffect(() => {
+    Promise.all([
+      get<any[]>("/suppliers").then(d => d.filter((s: any) => s.category === "car_rental")),
+      fetch("/api/car-rental/cars/all", { headers: { "x-session-token": getSession()?.token || "" } }).then(r => r.json()),
+      fetch("/api/car-rental/bookings", { headers: { "x-session-token": getSession()?.token || "" } }).then(r => r.json()),
+    ]).then(([ag, ca, bo]) => {
+      setAgencies(ag || []);
+      setCars(Array.isArray(ca) ? ca : []);
+      setBookings(Array.isArray(bo) ? bo : []);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const addCar = async () => {
+    if (!activeAgency || !carForm.make || !carForm.model || !carForm.pricePerDay) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/car-rental/cars", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-session-token": getSession()?.token || "" },
+        body: JSON.stringify({ ...carForm, agencyId: activeAgency.id, pricePerDay: Number(carForm.pricePerDay), seats: Number(carForm.seats) }),
+      });
+      const car = await res.json();
+      setCars(prev => [...prev, car]);
+      setCarForm({ make: "", model: "", year: "", color: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "", description: "" });
+      setShowCarForm(false);
+    } finally { setSaving(false); }
+  };
+
+  const toggleCar = async (carId: number, isAvailable: boolean) => {
+    await fetch(`/api/admin/car-rental/cars/${carId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-session-token": getSession()?.token || "" },
+      body: JSON.stringify({ isAvailable: !isAvailable }),
+    });
+    setCars(prev => prev.map(c => c.id === carId ? { ...c, isAvailable: !isAvailable } : c));
+  };
+
+  if (loading) return <div className="flex justify-center py-12"><RefreshCw size={20} className="animate-spin text-[#1A4D1F]/30" /></div>;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-lg font-black text-[#1A4D1F]">{t("كراء السيارات", "Location de voitures")}</h2>
+          <p className="text-xs text-[#1A4D1F]/40">{t("إدارة الوكالات والسيارات والحجوزات", "Gestion des agences, voitures et réservations")}</p>
+        </div>
+      </div>
+
+      {agencies.length === 0 ? (
+        <div className="text-center py-12 opacity-40">
+          <p className="text-sm font-bold text-[#1A4D1F]">{t("لا توجد وكالات كراء سيارات بعد", "Aucune agence de location encore")}</p>
+          <p className="text-xs mt-1 text-[#1A4D1F]/60">{t("أضف مزود خدمة بتصنيف 'car_rental' من قسم المزودين", "Ajoutez un fournisseur de catégorie 'car_rental' dans la section Fournisseurs")}</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Agency Picker */}
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {agencies.map(a => (
+              <button key={a.id} onClick={() => setActiveAgency(a)}
+                className="flex-shrink-0 px-4 py-2 rounded-full font-black text-xs border transition-all"
+                style={activeAgency?.id === a.id
+                  ? { background: "#1A4D1F", color: "#fff", borderColor: "#1A4D1F" }
+                  : { background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F33" }}>
+                {a.nameAr || a.name}
+              </button>
+            ))}
+          </div>
+
+          {activeAgency && (
+            <>
+              {/* Tabs */}
+              <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: "#FFFDE7" }}>
+                {(["cars", "bookings"] as const).map(tb => (
+                  <button key={tb} onClick={() => setTab(tb)}
+                    className={`flex-1 py-2 rounded-lg font-black text-xs transition-all ${tab === tb ? "bg-[#1A4D1F] text-white" : "text-[#1A4D1F]/40"}`}>
+                    {tb === "cars" ? t("السيارات", "Voitures") : t("الحجوزات", "Réservations")}
+                  </button>
+                ))}
+              </div>
+
+              {/* Cars Tab */}
+              {tab === "cars" && (
+                <div className="space-y-3">
+                  <button onClick={() => setShowCarForm(!showCarForm)}
+                    className="w-full py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 border-2 border-dashed border-[#1A4D1F]/30 text-[#1A4D1F]/60 hover:bg-[#1A4D1F]/5">
+                    <Plus size={14} /> {t("إضافة سيارة", "Ajouter une voiture")}
+                  </button>
+
+                  {showCarForm && (
+                    <div className="rounded-2xl p-4 space-y-3" style={{ background: "#FFFDE7", border: "1px solid #1A4D1F22" }}>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { key: "make", label: t("العلامة","Marque"), placeholder: "Toyota" },
+                          { key: "model", label: t("الموديل","Modèle"), placeholder: "Yaris" },
+                          { key: "year", label: t("السنة","Année"), placeholder: "2022" },
+                          { key: "color", label: t("اللون","Couleur"), placeholder: t("أبيض","Blanc") },
+                          { key: "pricePerDay", label: t("السعر/يوم","Prix/jour"), placeholder: "50" },
+                          { key: "seats", label: t("المقاعد","Places"), placeholder: "5" },
+                        ].map(f => (
+                          <div key={f.key}>
+                            <label className="block text-xs font-black mb-1 opacity-50" style={{ color: "#1A4D1F" }}>{f.label}</label>
+                            <input value={(carForm as any)[f.key]} onChange={e => setCarForm(p => ({ ...p, [f.key]: e.target.value }))}
+                              placeholder={f.placeholder}
+                              className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+                              style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F22" }} />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs font-black mb-1 opacity-50" style={{ color: "#1A4D1F" }}>{t("ناقل الحركة","Boîte")}</label>
+                          <select value={carForm.transmission} onChange={e => setCarForm(p => ({ ...p, transmission: e.target.value }))}
+                            className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+                            style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F22" }}>
+                            <option value="manual">{t("يدوي","Manuelle")}</option>
+                            <option value="automatic">{t("أوتوماتيك","Automatique")}</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-black mb-1 opacity-50" style={{ color: "#1A4D1F" }}>{t("الوقود","Carburant")}</label>
+                          <select value={carForm.fuelType} onChange={e => setCarForm(p => ({ ...p, fuelType: e.target.value }))}
+                            className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+                            style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F22" }}>
+                            <option value="essence">{t("بنزين","Essence")}</option>
+                            <option value="diesel">{t("ديزل","Diesel")}</option>
+                            <option value="electrique">{t("كهربائي","Électrique")}</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black mb-1 opacity-50" style={{ color: "#1A4D1F" }}>{t("رابط الصورة","URL image")}</label>
+                        <input value={carForm.imageUrl} onChange={e => setCarForm(p => ({ ...p, imageUrl: e.target.value }))}
+                          placeholder="https://..." dir="ltr"
+                          className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+                          style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F22" }} />
+                      </div>
+                      <button onClick={addCar} disabled={saving || !carForm.make || !carForm.model || !carForm.pricePerDay}
+                        className="w-full py-2.5 rounded-xl font-black text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                        style={{ background: "#1A4D1F" }}>
+                        {saving ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                        {t("حفظ السيارة","Enregistrer")}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Cars list */}
+                  {cars.filter(c => c.agencyId === activeAgency.id).map(car => (
+                    <div key={car.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "#fff", border: "1px solid #1A4D1F11" }}>
+                      {car.imageUrl ? <img src={car.imageUrl} alt="" className="w-14 h-10 rounded-lg object-cover" /> : <div className="w-14 h-10 rounded-lg flex items-center justify-center" style={{ background: "#FFF3E0" }}><Car size={20} style={{ color: "#1A4D1F40" }} /></div>}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-sm truncate" style={{ color: "#1A4D1F" }}>{car.make} {car.model} {car.year && `(${car.year})`}</p>
+                        <p className="text-xs opacity-50" style={{ color: "#1A4D1F" }}>{car.pricePerDay} {t("د.ت/يوم","TND/j")} · {car.seats} {t("مقاعد","places")}</p>
+                      </div>
+                      <button onClick={() => toggleCar(car.id, car.isAvailable)}
+                        className="text-xs font-black px-2.5 py-1 rounded-full"
+                        style={{ background: car.isAvailable ? "#D1FAE5" : "#FEE2E2", color: car.isAvailable ? "#059669" : "#DC2626" }}>
+                        {car.isAvailable ? t("متاح","Dispo") : t("غير متاح","Indispo")}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Bookings Tab */}
+              {tab === "bookings" && (
+                <div className="space-y-3">
+                  {bookings.filter(b => b.agencyId === activeAgency.id).length === 0 ? (
+                    <div className="text-center py-8 opacity-30 text-sm font-bold" style={{ color: "#1A4D1F" }}>{t("لا توجد حجوزات","Aucune réservation")}</div>
+                  ) : bookings.filter(b => b.agencyId === activeAgency.id).map(b => {
+                    const s = STATUS_LABELS[b.status] || STATUS_LABELS.pending;
+                    return (
+                      <div key={b.id} className="rounded-xl p-3" style={{ background: "#fff", border: "1px solid #1A4D1F11" }}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-black text-sm" style={{ color: "#1A4D1F" }}>#{b.id} · {b.customerName}</span>
+                          <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ color: s.color, background: s.bg }}>{s.ar}</span>
+                        </div>
+                        <p className="text-xs opacity-50" style={{ color: "#1A4D1F" }}>{b.startDate} → {b.endDate} · {b.totalPrice} {t("د.ت","TND")}</p>
+                        <p className="text-xs opacity-40 mt-0.5" style={{ color: "#1A4D1F" }}>{b.customerPhone}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ── SOS Requests Section ──────────────────────────────────────────────────────
+function SosSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [filter, setFilter]     = useState("all");
+
+  const CAT_LABELS: Record<string, { ar: string; fr: string; color: string }> = {
+    mechanic:  { ar: "ميكانيكي", fr: "Mécanicien", color: "#F59E0B" },
+    doctor:    { ar: "طبيب",     fr: "Médecin",    color: "#3B82F6" },
+    emergency: { ar: "طوارئ",    fr: "Urgence",    color: "#EF4444" },
+    other:     { ar: "أخرى",     fr: "Autre",      color: "#6B7280" },
+  };
+
+  const STATUS_LABELS: Record<string, { ar: string; fr: string; color: string; bg: string }> = {
+    pending:  { ar: "في الانتظار", fr: "En attente", color: "#92400E", bg: "#FEF3C7" },
+    accepted: { ar: "مقبول",       fr: "Accepté",    color: "#059669", bg: "#D1FAE5" },
+    done:     { ar: "مكتمل",       fr: "Terminé",    color: "#6D28D9", bg: "#EDE9FE" },
+    cancelled:{ ar: "ملغي",        fr: "Annulé",     color: "#6B7280", bg: "#F3F4F6" },
+  };
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/sos", { headers: { "x-session-token": getSession()?.token || "" } });
+      const data = await res.json();
+      if (Array.isArray(data)) setRequests(data);
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const updateStatus = async (id: number, status: string) => {
+    await fetch(`/api/sos/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-session-token": getSession()?.token || "" },
+      body: JSON.stringify({ status }),
+    });
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+  };
+
+  const filtered = filter === "all" ? requests : requests.filter(r => r.status === filter);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-lg font-black" style={{ color: "#EF4444" }}>{t("طلبات SOS", "Demandes SOS")}</h2>
+          <p className="text-xs opacity-40" style={{ color: "#1A4D1F" }}>{t("جميع طلبات الطوارئ والمساعدة", "Toutes les demandes d'urgence")}</p>
+        </div>
+        <button onClick={load} className="p-2 rounded-xl" style={{ background: "#EF444415" }}>
+          <RefreshCw size={16} style={{ color: "#EF4444" }} />
+        </button>
+      </div>
+
+      {/* Filter */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+        {["all", "pending", "accepted", "done", "cancelled"].map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            className="flex-shrink-0 px-3 py-1.5 rounded-full font-black text-xs border transition-all"
+            style={filter === f
+              ? { background: "#EF4444", color: "#fff", borderColor: "#EF4444" }
+              : { background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F22" }}>
+            {f === "all" ? t("الكل","Tous") : (STATUS_LABELS[f]?.ar || f)}
+            {f !== "all" && ` (${requests.filter(r => r.status === f).length})`}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><RefreshCw size={20} className="animate-spin" style={{ color: "#EF4444" }} /></div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 opacity-30">
+          <AlertTriangle size={32} className="mx-auto mb-2" style={{ color: "#EF4444" }} />
+          <p className="text-sm font-bold" style={{ color: "#1A4D1F" }}>{t("لا توجد طلبات","Aucune demande")}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(req => {
+            const cat = CAT_LABELS[req.category] || CAT_LABELS.other;
+            const st  = STATUS_LABELS[req.status] || STATUS_LABELS.pending;
+            const d   = new Date(req.createdAt);
+            return (
+              <div key={req.id} className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: `1px solid ${cat.color}33` }}>
+                <div className="flex items-center justify-between px-4 py-2.5" style={{ background: cat.color + "15" }}>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={12} style={{ color: cat.color }} />
+                    <span className="font-black text-xs" style={{ color: cat.color }}>{cat.ar} · #{req.id}</span>
+                  </div>
+                  <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ color: st.color, background: st.bg }}>{st.ar}</span>
+                </div>
+                <div className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-black text-sm" style={{ color: "#1A4D1F" }}>{req.customerName}</p>
+                      <p className="text-xs opacity-50" style={{ color: "#1A4D1F" }}>{req.customerPhone}</p>
+                    </div>
+                    <p className="text-xs opacity-40" style={{ color: "#1A4D1F" }}>{d.toLocaleDateString("ar")} {d.toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</p>
+                  </div>
+                  <p className="text-xs mt-1 opacity-50" style={{ color: "#1A4D1F" }}>📍 {req.lat?.toFixed(4)}, {req.lng?.toFixed(4)}</p>
+                  {req.description && <p className="text-xs mt-2 p-2 rounded-lg opacity-70" style={{ color: "#1A4D1F", background: "#FFF3E0" }}>{req.description}</p>}
+                  {req.assignedProviderName && (
+                    <p className="text-xs mt-1 font-bold" style={{ color: "#059669" }}>✓ {req.assignedProviderName}</p>
+                  )}
+                  {req.status === "accepted" && (
+                    <button onClick={() => updateStatus(req.id, "done")}
+                      className="mt-3 w-full py-2 rounded-xl font-black text-xs flex items-center justify-center gap-1.5"
+                      style={{ background: "#EDE9FE", color: "#6D28D9" }}>
+                      {t("تعليم كمكتمل ✓","Marquer terminé ✓")}
+                    </button>
+                  )}
+                  {req.status === "pending" && (
+                    <button onClick={() => updateStatus(req.id, "cancelled")}
+                      className="mt-3 w-full py-2 rounded-xl font-black text-xs"
+                      style={{ background: "#FEE2E2", color: "#DC2626" }}>
+                      {t("إلغاء","Annuler")}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // ── Appearance Section (Logo Upload) ─────────────────────────────────────────
 function AppearanceSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [logoUrl, setLogoUrl]       = useState("");
@@ -3444,7 +3785,7 @@ function AppearanceSection({ t }: { t: (ar: string, fr: string) => string }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance";
+type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests";
 
 const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean }[] = [
   { id: "overview",      icon: LayoutDashboard, ar: "نظرة عامة",       fr: "Tableau de bord" },
@@ -3464,6 +3805,8 @@ const NAV: { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly
   { id: "users",         icon: UserCog,          ar: "المستخدمون",      fr: "Utilisateurs",  superOnly: true },
   { id: "delivery_config", icon: Settings,       ar: "عمولة التوصيل",   fr: "Commission",    superOnly: true },
   { id: "appearance",      icon: Image,           ar: "المظهر والشعار",  fr: "Apparence",     superOnly: true },
+  { id: "car_rental",      icon: Car,             ar: "كراء السيارات",   fr: "Location auto", superOnly: true },
+  { id: "sos_requests",    icon: AlertTriangle,   ar: "طلبات SOS",       fr: "Demandes SOS",  superOnly: true },
 ];
 
 const ADMIN_USERNAME = "admin";
@@ -3699,6 +4042,8 @@ export default function Admin() {
             {active === "users"         && isSuper && <UsersSection t={t} />}
             {active === "delivery_config" && isSuper && <DeliveryConfigSection t={t} />}
             {active === "appearance"      && isSuper && <AppearanceSection t={t} />}
+            {active === "car_rental"      && isSuper && <CarRentalSection t={t} />}
+            {active === "sos_requests"    && isSuper && <SosSection t={t} />}
           </motion.div>
         </AnimatePresence>
       </main>

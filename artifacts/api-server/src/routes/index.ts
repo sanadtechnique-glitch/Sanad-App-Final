@@ -19,6 +19,8 @@ import taxiRouter from "./taxi";
 import tickerRouter from "./ticker";
 import uploadRouter from "./upload";
 import appSettingsRouter from "./appSettings";
+import carRentalRouter from "./carRental";
+import sosRouter from "./sos";
 
 const router: IRouter = Router();
 
@@ -42,5 +44,7 @@ router.use(taxiRouter);
 router.use(tickerRouter);
 router.use(uploadRouter);
 router.use(appSettingsRouter);
+router.use(carRentalRouter);
+router.use(sosRouter);
 
 export default router;

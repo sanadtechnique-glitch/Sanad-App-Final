@@ -17,3 +17,5 @@ export * from "./taxiRequests";
 export * from "./tickerAds";
 export * from "./sessions";
 export * from "./appSettings";
+export * from "./carRental";
+export * from "./sosRequests";
