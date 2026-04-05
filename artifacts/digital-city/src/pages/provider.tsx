@@ -451,7 +451,8 @@ export default function ProviderDashboard() {
   };
 
   const selectProvider = async (provider: Supplier) => {
-    setSelected(provider); setTab("pending");
+    setSelected(provider);
+    setTab(provider.category === "lawyer" ? "lawyer" : "pending");
     await loadOrders(provider);
     startPolling(provider);
     startProviderNotifPolling(provider);
@@ -602,9 +603,11 @@ export default function ProviderDashboard() {
               >
                 <History size={14} />
               </button>
-              <button onClick={() => loadOrders(selected, true)} disabled={refreshing}
+              <button
+                onClick={() => selected.category === "lawyer" ? loadLawyerRequests(selected) : loadOrders(selected, true)}
+                disabled={refreshing || lawyerLoading}
                 className="p-2.5 rounded-xl border border-[#1A4D1F]/10 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-all">
-                <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+                <RefreshCw size={14} className={(refreshing || lawyerLoading) ? "animate-spin" : ""} />
               </button>
               <button onClick={logout}
                 className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-black text-sm transition-all"
@@ -630,34 +633,54 @@ export default function ProviderDashboard() {
           </button>
 
           {/* Stats bar */}
-          <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#1A4D1F]/5">
-            <div className="text-center">
-              <p className="text-2xl font-black text-amber-400">{pendingOrders.length}</p>
-              <p className="text-xs text-[#1A4D1F]/30">{t("انتظار", "En attente")}</p>
+          {selected.category === "lawyer" ? (
+            <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#1A4D1F]/5">
+              <div className="text-center">
+                <p className="text-2xl font-black text-amber-400">{lawyerRequests.filter(r => r.status === "pending").length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("انتظار", "En attente")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-emerald-400">{lawyerRequests.filter(r => r.status === "accepted").length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("مقبول", "Accepté")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-red-400">{lawyerRequests.filter(r => r.status === "rejected").length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("مرفوض", "Refusé")}</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-black text-blue-400">{orders.filter(o => ["accepted","prepared","in_delivery"].includes(o.status)).length}</p>
-              <p className="text-xs text-[#1A4D1F]/30">{t("نشط", "En cours")}</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#1A4D1F]/5">
+              <div className="text-center">
+                <p className="text-2xl font-black text-amber-400">{pendingOrders.length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("انتظار", "En attente")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-blue-400">{orders.filter(o => ["accepted","prepared","in_delivery"].includes(o.status)).length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("نشط", "En cours")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-emerald-400">{orders.filter(o => o.status === "delivered").length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("منجز", "Livré")}</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-black text-emerald-400">{orders.filter(o => o.status === "delivered").length}</p>
-              <p className="text-xs text-[#1A4D1F]/30">{t("منجز", "Livré")}</p>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Tabs */}
         <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: "#FFFDE7" }}>
-          {[
-            { id: "pending",  label: t("جديد","Nouv."), badge: pendingOrders.length },
-            { id: "all",      label: t("الطلبات","Cmds") },
-            { id: "products", label: t("منتجات","Produits"), icon: <Package size={10} /> },
-            ...(selected.category === "car_rental" ? [{ id: "bookings", label: t("حجوزات","Réserv."), icon: <KeyRound size={10} /> }] : []),
-            ...(selected.category === "lawyer"
-              ? [{ id: "lawyer", label: t("قضايا","Dossiers"), icon: <Scale size={10} />, badge: lawyerRequests.filter(r=>r.status==="pending").length }]
-              : [{ id: "sos", label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true }]
-            ),
-          ].map((tb: any) => (
+          {(selected.category === "lawyer"
+            ? [
+                { id: "lawyer",   label: t("قضايا","Dossiers"),   icon: <Scale size={10} />, badge: lawyerRequests.filter(r=>r.status==="pending").length },
+                { id: "products", label: t("منتجات","Produits"), icon: <Package size={10} /> },
+              ]
+            : [
+                { id: "pending",  label: t("جديد","Nouv."),       badge: pendingOrders.length },
+                { id: "all",      label: t("الطلبات","Cmds") },
+                { id: "products", label: t("منتجات","Produits"),  icon: <Package size={10} /> },
+                ...(selected.category === "car_rental" ? [{ id: "bookings", label: t("حجوزات","Réserv."), icon: <KeyRound size={10} /> }] : []),
+                { id: "sos", label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true },
+              ]
+          ).map((tb: any) => (
             <button key={tb.id} onClick={() => setTab(tb.id)}
               className={cn("flex-shrink-0 flex-1 py-2 rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1",
                 tab === tb.id
