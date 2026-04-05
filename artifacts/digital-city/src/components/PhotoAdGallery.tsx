@@ -27,16 +27,15 @@ export function PhotoAdGallery() {
     ads[4] ?? null,
   ];
 
-  const renderSlot = (slot: AdSlide | null, idx: number, extraClass = "") => {
+  const renderSlot = (slot: AdSlide | null, idx: number) => {
     const inner = (
       <div
-        className={`relative overflow-hidden rounded-2xl w-full h-full ${extraClass}`}
+        className="relative overflow-hidden rounded-xl w-full"
         style={{
+          aspectRatio: "1 / 1",
           background: slot?.imageUrl
             ? undefined
-            : slot
-              ? `${slot.bgColor}22`
-              : "rgba(26,77,31,0.06)",
+            : "rgba(26,77,31,0.06)",
           border: slot?.imageUrl ? "none" : "1.5px dashed rgba(26,77,31,0.15)",
         }}
       >
@@ -49,9 +48,9 @@ export function PhotoAdGallery() {
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-1 opacity-25">
-              <ImageIcon size={20} color="#1A4D1F" />
-              <span className="text-[10px] font-bold text-[#1A4D1F]">{idx + 1}</span>
+            <div className="flex flex-col items-center gap-1 opacity-20">
+              <ImageIcon size={16} color="#1A4D1F" />
+              <span className="text-[9px] font-bold text-[#1A4D1F]">{idx + 1}</span>
             </div>
           </div>
         )}
@@ -65,15 +64,14 @@ export function PhotoAdGallery() {
           href={slot.linkUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="block"
-          style={{ flex: "1 1 0" }}
+          className="block flex-1 min-w-0 transition-transform hover:scale-105 active:scale-95"
         >
           {inner}
         </a>
       );
     }
     return (
-      <div key={idx} style={{ flex: "1 1 0" }}>
+      <div key={idx} className="flex-1 min-w-0">
         {inner}
       </div>
     );
@@ -82,18 +80,18 @@ export function PhotoAdGallery() {
   if (!loaded) return null;
 
   return (
-    <div className="flex flex-col gap-2.5">
-      {/* Row 1 — 2 wide images */}
-      <div className="flex gap-2.5" style={{ height: 130 }}>
-        {renderSlot(slots[0], 0)}
-        {renderSlot(slots[1], 1)}
-      </div>
+    <div>
+      {/* Label */}
+      <p
+        className="text-xs font-black mb-3 tracking-widest uppercase"
+        style={{ color: "rgba(26,77,31,0.40)", fontFamily: "'Outfit',sans-serif", letterSpacing: "0.18em" }}
+      >
+        Partenaires
+      </p>
 
-      {/* Row 2 — 3 square images */}
-      <div className="flex gap-2.5" style={{ height: 90 }}>
-        {renderSlot(slots[2], 2)}
-        {renderSlot(slots[3], 3)}
-        {renderSlot(slots[4], 4)}
+      {/* 5 images in one row */}
+      <div className="flex gap-2.5">
+        {slots.map((slot, idx) => renderSlot(slot, idx))}
       </div>
     </div>
   );
