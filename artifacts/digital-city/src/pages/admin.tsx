@@ -3405,25 +3405,81 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
           <h2 className="text-lg font-black text-[#1A4D1F]">{t("كراء السيارات", "Location de voitures")}</h2>
           <p className="text-xs text-[#1A4D1F]/40">{t("إدارة الوكالات والسيارات والحجوزات", "Gestion des agences, voitures et réservations")}</p>
         </div>
+        <button onClick={() => setShowAgencyForm(!showAgencyForm)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-xs text-white"
+          style={{ background: "#1565C0" }}>
+          <Plus size={13} />{t("وكالة جديدة", "Nouvelle agence")}
+        </button>
       </div>
 
-      {agencies.length === 0 ? (
-        <div className="text-center py-12 opacity-40">
-          <p className="text-sm font-bold text-[#1A4D1F]">{t("لا توجد وكالات كراء سيارات بعد", "Aucune agence de location encore")}</p>
-          <p className="text-xs mt-1 text-[#1A4D1F]/60">{t("أضف مزود خدمة بتصنيف 'car_rental' من قسم المزودين", "Ajoutez un fournisseur de catégorie 'car_rental' dans la section Fournisseurs")}</p>
+      {/* ── Add Agency Form ── */}
+      {showAgencyForm && (
+        <div className="rounded-2xl p-4 mb-4 space-y-3" style={{ background: "#EFF6FF", border: "1.5px solid #1565C033" }}>
+          <p className="text-sm font-black text-[#1565C0]">{t("إضافة وكالة كراء سيارات", "Ajouter une agence de location")}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { key: "nameAr", label: t("الاسم بالعربية","Nom arabe"), placeholder: t("وكالة النجوم","Agence النجوم"), required: true },
+              { key: "name",   label: t("الاسم بالفرنسية","Nom français"), placeholder: "Agence Étoiles", required: true },
+              { key: "phone",  label: t("الهاتف","Téléphone"), placeholder: "216XXXXXXXX" },
+              { key: "address",label: t("العنوان","Adresse"), placeholder: t("بن قردان","Ben Guerdane") },
+            ].map(f => (
+              <div key={f.key}>
+                <label className="block text-xs font-black mb-1 opacity-60 text-[#1565C0]">{f.label}{f.required && " *"}</label>
+                <input value={(agencyForm as any)[f.key]} onChange={e => setAgencyForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+                  style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033" }} />
+              </div>
+            ))}
+          </div>
+          <div>
+            <label className="block text-xs font-black mb-1 opacity-60 text-[#1565C0]">{t("رابط الشعار / الصورة","Logo / Photo URL")}</label>
+            <input value={agencyForm.photoUrl} onChange={e => setAgencyForm(p => ({ ...p, photoUrl: e.target.value }))}
+              placeholder="https://..." dir="ltr"
+              className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+              style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033" }} />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={addAgency} disabled={saving || !agencyForm.nameAr || !agencyForm.name}
+              className="flex-1 py-2.5 rounded-xl font-black text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: "#1565C0" }}>
+              {saving ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+              {t("إضافة الوكالة","Ajouter l'agence")}
+            </button>
+            <button onClick={() => setShowAgencyForm(false)}
+              className="px-4 py-2.5 rounded-xl font-black text-sm"
+              style={{ background: "#1565C022", color: "#1565C0" }}>
+              {t("إلغاء","Annuler")}
+            </button>
+          </div>
         </div>
-      ) : (
+      )}
+
+      {agencies.length === 0 && !showAgencyForm ? (
+        <div className="text-center py-12 opacity-40">
+          <Car size={32} className="mx-auto mb-3" style={{ color: "#1565C0" }} />
+          <p className="text-sm font-bold text-[#1A4D1F]">{t("لا توجد وكالات بعد", "Aucune agence encore")}</p>
+          <p className="text-xs mt-1 text-[#1A4D1F]/60">{t("اضغط 'وكالة جديدة' لإضافة أول وكالة", "Cliquez 'Nouvelle agence' pour commencer")}</p>
+        </div>
+      ) : agencies.length > 0 && (
         <div className="space-y-4">
           {/* Agency Picker */}
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex gap-2 overflow-x-auto pb-1 flex-wrap">
             {agencies.map(a => (
-              <button key={a.id} onClick={() => setActiveAgency(a)}
-                className="flex-shrink-0 px-4 py-2 rounded-full font-black text-xs border transition-all"
-                style={activeAgency?.id === a.id
-                  ? { background: "#1A4D1F", color: "#fff", borderColor: "#1A4D1F" }
-                  : { background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F33" }}>
-                {a.nameAr || a.name}
-              </button>
+              <div key={a.id} className="flex items-center gap-1">
+                <button onClick={() => setActiveAgency(a)}
+                  className="flex-shrink-0 px-4 py-2 rounded-full font-black text-xs border transition-all"
+                  style={activeAgency?.id === a.id
+                    ? { background: "#1565C0", color: "#fff", borderColor: "#1565C0" }
+                    : { background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F33" }}>
+                  {a.nameAr || a.name}
+                </button>
+                <button onClick={() => deleteAgency(a.id)}
+                  className="w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ background: "#FEE2E2" }}>
+                  <Trash2 size={10} color="#DC2626" />
+                </button>
+              </div>
             ))}
           </div>
 
@@ -3505,18 +3561,37 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
                   )}
 
                   {/* Cars list */}
+                  {cars.filter(c => c.agencyId === activeAgency.id).length === 0 && !showCarForm && (
+                    <p className="text-center text-xs opacity-30 py-4 font-bold" style={{ color: "#1A4D1F" }}>{t("لا توجد سيارات لهذه الوكالة","Aucune voiture pour cette agence")}</p>
+                  )}
                   {cars.filter(c => c.agencyId === activeAgency.id).map(car => (
-                    <div key={car.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "#fff", border: "1px solid #1A4D1F11" }}>
-                      {car.imageUrl ? <img src={car.imageUrl} alt="" className="w-14 h-10 rounded-lg object-cover" /> : <div className="w-14 h-10 rounded-lg flex items-center justify-center" style={{ background: "#FFF3E0" }}><Car size={20} style={{ color: "#1A4D1F40" }} /></div>}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black text-sm truncate" style={{ color: "#1A4D1F" }}>{car.make} {car.model} {car.year && `(${car.year})`}</p>
-                        <p className="text-xs opacity-50" style={{ color: "#1A4D1F" }}>{car.pricePerDay} {t("د.ت/يوم","TND/j")} · {car.seats} {t("مقاعد","places")}</p>
+                    <div key={car.id} className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #1A4D1F11" }}>
+                      <div className="flex items-center gap-3 p-3">
+                        {car.imageUrl
+                          ? <img src={car.imageUrl} alt="" className="w-16 h-12 rounded-lg object-cover flex-shrink-0" />
+                          : <div className="w-16 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#FFF3E0" }}><Car size={20} style={{ color: "#1A4D1F40" }} /></div>
+                        }
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-sm truncate" style={{ color: "#1A4D1F" }}>{car.make} {car.model} {car.year && `(${car.year})`}</p>
+                          <p className="text-xs opacity-50" style={{ color: "#1A4D1F" }}>{car.color && `${car.color} · `}{car.transmission === "automatic" ? t("أوتوماتيك","Auto") : t("يدوي","Manuel")} · {car.fuelType}</p>
+                          <p className="text-xs font-black mt-0.5" style={{ color: "#1565C0" }}>{car.pricePerDay} {t("د.ت/يوم","TND/j")} · {car.seats} {t("مقاعد","places")}</p>
+                        </div>
+                        <div className="flex flex-col gap-1.5 items-end">
+                          <button onClick={() => toggleCar(car.id, car.isAvailable)}
+                            className="text-xs font-black px-2.5 py-1 rounded-full"
+                            style={{ background: car.isAvailable ? "#D1FAE5" : "#FEE2E2", color: car.isAvailable ? "#059669" : "#DC2626" }}>
+                            {car.isAvailable ? t("متاح","Dispo") : t("غير متاح","Indispo")}
+                          </button>
+                          <button onClick={() => deleteCar(car.id)}
+                            className="text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1"
+                            style={{ background: "#FEE2E2", color: "#DC2626" }}>
+                            <Trash2 size={10} />{t("حذف","Suppr.")}
+                          </button>
+                        </div>
                       </div>
-                      <button onClick={() => toggleCar(car.id, car.isAvailable)}
-                        className="text-xs font-black px-2.5 py-1 rounded-full"
-                        style={{ background: car.isAvailable ? "#D1FAE5" : "#FEE2E2", color: car.isAvailable ? "#059669" : "#DC2626" }}>
-                        {car.isAvailable ? t("متاح","Dispo") : t("غير متاح","Indispo")}
-                      </button>
+                      {car.descriptionAr && (
+                        <p className="px-3 pb-2 text-xs opacity-40" style={{ color: "#1A4D1F" }}>{car.descriptionAr}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -3556,6 +3631,12 @@ function SosSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
   const [filter, setFilter]     = useState("all");
+  const [mainTab, setMainTab]   = useState<"requests" | "providers">("requests");
+  const [providers, setProviders] = useState<any[]>([]);
+  const [provLoading, setProvLoading] = useState(false);
+  const [showProvForm, setShowProvForm] = useState(false);
+  const [provForm, setProvForm] = useState({ nameAr: "", name: "", phone: "", category: "mechanic", address: "", latitude: "", longitude: "" });
+  const [provSaving, setProvSaving] = useState(false);
 
   const CAT_LABELS: Record<string, { ar: string; fr: string; color: string }> = {
     mechanic:  { ar: "ميكانيكي", fr: "Mécanicien", color: "#F59E0B" },
@@ -3580,7 +3661,53 @@ function SosSection({ t }: { t: (ar: string, fr: string) => string }) {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  const loadProviders = async () => {
+    setProvLoading(true);
+    try {
+      const data = await get<any[]>("/suppliers");
+      setProviders(data.filter((s: any) => ["mechanic", "doctor", "emergency", "sos"].includes(s.category)));
+    } finally { setProvLoading(false); }
+  };
+
+  const addProvider = async () => {
+    if (!provForm.nameAr || !provForm.name || !provForm.category) return;
+    setProvSaving(true);
+    try {
+      const res = await fetch("/api/admin/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-session-token": getSession()?.token || "" },
+        body: JSON.stringify({
+          ...provForm,
+          latitude: provForm.latitude ? parseFloat(provForm.latitude) : null,
+          longitude: provForm.longitude ? parseFloat(provForm.longitude) : null,
+        }),
+      });
+      const prov = await res.json();
+      setProviders(prev => [...prev, prov]);
+      setProvForm({ nameAr: "", name: "", phone: "", category: "mechanic", address: "", latitude: "", longitude: "" });
+      setShowProvForm(false);
+    } finally { setProvSaving(false); }
+  };
+
+  const deleteProvider = async (id: number) => {
+    if (!confirm(t("حذف هذا المزود؟","Supprimer ce prestataire ?"))) return;
+    await fetch(`/api/admin/suppliers/${id}`, {
+      method: "DELETE",
+      headers: { "x-session-token": getSession()?.token || "" },
+    });
+    setProviders(prev => prev.filter(p => p.id !== id));
+  };
+
+  const toggleProvider = async (id: number, isAvailable: boolean) => {
+    await fetch(`/api/admin/suppliers/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-session-token": getSession()?.token || "" },
+      body: JSON.stringify({ isAvailable: !isAvailable }),
+    });
+    setProviders(prev => prev.map(p => p.id === id ? { ...p, isAvailable: !isAvailable } : p));
+  };
+
+  useEffect(() => { load(); loadProviders(); }, []);
 
   const updateStatus = async (id: number, status: string) => {
     await fetch(`/api/sos/${id}/status`, {
@@ -3595,16 +3722,41 @@ function SosSection({ t }: { t: (ar: string, fr: string) => string }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-black" style={{ color: "#EF4444" }}>{t("طلبات SOS", "Demandes SOS")}</h2>
-          <p className="text-xs opacity-40" style={{ color: "#1A4D1F" }}>{t("جميع طلبات الطوارئ والمساعدة", "Toutes les demandes d'urgence")}</p>
+          <h2 className="text-lg font-black" style={{ color: "#EF4444" }}>{t("خدمة SOS", "Service SOS")}</h2>
+          <p className="text-xs opacity-40" style={{ color: "#1A4D1F" }}>{t("إدارة الطلبات والمزودين", "Gestion des demandes et prestataires")}</p>
         </div>
-        <button onClick={load} className="p-2 rounded-xl" style={{ background: "#EF444415" }}>
+        <button onClick={() => { load(); loadProviders(); }} className="p-2 rounded-xl" style={{ background: "#EF444415" }}>
           <RefreshCw size={16} style={{ color: "#EF4444" }} />
         </button>
       </div>
 
+      {/* Main tabs */}
+      <div className="flex gap-1.5 p-1 rounded-xl mb-5" style={{ background: "#FFF0F0" }}>
+        {([
+          { id: "requests",  ar: "الطلبات",   fr: "Demandes",     badge: requests.filter(r => r.status === "pending").length },
+          { id: "providers", ar: "المزودون",  fr: "Prestataires", badge: providers.length },
+        ] as const).map(tb => (
+          <button key={tb.id} onClick={() => setMainTab(tb.id)}
+            className="flex-1 py-2 rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1.5"
+            style={mainTab === tb.id
+              ? { background: "#EF4444", color: "#fff" }
+              : { color: "rgba(239,68,68,0.5)" }}>
+            {t(tb.ar, tb.fr)}
+            {tb.badge > 0 && (
+              <span className="w-4 h-4 rounded-full text-[9px] flex items-center justify-center font-black"
+                style={{ background: mainTab === tb.id ? "rgba(255,255,255,0.3)" : "#EF444422", color: mainTab === tb.id ? "#fff" : "#EF4444" }}>
+                {tb.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ── REQUESTS TAB ── */}
+      {mainTab === "requests" && (
+      <div>
       {/* Filter */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
         {["all", "pending", "accepted", "done", "cancelled"].map(f => (
@@ -3672,6 +3824,104 @@ function SosSection({ t }: { t: (ar: string, fr: string) => string }) {
               </div>
             );
           })}
+        </div>
+      )}
+      </div>
+      )}
+
+      {/* ── PROVIDERS TAB ── */}
+      {mainTab === "providers" && (
+        <div className="space-y-3">
+          <button onClick={() => setShowProvForm(!showProvForm)}
+            className="w-full py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 border-2 border-dashed text-white"
+            style={{ borderColor: "#EF4444", background: showProvForm ? "#EF444422" : "#EF4444", color: showProvForm ? "#EF4444" : "#fff" }}>
+            <Plus size={14} />{t("إضافة مزود SOS", "Ajouter un prestataire SOS")}
+          </button>
+
+          {showProvForm && (
+            <div className="rounded-2xl p-4 space-y-3" style={{ background: "#FFF0F0", border: "1.5px solid #EF444433" }}>
+              <p className="text-sm font-black" style={{ color: "#EF4444" }}>{t("مزود خدمة SOS جديد", "Nouveau prestataire SOS")}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { key: "nameAr", label: t("الاسم بالعربية","Nom arabe"), placeholder: t("الدكتور أحمد","Dr. Ahmed"), required: true },
+                  { key: "name",   label: t("الاسم بالفرنسية","Nom français"), placeholder: "Dr. Ahmed", required: true },
+                  { key: "phone",  label: t("الهاتف","Téléphone"), placeholder: "216XXXXXXXX" },
+                  { key: "address",label: t("العنوان","Adresse"), placeholder: t("بن قردان","Ben Guerdane") },
+                  { key: "latitude",  label: t("خط العرض","Latitude"),  placeholder: "33.1234" },
+                  { key: "longitude", label: t("خط الطول","Longitude"), placeholder: "11.2345" },
+                ].map(f => (
+                  <div key={f.key}>
+                    <label className="block text-xs font-black mb-1 opacity-60" style={{ color: "#EF4444" }}>{f.label}{f.required && " *"}</label>
+                    <input value={(provForm as any)[f.key]} onChange={e => setProvForm(p => ({ ...p, [f.key]: e.target.value }))}
+                      placeholder={f.placeholder} dir={["latitude","longitude"].includes(f.key) ? "ltr" : "rtl"}
+                      className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+                      style={{ background: "#fff", color: "#1A4D1F", borderColor: "#EF444433" }} />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <label className="block text-xs font-black mb-1 opacity-60" style={{ color: "#EF4444" }}>{t("التخصص","Spécialité")}</label>
+                <select value={provForm.category} onChange={e => setProvForm(p => ({ ...p, category: e.target.value }))}
+                  className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+                  style={{ background: "#fff", color: "#1A4D1F", borderColor: "#EF444433" }}>
+                  <option value="mechanic">{t("ميكانيكي","Mécanicien")}</option>
+                  <option value="doctor">{t("طبيب","Médecin")}</option>
+                  <option value="emergency">{t("طوارئ عامة","Urgence générale")}</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={addProvider} disabled={provSaving || !provForm.nameAr || !provForm.name}
+                  className="flex-1 py-2.5 rounded-xl font-black text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: "#EF4444" }}>
+                  {provSaving ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                  {t("إضافة المزود","Ajouter")}
+                </button>
+                <button onClick={() => setShowProvForm(false)}
+                  className="px-4 py-2.5 rounded-xl font-black text-sm"
+                  style={{ background: "#EF444422", color: "#EF4444" }}>
+                  {t("إلغاء","Annuler")}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {provLoading ? (
+            <div className="flex justify-center py-8"><RefreshCw size={18} className="animate-spin" style={{ color: "#EF4444" }} /></div>
+          ) : providers.length === 0 ? (
+            <div className="text-center py-10 opacity-30">
+              <AlertTriangle size={28} className="mx-auto mb-2" style={{ color: "#EF4444" }} />
+              <p className="text-sm font-bold" style={{ color: "#1A4D1F" }}>{t("لا يوجد مزودون بعد","Aucun prestataire encore")}</p>
+            </div>
+          ) : (
+            providers.map(p => {
+              const catLabel = { mechanic: { ar: "ميكانيكي", color: "#F59E0B" }, doctor: { ar: "طبيب", color: "#3B82F6" }, emergency: { ar: "طوارئ", color: "#EF4444" } }[p.category as string] || { ar: p.category, color: "#6B7280" };
+              return (
+                <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "#fff", border: "1px solid #EF444411" }}>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: catLabel.color + "20" }}>
+                    <AlertTriangle size={16} style={{ color: catLabel.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-sm truncate" style={{ color: "#1A4D1F" }}>{p.nameAr}</p>
+                    <p className="text-xs opacity-50" style={{ color: "#1A4D1F" }}>{catLabel.ar} {p.phone && `· ${p.phone}`}</p>
+                    {p.latitude && <p className="text-xs opacity-30 font-mono" style={{ color: "#1A4D1F" }}>{p.latitude?.toFixed(4)}, {p.longitude?.toFixed(4)}</p>}
+                  </div>
+                  <div className="flex flex-col gap-1.5 items-end">
+                    <button onClick={() => toggleProvider(p.id, p.isAvailable)}
+                      className="text-xs font-black px-2.5 py-1 rounded-full"
+                      style={{ background: p.isAvailable ? "#D1FAE5" : "#FEE2E2", color: p.isAvailable ? "#059669" : "#DC2626" }}>
+                      {p.isAvailable ? t("نشط","Actif") : t("غير نشط","Inactif")}
+                    </button>
+                    <button onClick={() => deleteProvider(p.id)}
+                      className="text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1"
+                      style={{ background: "#FEE2E2", color: "#DC2626" }}>
+                      <Trash2 size={10} />{t("حذف","Suppr.")}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       )}
     </div>
