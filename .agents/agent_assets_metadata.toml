@@ -36,3 +36,9 @@ id = "t1rx7jaH4p1c7SAv8Qcr3"
 uri = "file://sanad-android.tar.gz"
 type = "unspecified"
 title = "Sanad · Android Project (tar.gz)"
+
+[[outputs]]
+id = "x-T_SXgB3ITVxPf36XakO"
+uri = "file://Sanad-Setup.tar.gz"
+type = "unspecified"
+title = "Sanad Windows Desktop App (Sanad-Setup.tar.gz)"
