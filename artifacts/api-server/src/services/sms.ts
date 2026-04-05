@@ -1,4 +1,5 @@
 import twilio from "twilio";
+import { logger } from "../lib/logger";
 
 const SID   = process.env.TWILIO_ACCOUNT_SID;
 const TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -19,15 +20,15 @@ function normalizePhone(phone: string): string {
 export async function sendSMS(to: string | null | undefined, body: string): Promise<void> {
   if (!to) return;
   if (!client || !FROM) {
-    console.log(`[SMS] No credentials — skipped. To: ${to} | ${body}`);
+    logger.debug({ to }, "[SMS] No credentials — skipped");
     return;
   }
   try {
     const normalized = normalizePhone(to);
     await client.messages.create({ from: FROM, to: normalized, body });
-    console.log(`[SMS] ✓ Sent to ${normalized}`);
+    logger.info({ to: normalized }, "[SMS] Sent successfully");
   } catch (err: any) {
-    console.error(`[SMS] ✗ Failed to ${to}: ${err?.message ?? err}`);
+    logger.error({ to, err: err?.message }, "[SMS] Send failed");
   }
 }
 

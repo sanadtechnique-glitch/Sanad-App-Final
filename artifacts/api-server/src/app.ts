@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer } from "node:http";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -40,6 +40,15 @@ app.use("/api", router);
 // Serve uploaded ad images statically
 const uploadsDir = path.resolve(__dirname, "../uploads");
 app.use("/uploads", express.static(uploadsDir));
+
+// ── Global error handler — catches unhandled thrown errors ───────────────────
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  const message = err instanceof Error ? err.message : "Unexpected error";
+  logger.error({ err }, "Unhandled error");
+  if (!res.headersSent) {
+    res.status(500).json({ message: "حدث خطأ في الخادم — يرجى المحاولة مجدداً" });
+  }
+});
 
 const httpServer = createServer(app);
 initSocket(httpServer);

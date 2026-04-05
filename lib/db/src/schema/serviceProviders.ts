@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, real, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, real, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -24,7 +24,10 @@ export const serviceProvidersTable = pgTable("service_providers", {
   latitude: real("latitude"),
   longitude: real("longitude"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_providers_category").on(t.category),
+  index("idx_providers_is_available").on(t.isAvailable),
+]);
 
 export const insertServiceProviderSchema = createInsertSchema(serviceProvidersTable).omit({ id: true, createdAt: true });
 export type InsertServiceProvider = z.infer<typeof insertServiceProviderSchema>;

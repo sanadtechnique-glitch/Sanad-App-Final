@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, real, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, real, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { serviceProvidersTable } from "./serviceProviders";
@@ -27,7 +27,13 @@ export const ordersTable = pgTable("orders", {
   photoUrl: text("photo_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_orders_status").on(t.status),
+  index("idx_orders_provider_id").on(t.serviceProviderId),
+  index("idx_orders_customer_id").on(t.customerId),
+  index("idx_orders_staff_id").on(t.deliveryStaffId),
+  index("idx_orders_created_at").on(t.createdAt),
+]);
 
 export const insertOrderSchema = createInsertSchema(ordersTable).omit({
   id: true, createdAt: true, updatedAt: true, status: true, serviceProviderName: true,

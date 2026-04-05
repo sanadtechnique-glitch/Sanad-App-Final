@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, real, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, real, boolean, timestamp, index } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { taxiDriversTable } from "./taxiDrivers";
 
@@ -33,6 +33,10 @@ export const taxiRequestsTable = pgTable("taxi_requests", {
   rejectedDriverIds:  text("rejected_driver_ids").default(""),
   createdAt:          timestamp("created_at").defaultNow().notNull(),
   updatedAt:          timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_taxi_requests_status").on(t.status),
+  index("idx_taxi_requests_customer_id").on(t.customerId),
+  index("idx_taxi_requests_driver_id").on(t.assignedDriverId),
+]);
 
 export type TaxiRequest = typeof taxiRequestsTable.$inferSelect;

@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, boolean, real, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, boolean, real, timestamp, index } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 export const taxiDriversTable = pgTable("taxi_drivers", {
@@ -14,6 +14,9 @@ export const taxiDriversTable = pgTable("taxi_drivers", {
   lat:         real("lat"),
   lng:         real("lng"),
   createdAt:   timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_taxi_drivers_is_available").on(t.isAvailable),
+  index("idx_taxi_drivers_is_active").on(t.isActive),
+]);
 
 export type TaxiDriver = typeof taxiDriversTable.$inferSelect;

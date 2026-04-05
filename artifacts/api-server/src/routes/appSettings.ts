@@ -3,15 +3,19 @@ import { db } from "@workspace/db";
 import { appSettingsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdmin } from "../lib/authMiddleware";
+import { withCache, cacheDelete } from "../lib/cache";
 
 const router = Router();
 
 // GET /app-settings — public, returns all settings as { key: value } map
 router.get("/app-settings", async (_req, res) => {
   try {
-    const rows = await db.select().from(appSettingsTable);
-    const map: Record<string, string | null> = {};
-    for (const row of rows) map[row.key] = row.value;
+    const map = await withCache<Record<string, string | null>>("app-settings:all", 300, async () => {
+      const rows = await db.select().from(appSettingsTable);
+      const m: Record<string, string | null> = {};
+      for (const row of rows) m[row.key] = row.value;
+      return m;
+    });
     res.json(map);
   } catch {
     res.status(500).json({ message: "Server error" });
@@ -40,6 +44,7 @@ router.put("/admin/app-settings/:key", requireAdmin, async (req, res) => {
     } else {
       [row] = await db.insert(appSettingsTable).values({ key, value: value ?? null }).returning();
     }
+    cacheDelete("app-settings:all");
     res.json(row);
   } catch {
     res.status(500).json({ message: "Server error" });

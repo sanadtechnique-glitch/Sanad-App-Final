@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, real, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, real, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { serviceProvidersTable } from "./serviceProviders";
@@ -22,7 +22,10 @@ export const carsTable = pgTable("cars", {
   description:  text("description").default(""),
   descriptionAr: text("description_ar").default(""),
   createdAt:    timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_cars_agency_id").on(t.agencyId),
+  index("idx_cars_is_available").on(t.isAvailable),
+]);
 
 export const carRentalBookingsTable = pgTable("car_rental_bookings", {
   id:           serial("id").primaryKey(),
@@ -39,7 +42,11 @@ export const carRentalBookingsTable = pgTable("car_rental_bookings", {
   notes:        text("notes"),
   createdAt:    timestamp("created_at").defaultNow().notNull(),
   updatedAt:    timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_car_bookings_status").on(t.status),
+  index("idx_car_bookings_agency_id").on(t.agencyId),
+  index("idx_car_bookings_car_id").on(t.carId),
+]);
 
 export const insertCarSchema = createInsertSchema(carsTable).omit({ id: true, createdAt: true });
 export type InsertCar = z.infer<typeof insertCarSchema>;

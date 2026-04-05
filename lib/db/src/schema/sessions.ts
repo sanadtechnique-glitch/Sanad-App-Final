@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 
 export const sessionsTable = pgTable("sessions", {
   token: text("token").primaryKey(),
@@ -7,6 +7,9 @@ export const sessionsTable = pgTable("sessions", {
   username: text("username").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_sessions_user_id").on(t.userId),
+  index("idx_sessions_expires_at").on(t.expiresAt),
+]);
 
 export type Session = typeof sessionsTable.$inferSelect;

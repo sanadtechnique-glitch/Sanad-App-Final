@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { compressImage } from "@/lib/compress-image";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSession, clearSession, isAdminRole, isSuperAdmin, ROLE_META, ROLE_SECTIONS, type AppRole } from "@/lib/auth";
@@ -1992,9 +1993,10 @@ function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
     setShowForm(true);
   };
 
-  const uploadImage = async (file: File) => {
+  const uploadImage = async (rawFile: File) => {
     setUploading(true);
     const session = getSession();
+    const file = await compressImage(rawFile).catch(() => rawFile);
     const form = new FormData();
     form.append("image", file);
     try {
@@ -3944,9 +3946,10 @@ function AppearanceSection({ t }: { t: (ar: string, fr: string) => string }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const uploadLogo = async (file: File) => {
+  const uploadLogo = async (rawFile: File) => {
     setUploading(true);
     const session = getSession();
+    const file = await compressImage(rawFile).catch(() => rawFile);
     const form = new FormData();
     form.append("image", file);
     try {

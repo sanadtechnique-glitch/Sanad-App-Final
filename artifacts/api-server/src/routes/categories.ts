@@ -3,13 +3,16 @@ import { db } from "@workspace/db";
 import { categoriesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdmin } from "../lib/authMiddleware";
+import { withCache, cacheDelete } from "../lib/cache";
 
 const router: IRouter = Router();
 
 // Public read — customers need category list to browse
 router.get("/categories", async (req, res) => {
   try {
-    const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.createdAt);
+    const cats = await withCache("categories:all", 120, () =>
+      db.select().from(categoriesTable).orderBy(categoriesTable.createdAt)
+    );
     res.json(cats);
   } catch (err) {
     req.log.error({ err }, "Error fetching categories");

@@ -3,17 +3,18 @@ import { db } from "@workspace/db";
 import { tickerAdsTable } from "@workspace/db";
 import { eq, and, isNull, or } from "drizzle-orm";
 import { requireAdmin } from "../lib/authMiddleware";
+import { withCache, cacheDeletePrefix } from "../lib/cache";
 
 const router = Router();
 
 // ── PUBLIC: GET /ticker — global ticker (home page) ──────────────────────────
 router.get("/ticker", async (req, res) => {
   try {
-    const ads = await db
-      .select()
-      .from(tickerAdsTable)
-      .where(and(eq(tickerAdsTable.isActive, true), isNull(tickerAdsTable.supplierId)))
-      .orderBy(tickerAdsTable.sortOrder, tickerAdsTable.createdAt);
+    const ads = await withCache("ticker:global", 60, () =>
+      db.select().from(tickerAdsTable)
+        .where(and(eq(tickerAdsTable.isActive, true), isNull(tickerAdsTable.supplierId)))
+        .orderBy(tickerAdsTable.sortOrder, tickerAdsTable.createdAt)
+    );
     res.json(ads);
   } catch (e) {
     res.status(500).json({ message: "Server error" });
@@ -65,6 +66,7 @@ router.post("/admin/ticker", requireAdmin, async (req, res) => {
       sortOrder: sortOrder ?? 0,
       isActive: true,
     }).returning();
+    cacheDeletePrefix("ticker:");
     res.status(201).json(ad);
   } catch (e) {
     res.status(500).json({ message: "Server error" });
@@ -88,6 +90,7 @@ router.patch("/admin/ticker/:id", requireAdmin, async (req, res) => {
     if (linkUrl !== undefined) updates.linkUrl = linkUrl || null;
     const [updated] = await db.update(tickerAdsTable).set(updates).where(eq(tickerAdsTable.id, id)).returning();
     if (!updated) return res.status(404).json({ message: "Not found" });
+    cacheDeletePrefix("ticker:");
     res.json(updated);
   } catch (e) {
     res.status(500).json({ message: "Server error" });
@@ -100,6 +103,7 @@ router.delete("/admin/ticker/:id", requireAdmin, async (req, res) => {
   if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
   try {
     await db.delete(tickerAdsTable).where(eq(tickerAdsTable.id, id));
+    cacheDeletePrefix("ticker:");
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ message: "Server error" });
