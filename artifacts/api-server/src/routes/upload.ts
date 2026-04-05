@@ -40,16 +40,14 @@ const router = Router();
 // POST /admin/upload/ad — upload a single ad image
 router.post("/admin/upload/ad", requireAdmin, uploadAd.single("image"), (req, res) => {
   if (!req.file) { res.status(400).json({ message: "No file uploaded" }); return; }
-  const host = req.get("host") ?? "localhost:8080";
-  const url  = `${req.protocol}://${host}/uploads/ads/${req.file.filename}`;
+  const url = `/uploads/ads/${req.file.filename}`;
   res.json({ url, filename: req.file.filename });
 });
 
 // POST /admin/upload/logo — upload the app logo
 router.post("/admin/upload/logo", requireAdmin, uploadLogo.single("image"), (req, res) => {
   if (!req.file) { res.status(400).json({ message: "No file uploaded" }); return; }
-  const host = req.get("host") ?? "localhost:8080";
-  const url  = `${req.protocol}://${host}/uploads/logos/${req.file.filename}`;
+  const url = `/uploads/logos/${req.file.filename}`;
   res.json({ url, filename: req.file.filename });
 });
 

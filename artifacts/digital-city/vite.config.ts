@@ -36,6 +36,10 @@ export default defineConfig({
         target: `http://localhost:${API_PORT}`,
         changeOrigin: true,
       },
+      "/uploads": {
+        target: `http://localhost:${API_PORT}`,
+        changeOrigin: true,
+      },
     },
   },
   preview: {

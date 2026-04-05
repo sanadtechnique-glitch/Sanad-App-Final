@@ -15,7 +15,11 @@ export function PhotoAdGallery() {
 
   useEffect(() => {
     get<AdSlide[]>("/ticker")
-      .then(data => { setAds(data.slice(0, 5)); setLoaded(true); })
+      .then(data => {
+        const withImages = data.filter(d => d.imageUrl && d.imageUrl.trim() !== "");
+        setAds(withImages.slice(0, 5));
+        setLoaded(true);
+      })
       .catch(() => setLoaded(true));
   }, []);
 
