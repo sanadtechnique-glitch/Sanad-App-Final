@@ -61,15 +61,27 @@ const STATUS: Record<string, { ar: string; fr: string; color: string; icon: Reac
 };
 
 const CATEGORY_LABELS: Record<string, { ar: string; fr: string }> = {
-  restaurant: { ar: "مطاعم", fr: "Restaurants" },
-  pharmacy:   { ar: "صيدلية", fr: "Pharmacie" },
-  lawyer:     { ar: "محامي", fr: "Avocat" },
-  grocery:    { ar: "بقالة", fr: "Épicerie" },
-  mechanic:   { ar: "ميكانيكي", fr: "Mécanicien" },
-  doctor:     { ar: "طبيب", fr: "Médecin" },
-  car:        { ar: "سيارات", fr: "Voitures" },
-  hotel:      { ar: "فنادق", fr: "Hôtels" },
+  // ── مزودو المنتجات (توصيل) ──
+  restaurant: { ar: "مطعم",    fr: "Restaurant" },
+  grocery:    { ar: "بقالة",   fr: "Épicerie"   },
+  pharmacy:   { ar: "صيدلية",  fr: "Pharmacie"  },
+  bakery:     { ar: "مخبزة",   fr: "Boulangerie"},
+  butcher:    { ar: "ملّاح",   fr: "Boucherie"  },
+  cafe:       { ar: "مقهى",    fr: "Café"       },
+  sweets:     { ar: "حلويات",  fr: "Pâtisserie" },
+  // ── مزودو الخدمات ──
+  hotel:      { ar: "فندق",    fr: "Hôtel"      },
+  car_rental: { ar: "كراء سيارات", fr: "Location auto" },
+  sos:        { ar: "SOS · إنقاذ", fr: "SOS · Dépannage" },
+  lawyer:     { ar: "محامي",   fr: "Avocat"     },
 };
+
+const PRODUCT_CATS = ["restaurant","grocery","pharmacy","bakery","butcher","cafe","sweets"] as const;
+const SERVICE_CATS = ["hotel","car_rental","sos","lawyer"] as const;
+
+function supplierType(cat: string): "product" | "service" {
+  return (PRODUCT_CATS as readonly string[]).includes(cat) ? "product" : "service";
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Reusable mini-components
@@ -1144,13 +1156,23 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   const [items, setItems]       = useState<Supplier[]>([]);
   const [modal, setModal]       = useState<null | "add" | Supplier>(null);
   const [managing, setManaging] = useState<Supplier | null>(null);
+  const [filter, setFilter]     = useState<"all" | "products" | "services">("all");
+  const [formType, setFormType] = useState<"product" | "service">("product");
   const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", shift:"all", isAvailable: true, latitude:"", longitude:"" });
 
   const load = () => get<Supplier[]>("/admin/suppliers").then(setItems).catch(() => {});
   useEffect(() => { load(); }, []);
 
-  const openAdd = () => { setForm({ name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",shift:"all",isAvailable:true,latitude:"",longitude:"" }); setModal("add"); };
-  const openEdit = (s: Supplier) => { setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"" }); setModal(s); };
+  const openAdd = () => {
+    setFormType("product");
+    setForm({ name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",shift:"all",isAvailable:true,latitude:"",longitude:"" });
+    setModal("add");
+  };
+  const openEdit = (s: Supplier) => {
+    setFormType(supplierType(s.category));
+    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"" });
+    setModal(s);
+  };
 
   const save = async () => {
     if (modal === "add") await post("/admin/suppliers", form);
@@ -1168,60 +1190,143 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
     await del(`/admin/suppliers/${id}`); load();
   };
 
-  const catOptions = Object.entries(CATEGORY_LABELS).map(([v, l]) => ({ value: v, label: lang === "ar" ? l.ar : l.fr }));
+  // Category options grouped by type
+  const productCatOptions = PRODUCT_CATS.map(v => ({ value: v, label: lang === "ar" ? CATEGORY_LABELS[v].ar : CATEGORY_LABELS[v].fr }));
+  const serviceCatOptions = SERVICE_CATS.map(v => ({ value: v, label: lang === "ar" ? CATEGORY_LABELS[v].ar : CATEGORY_LABELS[v].fr }));
+  const activeCatOptions  = formType === "product" ? productCatOptions : serviceCatOptions;
+
+  // When switching form type, reset category to first of that group
+  const switchFormType = (type: "product" | "service") => {
+    setFormType(type);
+    setForm(f => ({ ...f, category: type === "product" ? "restaurant" : "hotel" }));
+  };
+
+  // Filtered list
+  const productCount = items.filter(s => supplierType(s.category) === "product").length;
+  const serviceCount = items.filter(s => supplierType(s.category) === "service").length;
+  const visible = filter === "all" ? items
+    : items.filter(s => supplierType(s.category) === (filter === "products" ? "product" : "service"));
+
+  // Type visual config
+  const typeConfig = {
+    product: { color: "#1A4D1F", bg: "#1A4D1F12", border: "#1A4D1F25", ar: "منتجات", fr: "Produits", icon: Package },
+    service: { color: "#1565C0", bg: "#1565C012", border: "#1565C025", ar: "خدمات",  fr: "Services", icon: Zap },
+  };
+
+  const tabBtns: { key: "all" | "products" | "services"; arLabel: string; frLabel: string; count: number }[] = [
+    { key: "all",      arLabel: "الكل",          frLabel: "Tous",      count: items.length    },
+    { key: "products", arLabel: "مزودو المنتجات", frLabel: "Produits",  count: productCount    },
+    { key: "services", arLabel: "مزودو الخدمات",  frLabel: "Services",  count: serviceCount    },
+  ];
 
   return (
     <div className="space-y-4">
+      {/* Header + Add button */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-black text-[#1A4D1F]">{t("المزودون","Fournisseurs")}</h2>
         <GoldBtn onClick={openAdd}><Plus size={14} />{t("إضافة","Ajouter")}</GoldBtn>
       </div>
-      <div className="space-y-3">
-        {items.map(s => (
-          <div key={s.id} className="glass-panel rounded-2xl p-4">
-            <div className="flex items-start gap-4 justify-between">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="font-bold text-[#1A4D1F]">{s.nameAr}</p>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-[#1A4D1F]/10 text-[#1A4D1F] border border-[#1A4D1F]/20">
-                    {lang === "ar" ? CATEGORY_LABELS[s.category]?.ar : CATEGORY_LABELS[s.category]?.fr}
-                  </span>
-                  {s.category === "pharmacy" && (
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full border",
-                      s.shift === "day" ? "bg-amber-400/10 text-amber-400 border-amber-400/20" :
-                      s.shift === "night" ? "bg-blue-400/10 text-blue-400 border-blue-400/20" :
-                      "bg-[#1A4D1F]/5 text-[#1A4D1F]/40 border-[#1A4D1F]/10"
-                    )}>
-                      {s.shift === "day" ? <><Sun size={10} className="inline mr-1"/>{t("نهاري","Jour")}</> :
-                       s.shift === "night" ? <><Moon size={10} className="inline mr-1"/>{t("ليلي","Nuit")}</> :
-                       t("الكل","Tout")}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-[#1A4D1F]/40 truncate">{s.address}</p>
-                {s.phone && <p className="text-xs text-[#1A4D1F]/30">{s.phone}</p>}
-                <Stars rating={s.rating} />
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {/* ── زر إدارة كصاحب الخدمة ── */}
-                <button
-                  onClick={() => setManaging(s)}
-                  title={lang === "ar" ? "إدارة كصاحب الخدمة" : "Gérer en tant que propriétaire"}
-                  className="p-2 rounded-xl border transition-all flex items-center gap-1"
-                  style={{ background: "#FFA50015", borderColor: "#FFA50033", color: "#FFA500" }}>
-                  <Wrench size={14} />
-                </button>
-                <button onClick={() => toggle(s.id)}
-                  className={cn("p-2 rounded-xl border transition-all", s.isAvailable ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20 hover:bg-emerald-400/20" : "bg-red-400/10 text-red-400 border-red-400/20 hover:bg-red-400/20")}>
-                  <Power size={14} />
-                </button>
-                <button onClick={() => openEdit(s)} className="p-2 rounded-xl bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-colors border border-[#1A4D1F]/5"><Pencil size={14} /></button>
-                <button onClick={() => remove(s.id)} className="p-2 rounded-xl bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-red-400 transition-colors border border-[#1A4D1F]/5"><Trash2 size={14} /></button>
-              </div>
-            </div>
-          </div>
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 p-1 rounded-2xl" style={{ background: "#1A4D1F10" }} dir="rtl">
+        {tabBtns.map(tb => (
+          <button key={tb.key} onClick={() => setFilter(tb.key)}
+            className="flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5"
+            style={{
+              background: filter === tb.key ? "#1A4D1F" : "transparent",
+              color: filter === tb.key ? "#FFA500" : "#1A4D1F",
+              opacity: filter === tb.key ? 1 : 0.5,
+            }}>
+            {lang === "ar" ? tb.arLabel : tb.frLabel}
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-black"
+              style={{ background: filter === tb.key ? "#FFA50030" : "#1A4D1F20" }}>
+              {tb.count}
+            </span>
+          </button>
         ))}
       </div>
+
+      {/* ── Products group ── */}
+      {(filter === "all" || filter === "products") && (
+        <div className="space-y-2">
+          {filter === "all" && (
+            <div className="flex items-center gap-2 px-1">
+              <Package size={13} style={{ color: typeConfig.product.color }} />
+              <span className="text-xs font-black opacity-60" style={{ color: typeConfig.product.color }}>
+                {t("مزودو المنتجات · للتوصيل", "Fournisseurs de produits · Livraison")}
+              </span>
+              <div className="flex-1 h-px" style={{ background: typeConfig.product.color + "25" }} />
+            </div>
+          )}
+          {visible.filter(s => supplierType(s.category) === "product").map(s => (
+            <SupplierCard key={s.id} s={s} t={t} lang={lang} type="product" typeConfig={typeConfig}
+              onManage={() => setManaging(s)}
+              onToggle={() => toggle(s.id)}
+              onEdit={() => openEdit(s)}
+              onDelete={() => remove(s.id)} />
+          ))}
+          {visible.filter(s => supplierType(s.category) === "product").length === 0 && filter === "products" && (
+            <p className="text-center text-xs opacity-40 py-6 text-[#1A4D1F]">{t("لا يوجد مزودو منتجات", "Aucun fournisseur de produits")}</p>
+          )}
+        </div>
+      )}
+
+      {/* ── Services group ── */}
+      {(filter === "all" || filter === "services") && (
+        <div className="space-y-2">
+          {filter === "all" && (
+            <div className="flex items-center gap-2 px-1 mt-3">
+              <Zap size={13} style={{ color: typeConfig.service.color }} />
+              <span className="text-xs font-black opacity-60" style={{ color: typeConfig.service.color }}>
+                {t("مزودو الخدمات", "Fournisseurs de services")}
+              </span>
+              <div className="flex-1 h-px" style={{ background: typeConfig.service.color + "25" }} />
+            </div>
+          )}
+          {visible.filter(s => supplierType(s.category) === "service").map(s => (
+            <SupplierCard key={s.id} s={s} t={t} lang={lang} type="service" typeConfig={typeConfig}
+              onManage={() => setManaging(s)}
+              onToggle={() => toggle(s.id)}
+              onEdit={() => openEdit(s)}
+              onDelete={() => remove(s.id)} />
+          ))}
+          {visible.filter(s => supplierType(s.category) === "service").length === 0 && filter === "services" && (
+            <p className="text-center text-xs opacity-40 py-6 text-[#1565C0]">{t("لا يوجد مزودو خدمات", "Aucun fournisseur de services")}</p>
+          )}
+        </div>
+      )}
+
+      {/* ── Form Modal ── */}
+      <Modal open={!!modal} onClose={() => setModal(null)}
+        title={modal === "add" ? t("إضافة مزود","Ajouter fournisseur") : t("تعديل مزود","Modifier fournisseur")}>
+
+        {/* Type toggle — only in add mode */}
+        {modal === "add" && (
+          <div className="flex gap-2 p-1 rounded-xl mb-1" style={{ background: "#1A4D1F08" }}>
+            {(["product","service"] as const).map(tp => {
+              const cfg = typeConfig[tp];
+              const Icon = cfg.icon;
+              return (
+                <button key={tp} onClick={() => switchFormType(tp)}
+                  className="flex-1 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all"
+                  style={{
+                    background: formType === tp ? cfg.color : "transparent",
+                    color: formType === tp ? "#fff" : cfg.color,
+                    opacity: formType === tp ? 1 : 0.5,
+                  }}>
+                  <Icon size={12} />
+                  {lang === "ar" ? (tp === "product" ? "مزود منتجات" : "مزود خدمات") : (tp === "product" ? "Fournisseur produits" : "Fournisseur services")}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Common fields */}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("الاسم عربي","Nom arabe")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder="صيدلية الأمل" /></Field>
+          <Field label={t("الاسم فرنسي","Nom français")}><Input value={form.name} onChange={v => setForm(f => ({...f, name: v}))} placeholder="Pharmacie Amal" /></Field>
+        </div>
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal === "add" ? t("إضافة مزود","Ajouter fournisseur") : t("تعديل مزود","Modifier fournisseur")}>
         <div className="grid grid-cols-2 gap-3">
           <Field label={t("الاسم عربي","Nom arabe")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder="صيدلية الأمل" /></Field>
