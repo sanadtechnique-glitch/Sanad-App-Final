@@ -367,6 +367,7 @@ router.get("/admin/all-users", requireAdmin, async (_req, res) => {
         id: usersTable.id,
         username: usersTable.username,
         name: usersTable.name,
+        email: usersTable.email,
         phone: usersTable.phone,
         role: usersTable.role,
         isActive: usersTable.isActive,
@@ -392,8 +393,8 @@ router.get("/admin/all-users", requireAdmin, async (_req, res) => {
 
     const combined = [
       ...users.map(u => ({ ...u, source: "users" as const })),
-      ...providers.map(p => ({ id: p.id, username: null, name: p.name, phone: p.phone, role: "provider", isActive: p.isActive, createdAt: p.createdAt, source: "providers" as const })),
-      ...drivers.map(d => ({ id: d.id, username: null, name: d.name, phone: d.phone, role: "driver", isActive: d.isActive, createdAt: d.createdAt, source: "drivers" as const })),
+      ...providers.map(p => ({ id: p.id, username: null, name: p.name, email: null, phone: p.phone, role: "provider", isActive: p.isActive, createdAt: p.createdAt, source: "providers" as const })),
+      ...drivers.map(d => ({ id: d.id, username: null, name: d.name, email: null, phone: d.phone, role: "driver", isActive: d.isActive, createdAt: d.createdAt, source: "drivers" as const })),
     ];
 
     res.json(combined);
