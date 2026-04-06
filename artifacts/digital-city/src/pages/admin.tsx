@@ -1150,6 +1150,77 @@ function AdminProviderDrawer({ supplier, t, lang, onClose }: { supplier: Supplie
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Supplier Card — extracted for reuse in both product & service groups
+// ──────────────────────────────────────────────────────────────────────────────
+function SupplierCard({ s, t, lang, type, typeConfig, onManage, onToggle, onEdit, onDelete }: {
+  s: Supplier;
+  t: (ar: string, fr: string) => string;
+  lang: string;
+  type: "product" | "service";
+  typeConfig: Record<string, { color: string; bg: string; border: string; ar: string; fr: string; icon: React.FC<any> }>;
+  onManage: () => void;
+  onToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const cfg = typeConfig[type];
+  return (
+    <div className="glass-panel rounded-2xl p-4" style={{ borderLeft: `3px solid ${cfg.color}30` }}>
+      <div className="flex items-start gap-4 justify-between">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <p className="font-bold text-[#1A4D1F]">{s.nameAr}</p>
+            {/* Category badge */}
+            <span className="text-xs px-2 py-0.5 rounded-full font-black"
+              style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
+              {lang === "ar" ? CATEGORY_LABELS[s.category]?.ar : CATEGORY_LABELS[s.category]?.fr}
+            </span>
+            {/* Pharmacy shift badge */}
+            {s.category === "pharmacy" && (
+              <span className={cn("text-xs px-2 py-0.5 rounded-full border",
+                s.shift === "day"   ? "bg-amber-400/10 text-amber-400 border-amber-400/20" :
+                s.shift === "night" ? "bg-blue-400/10 text-blue-400 border-blue-400/20"   :
+                                      "bg-[#1A4D1F]/5 text-[#1A4D1F]/40 border-[#1A4D1F]/10"
+              )}>
+                {s.shift === "day"   ? <><Sun size={10} className="inline mr-1"/>{t("نهاري","Jour")}</> :
+                 s.shift === "night" ? <><Moon size={10} className="inline mr-1"/>{t("ليلي","Nuit")}</> :
+                 t("الكل","Tout")}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-[#1A4D1F]/40 truncate">{s.address}</p>
+          {s.phone && <p className="text-xs text-[#1A4D1F]/30">{s.phone}</p>}
+          <Stars rating={s.rating} />
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Manage as provider */}
+          <button onClick={onManage}
+            title={lang === "ar" ? "إدارة كصاحب الخدمة" : "Gérer en tant que propriétaire"}
+            className="p-2 rounded-xl border transition-all"
+            style={{ background: "#FFA50015", borderColor: "#FFA50033", color: "#FFA500" }}>
+            <Wrench size={14} />
+          </button>
+          {/* Toggle availability */}
+          <button onClick={onToggle}
+            className={cn("p-2 rounded-xl border transition-all",
+              s.isAvailable
+                ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20 hover:bg-emerald-400/20"
+                : "bg-red-400/10 text-red-400 border-red-400/20 hover:bg-red-400/20")}>
+            <Power size={14} />
+          </button>
+          <button onClick={onEdit} className="p-2 rounded-xl bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-colors border border-[#1A4D1F]/5">
+            <Pencil size={14} />
+          </button>
+          <button onClick={onDelete} className="p-2 rounded-xl bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-red-400 transition-colors border border-[#1A4D1F]/5">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Section: Suppliers
 // ──────────────────────────────────────────────────────────────────────────────
 function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
@@ -1327,13 +1398,8 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
           <Field label={t("الاسم عربي","Nom arabe")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder="صيدلية الأمل" /></Field>
           <Field label={t("الاسم فرنسي","Nom français")}><Input value={form.name} onChange={v => setForm(f => ({...f, name: v}))} placeholder="Pharmacie Amal" /></Field>
         </div>
-      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === "add" ? t("إضافة مزود","Ajouter fournisseur") : t("تعديل مزود","Modifier fournisseur")}>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("الاسم عربي","Nom arabe")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder="صيدلية الأمل" /></Field>
-          <Field label={t("الاسم فرنسي","Nom français")}><Input value={form.name} onChange={v => setForm(f => ({...f, name: v}))} placeholder="Pharmacie Amal" /></Field>
-        </div>
         <Field label={t("الفئة","Catégorie")}>
-          <Select value={form.category} onChange={v => setForm(f => ({...f, category: v}))} options={catOptions} />
+          <Select value={form.category} onChange={v => setForm(f => ({...f, category: v}))} options={activeCatOptions} />
         </Field>
         {form.category === "pharmacy" && (
           <Field label={t("فترة العمل","Horaire")}>
@@ -1349,7 +1415,6 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
         <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>
         <Field label={t("الوصف فرنسي","Description française")}><Input value={form.description} onChange={v => setForm(f => ({...f, description: v}))} /></Field>
         <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>
-        {/* GPS Coordinates for distance calculation */}
         <div className="rounded-xl p-3 border border-[#FFA500]/30 bg-[#FFA500]/5">
           <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-2">
             {t("إحداثيات GPS (لحساب المسافة)","Coordonnées GPS (calcul distance)")}
