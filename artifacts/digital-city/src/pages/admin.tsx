@@ -11,6 +11,7 @@ import {
   UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
   Image, ImageIcon, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
   Settings, Sliders, DollarSign, Zap, TrendingUp, Upload, AlertTriangle, KeyRound, Stethoscope, Scale, FileText, Phone,
+  Camera, Link as LinkIcon, Bed, Wrench,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
@@ -495,11 +496,594 @@ function CategoriesSection({ t }: { t: (ar: string, fr: string) => string }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Admin Provider Management — Drawer + sub-components
+// ──────────────────────────────────────────────────────────────────────────────
+
+/** Reusable image picker — visual preview + URL input */
+function AdminImagePicker({ value, onChange, label, guideAr, guideFr, aspect = "16:9", accent = "#1A4D1F", t }: {
+  value: string; onChange: (v: string) => void; label: string;
+  guideAr: string; guideFr: string; aspect?: "16:9" | "4:3" | "1:1";
+  accent?: string; t: (ar: string, fr: string) => string;
+}) {
+  const [editUrl, setEditUrl] = useState(false);
+  const [draft, setDraft]     = useState(value);
+  const [err, setErr]         = useState(false);
+  useEffect(() => { setDraft(value); setErr(false); }, [value]);
+  const confirm = () => { onChange(draft.trim()); setEditUrl(false); setErr(false); };
+  const clear   = (e: React.MouseEvent) => { e.stopPropagation(); onChange(""); setDraft(""); setEditUrl(false); setErr(false); };
+  const cls = aspect === "4:3" ? "aspect-[4/3]" : aspect === "1:1" ? "aspect-square" : "aspect-video";
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-black opacity-60" style={{ color: accent }}>{label}</label>
+      <div className={`relative w-full rounded-2xl overflow-hidden border-2 border-dashed cursor-pointer ${cls}`}
+        style={{ borderColor: value && !err ? accent + "55" : accent + "22", background: accent + "08" }}
+        onClick={() => setEditUrl(v => !v)}>
+        {value && !err
+          ? <><img src={value} alt="" className="w-full h-full object-cover" onError={() => setErr(true)} />
+              <div className="absolute top-2 end-2 flex gap-1.5">
+                <button onClick={() => setEditUrl(v => !v)} className="p-1.5 rounded-lg backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.55)" }}><LinkIcon size={11} className="text-white" /></button>
+                <button onClick={clear} className="p-1.5 rounded-lg backdrop-blur-sm" style={{ background: "rgba(239,68,68,0.7)" }}><X size={11} className="text-white" /></button>
+              </div></>
+          : <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-40">
+              <Camera size={32} style={{ color: accent }} />
+              <p className="text-xs font-black text-center px-4" style={{ color: accent }}>{t(guideAr, guideFr)}</p>
+            </div>}
+        {err && <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-40"><ImageIcon size={24} style={{ color: accent }} /><p className="text-xs font-black" style={{ color: accent }}>{t("رابط خاطئ","URL invalide")}</p></div>}
+      </div>
+      {(editUrl || !value || err) && (
+        <div className="flex gap-2">
+          <div className="flex-1 flex items-center gap-2 rounded-xl border-2 px-3" style={{ borderColor: accent + "33", background: "#fff" }}>
+            <LinkIcon size={12} style={{ color: accent }} className="opacity-40 flex-shrink-0" />
+            <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && confirm()}
+              placeholder="https://..." dir="ltr" className="flex-1 py-2 text-sm font-bold outline-none bg-transparent" style={{ color: accent }} />
+          </div>
+          <button onClick={confirm} className="px-4 rounded-xl text-xs font-black text-white" style={{ background: accent }}>{t("تأكيد","OK")}</button>
+        </div>
+      )}
+      <p className="text-[10px] font-bold opacity-30 flex items-center gap-1" style={{ color: accent }}>
+        <ImageIcon size={9} />{t(`نسبة ${aspect} · JPG أو PNG`,`Ratio ${aspect} · JPG ou PNG`)}
+      </p>
+    </div>
+  );
+}
+
+/** Admin manages articles/rooms/specialties for any supplier */
+function AdminArticlesManager({ supplierId, mode, t, lang }: {
+  supplierId: number; mode: "product" | "room" | "specialty";
+  t: (ar: string, fr: string) => string; lang: string;
+}) {
+  type Art = { id: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; photoUrl?: string | null; isAvailable: boolean; };
+  const EMPTY = { nameAr: "", nameFr: "", descriptionAr: "", descriptionFr: "", price: "", photoUrl: "", isAvailable: true };
+  const [items,   setItems]   = useState<Art[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form,    setForm]    = useState(EMPTY);
+  const [editing, setEditing] = useState<Art | null>(null);
+  const [saving,  setSaving]  = useState(false);
+  const [showF,   setShowF]   = useState(false);
+
+  // Room-specific fields
+  const [roomNum,   setRoomNum]   = useState("");
+  const [roomFloor, setRoomFloor] = useState("0");
+  const [roomType,  setRoomType]  = useState("single");
+  const ROOM_TYPES = [
+    { value:"single",  arLabel:"فردية",   frLabel:"Simple"  },
+    { value:"double",  arLabel:"مزدوجة",  frLabel:"Double"  },
+    { value:"suite",   arLabel:"جناح",    frLabel:"Suite"   },
+    { value:"family",  arLabel:"عائلية",  frLabel:"Familiale"},
+  ];
+  const FLOORS = Array.from({length:11},(_,i)=>i);
+
+  const load = async () => {
+    setLoading(true);
+    try { const r = await get<Art[]>(`/admin/articles?supplierId=${supplierId}`); setItems(r); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, [supplierId]);
+
+  const parseRoom = (a: Art) => {
+    const floorM = (a.descriptionAr || "").match(/floor:(\d+)/);
+    const typeM  = (a.descriptionAr || "").match(/type:(\w+)/);
+    const numM   = (a.nameAr || "").match(/غرفة\s*(.+)/);
+    return { floor: floorM?.[1] ?? "0", type: typeM?.[1] ?? "single", roomNumber: numM?.[1]?.trim() ?? a.nameAr };
+  };
+
+  const openAdd = () => {
+    setEditing(null); setForm(EMPTY); setRoomNum(""); setRoomFloor("0"); setRoomType("single"); setShowF(true);
+  };
+  const openEdit = (a: Art) => {
+    if (mode === "room") {
+      const r = parseRoom(a);
+      setRoomNum(r.roomNumber); setRoomFloor(r.floor); setRoomType(r.type);
+      setForm({ ...EMPTY, price: String(a.price), photoUrl: a.photoUrl || "", isAvailable: a.isAvailable, nameAr: a.nameAr, nameFr: a.nameFr, descriptionAr: a.descriptionAr, descriptionFr: a.descriptionFr });
+    } else {
+      setForm({ nameAr: a.nameAr, nameFr: a.nameFr, descriptionAr: a.descriptionAr, descriptionFr: a.descriptionFr, price: String(a.price), photoUrl: a.photoUrl || "", isAvailable: a.isAvailable });
+    }
+    setEditing(a); setShowF(true);
+  };
+
+  const buildPayload = () => {
+    if (mode === "room") {
+      const typeObj = ROOM_TYPES.find(r => r.value === roomType) || ROOM_TYPES[0];
+      const flLabelFr = roomFloor === "0" ? "Rez-de-chaussée" : `Étage ${roomFloor}`;
+      return { supplierId, nameAr: `غرفة ${roomNum}`, nameFr: `Chambre ${roomNum}`, descriptionAr: `floor:${roomFloor}|type:${roomType}`, descriptionFr: `${flLabelFr} • ${typeObj.frLabel}`, price: Number(form.price) || 0, photoUrl: form.photoUrl || null, isAvailable: form.isAvailable };
+    }
+    return { supplierId, nameAr: form.nameAr, nameFr: form.nameFr || form.nameAr, descriptionAr: form.descriptionAr, descriptionFr: form.descriptionFr || form.descriptionAr, price: Number(form.price) || 0, photoUrl: form.photoUrl || null, isAvailable: form.isAvailable };
+  };
+
+  const save = async () => {
+    if (mode === "room" && !roomNum) return;
+    if (mode !== "room" && !form.nameAr) return;
+    setSaving(true);
+    try {
+      if (editing) await patch(`/admin/articles/${editing.id}`, buildPayload());
+      else await post("/admin/articles", buildPayload());
+      setShowF(false); await load();
+    } finally { setSaving(false); }
+  };
+
+  const remove = async (id: number) => {
+    if (!confirm(t("حذف العنصر؟","Supprimer ?"))) return;
+    await del(`/admin/articles/${id}`); load();
+  };
+
+  const toggleAvail = async (a: Art) => {
+    await patch(`/admin/articles/${a.id}`, { isAvailable: !a.isAvailable });
+    setItems(prev => prev.map(x => x.id === a.id ? { ...x, isAvailable: !x.isAvailable } : x));
+  };
+
+  const titleAr = mode === "room" ? "الغرف" : mode === "specialty" ? "التخصصات" : "المنتجات / الخدمات";
+  const titleFr = mode === "room" ? "Chambres" : mode === "specialty" ? "Spécialités" : "Produits / Services";
+  const addAr   = mode === "room" ? "غرفة جديدة" : mode === "specialty" ? "تخصص جديد" : "إضافة منتج";
+  const addFr   = mode === "room" ? "Nouvelle chambre" : mode === "specialty" ? "Nouvelle spécialité" : "Ajouter produit";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-black" style={{ color: "#1A4D1F" }}>{t(titleAr, titleFr)} <span className="opacity-40">({items.length})</span></p>
+        <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-white" style={{ background: "#1A4D1F" }}>
+          <Plus size={12} />{t(addAr, addFr)}
+        </button>
+      </div>
+
+      {loading ? <div className="flex justify-center py-8"><div className="w-5 h-5 rounded-full border-2 border-[#1A4D1F]/20 border-t-[#1A4D1F] animate-spin" /></div>
+      : items.length === 0 ? <div className="flex flex-col items-center py-8 gap-2 opacity-30"><Package size={28} style={{ color: "#1A4D1F" }} /><p className="text-sm font-bold" style={{ color: "#1A4D1F" }}>{t("لا يوجد","Aucun")}</p></div>
+      : <div className="space-y-2">
+          {items.map(a => {
+            const roomData = mode === "room" ? parseRoom(a) : null;
+            const typeObj  = roomData ? (ROOM_TYPES.find(r => r.value === roomData.type) || ROOM_TYPES[0]) : null;
+            return (
+              <div key={a.id} className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1.5px solid #1A4D1F11" }}>
+                <div className="flex items-center gap-3 p-3">
+                  {a.photoUrl
+                    ? <img src={a.photoUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                    : <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#1A4D1F08" }}>
+                        {mode === "room" ? <Bed size={20} style={{ color: "#1A4D1F" }} className="opacity-30" /> : <Package size={20} style={{ color: "#1A4D1F" }} className="opacity-30" />}
+                      </div>}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-sm truncate" style={{ color: "#1A4D1F" }}>
+                      {mode === "room" && roomData ? `غرفة ${roomData.roomNumber}` : a.nameAr}
+                    </p>
+                    <p className="text-xs opacity-50 truncate" style={{ color: "#1A4D1F" }}>
+                      {mode === "room" && roomData
+                        ? `${roomData.floor === "0" ? "ط. أرضي" : `ط. ${roomData.floor}`} • ${lang === "ar" ? typeObj?.arLabel : typeObj?.frLabel}`
+                        : a.descriptionAr}
+                    </p>
+                    <p className="text-xs font-black mt-0.5" style={{ color: "#FFA500" }}>{a.price.toFixed(3)} TND</p>
+                  </div>
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <button onClick={() => toggleAvail(a)}
+                      className={`p-1.5 rounded-lg border text-xs ${a.isAvailable ? "bg-emerald-400/10 text-emerald-500 border-emerald-400/20" : "bg-red-400/10 text-red-400 border-red-400/20"}`}>
+                      <Power size={12} />
+                    </button>
+                    <button onClick={() => openEdit(a)} className="p-1.5 rounded-lg bg-[#1A4D1F]/5 border border-[#1A4D1F]/10"><Pencil size={12} style={{ color: "#1A4D1F" }} /></button>
+                    <button onClick={() => remove(a.id)} className="p-1.5 rounded-lg bg-red-400/5 border border-red-400/10"><Trash2 size={12} className="text-red-400" /></button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>}
+
+      {/* Form Modal */}
+      <AnimatePresence>
+        {showF && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.5)" }} onClick={() => setShowF(false)}>
+            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto space-y-3"
+              style={{ background: "#FFF3E0" }} onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between" dir="rtl">
+                <h3 className="font-black text-[#1A4D1F] text-sm">{editing ? t("تعديل","Modifier") : t(addAr, addFr)}</h3>
+                <button onClick={() => setShowF(false)}><X size={16} className="text-[#1A4D1F]/40" /></button>
+              </div>
+              <div className="space-y-3" dir="rtl">
+                {mode === "room" ? (
+                  <>
+                    <div>
+                      <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1A4D1F" }}>{t("رقم الغرفة *","Numéro *")}</label>
+                      <input value={roomNum} onChange={e => setRoomNum(e.target.value)} placeholder="101"
+                        className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border-2 outline-none" style={{ background: "#fff", borderColor: "#1A4D1F22", color: "#1A4D1F" }} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1A4D1F" }}>{t("الطابق","Étage")}</label>
+                        <select value={roomFloor} onChange={e => setRoomFloor(e.target.value)}
+                          className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border-2 outline-none" style={{ background: "#fff", borderColor: "#1A4D1F22", color: "#1A4D1F" }}>
+                          {FLOORS.map(f => <option key={f} value={String(f)}>{f === 0 ? t("أرضي","RDC") : `${t("طابق","Étage")} ${f}`}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1A4D1F" }}>{t("النوع","Type")}</label>
+                        <select value={roomType} onChange={e => setRoomType(e.target.value)}
+                          className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border-2 outline-none" style={{ background: "#fff", borderColor: "#1A4D1F22", color: "#1A4D1F" }}>
+                          {ROOM_TYPES.map(r => <option key={r.value} value={r.value}>{lang === "ar" ? r.arLabel : r.frLabel}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1A4D1F" }}>{t("السعر / ليلة (TND) *","Prix / nuit (TND) *")}</label>
+                      <input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="50.000"
+                        className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border-2 outline-none" dir="ltr" style={{ background: "#fff", borderColor: "#1A4D1F22", color: "#1A4D1F" }} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1A4D1F" }}>{t("الاسم بالعربية *","Nom (arabe) *")}</label>
+                      <input value={form.nameAr} onChange={e => setForm(f => ({ ...f, nameAr: e.target.value }))}
+                        className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border-2 outline-none" style={{ background: "#fff", borderColor: "#1A4D1F22", color: "#1A4D1F" }} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1A4D1F" }}>{t("الاسم بالفرنسية","Nom (français)")}</label>
+                      <input value={form.nameFr} onChange={e => setForm(f => ({ ...f, nameFr: e.target.value }))}
+                        className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border-2 outline-none" dir="ltr" style={{ background: "#fff", borderColor: "#1A4D1F22", color: "#1A4D1F" }} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1A4D1F" }}>{t("الوصف","Description")}</label>
+                      <input value={form.descriptionAr} onChange={e => setForm(f => ({ ...f, descriptionAr: e.target.value }))}
+                        className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border-2 outline-none" style={{ background: "#fff", borderColor: "#1A4D1F22", color: "#1A4D1F" }} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1A4D1F" }}>{t("السعر (TND)","Prix (TND)")}</label>
+                      <input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="0.000"
+                        className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border-2 outline-none" dir="ltr" style={{ background: "#fff", borderColor: "#1A4D1F22", color: "#1A4D1F" }} />
+                    </div>
+                  </>
+                )}
+                <AdminImagePicker
+                  value={form.photoUrl}
+                  onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
+                  label={mode === "room" ? t("صورة الغرفة","Photo chambre") : t("صورة المنتج","Photo produit")}
+                  guideAr={mode === "room" ? "صورة داخلية للغرفة" : "صورة المنتج"}
+                  guideFr={mode === "room" ? "Photo intérieure" : "Photo produit"}
+                  aspect={mode === "room" ? "4:3" : "1:1"}
+                  accent="#1A4D1F"
+                  t={t}
+                />
+                <div className="flex gap-2">
+                  <button onClick={save} disabled={saving || (mode === "room" ? !roomNum || !form.price : !form.nameAr)}
+                    className="flex-1 py-2.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 disabled:opacity-40"
+                    style={{ background: "#1A4D1F" }}>
+                    {saving ? <RefreshCw size={13} className="animate-spin" /> : <Check size={13} />}
+                    {editing ? t("حفظ التعديل","Enregistrer") : t("إضافة","Ajouter")}
+                  </button>
+                  <button onClick={() => setShowF(false)} className="px-4 py-2.5 rounded-xl font-black text-sm border" style={{ color: "#1A4D1F", borderColor: "#1A4D1F22" }}>
+                    {t("إلغاء","Annuler")}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** Admin manages cars for any car rental agency */
+function AdminCarsManager({ agencyId, t, lang }: { agencyId: number; t: (ar: string, fr: string) => string; lang: string }) {
+  type Car = { id: number; agencyId: number; make: string; model: string; year?: number; color: string; plateNumber: string; pricePerDay: number; seats: number; transmission: string; fuelType: string; imageUrl?: string | null; isAvailable: boolean; };
+  const EMPTY_CAR = { make:"", model:"", year:"", color:"", plateNumber:"", pricePerDay:"", seats:"5", transmission:"manual", fuelType:"essence", imageUrl:"", descriptionAr:"" };
+  const [cars,   setCars]   = useState<Car[]>([]);
+  const [loading,setLoading]= useState(true);
+  const [form,   setForm]   = useState(EMPTY_CAR);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [showF,  setShowF]  = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try { const r = await get<Car[]>(`/car-rental/cars?agencyId=${agencyId}`); setCars(r); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, [agencyId]);
+
+  const openAdd  = () => { setEditId(null); setForm(EMPTY_CAR); setShowF(true); };
+  const openEdit = (c: Car) => { setEditId(c.id); setForm({ make:c.make, model:c.model, year:c.year?.toString()||"", color:c.color, plateNumber:c.plateNumber, pricePerDay:c.pricePerDay.toString(), seats:c.seats.toString(), transmission:c.transmission, fuelType:c.fuelType, imageUrl:c.imageUrl||"", descriptionAr:"" }); setShowF(true); };
+
+  const saveCar = async () => {
+    if (!form.make || !form.model || !form.pricePerDay) return;
+    setSaving(true);
+    try {
+      const payload = { ...form, agencyId, year: form.year ? Number(form.year) : null, pricePerDay: Number(form.pricePerDay), seats: Number(form.seats) };
+      if (editId) await patch(`/admin/car-rental/cars/${editId}`, payload);
+      else await post("/admin/car-rental/cars", payload);
+      setShowF(false); await load();
+    } finally { setSaving(false); }
+  };
+
+  const removeCar = async (id: number) => {
+    if (!confirm(t("حذف السيارة؟","Supprimer ?!"))) return;
+    await del(`/admin/car-rental/cars/${id}`); load();
+  };
+  const toggleCar = async (c: Car) => {
+    await patch(`/admin/car-rental/cars/${c.id}`, { isAvailable: !c.isAvailable });
+    setCars(prev => prev.map(x => x.id === c.id ? { ...x, isAvailable: !x.isAvailable } : x));
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-black" style={{ color: "#1565C0" }}>{t("السيارات","Voitures")} <span className="opacity-40">({cars.length})</span></p>
+        <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-white" style={{ background: "#1565C0" }}>
+          <Plus size={12}/>{t("سيارة جديدة","Nouvelle voiture")}
+        </button>
+      </div>
+      {loading ? <div className="flex justify-center py-8"><div className="w-5 h-5 rounded-full border-2 border-blue-400/20 border-t-blue-500 animate-spin" /></div>
+      : cars.length === 0 ? <div className="flex flex-col items-center py-8 gap-2 opacity-30"><Car size={28} style={{ color: "#1565C0" }} /><p className="text-sm font-bold" style={{ color: "#1565C0" }}>{t("لا توجد سيارات","Aucune voiture")}</p></div>
+      : <div className="space-y-2">
+          {cars.map(c => (
+            <div key={c.id} className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1.5px solid #1565C011" }}>
+              <div className="flex items-center gap-3 p-3">
+                {c.imageUrl ? <img src={c.imageUrl} alt="" className="w-16 h-12 rounded-xl object-cover flex-shrink-0" />
+                  : <div className="w-16 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#1565C008" }}><Car size={20} style={{ color: "#1565C0" }} className="opacity-30" /></div>}
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-sm" style={{ color: "#1565C0" }}>{c.make} {c.model} {c.year || ""}</p>
+                  <p className="text-xs opacity-50" style={{ color: "#1565C0" }}>{c.plateNumber} • {c.color} • {c.seats} {t("مقاعد","places")}</p>
+                  <p className="text-xs font-black" style={{ color: "#FFA500" }}>{c.pricePerDay} TND/{t("يوم","j")}</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <button onClick={() => toggleCar(c)} className={`p-1.5 rounded-lg border ${c.isAvailable ? "bg-emerald-400/10 text-emerald-500 border-emerald-400/20" : "bg-red-400/10 text-red-400 border-red-400/20"}`}><Power size={12}/></button>
+                  <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg bg-[#1565C0]/5 border border-[#1565C0]/10"><Pencil size={12} style={{ color: "#1565C0" }}/></button>
+                  <button onClick={() => removeCar(c.id)} className="p-1.5 rounded-lg bg-red-400/5 border border-red-400/10"><Trash2 size={12} className="text-red-400"/></button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>}
+
+      <AnimatePresence>
+        {showF && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.5)" }} onClick={() => setShowF(false)}>
+            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto space-y-3"
+              style={{ background: "#FFF3E0" }} onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between" dir="rtl">
+                <h3 className="font-black text-sm" style={{ color: "#1565C0" }}>{editId ? t("تعديل سيارة","Modifier voiture") : t("سيارة جديدة","Nouvelle voiture")}</h3>
+                <button onClick={() => setShowF(false)}><X size={16} className="opacity-40" /></button>
+              </div>
+              <div className="space-y-3" dir="rtl">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1565C0" }}>{t("الماركة *","Marque *")}</label>
+                    <input value={form.make} onChange={e => setForm(p => ({...p, make:e.target.value}))} placeholder="Toyota"
+                      className="w-full rounded-xl px-3 py-2 text-sm font-bold border outline-none" style={{ background: "#fff", borderColor: "#1565C033", color: "#1565C0" }} dir="ltr" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1565C0" }}>{t("الموديل *","Modèle *")}</label>
+                    <input value={form.model} onChange={e => setForm(p => ({...p, model:e.target.value}))} placeholder="Yaris"
+                      className="w-full rounded-xl px-3 py-2 text-sm font-bold border outline-none" style={{ background: "#fff", borderColor: "#1565C033", color: "#1565C0" }} dir="ltr" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1565C0" }}>{t("السنة","Année")}</label>
+                    <input type="number" value={form.year} onChange={e => setForm(p => ({...p, year:e.target.value}))} placeholder="2022"
+                      className="w-full rounded-xl px-3 py-2 text-sm font-bold border outline-none" style={{ background: "#fff", borderColor: "#1565C033", color: "#1565C0" }} dir="ltr" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1565C0" }}>{t("اللون","Couleur")}</label>
+                    <input value={form.color} onChange={e => setForm(p => ({...p, color:e.target.value}))} placeholder={t("أبيض","Blanc")}
+                      className="w-full rounded-xl px-3 py-2 text-sm font-bold border outline-none" style={{ background: "#fff", borderColor: "#1565C033", color: "#1565C0" }} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1565C0" }}>{t("رقم اللوحة","Plaque d'immatriculation")}</label>
+                  <input value={form.plateNumber} onChange={e => setForm(p => ({...p, plateNumber:e.target.value}))} placeholder="123 TU 4567"
+                    className="w-full rounded-xl px-3 py-2 text-sm font-bold border outline-none" dir="ltr" style={{ background: "#fff", borderColor: "#1565C033", color: "#1565C0" }} />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1565C0" }}>{t("السعر/يوم (TND) *","Prix/jour (TND) *")}</label>
+                    <input type="number" value={form.pricePerDay} onChange={e => setForm(p => ({...p, pricePerDay:e.target.value}))} placeholder="80"
+                      className="w-full rounded-xl px-3 py-2 text-sm font-bold border outline-none" dir="ltr" style={{ background: "#fff", borderColor: "#1565C033", color: "#1565C0" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1565C0" }}>{t("المقاعد","Places")}</label>
+                    <select value={form.seats} onChange={e => setForm(p => ({...p, seats:e.target.value}))}
+                      className="w-full rounded-xl px-3 py-2 text-sm font-bold border outline-none" style={{ background: "#fff", borderColor: "#1565C033", color: "#1565C0" }}>
+                      {[2,4,5,6,7,8,9].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1565C0" }}>{t("ناقل الحركة","Transmission")}</label>
+                    <select value={form.transmission} onChange={e => setForm(p => ({...p, transmission:e.target.value}))}
+                      className="w-full rounded-xl px-3 py-2 text-sm font-bold border outline-none" style={{ background: "#fff", borderColor: "#1565C033", color: "#1565C0" }}>
+                      <option value="manual">{t("يدوي","Manuelle")}</option>
+                      <option value="automatic">{t("أوتوماتيك","Automatique")}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1565C0" }}>{t("الوقود","Carburant")}</label>
+                    <select value={form.fuelType} onChange={e => setForm(p => ({...p, fuelType:e.target.value}))}
+                      className="w-full rounded-xl px-3 py-2 text-sm font-bold border outline-none" style={{ background: "#fff", borderColor: "#1565C033", color: "#1565C0" }}>
+                      <option value="essence">{t("بنزين","Essence")}</option>
+                      <option value="diesel">{t("ديزل","Diesel")}</option>
+                      <option value="hybrid">{t("هجين","Hybride")}</option>
+                      <option value="electrique">{t("كهربائي","Électrique")}</option>
+                    </select>
+                  </div>
+                </div>
+                <AdminImagePicker value={form.imageUrl} onChange={v => setForm(p => ({...p, imageUrl:v}))}
+                  label={t("صورة السيارة","Photo voiture")} guideAr="صورة خارجية من الواجهة" guideFr="Photo extérieure de face"
+                  aspect="16:9" accent="#1565C0" t={t} />
+                <div className="flex gap-2">
+                  <button onClick={saveCar} disabled={saving || !form.make || !form.model || !form.pricePerDay}
+                    className="flex-1 py-2.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 disabled:opacity-40"
+                    style={{ background: "#1565C0" }}>
+                    {saving ? <RefreshCw size={13} className="animate-spin" /> : <Check size={13} />}
+                    {editId ? t("حفظ","Enregistrer") : t("إضافة","Ajouter")}
+                  </button>
+                  <button onClick={() => setShowF(false)} className="px-4 py-2.5 rounded-xl font-black text-sm border" style={{ color: "#1565C0", borderColor: "#1565C033" }}>{t("إلغاء","Annuler")}</button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** Admin Provider Drawer — slides up and shows full provider management */
+function AdminProviderDrawer({ supplier, t, lang, onClose }: { supplier: Supplier; t: (ar: string, fr: string) => string; lang: string; onClose: () => void; }) {
+  const CAT = supplier.category;
+  const isProductCat = ["restaurant","grocery","pharmacy","bakery","butcher","cafe","sweets"].includes(CAT);
+  const isHotel     = CAT === "hotel";
+  const isCarRental = CAT === "car_rental";
+  const isSos       = CAT === "sos";
+  const isLawyer    = CAT === "lawyer";
+
+  type TabId = "content" | "cars" | "vehicle";
+  const tabDefs: { id: TabId; ar: string; fr: string }[] = isCarRental
+    ? [{ id:"cars", ar:"السيارات", fr:"Voitures" }]
+    : isSos
+    ? [{ id:"vehicle", ar:"الشاحنة", fr:"Véhicule" }]
+    : [{ id:"content", ar: isHotel ? "الغرف" : isLawyer ? "التخصصات" : "المنتجات", fr: isHotel ? "Chambres" : isLawyer ? "Spécialités" : "Produits" }];
+
+  const [tab, setTab] = useState<TabId>(tabDefs[0].id);
+
+  // SOS photo state
+  const [sosPhoto, setSosPhoto]   = useState(supplier.photoUrl || "");
+  const [sosSaving, setSosSaving] = useState(false);
+  const [sosSaved,  setSosSaved]  = useState(false);
+
+  const saveSosPhoto = async () => {
+    setSosSaving(true);
+    try {
+      await patch(`/provider/${supplier.id}/photo`, { photoUrl: sosPhoto });
+      setSosSaved(true); setTimeout(() => setSosSaved(false), 2500);
+    } finally { setSosSaving(false); }
+  };
+
+  const accentColor = isCarRental ? "#1565C0" : isSos ? "#EF4444" : "#1A4D1F";
+  const catLabel = lang === "ar" ? CATEGORY_LABELS[CAT]?.ar : CATEGORY_LABELS[CAT]?.fr;
+
+  return (
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-end" style={{ background: "rgba(0,0,0,0.55)" }}
+        onClick={onClose}>
+        <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+          transition={{ type: "spring", damping: 30, stiffness: 300 }}
+          className="w-full max-h-[92vh] rounded-t-3xl overflow-y-auto"
+          style={{ background: "#FFF3E0" }} onClick={e => e.stopPropagation()}>
+
+          {/* ── Sticky Header ── */}
+          <div className="sticky top-0 z-10 px-4 pt-4 pb-3 border-b border-[#1A4D1F]/10" style={{ background: "#FFF3E0" }}>
+            <div className="flex items-start justify-between" dir="rtl">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-black text-[#1A4D1F]">{supplier.nameAr}</h3>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: accentColor + "20", color: accentColor }}>{catLabel}</span>
+                </div>
+                {supplier.phone && <p className="text-xs opacity-40 mt-0.5" style={{ color: "#1A4D1F" }}>{supplier.phone}</p>}
+                {/* Admin badge */}
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <Shield size={10} style={{ color: "#FFA500" }} />
+                  <span className="text-[10px] font-black" style={{ color: "#FFA500" }}>{t("إدارة كصاحب الخدمة","Géré en tant que propriétaire")}</span>
+                </div>
+              </div>
+              <button onClick={onClose} className="p-2 rounded-xl bg-[#1A4D1F]/5 ms-2 flex-shrink-0"><X size={16} style={{ color: "#1A4D1F" }} /></button>
+            </div>
+
+            {/* Tabs */}
+            {tabDefs.length > 1 && (
+              <div className="flex gap-2 mt-3" dir="rtl">
+                {tabDefs.map(td => (
+                  <button key={td.id} onClick={() => setTab(td.id)}
+                    className="flex-1 py-1.5 rounded-xl text-xs font-black transition-all"
+                    style={{ background: tab === td.id ? accentColor : accentColor + "15", color: tab === td.id ? "#fff" : accentColor }}>
+                    {lang === "ar" ? td.ar : td.fr}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Content ── */}
+          <div className="p-4 pb-10">
+            {/* Products / Rooms / Specialties */}
+            {tab === "content" && (
+              <AdminArticlesManager
+                supplierId={supplier.id}
+                mode={isHotel ? "room" : isLawyer ? "specialty" : "product"}
+                t={t}
+                lang={lang}
+              />
+            )}
+
+            {/* Cars */}
+            {tab === "cars" && (
+              <AdminCarsManager agencyId={supplier.id} t={t} lang={lang} />
+            )}
+
+            {/* SOS Vehicle Photo */}
+            {tab === "vehicle" && (
+              <div className="space-y-4">
+                <AdminImagePicker
+                  value={sosPhoto}
+                  onChange={v => { setSosPhoto(v); setSosSaved(false); }}
+                  label={t("صورة شاحنة الإنقاذ","Photo du véhicule")}
+                  guideAr="صورة واضحة من الواجهة للشاحنة"
+                  guideFr="Photo nette de face du camion"
+                  aspect="16:9"
+                  accent="#EF4444"
+                  t={t}
+                />
+                <button onClick={saveSosPhoto}
+                  disabled={sosSaving || sosPhoto === (supplier.photoUrl || "")}
+                  className="w-full py-2.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
+                  style={{ background: sosSaved ? "#059669" : "#EF4444" }}>
+                  {sosSaving ? <RefreshCw size={13} className="animate-spin" /> : sosSaved ? <Check size={13} /> : <Camera size={13} />}
+                  {sosSaving ? t("جارٍ الحفظ...","Enregistrement...") : sosSaved ? t("تم الحفظ ✓","Sauvegardé ✓") : t("حفظ صورة الشاحنة","Sauvegarder")}
+                </button>
+                <div className="rounded-xl p-3 border" style={{ background: "#EF444408", borderColor: "#EF444422" }}>
+                  <p className="text-xs font-bold opacity-60" style={{ color: "#EF4444" }}>
+                    {t("تظهر هذه الصورة للعملاء عند استجابة الشاحنة لطلب SOS","Cette photo est visible par les clients lors d'une intervention SOS")}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Section: Suppliers
 // ──────────────────────────────────────────────────────────────────────────────
 function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
-  const [items, setItems] = useState<Supplier[]>([]);
-  const [modal, setModal] = useState<null | "add" | Supplier>(null);
+  const [items, setItems]       = useState<Supplier[]>([]);
+  const [modal, setModal]       = useState<null | "add" | Supplier>(null);
+  const [managing, setManaging] = useState<Supplier | null>(null);
   const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", shift:"all", isAvailable: true, latitude:"", longitude:"" });
 
   const load = () => get<Supplier[]>("/admin/suppliers").then(setItems).catch(() => {});
@@ -559,6 +1143,14 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
                 <Stars rating={s.rating} />
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
+                {/* ── زر إدارة كصاحب الخدمة ── */}
+                <button
+                  onClick={() => setManaging(s)}
+                  title={lang === "ar" ? "إدارة كصاحب الخدمة" : "Gérer en tant que propriétaire"}
+                  className="p-2 rounded-xl border transition-all flex items-center gap-1"
+                  style={{ background: "#FFA50015", borderColor: "#FFA50033", color: "#FFA500" }}>
+                  <Wrench size={14} />
+                </button>
                 <button onClick={() => toggle(s.id)}
                   className={cn("p-2 rounded-xl border transition-all", s.isAvailable ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20 hover:bg-emerald-400/20" : "bg-red-400/10 text-red-400 border-red-400/20 hover:bg-red-400/20")}>
                   <Power size={14} />
@@ -611,6 +1203,18 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
         </div>
         <GoldBtn onClick={save} className="w-full justify-center">{t("حفظ","Enregistrer")}</GoldBtn>
       </Modal>
+
+      {/* ── Admin Provider Drawer ── */}
+      <AnimatePresence>
+        {managing && (
+          <AdminProviderDrawer
+            supplier={managing}
+            t={t}
+            lang={lang}
+            onClose={() => setManaging(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
