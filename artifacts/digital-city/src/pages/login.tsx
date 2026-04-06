@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertCircle, Eye, EyeOff, ChevronDown, LogIn,
   UserPlus, Phone, Lock, User, CheckCircle, MapPin, Search,
+  Mail, KeyRound, X, Send,
 } from "lucide-react";
 import { setSession, clearSession, type Role } from "@/lib/auth";
 import { requestNotificationPermission } from "@/lib/push-notifications";
@@ -151,15 +152,211 @@ function ErrorBox({ message }: { message: string }) {
   );
 }
 
+function EmailInput({
+  value, onChange, hasValue, required,
+}: {
+  value: string; onChange: (v: string) => void; hasValue?: boolean; required?: boolean;
+}) {
+  return (
+    <div className="relative">
+      <Mail size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#1A4D1F]/30 pointer-events-none" />
+      <input
+        type="email"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="example@email.com"
+        dir="ltr"
+        required={required}
+        className="w-full ps-10 pe-4 py-3.5 rounded-xl border text-[#1A4D1F] font-bold outline-none transition-all placeholder:text-[#1A4D1F]/20 text-left"
+        style={{
+          background: "#FFFFFF",
+          borderColor: hasValue ? "#FFA500" : "rgba(255,165,0,0.3)",
+        }}
+      />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Forgot Password Modal
+// ─────────────────────────────────────────────────────────────────────────────
+function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail]       = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [sent, setSent]         = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const [devUrl, setDevUrl]     = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("أدخل بريداً إلكترونياً صحيحاً · Adresse e-mail invalide");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || "حدث خطأ · Une erreur s'est produite");
+        return;
+      }
+      setSent(true);
+      if (data.devResetUrl) setDevUrl(data.devResetUrl);
+    } catch {
+      setError("حدث خطأ في الاتصال · Erreur de connexion");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(26,77,31,0.55)", backdropFilter: "blur(6px)" }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.92, y: 20 }}
+        transition={{ type: "spring", damping: 22, stiffness: 300 }}
+        className="w-full max-w-sm rounded-3xl p-7 shadow-2xl border"
+        style={{ background: "#FFFFFF", borderColor: "rgba(255,165,0,0.2)" }}
+        onClick={e => e.stopPropagation()}
+        dir="rtl"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: "#1A4D1F" }}
+            >
+              <KeyRound size={18} className="text-[#FFA500]" />
+            </div>
+            <div>
+              <p className="font-black text-[#1A4D1F] text-base leading-tight">نسيت كلمة السر؟</p>
+              <p className="text-[#1A4D1F]/40 text-xs">Mot de passe oublié ?</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#1A4D1F]/40 hover:text-[#1A4D1F] hover:bg-[#1A4D1F]/8 transition-all"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {sent ? (
+          <div className="text-center space-y-4">
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center mx-auto"
+              style={{ background: "rgba(46,125,50,0.12)" }}
+            >
+              <Send size={24} className="text-[#1A4D1F]" />
+            </div>
+            <p className="font-black text-[#1A4D1F] text-base">
+              تم إرسال الرابط!
+            </p>
+            <p className="text-[#1A4D1F]/50 text-sm leading-relaxed">
+              تحقق من بريدك الإلكتروني وانقر على الرابط لإعادة تعيين كلمة المرور.
+            </p>
+            <p className="text-[#1A4D1F]/35 text-xs">
+              Vérifiez votre e-mail et cliquez sur le lien pour réinitialiser.
+            </p>
+            {devUrl && (
+              <div
+                className="mt-3 p-3 rounded-xl text-xs text-left break-all"
+                style={{ background: "#FFF3E0", border: "1px solid rgba(255,165,0,0.3)" }}
+              >
+                <p className="text-[#1A4D1F]/50 mb-1 text-right text-[10px] font-bold">
+                  🔧 وضع التطوير — رابط الإعادة:
+                </p>
+                <a href={devUrl} className="text-[#FFA500] underline font-mono" target="_blank" rel="noreferrer">
+                  {devUrl}
+                </a>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-3 rounded-xl font-black text-sm text-white mt-2"
+              style={{ background: "#1A4D1F" }}
+            >
+              إغلاق · Fermer
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <p className="text-[#1A4D1F]/60 text-sm leading-relaxed">
+              أدخل بريدك الإلكتروني المسجّل وسنرسل لك رابط إعادة التعيين.
+            </p>
+            <p className="text-[#1A4D1F]/35 text-xs -mt-1">
+              Entrez votre e-mail enregistré pour recevoir un lien de réinitialisation.
+            </p>
+
+            <div>
+              <label className="block text-[11px] font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-2">
+                البريد الإلكتروني · E-mail <span className="text-red-400">*</span>
+              </label>
+              <EmailInput
+                value={email}
+                onChange={v => { setEmail(v); setError(null); }}
+                hasValue={email.length > 0}
+                required
+              />
+            </div>
+
+            <AnimatePresence>
+              {error && <ErrorBox message={error} />}
+            </AnimatePresence>
+
+            <button
+              type="submit"
+              disabled={!email.trim() || loading}
+              className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-black text-sm text-white transition-all disabled:opacity-30"
+              style={{
+                background: "#FFA500",
+                color: "#1A4D1F",
+                boxShadow: email.trim() && !loading ? "0 4px 18px rgba(255,165,0,0.45)" : "none",
+              }}
+            >
+              {loading ? (
+                <span className="w-4 h-4 rounded-full border-2 border-[#1A4D1F]/30 border-t-[#1A4D1F] animate-spin" />
+              ) : (
+                <>
+                  <Send size={15} />
+                  <span>إرسال رابط الإعادة · Envoyer</span>
+                </>
+              )}
+            </button>
+          </form>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Login Form — phone + password only
 // ─────────────────────────────────────────────────────────────────────────────
 function LoginForm() {
   const [, navigate] = useLocation();
-  const [phone, setPhone]       = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError]       = useState<string | null>(null);
-  const [loading, setLoading]   = useState(false);
+  const [phone, setPhone]               = useState("");
+  const [password, setPassword]         = useState("");
+  const [error, setError]               = useState<string | null>(null);
+  const [loading, setLoading]           = useState(false);
+  const [showForgot, setShowForgot]     = useState(false);
 
   const canSubmit = phone.trim() !== "" && password.trim() !== "" && !loading;
 
@@ -237,56 +434,75 @@ function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5" dir="rtl">
-      {/* Phone */}
-      <div>
-        <FieldLabel>رقم الهاتف · Téléphone</FieldLabel>
-        <PhoneInput
-          value={phone}
-          onChange={v => { setPhone(v); setError(null); }}
-          hasValue={phone.length > 0}
-        />
-      </div>
-
-      {/* Password */}
-      <div>
-        <FieldLabel>كلمة السر · Mot de passe</FieldLabel>
-        <PasswordInput
-          value={password}
-          onChange={v => { setPassword(v); setError(null); }}
-          hasValue={password.length > 0}
-        />
-      </div>
-
-      {/* Error */}
+    <>
       <AnimatePresence>
-        {error && <ErrorBox message={error} />}
+        {showForgot && (
+          <ForgotPasswordModal onClose={() => setShowForgot(false)} />
+        )}
       </AnimatePresence>
 
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={!canSubmit}
-        className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-black text-base transition-all disabled:opacity-30"
-        style={{
-          background: "#1A4D1F",
-          color: "white",
-          boxShadow: canSubmit ? "0 4px 20px rgba(46,125,50,0.45)" : "none",
-        }}
-      >
-        {loading ? (
-          <>
-            <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-            <span>جاري التحقق...</span>
-          </>
-        ) : (
-          <>
-            <LogIn size={18} />
-            <span>تسجيل الدخول · Connexion</span>
-          </>
-        )}
-      </button>
-    </form>
+      <form onSubmit={handleSubmit} className="space-y-5" dir="rtl">
+        {/* Phone */}
+        <div>
+          <FieldLabel>رقم الهاتف · Téléphone</FieldLabel>
+          <PhoneInput
+            value={phone}
+            onChange={v => { setPhone(v); setError(null); }}
+            hasValue={phone.length > 0}
+          />
+        </div>
+
+        {/* Password */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <button
+              type="button"
+              onClick={() => setShowForgot(true)}
+              className="text-[11px] font-bold text-[#FFA500] hover:text-[#e59400] transition-colors underline underline-offset-2"
+            >
+              نسيت كلمة السر؟ · Mot de passe oublié ?
+            </button>
+            <label className="text-[11px] font-black text-[#1A4D1F]/50 uppercase tracking-widest">
+              كلمة السر · Mot de passe
+            </label>
+          </div>
+          <PasswordInput
+            value={password}
+            onChange={v => { setPassword(v); setError(null); }}
+            hasValue={password.length > 0}
+          />
+        </div>
+
+        {/* Error */}
+        <AnimatePresence>
+          {error && <ErrorBox message={error} />}
+        </AnimatePresence>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-black text-base transition-all disabled:opacity-30"
+          style={{
+            background: "#1A4D1F",
+            color: "white",
+            boxShadow: canSubmit ? "0 4px 20px rgba(46,125,50,0.45)" : "none",
+          }}
+        >
+          {loading ? (
+            <>
+              <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              <span>جاري التحقق...</span>
+            </>
+          ) : (
+            <>
+              <LogIn size={18} />
+              <span>تسجيل الدخول · Connexion</span>
+            </>
+          )}
+        </button>
+      </form>
+    </>
   );
 }
 
@@ -297,6 +513,7 @@ function SignUpForm() {
   const [, navigate] = useLocation();
   const [phone, setPhone]         = useState("");
   const [name, setName]           = useState("");
+  const [email, setEmail]         = useState("");
   const [password, setPassword]   = useState("");
   const [confirm, setConfirm]     = useState("");
   const [error, setError]         = useState<string | null>(null);
@@ -321,9 +538,13 @@ function SignUpForm() {
     return new Date() < threshold;
   };
 
+  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+
   const canSubmit =
     phone.trim() !== "" &&
     name.trim()  !== "" &&
+    email.trim() !== "" &&
+    isValidEmail(email) &&
     dateOfBirth  !== "" &&
     !isUnder18(dateOfBirth) &&
     password.trim() !== "" &&
@@ -342,6 +563,10 @@ function SignUpForm() {
     e.preventDefault();
     setError(null);
 
+    if (!email.trim() || !isValidEmail(email)) {
+      setError("البريد الإلكتروني غير صحيح · Adresse e-mail invalide");
+      return;
+    }
     if (!dateOfBirth) {
       setError("تاريخ الميلاد مطلوب · La date de naissance est requise");
       return;
@@ -367,6 +592,7 @@ function SignUpForm() {
         body: JSON.stringify({
           phone: phone.trim(),
           name: name.trim(),
+          email: email.trim(),
           password: password.trim(),
           dateOfBirth: dateOfBirth.trim(),
         }),
@@ -437,6 +663,27 @@ function SignUpForm() {
           placeholder="ما يظهر في طلباتك · Nom affiché"
           hasValue={name.length > 0}
         />
+      </div>
+
+      {/* Email — required for password reset */}
+      <div>
+        <FieldLabel>
+          البريد الإلكتروني · E-mail <span className="text-red-400 font-black">*</span>
+        </FieldLabel>
+        <EmailInput
+          value={email}
+          onChange={v => { setEmail(v); setError(null); }}
+          hasValue={email.length > 0}
+          required
+        />
+        {email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && (
+          <p className="text-red-400 text-[11px] mt-1 font-bold text-right">
+            صيغة البريد غير صحيحة · Format e-mail invalide
+          </p>
+        )}
+        <p className="text-[11px] text-[#1A4D1F]/35 mt-1 text-right">
+          يُستخدم لاسترجاع كلمة المرور · Utilisé pour réinitialiser votre mot de passe
+        </p>
       </div>
 
       {/* Date of Birth */}

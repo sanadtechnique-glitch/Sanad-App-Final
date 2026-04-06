@@ -20,3 +20,4 @@ export * from "./appSettings";
 export * from "./carRental";
 export * from "./sosRequests";
 export * from "./lawyerRequests";
+export * from "./passwordResetTokens";

@@ -1,14 +1,17 @@
 import { Router, type IRouter } from "express";
+import { randomBytes } from "node:crypto";
 import { db } from "@workspace/db";
 import {
   usersTable, serviceProvidersTable, deliveryStaffTable,
   ordersTable, productsTable, ratingsTable, hotelBookingsTable,
-  taxiDriversTable,
+  taxiDriversTable, passwordResetTokensTable,
 } from "@workspace/db/schema";
-import { eq, ne } from "drizzle-orm";
+import { eq, ne, and, gt } from "drizzle-orm";
 import { createSession } from "../lib/sessionStore";
 import { requireAdmin } from "../lib/authMiddleware";
 import { isValidPhone, isValidPassword, isValidRole } from "../lib/validate";
+import { hashPassword, verifyPassword } from "../lib/crypto";
+import { sendPasswordResetEmail } from "../lib/mailer";
 
 const router: IRouter = Router();
 
@@ -39,7 +42,9 @@ router.post("/auth/login", async (req, res) => {
       res.status(403).json({ message: "الحساب موقوف · Compte suspendu" });
       return;
     }
-    if (user.password !== password.trim()) {
+
+    const passwordOk = await verifyPassword(password.trim(), user.password);
+    if (!passwordOk) {
       res.status(401).json({ message: "كلمة المرور غير صحيحة · Mot de passe incorrect" });
       return;
     }
@@ -119,7 +124,9 @@ router.post("/auth/admin-login", async (req, res) => {
     }
 
     if (!user.isActive) { res.status(403).json({ message: "Account is deactivated" }); return; }
-    if (user.password !== password.trim()) { res.status(401).json({ message: "Wrong password" }); return; }
+
+    const adminPwOk = await verifyPassword(password.trim(), user.password);
+    if (!adminPwOk) { res.status(401).json({ message: "Wrong password" }); return; }
 
     const token = await createSession(user.id, user.role, user.username ?? user.name);
     const { password: _pw, ...safeUser } = user;
@@ -192,6 +199,16 @@ router.post("/auth/client-register", async (req, res) => {
     return;
   }
 
+  if (!email?.trim()) {
+    res.status(400).json({ message: "البريد الإلكتروني مطلوب · L'adresse e-mail est requise" });
+    return;
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    res.status(400).json({ message: "البريد الإلكتروني غير صحيح · Adresse e-mail invalide" });
+    return;
+  }
+
   if (!isValidPassword(password)) {
     res.status(400).json({ message: "كلمة المرور يجب أن تكون 6 أحرف على الأقل · Le mot de passe doit contenir au moins 6 caractères" });
     return;
@@ -199,11 +216,6 @@ router.post("/auth/client-register", async (req, res) => {
 
   if (!isValidPhone(phone)) {
     res.status(400).json({ message: "رقم الهاتف غير صالح · Numéro de téléphone invalide" });
-    return;
-  }
-
-  if (email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-    res.status(400).json({ message: "البريد الإلكتروني غير صحيح · Adresse e-mail invalide" });
     return;
   }
 
@@ -238,14 +250,15 @@ router.post("/auth/client-register", async (req, res) => {
 
     // Auto-generate a unique username from phone number
     const baseUsername = `user_${phone.trim().replace(/\D/g, "")}`;
+    const hashedPw = await hashPassword(password.trim());
 
     const [user] = await db
       .insert(usersTable)
       .values({
         username: baseUsername,
         name: displayName,
-        email: email?.trim() || null,
-        password: password.trim(),
+        email: email!.trim(),
+        password: hashedPw,
         phone: phone.trim(),
         role: "customer",
         isActive: true,
@@ -302,7 +315,9 @@ router.post("/auth/client-login", async (req, res) => {
       res.status(403).json({ message: "الحساب موقوف · Compte suspendu" });
       return;
     }
-    if (user.password !== password.trim()) {
+
+    const clientPwOk = await verifyPassword(password.trim(), user.password);
+    if (!clientPwOk) {
       res.status(401).json({ message: "كلمة المرور غير صحيحة · Mot de passe incorrect" });
       return;
     }
@@ -418,6 +433,7 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
   }
 
   try {
+    const hashedAdminPw = await hashPassword(password.trim());
     const [user] = await db
       .insert(usersTable)
       .values({
@@ -426,7 +442,7 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
         email: email?.trim() || null,
         phone: phone?.trim() || null,
         role: role || "customer",
-        password: password.trim(),
+        password: hashedAdminPw,
         isActive: isActive !== undefined ? isActive : true,
         linkedSupplierId: linkedSupplierId ?? null,
         linkedStaffId: linkedStaffId ?? null,
@@ -490,7 +506,7 @@ router.patch("/admin/users/:id", requireAdmin, async (req, res) => {
     if (email !== undefined) updates.email = email?.trim() || null;
     if (phone !== undefined) updates.phone = phone?.trim() || null;
     if (role !== undefined) updates.role = role;
-    if (password !== undefined && password.trim() !== "") updates.password = password.trim();
+    if (password !== undefined && password.trim() !== "") updates.password = await hashPassword(password.trim());
     if (isActive !== undefined) updates.isActive = isActive;
     if ("linkedSupplierId" in req.body) updates.linkedSupplierId = linkedSupplierId ?? null;
     if ("linkedStaffId" in req.body) updates.linkedStaffId = linkedStaffId ?? null;
@@ -523,6 +539,154 @@ router.delete("/admin/users/:id", requireAdmin, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Error deleting user");
     res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/forgot-password — generate reset token & send email (public)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/auth/forgot-password", async (req, res) => {
+  const { email } = req.body as { email?: string };
+
+  if (!email?.trim()) {
+    res.status(400).json({ message: "البريد الإلكتروني مطلوب · L'adresse e-mail est requise" });
+    return;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  try {
+    const [user] = await db
+      .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name })
+      .from(usersTable)
+      .where(eq(usersTable.email, normalizedEmail));
+
+    // Always respond with success to avoid email enumeration
+    if (!user || !user.email) {
+      res.json({ message: "إذا كان البريد الإلكتروني مسجلاً، ستصلك رسالة خلال دقائق · Si l'e-mail est enregistré, vous recevrez un message sous peu." });
+      return;
+    }
+
+    // Delete any existing tokens for this user
+    await db
+      .delete(passwordResetTokensTable)
+      .where(eq(passwordResetTokensTable.userId, user.id));
+
+    // Generate secure token (32 bytes hex = 64 chars)
+    const rawToken = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db.insert(passwordResetTokensTable).values({
+      userId: user.id,
+      token: rawToken,
+      expiresAt,
+    });
+
+    const BASE_URL = process.env.FRONTEND_URL ?? `https://${process.env.REPLIT_DOMAINS ?? "sanad.app"}`;
+    const resetUrl = `${BASE_URL}/reset-password?token=${rawToken}`;
+
+    const { sent, devUrl } = await sendPasswordResetEmail(user.email, resetUrl);
+
+    req.log.info({ userId: user.id, sent }, "Password reset requested");
+
+    res.json({
+      message: "إذا كان البريد الإلكتروني مسجلاً، ستصلك رسالة خلال دقائق · Si l'e-mail est enregistré, vous recevrez un message sous peu.",
+      ...(devUrl ? { devResetUrl: devUrl } : {}),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Error in forgot-password");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/reset-password — validate token & set new password (public)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/auth/reset-password", async (req, res) => {
+  const { token, password } = req.body as { token?: string; password?: string };
+
+  if (!token?.trim()) {
+    res.status(400).json({ message: "الرمز مطلوب · Le jeton est requis" });
+    return;
+  }
+
+  if (!password?.trim()) {
+    res.status(400).json({ message: "كلمة المرور الجديدة مطلوبة · Le nouveau mot de passe est requis" });
+    return;
+  }
+
+  if (!isValidPassword(password)) {
+    res.status(400).json({ message: "كلمة المرور قصيرة جداً (6 أحرف على الأقل) · Mot de passe trop court (min. 6 caractères)" });
+    return;
+  }
+
+  try {
+    const now = new Date();
+
+    const [record] = await db
+      .select()
+      .from(passwordResetTokensTable)
+      .where(
+        and(
+          eq(passwordResetTokensTable.token, token.trim()),
+          gt(passwordResetTokensTable.expiresAt, now),
+        ),
+      );
+
+    if (!record) {
+      res.status(400).json({
+        message: "الرابط غير صالح أو منتهي الصلاحية · Lien invalide ou expiré",
+        expired: true,
+      });
+      return;
+    }
+
+    const hashedNewPw = await hashPassword(password.trim());
+
+    await db
+      .update(usersTable)
+      .set({ password: hashedNewPw })
+      .where(eq(usersTable.id, record.userId));
+
+    // Delete the used token
+    await db
+      .delete(passwordResetTokensTable)
+      .where(eq(passwordResetTokensTable.id, record.id));
+
+    res.json({ message: "تم تغيير كلمة المرور بنجاح · Mot de passe réinitialisé avec succès" });
+  } catch (err) {
+    req.log.error({ err }, "Error in reset-password");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /auth/validate-reset-token — check if token is valid (public)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/auth/validate-reset-token", async (req, res) => {
+  const token = (req.query.token as string | undefined)?.trim();
+
+  if (!token) {
+    res.status(400).json({ valid: false, message: "الرمز مطلوب · Jeton requis" });
+    return;
+  }
+
+  try {
+    const now = new Date();
+    const [record] = await db
+      .select({ id: passwordResetTokensTable.id, expiresAt: passwordResetTokensTable.expiresAt })
+      .from(passwordResetTokensTable)
+      .where(
+        and(
+          eq(passwordResetTokensTable.token, token),
+          gt(passwordResetTokensTable.expiresAt, now),
+        ),
+      );
+
+    res.json({ valid: !!record });
+  } catch (err) {
+    req.log.error({ err }, "Error validating reset token");
+    res.status(500).json({ valid: false });
   }
 });
 

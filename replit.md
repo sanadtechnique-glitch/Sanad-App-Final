@@ -303,3 +303,33 @@ Full lawyer consultation request flow: customer browses lawyers → selects one 
 
 ### Adding Lawyers
 Lawyers are added as suppliers (service_providers) with category="lawyer" via the admin panel (تزويد المنتوجات → المزودون). They login with role="provider" and their supplierId must be set.
+
+## Email Authentication & Password Reset System
+
+### Password Security
+- Passwords are now hashed with bcrypt (12 salt rounds) using `bcryptjs`
+- Hashing utility in `artifacts/api-server/src/lib/crypto.ts` — `hashPassword()` / `verifyPassword()`
+- `verifyPassword()` auto-detects legacy plain-text passwords (prefix `$2b$`/`$2a$` = bcrypt) and logs in fine
+- **All new passwords** (signup, admin-create, admin-update, password reset) are stored as bcrypt hashes
+- **Existing plain-text passwords** still work on login (backward compatible)
+
+### Forgot Password / Reset Flow
+DB table: `password_reset_tokens` (userId, token, expiresAt — 1 hour TTL)
+
+API endpoints:
+- `POST /api/auth/forgot-password` — public. Accepts `{ email }`. Creates secure 64-char hex token, stores in DB, sends email. Always returns 200 (anti-enumeration).
+- `GET /api/auth/validate-reset-token?token=XYZ` — public. Returns `{ valid: bool }`.
+- `POST /api/auth/reset-password` — public. Accepts `{ token, password }`. Validates token expiry, hashes new password, deletes token.
+
+Email service: `artifacts/api-server/src/lib/mailer.ts` using `nodemailer`.
+- If `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` env vars are set → real email sent
+- Otherwise (development) → reset URL logged to console AND returned in `devResetUrl` field of the API response
+
+### Frontend Changes
+- **Login page**: "نسيت كلمة السر؟ · Mot de passe oublié ?" link → opens `ForgotPasswordModal`
+- **Signup form**: Email field now mandatory (required) with format validation
+- **Route `/reset-password`**: Token validation → password form → success → redirect to `/auth`
+
+### SMTP Configuration (to enable real emails)
+Set environment variables: `SMTP_HOST`, `SMTP_PORT` (default 587), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+Optional: `FRONTEND_URL` for the reset link base URL (defaults to REPLIT_DOMAINS)

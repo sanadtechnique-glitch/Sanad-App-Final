@@ -22,7 +22,8 @@ import TaxiPage     from "./pages/taxi";
 import TaxiDriver   from "./pages/taxi-driver";
 import CarRental    from "./pages/car-rental";
 import SosPage      from "./pages/sos";
-import LawyerPage   from "./pages/lawyer";
+import LawyerPage     from "./pages/lawyer";
+import ResetPassword  from "./pages/reset-password";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -184,6 +185,9 @@ function Router() {
       <Route path="/car-rental" component={CarRental} />
       <Route path="/sos" component={SosPage} />
       <Route path="/lawyer" component={LawyerPage} />
+
+      {/* ── Password reset (public) ── */}
+      <Route path="/reset-password" component={ResetPassword} />
 
       <Route component={NotFound} />
     </Switch>
