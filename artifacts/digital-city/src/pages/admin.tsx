@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { compressImage } from "@/lib/compress-image";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
@@ -688,7 +689,7 @@ function AdminArticlesManager({ supplierId, mode, t, lang }: {
       <AnimatePresence>
         {showF && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4"
+            className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-4"
             style={{ background: "rgba(0,0,0,0.5)" }} onClick={() => setShowF(false)}>
             <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
               className="w-full max-w-md rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto space-y-3"
@@ -856,7 +857,7 @@ function AdminCarsManager({ agencyId, t, lang }: { agencyId: number; t: (ar: str
       <AnimatePresence>
         {showF && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4"
+            className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-4"
             style={{ background: "rgba(0,0,0,0.5)" }} onClick={() => setShowF(false)}>
             <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
               className="w-full max-w-md rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto space-y-3"
@@ -984,10 +985,10 @@ function AdminProviderDrawer({ supplier, t, lang, onClose }: { supplier: Supplie
   const accentColor = isCarRental ? "#1565C0" : isSos ? "#EF4444" : "#1A4D1F";
   const catLabel = lang === "ar" ? CATEGORY_LABELS[CAT]?.ar : CATEGORY_LABELS[CAT]?.fr;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-end" style={{ background: "rgba(0,0,0,0.55)" }}
+        className="fixed inset-0 z-[200] flex items-end" style={{ background: "rgba(0,0,0,0.55)" }}
         onClick={onClose}>
         <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
@@ -1073,7 +1074,8 @@ function AdminProviderDrawer({ supplier, t, lang, onClose }: { supplier: Supplie
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 
