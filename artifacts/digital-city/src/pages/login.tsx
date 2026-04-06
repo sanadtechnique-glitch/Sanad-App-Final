@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertCircle, Eye, EyeOff, ChevronDown, LogIn,
   UserPlus, Phone, Lock, User, CheckCircle, MapPin, Search,
-  Mail, KeyRound, X, Send,
+  Mail, KeyRound, X, Send, ScrollText, ShieldCheck,
 } from "lucide-react";
 import { setSession, clearSession, type Role } from "@/lib/auth";
 import { requestNotificationPermission } from "@/lib/push-notifications";
@@ -507,8 +507,194 @@ function LoginForm() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sign Up Form — phone as unique ID, name, delegation, password
+// Terms & Conditions Modal
 // ─────────────────────────────────────────────────────────────────────────────
+function TermsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(26,77,31,0.55)", backdropFilter: "blur(6px)" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 20 }}
+        className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        style={{ maxHeight: "90vh", border: "2px solid rgba(255,165,0,0.3)" }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0"
+          style={{ background: "#1A4D1F" }}>
+          <button onClick={onClose}
+            className="p-1.5 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all">
+            <X size={18} />
+          </button>
+          <div className="flex items-center gap-2.5 text-right">
+            <div>
+              <p className="font-black text-white text-sm">الشروط والأحكام</p>
+              <p className="text-white/50 text-[11px]">Conditions Générales d'Utilisation</p>
+            </div>
+            <ScrollText size={20} className="text-[#FFA500] flex-shrink-0" />
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6 text-right" dir="rtl">
+
+          {/* Intro */}
+          <div className="p-4 rounded-xl" style={{ background: "#FFF3E0", border: "1px solid rgba(255,165,0,0.3)" }}>
+            <p className="text-xs text-[#1A4D1F]/70 leading-relaxed">
+              باستخدامك لتطبيق <strong className="text-[#1A4D1F]">سند · Sanad</strong>، فإنك توافق على الشروط والأحكام التالية.
+              يُرجى قراءتها بعناية قبل إنشاء حسابك.
+            </p>
+            <p className="text-xs text-[#1A4D1F]/50 leading-relaxed mt-1 text-left" dir="ltr">
+              By using <strong>Sanad</strong>, you agree to the following terms. Please read carefully before creating your account.
+            </p>
+          </div>
+
+          {/* Article 1 */}
+          <section>
+            <h3 className="font-black text-[#1A4D1F] text-sm mb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-[#FFA500] text-white text-xs font-black flex items-center justify-center flex-shrink-0">١</span>
+              تعريف الخدمة · Définition du service
+            </h3>
+            <p className="text-xs text-[#1A4D1F]/70 leading-relaxed">
+              سند هو تطبيق توصيل وخدمات محلي يعمل في منطقة بن قردان وضواحيها بالجمهورية التونسية.
+              يتيح التطبيق للمستخدمين طلب خدمات التوصيل، سيارات الأجرة، تأجير السيارات، والتواصل مع محامين معتمدين.
+            </p>
+            <p className="text-xs text-[#1A4D1F]/40 leading-relaxed mt-1 text-left" dir="ltr">
+              Sanad is a local delivery and services application operating in the Ben Guerdane region of Tunisia, offering delivery, taxi, car rental, and legal consultation services.
+            </p>
+          </section>
+
+          {/* Article 2 */}
+          <section>
+            <h3 className="font-black text-[#1A4D1F] text-sm mb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-[#FFA500] text-white text-xs font-black flex items-center justify-center flex-shrink-0">٢</span>
+              شروط التسجيل · Conditions d'inscription
+            </h3>
+            <ul className="space-y-1.5">
+              {[
+                ["يجب أن يكون عمر المستخدم 18 سنة أو أكثر.", "L'utilisateur doit être âgé d'au moins 18 ans."],
+                ["يجب تقديم معلومات صحيحة ودقيقة عند التسجيل.", "Les informations fournies lors de l'inscription doivent être exactes et complètes."],
+                ["يُحظر إنشاء أكثر من حساب واحد بنفس الهوية.", "Il est interdit de créer plusieurs comptes avec la même identité."],
+                ["المستخدم مسؤول عن الحفاظ على سرية كلمة المرور.", "L'utilisateur est responsable de la confidentialité de son mot de passe."],
+              ].map(([ar, fr], i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#FFA500] mt-1.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-[#1A4D1F]/70">{ar}</p>
+                    <p className="text-[11px] text-[#1A4D1F]/35 text-left" dir="ltr">{fr}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* Article 3 */}
+          <section>
+            <h3 className="font-black text-[#1A4D1F] text-sm mb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-[#FFA500] text-white text-xs font-black flex items-center justify-center flex-shrink-0">٣</span>
+              التزامات المستخدم · Obligations de l'utilisateur
+            </h3>
+            <ul className="space-y-1.5">
+              {[
+                ["تقديم عنوان التوصيل بدقة لتجنب أي تأخير.", "Fournir une adresse de livraison précise pour éviter tout retard."],
+                ["الالتزام بالدفع عند استلام الطلب.", "S'engager à payer lors de la réception de la commande."],
+                ["التعامل بأدب واحترام مع موظفي التوصيل والمزودين.", "Traiter les livreurs et prestataires avec respect et courtoisie."],
+                ["عدم استخدام المنصة لأغراض غير مشروعة.", "Ne pas utiliser la plateforme à des fins illicites."],
+              ].map(([ar, fr], i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#1A4D1F] mt-1.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-[#1A4D1F]/70">{ar}</p>
+                    <p className="text-[11px] text-[#1A4D1F]/35 text-left" dir="ltr">{fr}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* Article 4 */}
+          <section>
+            <h3 className="font-black text-[#1A4D1F] text-sm mb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-[#FFA500] text-white text-xs font-black flex items-center justify-center flex-shrink-0">٤</span>
+              الخصوصية وحماية البيانات · Confidentialité et données
+            </h3>
+            <p className="text-xs text-[#1A4D1F]/70 leading-relaxed">
+              نجمع المعلومات الشخصية الضرورية فقط (الاسم، رقم الهاتف، البريد الإلكتروني، موقع التوصيل)
+              لتقديم الخدمة. لا يتم بيع أو مشاركة بياناتك مع أطراف ثالثة دون موافقتك.
+              يحق لك طلب حذف بياناتك في أي وقت بالتواصل مع الإدارة.
+            </p>
+            <p className="text-xs text-[#1A4D1F]/40 leading-relaxed mt-1 text-left" dir="ltr">
+              We collect only necessary personal information (name, phone, email, delivery address) to provide the service.
+              Your data is never sold or shared with third parties without your consent. You may request deletion of your data at any time.
+            </p>
+          </section>
+
+          {/* Article 5 */}
+          <section>
+            <h3 className="font-black text-[#1A4D1F] text-sm mb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-[#FFA500] text-white text-xs font-black flex items-center justify-center flex-shrink-0">٥</span>
+              تحديد المسؤولية · Limitation de responsabilité
+            </h3>
+            <p className="text-xs text-[#1A4D1F]/70 leading-relaxed">
+              تبذل منصة سند قصارى جهدها لضمان جودة الخدمة، غير أنها لا تتحمل المسؤولية عن التأخيرات
+              الناتجة عن ظروف قاهرة (أحوال الطقس، إضرابات، كوارث طبيعية).
+              جميع النزاعات تخضع لأحكام القانون التونسي واختصاص المحاكم التونسية.
+            </p>
+            <p className="text-xs text-[#1A4D1F]/40 leading-relaxed mt-1 text-left" dir="ltr">
+              Sanad makes every effort to ensure service quality but cannot be held liable for delays due to force majeure.
+              All disputes are subject to Tunisian law and the jurisdiction of Tunisian courts.
+            </p>
+          </section>
+
+          {/* Article 6 */}
+          <section>
+            <h3 className="font-black text-[#1A4D1F] text-sm mb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-[#FFA500] text-white text-xs font-black flex items-center justify-center flex-shrink-0">٦</span>
+              تعليق الحسابات · Suspension des comptes
+            </h3>
+            <p className="text-xs text-[#1A4D1F]/70 leading-relaxed">
+              تحتفظ الإدارة بالحق في تعليق أو إلغاء أي حساب يخالف هذه الشروط، أو يُبدي سلوكاً
+              مسيئاً تجاه موظفي المنصة أو المزودين، وذلك دون إشعار مسبق في الحالات الجسيمة.
+            </p>
+            <p className="text-xs text-[#1A4D1F]/40 leading-relaxed mt-1 text-left" dir="ltr">
+              Management reserves the right to suspend or terminate any account that violates these terms or exhibits abusive behavior, without prior notice in serious cases.
+            </p>
+          </section>
+
+          {/* Footer note */}
+          <div className="p-3 rounded-xl text-center" style={{ background: "rgba(255,165,0,0.08)", border: "1px solid rgba(255,165,0,0.2)" }}>
+            <p className="text-[11px] text-[#1A4D1F]/50">
+              آخر تحديث: أبريل 2026 · Dernière mise à jour : Avril 2026
+            </p>
+            <p className="text-[11px] text-[#1A4D1F]/40 mt-0.5">
+              سند · Sanad — بن قردان، تونس
+            </p>
+          </div>
+        </div>
+
+        {/* Footer button */}
+        <div className="px-6 py-4 flex-shrink-0" style={{ borderTop: "1px solid rgba(255,165,0,0.2)" }}>
+          <button
+            onClick={onClose}
+            className="w-full py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all"
+            style={{ background: "#1A4D1F", color: "white", boxShadow: "0 4px 20px rgba(26,77,31,0.3)" }}
+          >
+            <ShieldCheck size={16} />
+            فهمت وأوافق · J'ai compris et j'accepte
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function SignUpForm() {
   const [, navigate] = useLocation();
   const [phone, setPhone]         = useState("");
@@ -524,6 +710,8 @@ function SignUpForm() {
   const [delegationOpen, setDelegationOpen]     = useState(false);
   const [delegationSearch, setDelegationSearch] = useState("");
   const [dateOfBirth, setDateOfBirth]           = useState("");
+  const [termsAccepted, setTermsAccepted]       = useState(false);
+  const [termsOpen, setTermsOpen]               = useState(false);
 
   // Max date: must be 18+ years old (today minus 18 years)
   const today = new Date();
@@ -550,6 +738,7 @@ function SignUpForm() {
     password.trim() !== "" &&
     confirm.trim()  !== "" &&
     delegationName  !== "" &&
+    termsAccepted &&
     !loading;
 
   const filteredDelegations = delegationSearch.trim()
@@ -835,6 +1024,66 @@ function SignUpForm() {
           )}
         </div>
       </div>
+
+      {/* Terms & Conditions checkbox */}
+      <div
+        className="rounded-xl p-4"
+        style={{ background: "rgba(255,165,0,0.06)", border: "1.5px solid rgba(255,165,0,0.25)" }}
+      >
+        <div className="flex items-start gap-3">
+          <button
+            type="button"
+            onClick={() => setTermsAccepted(v => !v)}
+            className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
+            style={{
+              background: termsAccepted ? "#1A4D1F" : "white",
+              borderColor: termsAccepted ? "#1A4D1F" : "rgba(255,165,0,0.5)",
+            }}
+          >
+            {termsAccepted && <CheckCircle size={12} className="text-white" />}
+          </button>
+          <div className="flex-1 text-right">
+            <p className="text-xs text-[#1A4D1F]/80 leading-relaxed">
+              أوافق على{" "}
+              <button
+                type="button"
+                onClick={() => setTermsOpen(true)}
+                className="font-black underline decoration-[#FFA500] text-[#1A4D1F] hover:text-[#FFA500] transition-colors"
+              >
+                الشروط والأحكام
+              </button>
+              {" "}وسياسة الخصوصية الخاصة بمنصة سند.
+            </p>
+            <p className="text-[11px] text-[#1A4D1F]/40 mt-0.5">
+              J'accepte les{" "}
+              <button
+                type="button"
+                onClick={() => setTermsOpen(true)}
+                className="font-black underline decoration-[#FFA500] text-[#1A4D1F]/60 hover:text-[#FFA500] transition-colors"
+              >
+                conditions d'utilisation
+              </button>
+              {" "}de Sanad.
+            </p>
+          </div>
+        </div>
+        {!termsAccepted && (
+          <button
+            type="button"
+            onClick={() => setTermsOpen(true)}
+            className="w-full mt-3 py-2 rounded-lg text-xs font-black flex items-center justify-center gap-2 transition-all"
+            style={{ background: "rgba(26,77,31,0.08)", color: "#1A4D1F" }}
+          >
+            <ScrollText size={13} />
+            قراءة الشروط والأحكام · Lire les conditions
+          </button>
+        )}
+      </div>
+
+      {/* Terms Modal */}
+      <AnimatePresence>
+        {termsOpen && <TermsModal onClose={() => { setTermsOpen(false); setTermsAccepted(true); }} />}
+      </AnimatePresence>
 
       {/* Error */}
       <AnimatePresence>
