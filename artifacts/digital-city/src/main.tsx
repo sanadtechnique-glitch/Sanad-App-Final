@@ -1,10 +1,16 @@
 import { createRoot } from "react-dom/client";
 import { Component, type ReactNode } from "react";
 import { setBaseUrl } from "@workspace/api-client-react";
+import { registerServiceWorker } from "@/lib/push-notifications";
 import App from "./App";
 import "./index.css";
 
 setBaseUrl("/api");
+
+/* Register Service Worker for background push notifications */
+if ("serviceWorker" in navigator) {
+  registerServiceWorker();
+}
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null };

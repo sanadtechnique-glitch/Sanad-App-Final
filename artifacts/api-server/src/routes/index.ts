@@ -22,6 +22,7 @@ import appSettingsRouter from "./appSettings";
 import carRentalRouter from "./carRental";
 import sosRouter from "./sos";
 import lawyerRequestsRouter from "./lawyerRequests";
+import pushRouter from "./push";
 
 const router: IRouter = Router();
 
@@ -48,5 +49,6 @@ router.use(appSettingsRouter);
 router.use(carRentalRouter);
 router.use(sosRouter);
 router.use(lawyerRequestsRouter);
+router.use(pushRouter);
 
 export default router;

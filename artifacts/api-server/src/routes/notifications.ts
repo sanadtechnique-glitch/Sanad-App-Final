@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { broadcastsTable } from "@workspace/db/schema";
+import { broadcastsTable, usersTable } from "@workspace/db/schema";
 import { desc, gte, eq } from "drizzle-orm";
 import { requireAdmin } from "../lib/authMiddleware";
+import { sendPushToUsers } from "./push";
 
 const router: IRouter = Router();
 
@@ -53,6 +54,28 @@ router.post("/admin/broadcast", requireAdmin, async (req, res) => {
       targetRole: targetRole || "all",
       createdBy: createdBy || session?.username || "admin",
     }).returning();
+
+    /* ── Also send Web Push to subscribed users ── */
+    try {
+      let users: { id: number }[];
+      const role = targetRole || "all";
+      if (role === "all") {
+        users = await db.select({ id: usersTable.id }).from(usersTable);
+      } else {
+        users = await db.select({ id: usersTable.id }).from(usersTable)
+          .where(eq(usersTable.role, role));
+      }
+      await sendPushToUsers(
+        users.map((u) => u.id),
+        {
+          title: "سند · Sanad",
+          body: messageAr || message,
+          url: "/",
+          tag: "broadcast",
+        }
+      );
+    } catch { /* push failure should not block response */ }
+
     res.status(201).json(row);
   } catch (err) {
     res.status(500).json({ message: "Internal server error" });

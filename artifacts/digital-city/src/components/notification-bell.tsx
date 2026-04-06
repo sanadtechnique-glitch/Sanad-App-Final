@@ -8,7 +8,7 @@ import {
   type Notification,
 } from "@/lib/notifications";
 import { playSanadSound, playBroadcastSound, unlockAudio } from "@/lib/notification-sound";
-import { showBrowserNotification, requestNotificationPermission, getPermissionStatus } from "@/lib/push-notifications";
+import { showBrowserNotification, requestNotificationPermission, getPermissionStatus, subscribeWebPush } from "@/lib/push-notifications";
 
 // ── Broadcast from server ─────────────────────────────────────────────────────
 interface BroadcastRow {
@@ -158,9 +158,14 @@ export function NotificationBell({ lang, role, providerId, theme = "light" }: Pr
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ── Check browser permission ───────────────────────────────────────────────
+  // ── Check browser permission + auto-subscribe Web Push ───────────────────
   useEffect(() => {
-    setPermDenied(getPermissionStatus() === "denied");
+    const status = getPermissionStatus();
+    setPermDenied(status === "denied");
+    /* If already granted → ensure Web Push subscription exists */
+    if (status === "granted") {
+      subscribeWebPush().catch(() => {});
+    }
   }, []);
 
   const unread = notifs.filter(n => !n.read).length;

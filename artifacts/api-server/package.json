@@ -26,7 +26,8 @@
     "pino": "^9",
     "pino-http": "^10",
     "socket.io": "^4.8.3",
-    "twilio": "^5.13.1"
+    "twilio": "^5.13.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
@@ -36,6 +37,7 @@
     "@types/node": "catalog:",
     "@types/nodemailer": "^8.0.0",
     "@types/supertest": "^7.2.0",
+    "@types/web-push": "^3.6.4",
     "@vitest/coverage-v8": "^4.1.2",
     "esbuild": "^0.27.3",
     "esbuild-plugin-pino": "^2.3.3",

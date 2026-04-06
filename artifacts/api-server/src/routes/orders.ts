@@ -6,6 +6,17 @@ import { emitNewOrder, emitOrderTaken, emitOrderStatus } from "../lib/socket";
 import { requireStaff, requireAdmin } from "../lib/authMiddleware";
 import { safeParseFloat, safeParseInt } from "../lib/validate";
 import { calculateDistance, haversineKm } from "../lib/distance";
+import { sendPushToUsers } from "./push";
+
+/* Arabic / French status labels for push notifications */
+const STATUS_LABEL: Record<string, { ar: string; fr: string }> = {
+  accepted:           { ar: "✅ تم قبول طلبك",        fr: "✅ Commande acceptée" },
+  prepared:           { ar: "📦 طلبك جاهز للتوصيل",   fr: "📦 Commande prête" },
+  driver_accepted:    { ar: "🛵 السائق في طريقه إليك", fr: "🛵 Livreur en route" },
+  in_delivery:        { ar: "🚀 طلبك في الطريق",       fr: "🚀 En livraison" },
+  delivered:          { ar: "🎉 تم تسليم طلبك",        fr: "🎉 Commande livrée" },
+  cancelled:          { ar: "❌ تم إلغاء طلبك",        fr: "❌ Commande annulée" },
+};
 
 const router: IRouter = Router();
 
@@ -205,6 +216,18 @@ router.patch("/orders/:id", requireStaff, async (req, res) => {
       emitOrderStatus(id, status, { order });
       // If provider marks prepared → re-broadcast to drivers
       if (status === "prepared") emitNewOrder({ ...order });
+
+      /* ── Send Web Push to customer if subscribed ── */
+      const label = STATUS_LABEL[status];
+      const cid   = order.customerId;
+      if (label && cid) {
+        sendPushToUsers([cid], {
+          title: `سند · Sanad — #${id}`,
+          body: label.ar,
+          url: "/orders",
+          tag: `order-${id}`,
+        }).catch(() => {});
+      }
     }
 
     res.json(order);
