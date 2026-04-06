@@ -160,4 +160,19 @@ router.patch("/provider/:id/toggle", requireStaff, async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
+// Provider updates their OWN supplier photoUrl (vehicle photo for SOS, logo etc.)
+router.patch("/provider/:id/photo", requireStaff, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
+  const { photoUrl } = req.body as { photoUrl?: string };
+  try {
+    const [row] = await db.update(serviceProvidersTable)
+      .set({ photoUrl: photoUrl || null })
+      .where(eq(serviceProvidersTable.id, id)).returning();
+    if (!row) { res.status(404).json({ message: "Not found" }); return; }
+    cacheDeletePrefix("suppliers:");
+    res.json(row);
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+});
+
 export default router;

@@ -6,6 +6,7 @@ import {
   Power, Clock, Truck, Star, RefreshCw, MessageCircle, ChevronRight,
   Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon, History,
   Plus, Trash2, Pencil, ToggleLeft, ToggleRight, AlertTriangle, KeyRound, Calendar, Phone, Scale, FileText, Hotel,
+  Camera, Link,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -14,7 +15,7 @@ import { get, patch, post, del } from "@/lib/admin-api";
 import { pushNotification, readNotifKey, markNotifKeyRead, providerKey, type Notification } from "@/lib/notifications";
 import { playSanadSound, unlockAudio } from "@/lib/notification-sound";
 
-interface Supplier { id: number; name: string; nameAr: string; category: string; isAvailable: boolean; shift?: string; rating?: number; phone?: string; }
+interface Supplier { id: number; name: string; nameAr: string; category: string; isAvailable: boolean; shift?: string; rating?: number; phone?: string; photoUrl?: string | null; }
 interface Order { id: number; customerName: string; customerPhone?: string; customerAddress: string; notes?: string; status: string; createdAt: string; deliveryFee?: number; photoUrl?: string; }
 
 const STATUS: Record<string, { ar: string; fr: string; color: string }> = {
@@ -49,6 +50,156 @@ interface Article {
   descriptionAr: string; descriptionFr: string;
   price: number; originalPrice?: number | null;
   photoUrl?: string | null; isAvailable: boolean; createdAt: string;
+}
+
+// ── Reusable Image Picker Field ───────────────────────────────────────────────
+// aspect: "16:9" | "4:3" | "1:1"
+function ImagePickerField({
+  value, onChange, label, guideAr, guideFr, aspect = "16:9", accentColor = "#1A4D1F", t,
+}: {
+  value: string; onChange: (v: string) => void; label: string;
+  guideAr: string; guideFr: string; aspect?: "16:9" | "4:3" | "1:1";
+  accentColor?: string; t: (ar: string, fr: string) => string;
+}) {
+  const [editUrl, setEditUrl] = useState(false);
+  const [urlDraft, setUrlDraft] = useState(value);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => { setUrlDraft(value); setImgError(false); }, [value]);
+
+  const confirm = () => { onChange(urlDraft.trim()); setEditUrl(false); setImgError(false); };
+  const clear   = (e: React.MouseEvent) => { e.stopPropagation(); onChange(""); setUrlDraft(""); setEditUrl(false); setImgError(false); };
+
+  const aspectClass = aspect === "4:3" ? "aspect-[4/3]" : aspect === "1:1" ? "aspect-square" : "aspect-video";
+
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-black opacity-60" style={{ color: accentColor }}>{label}</label>
+
+      {/* Visual preview zone */}
+      <div
+        className={`relative w-full rounded-2xl overflow-hidden border-2 border-dashed cursor-pointer transition-all ${aspectClass}`}
+        style={{ borderColor: value && !imgError ? accentColor + "55" : accentColor + "22", background: accentColor + "08" }}
+        onClick={() => setEditUrl(v => !v)}
+      >
+        {value && !imgError ? (
+          <>
+            <img src={value} alt="" className="w-full h-full object-cover" onError={() => setImgError(true)} />
+            {/* overlay controls */}
+            <div className="absolute top-2 end-2 flex gap-1.5">
+              <button onClick={() => setEditUrl(v => !v)}
+                className="p-1.5 rounded-lg backdrop-blur-sm"
+                style={{ background: "rgba(0,0,0,0.55)" }}>
+                <Link size={11} className="text-white" />
+              </button>
+              <button onClick={clear}
+                className="p-1.5 rounded-lg backdrop-blur-sm"
+                style={{ background: "rgba(239,68,68,0.7)" }}>
+                <X size={11} className="text-white" />
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 opacity-40">
+            <Camera size={36} style={{ color: accentColor }} />
+            <div className="text-center px-4">
+              <p className="text-xs font-black" style={{ color: accentColor }}>{t(guideAr, guideFr)}</p>
+            </div>
+          </div>
+        )}
+        {imgError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-40">
+            <ImageIcon size={28} style={{ color: accentColor }} />
+            <p className="text-xs font-black" style={{ color: accentColor }}>{t("رابط خاطئ", "URL invalide")}</p>
+          </div>
+        )}
+      </div>
+
+      {/* URL input panel — shown on demand or when empty */}
+      {(editUrl || !value || imgError) && (
+        <div className="flex gap-2">
+          <div className="flex-1 flex items-center gap-2 rounded-xl border-2 px-3"
+            style={{ borderColor: accentColor + "33", background: "#fff" }}>
+            <Link size={12} style={{ color: accentColor }} className="opacity-40 flex-shrink-0" />
+            <input
+              value={urlDraft}
+              onChange={e => setUrlDraft(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && confirm()}
+              placeholder="https://..."
+              dir="ltr"
+              className="flex-1 py-2.5 text-sm font-bold outline-none bg-transparent"
+              style={{ color: accentColor }}
+            />
+          </div>
+          <button onClick={confirm}
+            className="px-4 rounded-xl text-xs font-black text-white"
+            style={{ background: accentColor }}>
+            {t("تأكيد", "OK")}
+          </button>
+        </div>
+      )}
+
+      {/* Image guidance hint */}
+      <p className="text-[10px] font-bold opacity-35 flex items-center gap-1" style={{ color: accentColor }}>
+        <ImageIcon size={9} />
+        {t(
+          `نسبة ${aspect} · JPG أو PNG · صورة واضحة وعالية الجودة`,
+          `Ratio ${aspect} · JPG ou PNG · Netteté et qualité recommandées`
+        )}
+      </p>
+    </div>
+  );
+}
+
+// ── SOS Vehicle Photo Card ────────────────────────────────────────────────────
+function SosVehiclePhotoCard({
+  provider, t, onUpdated,
+}: { provider: Supplier; t: (ar: string, fr: string) => string; onUpdated: (url: string) => void }) {
+  const [photo, setPhoto]   = useState(provider.photoUrl || "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved]   = useState(false);
+
+  useEffect(() => { setPhoto(provider.photoUrl || ""); }, [provider.photoUrl]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await patch(`/provider/${provider.id}/photo`, { photoUrl: photo });
+      onUpdated(photo);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="rounded-2xl p-4 space-y-3" style={{ background: "#EF444408", border: "1.5px solid #EF444422" }}>
+      <div className="flex items-center gap-2">
+        <Truck size={14} style={{ color: "#EF4444" }} />
+        <span className="text-xs font-black" style={{ color: "#EF4444" }}>{t("صورة الشاحنة", "Photo du camion")}</span>
+        <span className="text-[10px] font-bold opacity-40 ms-1" style={{ color: "#1A4D1F" }}>
+          {t("تظهر للعملاء عند الاستجابة", "Visible par les clients lors de l'intervention")}
+        </span>
+      </div>
+      <ImagePickerField
+        value={photo}
+        onChange={v => { setPhoto(v); setSaved(false); }}
+        label={t("صورة شاحنة الإنقاذ", "Photo du véhicule d'intervention")}
+        guideAr="صورة واضحة من الواجهة للشاحنة أو السيارة"
+        guideFr="Photo nette de face du camion ou véhicule"
+        aspect="16:9"
+        accentColor="#EF4444"
+        t={t}
+      />
+      <button
+        onClick={save}
+        disabled={saving || photo === (provider.photoUrl || "")}
+        className="w-full py-2.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
+        style={{ background: saved ? "#059669" : "#EF4444" }}>
+        {saving ? <RefreshCw size={13} className="animate-spin" /> : saved ? <Check size={13} /> : <Camera size={13} />}
+        {saving ? t("جارٍ الحفظ...","Enregistrement...") : saved ? t("تم الحفظ ✓","Sauvegardé ✓") : t("حفظ صورة الشاحنة","Sauvegarder la photo")}
+      </button>
+    </div>
+  );
 }
 
 // ── Products Management Component ─────────────────────────────────────────────
@@ -247,13 +398,17 @@ function ProductsManager({ providerId, t, lang, isService = false, overrideLabel
                     placeholder={t("وصف مختصر...", "Description courte...")}
                     className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
                 </div>
-                {/* Photo URL */}
-                <div>
-                  <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("رابط الصورة", "URL image")}</label>
-                  <input value={form.photoUrl} onChange={e => setForm(f => ({ ...f, photoUrl: e.target.value }))}
-                    placeholder="https://..."
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" dir="ltr" />
-                </div>
+                {/* Photo */}
+                <ImagePickerField
+                  value={form.photoUrl}
+                  onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
+                  label={t("صورة المنتج / الخدمة", "Photo du produit / service")}
+                  guideAr="صورة واضحة على خلفية بيضاء"
+                  guideFr="Photo nette sur fond blanc"
+                  aspect="1:1"
+                  accentColor="#1A4D1F"
+                  t={t}
+                />
                 {/* Prices */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -422,13 +577,16 @@ function CarManager({ agencyId, t }: { agencyId: number; t: (ar: string, fr: str
               </select>
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-black mb-1 opacity-60" style={{ color: "#1565C0" }}>{t("رابط صورة السيارة","URL photo")}</label>
-            <input value={form.imageUrl} onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value }))}
-              placeholder="https://..." dir="ltr"
-              className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
-              style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033" }} />
-          </div>
+          <ImagePickerField
+            value={form.imageUrl}
+            onChange={v => setForm(p => ({ ...p, imageUrl: v }))}
+            label={t("صورة السيارة", "Photo de la voiture")}
+            guideAr="صورة خارجية للسيارة من الواجهة"
+            guideFr="Photo extérieure de face"
+            aspect="16:9"
+            accentColor="#1565C0"
+            t={t}
+          />
           <div>
             <label className="block text-xs font-black mb-1 opacity-60" style={{ color: "#1565C0" }}>{t("وصف السيارة (اختياري)","Description (optionnel)")}</label>
             <input value={form.descriptionAr} onChange={e => setForm(p => ({ ...p, descriptionAr: e.target.value }))}
@@ -673,20 +831,17 @@ function RoomManager({ providerId, t, lang }: { providerId: number; t: (ar: stri
             />
           </div>
 
-          {/* Photo URL */}
-          <div>
-            <label className="block text-xs font-black mb-1.5 opacity-60" style={{ color: "#1A4D1F" }}>
-              {t("صورة الغرفة (رابط)", "Photo chambre (URL)")}
-            </label>
-            <input
-              value={form.photoUrl}
-              onChange={e => setForm(p => ({ ...p, photoUrl: e.target.value }))}
-              placeholder="https://..."
-              dir="ltr"
-              className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border-2 outline-none"
-              style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F22" }}
-            />
-          </div>
+          {/* Photo */}
+          <ImagePickerField
+            value={form.photoUrl}
+            onChange={v => setForm(p => ({ ...p, photoUrl: v }))}
+            label={t("صورة الغرفة", "Photo de la chambre")}
+            guideAr="صورة داخلية واضحة للغرفة"
+            guideFr="Photo intérieure nette de la chambre"
+            aspect="4:3"
+            accentColor="#1A4D1F"
+            t={t}
+          />
 
           {/* Actions */}
           <div className="flex gap-2">
@@ -1484,6 +1639,9 @@ export default function ProviderDashboard() {
         {/* SOS requests */}
         {tab === "sos" && (
           <div className="space-y-3">
+            {/* ── Vehicle Photo Card ── */}
+            <SosVehiclePhotoCard provider={selected} t={t} onUpdated={(url) => setProviders(ss => ss.map(s => s.id === selected.id ? { ...s, photoUrl: url } : s))} />
+
             <div className="flex items-center justify-between">
               <p className="text-xs font-black opacity-50" style={{ color: "#1A4D1F" }}>{t("طلبات SOS القريبة", "Demandes SOS proches")}</p>
               <button onClick={() => loadSosRequests(selected)} className="p-1.5 rounded-lg" style={{ background: "#EF444422" }}>
