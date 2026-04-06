@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { serviceProvidersTable } from "@workspace/db/schema";
+import { serviceProvidersTable, usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdmin, requireStaff } from "../lib/authMiddleware";
 import { isValidPhone } from "../lib/validate";
 import { withCache, cacheDeletePrefix } from "../lib/cache";
+import { hashPassword } from "../lib/crypto";
 
 const SUPPLIERS_CACHE_TTL = 60;
 
@@ -76,15 +77,40 @@ router.get("/admin/suppliers/:id", requireAdmin, async (req, res) => {
 });
 
 router.post("/admin/suppliers", requireAdmin, async (req, res) => {
-  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable, latitude, longitude } = req.body;
+  const {
+    name, nameAr, category, description, descriptionAr, address, phone, photoUrl,
+    shift, rating, isAvailable, latitude, longitude,
+    // optional account creation
+    providerPhone, providerPassword,
+  } = req.body;
+
   if (!name || !nameAr || !category) {
     res.status(400).json({ message: "name, nameAr, category required" }); return;
   }
   if (phone && !isValidPhone(phone)) {
     res.status(400).json({ message: "Invalid phone number format" }); return;
   }
+
+  // If account creation requested, validate fields
+  const createAccount = !!(providerPhone && providerPassword);
+  if (createAccount) {
+    if (!isValidPhone(providerPhone)) {
+      res.status(400).json({ message: "رقم هاتف الحساب غير صالح · Numéro de compte invalide" }); return;
+    }
+    if (providerPassword.length < 6) {
+      res.status(400).json({ message: "كلمة المرور 6 أحرف على الأقل · Mot de passe min. 6 caractères" }); return;
+    }
+    // Check phone not already used
+    const [existing] = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(eq(usersTable.phone, providerPhone.trim()));
+    if (existing) {
+      res.status(409).json({ message: "رقم الهاتف مسجل مسبقاً · Ce numéro est déjà utilisé" }); return;
+    }
+  }
+
   try {
-    const [row] = await db.insert(serviceProvidersTable).values({
+    // 1. Create supplier
+    const [supplier] = await db.insert(serviceProvidersTable).values({
       name, nameAr, category,
       description: description || "",
       descriptionAr: descriptionAr || "",
@@ -97,9 +123,33 @@ router.post("/admin/suppliers", requireAdmin, async (req, res) => {
       latitude: latitude ? parseFloat(String(latitude)) : null,
       longitude: longitude ? parseFloat(String(longitude)) : null,
     }).returning();
+
+    // 2. Create provider account if requested
+    let providerUser = null;
+    if (createAccount) {
+      const hashedPw = await hashPassword(providerPassword.trim());
+      const username = `provider_${providerPhone.trim().replace(/\D/g, "")}`;
+      const [user] = await db.insert(usersTable).values({
+        username,
+        name: nameAr,
+        phone: providerPhone.trim(),
+        password: hashedPw,
+        role: "provider",
+        isActive: true,
+        linkedSupplierId: supplier.id,
+      }).returning({ id: usersTable.id, username: usersTable.username, phone: usersTable.phone, role: usersTable.role, linkedSupplierId: usersTable.linkedSupplierId });
+      providerUser = user;
+    }
+
     cacheDeletePrefix("suppliers:");
-    res.status(201).json(row);
-  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+    res.status(201).json({ supplier, providerUser });
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ message: "رقم الهاتف مسجل مسبقاً · Ce numéro est déjà utilisé" }); return;
+    }
+    req.log.error({ err });
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 router.patch("/admin/suppliers/:id", requireAdmin, async (req, res) => {

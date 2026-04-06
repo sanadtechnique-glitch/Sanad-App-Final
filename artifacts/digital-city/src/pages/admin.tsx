@@ -1166,7 +1166,17 @@ function SupplierCard({ s, t, lang, type, typeConfig, onManage, onToggle, onEdit
   const cfg = typeConfig[type];
   return (
     <div className="glass-panel rounded-2xl p-4" style={{ borderLeft: `3px solid ${cfg.color}30` }}>
-      <div className="flex items-start gap-4 justify-between">
+      <div className="flex items-start gap-3 justify-between">
+        {/* Logo */}
+        {(s as any).photoUrl ? (
+          <img src={(s as any).photoUrl} alt={s.nameAr}
+            className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-[#1A4D1F]/10" />
+        ) : (
+          <div className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center"
+            style={{ background: cfg.bg, border: `1.5px solid ${cfg.border}` }}>
+            <cfg.icon size={18} style={{ color: cfg.color }} />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <p className="font-bold text-[#1A4D1F]">{s.nameAr}</p>
@@ -1229,25 +1239,39 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   const [managing, setManaging] = useState<Supplier | null>(null);
   const [filter, setFilter]     = useState<"all" | "products" | "services">("all");
   const [formType, setFormType] = useState<"product" | "service">("product");
-  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", shift:"all", isAvailable: true, latitude:"", longitude:"" });
+  const [createdCreds, setCreatedCreds] = useState<{ phone: string; password: string } | null>(null);
+  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", photoUrl:"", shift:"all", isAvailable: true, latitude:"", longitude:"", providerPhone:"", providerPassword:"" });
 
   const load = () => get<Supplier[]>("/admin/suppliers").then(setItems).catch(() => {});
   useEffect(() => { load(); }, []);
 
+  const EMPTY_FORM = { name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",photoUrl:"",shift:"all",isAvailable:true,latitude:"",longitude:"",providerPhone:"",providerPassword:"" };
+
   const openAdd = () => {
     setFormType("product");
-    setForm({ name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",shift:"all",isAvailable:true,latitude:"",longitude:"" });
+    setCreatedCreds(null);
+    setForm(EMPTY_FORM);
     setModal("add");
   };
   const openEdit = (s: Supplier) => {
     setFormType(supplierType(s.category));
-    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"" });
+    setCreatedCreds(null);
+    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", photoUrl:(s as any).photoUrl||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"", providerPhone:"", providerPassword:"" });
     setModal(s);
   };
 
   const save = async () => {
-    if (modal === "add") await post("/admin/suppliers", form);
-    else await patch(`/admin/suppliers/${(modal as Supplier).id}`, form);
+    if (modal === "add") {
+      const res = await post<{ supplier: Supplier; providerUser: { phone: string } | null }>("/admin/suppliers", form);
+      if (form.providerPhone && res?.providerUser) {
+        setCreatedCreds({ phone: form.providerPhone, password: form.providerPassword });
+        // Keep modal open to show credentials
+        load(); setModal(null);
+        return;
+      }
+    } else {
+      await patch(`/admin/suppliers/${(modal as Supplier).id}`, form);
+    }
     setModal(null); load();
   };
 
@@ -1398,6 +1422,8 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
           <Field label={t("الاسم عربي","Nom arabe")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder="صيدلية الأمل" /></Field>
           <Field label={t("الاسم فرنسي","Nom français")}><Input value={form.name} onChange={v => setForm(f => ({...f, name: v}))} placeholder="Pharmacie Amal" /></Field>
         </div>
+
+        {/* Category */}
         <Field label={t("الفئة","Catégorie")}>
           <Select value={form.category} onChange={v => setForm(f => ({...f, category: v}))} options={activeCatOptions} />
         </Field>
@@ -1410,11 +1436,26 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
             ]} />
           </Field>
         )}
+
+        {/* Supplier Logo / Photo */}
+        <AdminImagePicker
+          value={form.photoUrl}
+          onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
+          label={t("شعار / صورة المحل", "Logo / Photo de l'établissement")}
+          guideAr="شعار واضح على خلفية بيضاء أو بيضاوية"
+          guideFr="Logo net sur fond blanc ou neutre"
+          aspect="1:1"
+          accent="#1A4D1F"
+          t={t}
+        />
+
         <Field label={t("العنوان","Adresse")}><Input value={form.address} onChange={v => setForm(f => ({...f, address: v}))} /></Field>
-        <Field label={t("رقم WhatsApp","Numéro WhatsApp")}><Input value={form.phone} onChange={v => setForm(f => ({...f, phone: v}))} placeholder="+21698..." /></Field>
+        <Field label={t("رقم WhatsApp","Numéro WhatsApp")}><Input value={form.phone} onChange={v => setForm(f => ({...f, phone: v}))} placeholder="21698..." /></Field>
         <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>
         <Field label={t("الوصف فرنسي","Description française")}><Input value={form.description} onChange={v => setForm(f => ({...f, description: v}))} /></Field>
         <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>
+
+        {/* GPS */}
         <div className="rounded-xl p-3 border border-[#FFA500]/30 bg-[#FFA500]/5">
           <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-2">
             {t("إحداثيات GPS (لحساب المسافة)","Coordonnées GPS (calcul distance)")}
@@ -1431,7 +1472,62 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
             {t("اختياري · بن قردان: 33.1167, 11.2167","Optionnel · Ben Guerdane: 33.1167, 11.2167")}
           </p>
         </div>
+
+        {/* Account creation — add mode only */}
+        {modal === "add" && (
+          <div className="rounded-xl p-3 border-2 space-y-3" style={{ borderColor: "#1565C030", background: "#1565C008" }}>
+            <div className="flex items-center gap-2">
+              <KeyRound size={13} style={{ color: "#1565C0" }} />
+              <p className="text-xs font-black" style={{ color: "#1565C0" }}>
+                {t("إنشاء حساب تسجيل دخول للمزود (اختياري)", "Créer un compte d'accès fournisseur (optionnel)")}
+              </p>
+            </div>
+            <p className="text-[10px] opacity-50" style={{ color: "#1565C0" }}>
+              {t("إذا أدخلت الرقم وكلمة المرور، سيتمكن المزود من تسجيل الدخول وإدارة محله مباشرة.",
+                "Si vous renseignez le numéro et le mot de passe, le fournisseur pourra se connecter et gérer son établissement.")}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("رقم الهاتف للحساب","Tél. du compte")}>
+                <Input value={form.providerPhone} onChange={v => setForm(f => ({...f, providerPhone: v}))} placeholder="21698..." />
+              </Field>
+              <Field label={t("كلمة المرور","Mot de passe")}>
+                <Input value={form.providerPassword} onChange={v => setForm(f => ({...f, providerPassword: v}))} placeholder="6+ أحرف" type="password" />
+              </Field>
+            </div>
+          </div>
+        )}
+
         <GoldBtn onClick={save} className="w-full justify-center">{t("حفظ","Enregistrer")}</GoldBtn>
+      </Modal>
+
+      {/* ── Credentials success dialog ── */}
+      <Modal open={!!createdCreds} onClose={() => setCreatedCreds(null)}
+        title={t("تم إنشاء المزود والحساب","Fournisseur et compte créés")}>
+        {createdCreds && (
+          <div className="space-y-4">
+            <div className="rounded-xl p-4 text-center" style={{ background: "#1A4D1F10", border: "1.5px solid #1A4D1F30" }}>
+              <Check size={28} className="mx-auto mb-2" style={{ color: "#1A4D1F" }} />
+              <p className="font-black text-[#1A4D1F] text-sm">{t("تم إنشاء حساب المزود بنجاح","Compte fournisseur créé avec succès")}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-black text-[#1A4D1F]/60 uppercase tracking-widest">{t("بيانات الدخول","Identifiants de connexion")}</p>
+              <div className="rounded-xl p-3 font-mono text-sm space-y-2" style={{ background: "#1A4D1F08", border: "1px solid #1A4D1F20" }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#1A4D1F]/50 text-xs">{t("رقم الهاتف","Téléphone")}</span>
+                  <span className="font-black text-[#1A4D1F]">{createdCreds.phone}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#1A4D1F]/50 text-xs">{t("كلمة المرور","Mot de passe")}</span>
+                  <span className="font-black text-[#FFA500]">{createdCreds.password}</span>
+                </div>
+              </div>
+              <p className="text-[10px] opacity-40 text-[#1A4D1F]">
+                {t("احتفظ بهذه البيانات — لن تظهر مرة أخرى","Conservez ces identifiants — ils ne seront plus affichés")}
+              </p>
+            </div>
+            <GoldBtn onClick={() => setCreatedCreds(null)} className="w-full justify-center">{t("موافق","OK")}</GoldBtn>
+          </div>
+        )}
       </Modal>
 
       {/* ── Admin Provider Drawer ── */}
