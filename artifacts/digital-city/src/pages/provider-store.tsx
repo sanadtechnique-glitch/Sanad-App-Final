@@ -84,8 +84,8 @@ export default function ProviderStore() {
     <Layout>
       <div className="max-w-5xl mx-auto px-4 pt-6 pb-36" dir={isRTL ? "rtl" : "ltr"}>
 
-        {/* Back button */}
-        <Link href="/services">
+        {/* Back button — goes back to the supplier's category filter */}
+        <Link href={supplier.category ? `/services?category=${supplier.category}` : "/services"}>
           <button className="flex items-center gap-2 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-colors mb-6 text-sm font-bold">
             {isRTL ? <ChevronLeft size={16} /> : <ArrowRight size={16} className="rotate-180" />}
             <span>{t("العودة للخدمات", "Retour aux services")}</span>
