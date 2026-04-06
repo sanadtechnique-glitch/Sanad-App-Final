@@ -2,7 +2,7 @@ import { pgTable, text, serial, integer, real, timestamp, index } from "drizzle-
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const sosStatusEnum    = ["pending", "accepted", "done", "cancelled"] as const;
+export const sosStatusEnum    = ["pending", "offered", "accepted", "done", "cancelled"] as const;
 export type SosStatus         = typeof sosStatusEnum[number];
 
 export const sosCategoryEnum  = ["mechanic", "doctor", "emergency", "other"] as const;
@@ -18,6 +18,7 @@ export const sosRequestsTable = pgTable("sos_requests", {
   description:          text("description").default(""),
   category:             text("category").$type<SosCategory>().default("other").notNull(),
   status:               text("status").$type<SosStatus>().default("pending").notNull(),
+  offeredPrice:         real("offered_price"),
   assignedProviderId:   integer("assigned_provider_id"),
   assignedProviderName: text("assigned_provider_name"),
   createdAt:            timestamp("created_at").defaultNow().notNull(),
@@ -29,7 +30,7 @@ export const sosRequestsTable = pgTable("sos_requests", {
 
 export const insertSosRequestSchema = createInsertSchema(sosRequestsTable).omit({
   id: true, createdAt: true, updatedAt: true,
-  status: true, assignedProviderId: true, assignedProviderName: true,
+  status: true, assignedProviderId: true, assignedProviderName: true, offeredPrice: true,
 });
 export type InsertSosRequest = z.infer<typeof insertSosRequestSchema>;
 export type SosRequest       = typeof sosRequestsTable.$inferSelect;

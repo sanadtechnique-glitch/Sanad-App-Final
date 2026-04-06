@@ -36,8 +36,8 @@ function timeAgo(dateStr: string, lang: string) {
 
 // ── فئات مزودي المنتجات (يبيعون أصنافاً من كتالوج)
 const PRODUCT_CATS = ["restaurant", "grocery", "pharmacy", "bakery", "butcher", "cafe", "sweets"];
-// ── فئات المزودين القادرين على الاستجابة لطلبات SOS
-const SOS_CATS     = ["mechanic", "doctor", "emergency", "sos"];
+// ── فئات المزودين القادرين على الاستجابة لطلبات SOS (شاحنات SOS فقط)
+const SOS_CATS     = ["sos"];
 
 function isProductCat(cat: string)  { return PRODUCT_CATS.includes(cat); }
 function isSosCat(cat: string)      { return SOS_CATS.includes(cat); }
@@ -321,6 +321,8 @@ export default function ProviderDashboard() {
   const [hotelBookings, setHotelBookings]   = useState<any[]>([]);
   const [sosRequests, setSosRequests]       = useState<any[]>([]);
   const [sosLoading, setSosLoading]         = useState(false);
+  const [sosOfferPrices, setSosOfferPrices] = useState<Record<number, string>>({});
+  const [sosOffering, setSosOffering]       = useState<Record<number, boolean>>({});
   const [lawyerRequests, setLawyerRequests] = useState<any[]>([]);
   const [lawyerLoading, setLawyerLoading]   = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -481,6 +483,29 @@ export default function ProviderDashboard() {
       if (res.status === 409) return alert(t("تم قبول هذا الطلب مسبقاً", "Déjà accepté par un autre"));
       setSosRequests(prev => prev.map(s => s.id === sosId ? { ...s, status: "accepted", assignedProviderId: provider.id } : s));
     } catch {}
+  };
+
+  const offerSos = async (sosId: number, provider: Supplier) => {
+    const priceStr = sosOfferPrices[sosId] || "";
+    const price    = parseFloat(priceStr.replace(",", "."));
+    if (isNaN(price) || price <= 0) return alert(t("أدخل مبلغاً صحيحاً", "Entrez un montant valide"));
+    const session = getSession();
+    setSosOffering(prev => ({ ...prev, [sosId]: true }));
+    try {
+      const res = await fetch(`/api/sos/${sosId}/offer`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-session-token": session?.token || "" },
+        body: JSON.stringify({
+          providerId: provider.id,
+          providerName: lang === "ar" ? provider.nameAr : provider.name,
+          price,
+        }),
+      });
+      if (res.status === 409) { alert(t("هذا الطلب مأخوذ مسبقاً", "Demande déjà prise")); return; }
+      const data = await res.json();
+      setSosRequests(prev => prev.map(s => s.id === sosId ? data : s));
+    } catch { alert(t("فشل الإرسال", "Erreur réseau")); }
+    finally { setSosOffering(prev => ({ ...prev, [sosId]: false })); }
   };
 
   const updateCarBooking = async (bookingId: number, status: string) => {
@@ -965,8 +990,20 @@ export default function ProviderDashboard() {
                       <AlertTriangle size={12} style={{ color: cat.color }} />
                       <span className="text-xs font-black" style={{ color: cat.color }}>{lang === "ar" ? cat.ar : cat.fr}</span>
                     </div>
-                    <span className="text-xs font-black" style={{ color: sos.status === "accepted" ? "#059669" : "#92400E" }}>
-                      {sos.status === "accepted" ? t("مقبول ✓", "Accepté ✓") : t("في الانتظار", "En attente")}
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{
+                      color: sos.status === "accepted" ? "#059669"
+                           : sos.status === "offered"  ? "#1D4ED8"
+                           : sos.status === "cancelled" ? "#6B7280"
+                           : "#92400E",
+                      background: sos.status === "accepted" ? "#D1FAE5"
+                                : sos.status === "offered"  ? "#DBEAFE"
+                                : sos.status === "cancelled" ? "#F3F4F6"
+                                : "#FEF3C7"
+                    }}>
+                      {sos.status === "accepted"  ? t("قبل العميل ✓","Client accepté ✓")
+                     : sos.status === "offered"   ? t("عرض أُرسل","Offre envoyée")
+                     : sos.status === "cancelled" ? t("ملغي","Annulé")
+                     : t("في الانتظار","En attente")}
                     </span>
                   </div>
                   <div className="p-4">
@@ -974,15 +1011,51 @@ export default function ProviderDashboard() {
                     <p className="text-xs flex items-center gap-1 opacity-50" style={{ color: "#1A4D1F" }}><Phone size={10} />{sos.customerPhone}</p>
                     <p className="text-xs flex items-center gap-1 mt-1 opacity-50" style={{ color: "#1A4D1F" }}><MapPin size={10} />{sos.lat.toFixed(4)}, {sos.lng.toFixed(4)}</p>
                     {sos.description && <p className="text-xs mt-2 p-2 rounded-lg opacity-70" style={{ color: "#1A4D1F", background: "#FFF3E0" }}>{sos.description}</p>}
+                    {/* ── اقتراح سعر (pending فقط) ── */}
                     {sos.status === "pending" && (
-                      <button onClick={() => acceptSos(sos.id, selected)}
-                        className="mt-3 w-full py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2"
-                        style={{ background: "#EF4444", color: "#fff" }}>
-                        <Check size={14} /> {t("قبول الطلب", "Accepter")}
-                      </button>
+                      <div className="mt-3 space-y-2">
+                        <p className="text-xs font-black opacity-50" style={{ color: "#1A4D1F" }}>
+                          {t("اقترح المبلغ (TND)", "Proposer un prix (TND)")}
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            type="number" inputMode="decimal" min="0" step="0.001"
+                            value={sosOfferPrices[sos.id] || ""}
+                            onChange={e => setSosOfferPrices(prev => ({ ...prev, [sos.id]: e.target.value }))}
+                            placeholder={t("مثال: 25.000", "Ex: 25.000")}
+                            className="flex-1 rounded-xl px-3 py-2.5 text-sm font-bold border outline-none"
+                            style={{ background: "#FFF3E0", color: "#1A4D1F", borderColor: "#EF444444" }}
+                          />
+                          <button
+                            onClick={() => offerSos(sos.id, selected)}
+                            disabled={sosOffering[sos.id] || !sosOfferPrices[sos.id]}
+                            className="px-4 py-2.5 rounded-xl font-black text-sm flex items-center gap-1.5 disabled:opacity-40 transition-all active:scale-95"
+                            style={{ background: "#EF4444", color: "#fff" }}>
+                            {sosOffering[sos.id]
+                              ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              : <Check size={14} />}
+                            {t("إرسال", "Envoyer")}
+                          </button>
+                        </div>
+                      </div>
                     )}
+                    {/* ── في انتظار رد العميل (offered) ── */}
+                    {sos.status === "offered" && mine && (
+                      <div className="mt-3 rounded-xl p-3 text-center" style={{ background: "#DBEAFE" }}>
+                        <p className="text-xs font-black text-blue-700">
+                          {t("في انتظار موافقة العميل", "En attente de la réponse du client")}
+                        </p>
+                        {sos.offeredPrice && (
+                          <p className="text-base font-black text-blue-900 mt-0.5">{Number(sos.offeredPrice).toFixed(3)} TND</p>
+                        )}
+                      </div>
+                    )}
+                    {/* ── تم القبول ── */}
                     {mine && sos.status === "accepted" && (
-                      <div className="mt-2 text-center text-xs font-black text-emerald-500">{t("أنت تتكفل بهذا الطلب", "Vous gérez cette demande")}</div>
+                      <div className="mt-2 rounded-xl p-2.5 text-center text-xs font-black text-emerald-600" style={{ background: "#D1FAE5" }}>
+                        {t("قبل العميل العرض · الشاحنة في الطريق", "Client a accepté · En route !")}
+                        {sos.offeredPrice && <span className="ms-2">{Number(sos.offeredPrice).toFixed(3)} TND</span>}
+                      </div>
                     )}
                   </div>
                 </div>

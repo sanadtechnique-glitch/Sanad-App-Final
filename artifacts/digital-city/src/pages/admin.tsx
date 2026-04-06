@@ -3792,10 +3792,11 @@ function SosSection({ t }: { t: (ar: string, fr: string) => string }) {
   };
 
   const STATUS_LABELS: Record<string, { ar: string; fr: string; color: string; bg: string }> = {
-    pending:  { ar: "في الانتظار", fr: "En attente", color: "#92400E", bg: "#FEF3C7" },
-    accepted: { ar: "مقبول",       fr: "Accepté",    color: "#059669", bg: "#D1FAE5" },
-    done:     { ar: "مكتمل",       fr: "Terminé",    color: "#6D28D9", bg: "#EDE9FE" },
-    cancelled:{ ar: "ملغي",        fr: "Annulé",     color: "#6B7280", bg: "#F3F4F6" },
+    pending:  { ar: "في الانتظار",   fr: "En attente",      color: "#92400E", bg: "#FEF3C7" },
+    offered:  { ar: "عرض سعر",       fr: "Offre de prix",   color: "#1D4ED8", bg: "#DBEAFE" },
+    accepted: { ar: "مقبول",         fr: "Accepté",         color: "#059669", bg: "#D1FAE5" },
+    done:     { ar: "مكتمل",         fr: "Terminé",         color: "#6D28D9", bg: "#EDE9FE" },
+    cancelled:{ ar: "ملغي",          fr: "Annulé",          color: "#6B7280", bg: "#F3F4F6" },
   };
 
   const load = async () => {
@@ -3811,7 +3812,7 @@ function SosSection({ t }: { t: (ar: string, fr: string) => string }) {
     setProvLoading(true);
     try {
       const data = await get<any[]>("/suppliers");
-      setProviders(data.filter((s: any) => ["mechanic", "doctor", "emergency", "sos"].includes(s.category)));
+      setProviders(data.filter((s: any) => s.category === "sos"));
     } finally { setProvLoading(false); }
   };
 
@@ -3905,7 +3906,7 @@ function SosSection({ t }: { t: (ar: string, fr: string) => string }) {
       <div>
       {/* Filter */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-        {["all", "pending", "accepted", "done", "cancelled"].map(f => (
+        {["all", "pending", "offered", "accepted", "done", "cancelled"].map(f => (
           <button key={f} onClick={() => setFilter(f)}
             className="flex-shrink-0 px-3 py-1.5 rounded-full font-black text-xs border transition-all"
             style={filter === f
@@ -3950,7 +3951,14 @@ function SosSection({ t }: { t: (ar: string, fr: string) => string }) {
                   <p className="text-xs mt-1 opacity-50" style={{ color: "#1A4D1F" }}>📍 {req.lat?.toFixed(4)}, {req.lng?.toFixed(4)}</p>
                   {req.description && <p className="text-xs mt-2 p-2 rounded-lg opacity-70" style={{ color: "#1A4D1F", background: "#FFF3E0" }}>{req.description}</p>}
                   {req.assignedProviderName && (
-                    <p className="text-xs mt-1 font-bold" style={{ color: "#059669" }}>✓ {req.assignedProviderName}</p>
+                    <p className="text-xs mt-1 font-bold flex items-center gap-1" style={{ color: "#059669" }}>
+                      🚛 {req.assignedProviderName}
+                    </p>
+                  )}
+                  {req.offeredPrice != null && (
+                    <p className="text-xs mt-1 font-black" style={{ color: "#1D4ED8" }}>
+                      💰 {t("السعر المقترح:", "Prix proposé:")} {Number(req.offeredPrice).toFixed(3)} TND
+                    </p>
                   )}
                   {req.status === "accepted" && (
                     <button onClick={() => updateStatus(req.id, "done")}
@@ -3959,7 +3967,7 @@ function SosSection({ t }: { t: (ar: string, fr: string) => string }) {
                       {t("تعليم كمكتمل ✓","Marquer terminé ✓")}
                     </button>
                   )}
-                  {req.status === "pending" && (
+                  {["pending", "offered"].includes(req.status) && (
                     <button onClick={() => updateStatus(req.id, "cancelled")}
                       className="mt-3 w-full py-2 rounded-xl font-black text-xs"
                       style={{ background: "#FEE2E2", color: "#DC2626" }}>
