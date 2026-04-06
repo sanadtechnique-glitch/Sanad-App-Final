@@ -34,6 +34,14 @@ function timeAgo(dateStr: string, lang: string) {
   return lang === "ar" ? `${Math.floor(diff / 60)} س` : `${Math.floor(diff / 60)}h`;
 }
 
+// ── فئات مزودي المنتجات (يبيعون أصنافاً من كتالوج)
+const PRODUCT_CATS = ["restaurant", "grocery", "pharmacy", "bakery", "butcher", "cafe", "sweets", "hotel"];
+// ── فئات المزودين القادرين على الاستجابة لطلبات SOS
+const SOS_CATS     = ["mechanic", "doctor", "emergency", "sos"];
+
+function isProductCat(cat: string)  { return PRODUCT_CATS.includes(cat); }
+function isSosCat(cat: string)      { return SOS_CATS.includes(cat); }
+
 // ── Article type (stored in articlesTable, visible to customers) ───────────────
 interface Article {
   id: number; supplierId: number;
@@ -44,7 +52,7 @@ interface Article {
 }
 
 // ── Products Management Component ─────────────────────────────────────────────
-function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: string, fr: string) => string; lang: string }) {
+function ProductsManager({ providerId, t, lang, isService = false }: { providerId: number; t: (ar: string, fr: string) => string; lang: string; isService?: boolean }) {
   const [products, setProducts]   = useState<Article[]>([]);
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm]   = useState(false);
@@ -92,7 +100,7 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
   };
 
   const remove = async (id: number) => {
-    if (!confirm(t("حذف المنتج؟", "Supprimer le produit?"))) return;
+    if (!confirm(isService ? t("حذف الخدمة؟", "Supprimer le service?") : t("حذف المنتج؟", "Supprimer le produit?"))) return;
     await del(`/provider/${providerId}/articles/${id}`); await load();
   };
 
@@ -117,11 +125,15 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="font-black text-[#1A4D1F]">{t("منتجاتي", "Mes produits")}</h3>
-          <p className="text-xs text-[#1A4D1F]/40">{products.length} {t("منتج", "produit(s)")}</p>
+          <h3 className="font-black text-[#1A4D1F]">
+            {isService ? t("خدماتي", "Mes services") : t("منتجاتي", "Mes produits")}
+          </h3>
+          <p className="text-xs text-[#1A4D1F]/40">
+            {products.length} {isService ? t("خدمة", "service(s)") : t("منتج", "produit(s)")}
+          </p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-black" style={{ background: "#1A4D1F" }}>
-          <Plus size={13} /> {t("إضافة", "Ajouter")}
+          <Plus size={13} /> {isService ? t("إضافة خدمة", "Ajouter service") : t("إضافة", "Ajouter")}
         </button>
       </div>
 
@@ -130,7 +142,9 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
       ) : products.length === 0 ? (
         <div className="text-center py-12">
           <Package size={32} className="mx-auto mb-2 text-[#1A4D1F]/20" />
-          <p className="text-sm font-black text-[#1A4D1F]/30">{t("لم تضف منتجات بعد", "Aucun produit")}</p>
+          <p className="text-sm font-black text-[#1A4D1F]/30">
+            {isService ? t("لم تضف خدمات بعد", "Aucun service") : t("لم تضف منتجات بعد", "Aucun produit")}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -201,15 +215,22 @@ function ProductsManager({ providerId, t, lang }: { providerId: number; t: (ar: 
               style={{ background: "#FFF3E0" }}
               onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4" dir="rtl">
-                <h3 className="font-black text-[#1A4D1F]">{editing ? t("تعديل المنتج", "Modifier") : t("منتج جديد", "Nouveau produit")}</h3>
+                <h3 className="font-black text-[#1A4D1F]">
+                {editing
+                  ? (isService ? t("تعديل الخدمة", "Modifier le service") : t("تعديل المنتج", "Modifier le produit"))
+                  : (isService ? t("خدمة جديدة", "Nouveau service") : t("منتج جديد", "Nouveau produit"))
+                }
+              </h3>
                 <button onClick={() => setShowForm(false)}><X size={18} className="text-[#1A4D1F]/40" /></button>
               </div>
               <div className="space-y-3" dir="rtl">
                 {/* Arabic name (required) */}
                 <div>
-                  <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("اسم المنتج بالعربية *", "Nom en arabe *")}</label>
+                  <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">
+                    {isService ? t("اسم الخدمة بالعربية *", "Nom du service en arabe *") : t("اسم المنتج بالعربية *", "Nom du produit en arabe *")}
+                  </label>
                   <input value={form.nameAr} onChange={e => setForm(f => ({ ...f, nameAr: e.target.value }))}
-                    placeholder={t("مثال: برغر لحم", "Ex: Burger boeuf")}
+                    placeholder={isService ? t("مثال: تغيير زيت المحرك", "Ex: Vidange moteur") : t("مثال: برغر لحم", "Ex: Burger boeuf")}
                     className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
                 </div>
                 {/* French name (optional) */}
@@ -676,9 +697,18 @@ export default function ProviderDashboard() {
             : [
                 { id: "pending",  label: t("جديد","Nouv."),       badge: pendingOrders.length },
                 { id: "all",      label: t("الطلبات","Cmds") },
-                { id: "products", label: t("منتجات","Produits"),  icon: <Package size={10} /> },
+                {
+                  id: "products",
+                  label: isProductCat(selected.category)
+                    ? t("المنتجات","Produits")
+                    : t("الخدمات","Services"),
+                  icon: <Package size={10} />,
+                },
                 ...(selected.category === "car_rental" ? [{ id: "bookings", label: t("حجوزات","Réserv."), icon: <KeyRound size={10} /> }] : []),
-                { id: "sos", label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true },
+                // SOS tab: فقط لمزودي خدمات الطوارئ (ميكانيكي، طبيب، طوارئ...)
+                ...(isSosCat(selected.category) ? [{
+                  id: "sos", label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true,
+                }] : []),
               ]
           ).map((tb: any) => (
             <button key={tb.id} onClick={() => setTab(tb.id)}
@@ -697,9 +727,14 @@ export default function ProviderDashboard() {
           ))}
         </div>
 
-        {/* Products Manager */}
+        {/* Products / Services Manager */}
         {tab === "products" && (
-          <ProductsManager providerId={selected.id} t={t} lang={lang} />
+          <ProductsManager
+            providerId={selected.id}
+            t={t}
+            lang={lang}
+            isService={!isProductCat(selected.category)}
+          />
         )}
 
         {/* Car Rental Bookings */}
