@@ -121,6 +121,9 @@ router.get("/admin/articles", requireAdmin, async (req, res) => {
         descriptionAr: articlesTable.descriptionAr,
         descriptionFr: articlesTable.descriptionFr,
         price: articlesTable.price,
+        originalPrice: articlesTable.originalPrice,
+        discountedPrice: articlesTable.discountedPrice,
+        photoUrl: articlesTable.photoUrl,
         isAvailable: articlesTable.isAvailable,
         createdAt: articlesTable.createdAt,
         supplierName: serviceProvidersTable.name,
@@ -138,18 +141,25 @@ router.get("/admin/articles", requireAdmin, async (req, res) => {
 });
 
 router.post("/admin/articles", requireAdmin, async (req, res) => {
-  const { supplierId, nameAr, nameFr, descriptionAr, descriptionFr, price, isAvailable } = req.body;
+  const {
+    supplierId, nameAr, nameFr, descriptionAr, descriptionFr,
+    price, originalPrice, discountedPrice, photoUrl, isAvailable,
+  } = req.body;
   const sid = safeParseInt(supplierId);
-  if (!sid || !nameAr || !nameFr) {
-    res.status(400).json({ message: "supplierId, nameAr, nameFr are required" }); return;
+  if (!sid || !nameAr) {
+    res.status(400).json({ message: "supplierId et nameAr sont requis · supplierId و nameAr مطلوبان" }); return;
   }
   try {
     const [article] = await db.insert(articlesTable).values({
       supplierId: sid,
-      nameAr, nameFr,
+      nameAr: nameAr.trim(),
+      nameFr: (nameFr || nameAr).trim(),          // default to Arabic if French is empty
       descriptionAr: descriptionAr || "",
-      descriptionFr: descriptionFr || "",
+      descriptionFr: descriptionFr || descriptionAr || "",
       price: safeParseFloat(price) ?? 0,
+      originalPrice: originalPrice != null ? (safeParseFloat(originalPrice) ?? null) : null,
+      discountedPrice: discountedPrice != null ? (safeParseFloat(discountedPrice) ?? null) : null,
+      photoUrl: photoUrl || null,
       isAvailable: isAvailable ?? true,
     }).returning();
     res.status(201).json(article);
@@ -162,16 +172,25 @@ router.post("/admin/articles", requireAdmin, async (req, res) => {
 router.patch("/admin/articles/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
-  const { nameAr, nameFr, descriptionAr, descriptionFr, price, isAvailable, supplierId } = req.body;
+  const {
+    nameAr, nameFr, descriptionAr, descriptionFr,
+    price, originalPrice, discountedPrice, photoUrl, isAvailable, supplierId,
+  } = req.body;
   const sid = supplierId ? safeParseInt(supplierId) : undefined;
+  const updates: Record<string, unknown> = {};
+  if (nameAr !== undefined)           updates.nameAr           = nameAr;
+  if (nameFr !== undefined)           updates.nameFr           = nameFr || nameAr; // fallback to Arabic
+  if (descriptionAr !== undefined)    updates.descriptionAr    = descriptionAr;
+  if (descriptionFr !== undefined)    updates.descriptionFr    = descriptionFr;
+  if (price !== undefined)            updates.price            = safeParseFloat(price) ?? 0;
+  if (originalPrice !== undefined)    updates.originalPrice    = originalPrice != null ? (safeParseFloat(originalPrice) ?? null) : null;
+  if (discountedPrice !== undefined)  updates.discountedPrice  = discountedPrice != null ? (safeParseFloat(discountedPrice) ?? null) : null;
+  if (photoUrl !== undefined)         updates.photoUrl         = photoUrl || null;
+  if (isAvailable !== undefined)      updates.isAvailable      = isAvailable;
+  if (sid)                            updates.supplierId       = sid;
   try {
     const [article] = await db.update(articlesTable)
-      .set({
-        nameAr, nameFr, descriptionAr, descriptionFr,
-        price: price !== undefined ? (safeParseFloat(price) ?? 0) : undefined,
-        isAvailable,
-        ...(sid ? { supplierId: sid } : {}),
-      })
+      .set(updates)
       .where(eq(articlesTable.id, id))
       .returning();
     if (!article) { res.status(404).json({ message: "Not found" }); return; }

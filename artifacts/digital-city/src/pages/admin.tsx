@@ -31,7 +31,7 @@ interface Order {
 }
 interface Category { id: number; slug: string; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; icon: string; color: string; }
 interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; }
-interface Article { id: number; supplierId: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; originalPrice?: number; discountedPrice?: number; isAvailable: boolean; supplierName?: string; }
+interface Article { id: number; supplierId: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; originalPrice?: number; discountedPrice?: number; photoUrl?: string | null; isAvailable: boolean; supplierName?: string; }
 interface DeliveryStaff { id: number; name: string; nameAr: string; phone: string; zone?: string; isAvailable: boolean; }
 interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
 interface PromoBanner {
@@ -619,10 +619,14 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
 // Section: Articles
 // ──────────────────────────────────────────────────────────────────────────────
 function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
-  const [items, setItems] = useState<Article[]>([]);
+  const [items, setItems]       = useState<Article[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [modal, setModal] = useState<null | "add" | Article>(null);
-  const [form, setForm] = useState({ supplierId: "", nameAr: "", nameFr: "", descriptionAr: "", descriptionFr: "", price: "0", originalPrice: "", discountedPrice: "", isAvailable: true });
+  const [modal, setModal]       = useState<null | "add" | Article>(null);
+  const [saving, setSaving]     = useState(false);
+  const [errMsg, setErrMsg]     = useState("");
+  const [filterSup, setFilterSup] = useState<string>("all");
+  const EMPTY_FORM = { supplierId: "", nameAr: "", nameFr: "", descriptionAr: "", descriptionFr: "", price: "0", originalPrice: "", discountedPrice: "", photoUrl: "", isAvailable: true };
+  const [form, setForm] = useState(EMPTY_FORM);
 
   const load = async () => {
     const [a, s] = await Promise.all([
@@ -633,18 +637,56 @@ function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
   };
   useEffect(() => { load(); }, []);
 
-  const openAdd = () => { setForm({ supplierId: suppliers[0]?.id?.toString()||"", nameAr:"",nameFr:"",descriptionAr:"",descriptionFr:"",price:"0",originalPrice:"",discountedPrice:"",isAvailable:true }); setModal("add"); };
+  const openAdd = () => {
+    setErrMsg("");
+    setForm({ ...EMPTY_FORM, supplierId: suppliers[0]?.id?.toString() || "" });
+    setModal("add");
+  };
   const openEdit = (a: Article) => {
-    setForm({ supplierId: a.supplierId.toString(), nameAr:a.nameAr, nameFr:a.nameFr, descriptionAr:a.descriptionAr, descriptionFr:a.descriptionFr,
-              price: a.price.toString(), originalPrice: a.originalPrice?.toString()||"", discountedPrice: a.discountedPrice?.toString()||"", isAvailable:a.isAvailable });
+    setErrMsg("");
+    setForm({
+      supplierId: a.supplierId.toString(),
+      nameAr: a.nameAr, nameFr: a.nameFr,
+      descriptionAr: a.descriptionAr, descriptionFr: a.descriptionFr,
+      price: a.price.toString(),
+      originalPrice: a.originalPrice?.toString() || "",
+      discountedPrice: a.discountedPrice?.toString() || "",
+      photoUrl: (a as any).photoUrl || "",
+      isAvailable: a.isAvailable,
+    });
     setModal(a);
   };
 
   const save = async () => {
-    const payload = { ...form, price: parseFloat(form.price)||0, originalPrice: form.originalPrice ? parseFloat(form.originalPrice) : null, discountedPrice: form.discountedPrice ? parseFloat(form.discountedPrice) : null };
-    if (modal === "add") await post("/admin/articles", payload);
-    else await patch(`/admin/articles/${(modal as Article).id}`, payload);
-    setModal(null); load();
+    setErrMsg("");
+    if (!form.supplierId) { setErrMsg(t("الرجاء اختيار المزود","Veuillez choisir un fournisseur")); return; }
+    if (!form.nameAr.trim()) { setErrMsg(t("اسم المنتج بالعربية مطلوب","Le nom en arabe est requis")); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        supplierId: form.supplierId,
+        nameAr: form.nameAr.trim(),
+        nameFr: form.nameFr.trim() || form.nameAr.trim(),
+        descriptionAr: form.descriptionAr,
+        descriptionFr: form.descriptionFr || form.descriptionAr,
+        price: parseFloat(form.price) || 0,
+        originalPrice: form.originalPrice ? parseFloat(form.originalPrice) : null,
+        discountedPrice: form.discountedPrice ? parseFloat(form.discountedPrice) : null,
+        photoUrl: form.photoUrl || null,
+        isAvailable: form.isAvailable,
+      };
+      if (modal === "add") {
+        await post("/admin/articles", payload);
+      } else {
+        await patch(`/admin/articles/${(modal as Article).id}`, payload);
+      }
+      setModal(null);
+      await load();
+    } catch (err: any) {
+      setErrMsg(err?.message || t("حدث خطأ أثناء الحفظ","Erreur lors de la sauvegarde"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const remove = async (id: number) => {
@@ -652,59 +694,158 @@ function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
     await del(`/admin/articles/${id}`); load();
   };
 
+  const toggleAvail = async (a: Article) => {
+    await patch(`/admin/articles/${a.id}`, { isAvailable: !a.isAvailable });
+    load();
+  };
+
+  /* Filter articles by selected supplier */
+  const filtered = filterSup === "all" ? items : items.filter(a => String(a.supplierId) === filterSup);
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-black text-[#1A4D1F]">{t("المنتجات","Articles")}</h2>
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-black text-[#1A4D1F]">{t("المنتجات","Articles")}</h2>
+          <p className="text-xs text-[#1A4D1F]/40 mt-0.5">
+            {filtered.length} {t("منتج","produit(s)")}
+            {filterSup !== "all" && ` — ${suppliers.find(s => String(s.id) === filterSup)?.nameAr || ""}`}
+          </p>
+        </div>
         <GoldBtn onClick={openAdd}><Plus size={14} />{t("إضافة منتج","Ajouter")}</GoldBtn>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map(a => (
-          <div key={a.id} className="glass-panel rounded-2xl p-4">
-            <div className="flex justify-between items-start mb-2">
-              <p className="font-bold text-[#1A4D1F]">{lang === "ar" ? a.nameAr : a.nameFr}</p>
-              <div className="flex gap-2">
-                <button onClick={() => openEdit(a)} className="p-1.5 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-colors"><Pencil size={12} /></button>
-                <button onClick={() => remove(a.id)} className="p-1.5 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+
+      {/* Supplier filter tabs */}
+      {suppliers.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setFilterSup("all")}
+            className={cn("px-3 py-1 rounded-xl text-xs font-bold border transition-all",
+              filterSup === "all"
+                ? "bg-[#1A4D1F] text-white border-[#1A4D1F]"
+                : "bg-transparent text-[#1A4D1F]/60 border-[#1A4D1F]/20 hover:border-[#1A4D1F]/40"
+            )}
+          >
+            {t("الكل","Tous")}
+          </button>
+          {suppliers.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setFilterSup(String(s.id))}
+              className={cn("px-3 py-1 rounded-xl text-xs font-bold border transition-all",
+                filterSup === String(s.id)
+                  ? "bg-[#FFA500] text-white border-[#FFA500]"
+                  : "bg-transparent text-[#1A4D1F]/60 border-[#1A4D1F]/20 hover:border-[#1A4D1F]/40"
+              )}
+            >
+              {s.nameAr}
+              <span className="mr-1 opacity-60">
+                ({items.filter(a => a.supplierId === s.id).length})
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Products grid */}
+      {filtered.length === 0 ? (
+        <div className="glass-panel rounded-2xl p-10 text-center">
+          <p className="text-[#1A4D1F]/30 font-bold">{t("لا توجد منتجات","Aucun article")}</p>
+          <p className="text-xs text-[#1A4D1F]/20 mt-1">{t("اضغط إضافة لإضافة منتج للمزود","Cliquez Ajouter pour créer un article")}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(a => (
+            <div key={a.id} className="glass-panel rounded-2xl p-4 flex flex-col gap-2">
+              {/* Image */}
+              {(a as any).photoUrl && (
+                <img src={(a as any).photoUrl} alt={a.nameAr} className="w-full h-28 object-cover rounded-xl mb-1" />
+              )}
+              <div className="flex justify-between items-start">
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-[#1A4D1F] truncate">{lang === "ar" ? a.nameAr : a.nameFr}</p>
+                  {/* Supplier badge */}
+                  {a.supplierName && (
+                    <span className="inline-flex items-center gap-1 text-xs text-[#FFA500] bg-[#FFA500]/10 border border-[#FFA500]/20 rounded-full px-2 py-0.5 mt-1 font-bold">
+                      🏪 {a.supplierName}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => toggleAvail(a)}
+                    className={cn("p-1.5 rounded-lg border transition-all text-xs",
+                      a.isAvailable ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20" : "bg-red-400/10 text-red-400 border-red-400/20"
+                    )}
+                    title={a.isAvailable ? t("تعطيل","Désactiver") : t("تفعيل","Activer")}
+                  >
+                    <Power size={11} />
+                  </button>
+                  <button onClick={() => openEdit(a)} className="p-1.5 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-colors"><Pencil size={12} /></button>
+                  <button onClick={() => remove(a.id)} className="p-1.5 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+                </div>
+              </div>
+              {/* Price */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {a.discountedPrice ? (
+                  <>
+                    <span className="text-[#1A4D1F] font-black">{a.discountedPrice} TND</span>
+                    <span className="text-[#1A4D1F]/30 line-through text-xs">{a.originalPrice || a.price} TND</span>
+                    <span className="text-xs bg-red-500/20 text-red-400 border border-red-500/30 px-1.5 py-0.5 rounded-full font-bold">
+                      -{Math.round(((a.originalPrice || a.price) - a.discountedPrice) / (a.originalPrice || a.price) * 100)}%
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-[#1A4D1F] font-black">{a.price} TND</span>
+                )}
               </div>
             </div>
-            {a.supplierName && <p className="text-xs text-[#1A4D1F]/30 mb-2">{a.supplierName}</p>}
-            <div className="flex items-center gap-2">
-              {a.discountedPrice ? (
-                <>
-                  <span className="text-[#1A4D1F] font-black">{a.discountedPrice} TND</span>
-                  <span className="text-[#1A4D1F]/30 line-through text-xs">{a.originalPrice || a.price} TND</span>
-                  <span className="text-xs bg-red-500/20 text-red-400 border border-red-500/30 px-1.5 py-0.5 rounded-full font-bold">
-                    -{Math.round(((a.originalPrice || a.price) - a.discountedPrice) / (a.originalPrice || a.price) * 100)}%
-                  </span>
-                </>
-              ) : (
-                <span className="text-[#1A4D1F] font-black">{a.price} TND</span>
-              )}
-              <span className={cn("ml-auto text-xs px-2 py-0.5 rounded-full border", a.isAvailable ? "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" : "text-red-400 border-red-400/30 bg-red-400/10")}>
-                {a.isAvailable ? t("متاح","Dispo") : t("نفذ","Indispo")}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === "add" ? t("إضافة منتج","Ajouter article") : t("تعديل منتج","Modifier article")}>
-        <Field label={t("المزود","Fournisseur")}>
-          <Select value={form.supplierId} onChange={v => setForm(f => ({...f, supplierId: v}))} options={suppliers.map(s => ({ value: s.id.toString(), label: s.nameAr }))} />
-        </Field>
+          ))}
+        </div>
+      )}
+
+      {/* Add / Edit Modal */}
+      <Modal
+        open={!!modal}
+        onClose={() => { setModal(null); setErrMsg(""); }}
+        title={modal === "add" ? t("إضافة منتج للمزود","Ajouter un article") : t("تعديل منتج","Modifier l'article")}
+      >
+        {/* Supplier selector — prominent */}
+        <div className="bg-[#FFA500]/10 border border-[#FFA500]/30 rounded-xl p-3 mb-2">
+          <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1.5">
+            🏪 {t("المزود (يظهر المنتج في حساب هذا المزود)","Fournisseur (l'article apparaît dans son compte)")}
+          </label>
+          <Select
+            value={form.supplierId}
+            onChange={v => setForm(f => ({...f, supplierId: v}))}
+            options={suppliers.map(s => ({ value: s.id.toString(), label: `${s.nameAr} — ${s.name}` }))}
+          />
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("الاسم عربي","Nom arabe")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} /></Field>
-          <Field label={t("الاسم فرنسي","Nom français")}><Input value={form.nameFr} onChange={v => setForm(f => ({...f, nameFr: v}))} /></Field>
+          <Field label={t("الاسم عربي *","Nom arabe *")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder="مثال: برجر كلاسيك" /></Field>
+          <Field label={t("الاسم فرنسي","Nom français")}><Input value={form.nameFr} onChange={v => setForm(f => ({...f, nameFr: v}))} placeholder="Ex: Burger classique" /></Field>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <Field label={t("السعر","Prix (TND)")}><Input type="number" value={form.price} onChange={v => setForm(f => ({...f, price: v}))} /></Field>
+          <Field label={t("السعر (TND)","Prix (TND)")}><Input type="number" value={form.price} onChange={v => setForm(f => ({...f, price: v}))} /></Field>
           <Field label={t("السعر الأصلي","Prix original")}><Input type="number" value={form.originalPrice} onChange={v => setForm(f => ({...f, originalPrice: v}))} placeholder="—" /></Field>
           <Field label={t("السعر المخفض","Prix réduit")}><Input type="number" value={form.discountedPrice} onChange={v => setForm(f => ({...f, discountedPrice: v}))} placeholder="—" /></Field>
         </div>
         <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>
         <Field label={t("الوصف فرنسي","Description française")}><Input value={form.descriptionFr} onChange={v => setForm(f => ({...f, descriptionFr: v}))} /></Field>
+        <Field label={t("رابط الصورة","URL de l'image")}><Input value={form.photoUrl} onChange={v => setForm(f => ({...f, photoUrl: v}))} placeholder="https://..." /></Field>
         <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>
-        <GoldBtn onClick={save} className="w-full justify-center">{t("حفظ","Enregistrer")}</GoldBtn>
+
+        {errMsg && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-400 font-bold text-center">
+            ⚠️ {errMsg}
+          </div>
+        )}
+
+        <GoldBtn onClick={save} disabled={saving} className="w-full justify-center">
+          {saving ? <RefreshCw size={14} className="animate-spin mx-auto" /> : t("حفظ المنتج","Enregistrer")}
+        </GoldBtn>
       </Modal>
     </div>
   );
