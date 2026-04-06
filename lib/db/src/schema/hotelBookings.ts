@@ -1,9 +1,9 @@
-import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, real, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { serviceProvidersTable } from "./serviceProviders";
 
-export const hotelBookingStatusEnum = ["pending", "confirmed", "cancelled"] as const;
+export const hotelBookingStatusEnum = ["pending", "confirmed", "rejected", "cancelled"] as const;
 export type HotelBookingStatus = typeof hotelBookingStatusEnum[number];
 
 export const hotelBookingsTable = pgTable("hotel_bookings", {
@@ -15,6 +15,9 @@ export const hotelBookingsTable = pgTable("hotel_bookings", {
   checkOut: timestamp("check_out").notNull(),
   guests: integer("guests").notNull().default(1),
   notes: text("notes"),
+  // JSON: [{roomId, nameAr, nameFr, qty, pricePerNight, photoUrl}]
+  selectedRooms: text("selected_rooms"),
+  totalPrice: real("total_price"),
   status: text("status").$type<HotelBookingStatus>().default("pending").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
