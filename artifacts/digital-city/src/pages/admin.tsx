@@ -1581,14 +1581,14 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
   const displayList: AnyUser[] = viewMode === "all"
     ? allUsers.filter(u => {
         const q = search.toLowerCase();
-        const matchSearch = !q || u.name.toLowerCase().includes(q) || (u.username || "").toLowerCase().includes(q);
+        const matchSearch = !q || u.name.toLowerCase().includes(q) || (u.username || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q) || (u.phone || "").includes(q);
         const matchRole = roleFilter === "all" || u.role === roleFilter;
         return matchSearch && matchRole;
       })
     : users
         .filter(u => {
           const q = search.toLowerCase();
-          const matchSearch = !q || u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
+          const matchSearch = !q || u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q) || (u.phone || "").includes(q);
           const matchRole = roleFilter === "all" || u.role === roleFilter;
           return matchSearch && matchRole;
         })
@@ -1751,6 +1751,9 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
               {u.phone
                 ? <p className="text-xs text-[#1A4D1F]/50 truncate">{u.phone}</p>
                 : <p className="text-xs text-[#1A4D1F]/20">—</p>}
+              {u.email
+                ? <p className="text-[10px] text-[#1A4D1F]/35 truncate mt-0.5">{u.email}</p>
+                : <p className="text-[10px] text-[#1A4D1F]/15 mt-0.5">{t("لا يوجد بريد","Pas d'email")}</p>}
             </div>
 
             {/* Role */}
