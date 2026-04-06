@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { compressImage } from "@/lib/compress-image";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { getSession, clearSession } from "@/lib/auth";
@@ -6,7 +7,7 @@ import {
   Power, Clock, Truck, Star, RefreshCw, MessageCircle, ChevronRight,
   Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon, History,
   Plus, Trash2, Pencil, ToggleLeft, ToggleRight, AlertTriangle, KeyRound, Calendar, Phone, Scale, FileText, Hotel,
-  Camera, Link,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -54,6 +55,21 @@ interface Article {
 
 // ── Reusable Image Picker Field ───────────────────────────────────────────────
 // aspect: "16:9" | "4:3" | "1:1"
+async function uploadImageFile(file: File): Promise<string> {
+  const compressed = await compressImage(file).catch(() => file);
+  const fd = new FormData();
+  fd.append("image", compressed);
+  const token = getSession()?.token || "";
+  const res = await fetch("/api/upload/image", {
+    method: "POST",
+    headers: { "X-Session-Token": token },
+    body: fd,
+  });
+  if (!res.ok) throw new Error("Upload failed");
+  const data = await res.json() as { url: string };
+  return data.url;
+}
+
 function ImagePickerField({
   value, onChange, label, guideAr, guideFr, aspect = "16:9", accentColor = "#1A4D1F", t,
 }: {
@@ -61,90 +77,109 @@ function ImagePickerField({
   guideAr: string; guideFr: string; aspect?: "16:9" | "4:3" | "1:1";
   accentColor?: string; t: (ar: string, fr: string) => string;
 }) {
-  const [editUrl, setEditUrl] = useState(false);
-  const [urlDraft, setUrlDraft] = useState(value);
-  const [imgError, setImgError] = useState(false);
-
-  useEffect(() => { setUrlDraft(value); setImgError(false); }, [value]);
-
-  const confirm = () => { onChange(urlDraft.trim()); setEditUrl(false); setImgError(false); };
-  const clear   = (e: React.MouseEvent) => { e.stopPropagation(); onChange(""); setUrlDraft(""); setEditUrl(false); setImgError(false); };
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState("");
 
   const aspectClass = aspect === "4:3" ? "aspect-[4/3]" : aspect === "1:1" ? "aspect-square" : "aspect-video";
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setUploading(true);
+    setUploadErr("");
+    try {
+      const url = await uploadImageFile(file);
+      onChange(url);
+    } catch {
+      setUploadErr(t("فشل الرفع، حاول مجدداً", "Échec du téléchargement, réessayez"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const clear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange("");
+    setUploadErr("");
+  };
 
   return (
     <div className="space-y-1.5">
       <label className="block text-xs font-black opacity-60" style={{ color: accentColor }}>{label}</label>
 
-      {/* Visual preview zone */}
+      {/* Hidden file input */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFile}
+      />
+
+      {/* Clickable preview zone */}
       <div
         className={`relative w-full rounded-2xl overflow-hidden border-2 border-dashed cursor-pointer transition-all ${aspectClass}`}
-        style={{ borderColor: value && !imgError ? accentColor + "55" : accentColor + "22", background: accentColor + "08" }}
-        onClick={() => setEditUrl(v => !v)}
+        style={{ borderColor: value ? accentColor + "55" : accentColor + "22", background: accentColor + "08" }}
+        onClick={() => !uploading && fileRef.current?.click()}
       >
-        {value && !imgError ? (
+        {value ? (
           <>
-            <img src={value} alt="" className="w-full h-full object-cover" onError={() => setImgError(true)} />
-            {/* overlay controls */}
-            <div className="absolute top-2 end-2 flex gap-1.5">
-              <button onClick={() => setEditUrl(v => !v)}
-                className="p-1.5 rounded-lg backdrop-blur-sm"
-                style={{ background: "rgba(0,0,0,0.55)" }}>
-                <Link size={11} className="text-white" />
-              </button>
-              <button onClick={clear}
-                className="p-1.5 rounded-lg backdrop-blur-sm"
-                style={{ background: "rgba(239,68,68,0.7)" }}>
-                <X size={11} className="text-white" />
-              </button>
-            </div>
+            <img src={value} alt="" className="w-full h-full object-cover" />
+            {!uploading && (
+              <div className="absolute top-2 end-2 flex gap-1.5">
+                <button
+                  onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}
+                  className="p-1.5 rounded-lg backdrop-blur-sm"
+                  style={{ background: "rgba(0,0,0,0.55)" }}
+                  title={t("تغيير الصورة", "Changer l'image")}>
+                  <Camera size={11} className="text-white" />
+                </button>
+                <button onClick={clear}
+                  className="p-1.5 rounded-lg backdrop-blur-sm"
+                  style={{ background: "rgba(239,68,68,0.7)" }}
+                  title={t("حذف الصورة", "Supprimer")}>
+                  <X size={11} className="text-white" />
+                </button>
+              </div>
+            )}
           </>
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 opacity-40">
-            <Camera size={36} style={{ color: accentColor }} />
-            <div className="text-center px-4">
-              <p className="text-xs font-black" style={{ color: accentColor }}>{t(guideAr, guideFr)}</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            <Camera size={36} style={{ color: accentColor, opacity: 0.4 }} />
+            <div className="text-center px-4 space-y-0.5">
+              <p className="text-xs font-black opacity-50" style={{ color: accentColor }}>
+                {t("اضغط لاختيار صورة", "Appuyer pour choisir une photo")}
+              </p>
+              <p className="text-[10px] opacity-30 font-bold" style={{ color: accentColor }}>
+                {t(guideAr, guideFr)}
+              </p>
             </div>
           </div>
         )}
-        {imgError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-40">
-            <ImageIcon size={28} style={{ color: accentColor }} />
-            <p className="text-xs font-black" style={{ color: accentColor }}>{t("رابط خاطئ", "URL invalide")}</p>
+
+        {/* Upload spinner overlay */}
+        {uploading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2"
+            style={{ background: "rgba(255,255,255,0.85)" }}>
+            <RefreshCw size={26} className="animate-spin" style={{ color: accentColor }} />
+            <p className="text-xs font-black" style={{ color: accentColor }}>
+              {t("جارٍ الرفع...", "Téléchargement...")}
+            </p>
           </div>
         )}
       </div>
 
-      {/* URL input panel — shown on demand or when empty */}
-      {(editUrl || !value || imgError) && (
-        <div className="flex gap-2">
-          <div className="flex-1 flex items-center gap-2 rounded-xl border-2 px-3"
-            style={{ borderColor: accentColor + "33", background: "#fff" }}>
-            <Link size={12} style={{ color: accentColor }} className="opacity-40 flex-shrink-0" />
-            <input
-              value={urlDraft}
-              onChange={e => setUrlDraft(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && confirm()}
-              placeholder="https://..."
-              dir="ltr"
-              className="flex-1 py-2.5 text-sm font-bold outline-none bg-transparent"
-              style={{ color: accentColor }}
-            />
-          </div>
-          <button onClick={confirm}
-            className="px-4 rounded-xl text-xs font-black text-white"
-            style={{ background: accentColor }}>
-            {t("تأكيد", "OK")}
-          </button>
-        </div>
+      {uploadErr && (
+        <p className="text-xs font-bold text-red-500">{uploadErr}</p>
       )}
 
-      {/* Image guidance hint */}
-      <p className="text-[10px] font-bold opacity-35 flex items-center gap-1" style={{ color: accentColor }}>
+      <p className="text-[10px] font-bold opacity-30 flex items-center gap-1" style={{ color: accentColor }}>
         <ImageIcon size={9} />
         {t(
-          `نسبة ${aspect} · JPG أو PNG · صورة واضحة وعالية الجودة`,
-          `Ratio ${aspect} · JPG ou PNG · Netteté et qualité recommandées`
+          `من المعرض أو الكاميرا · نسبة ${aspect}`,
+          `Galerie ou appareil photo · Ratio ${aspect}`
         )}
       </p>
     </div>
