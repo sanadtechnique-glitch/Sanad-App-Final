@@ -5,7 +5,7 @@ import { getSession, clearSession } from "@/lib/auth";
 import {
   Power, Clock, Truck, Star, RefreshCw, MessageCircle, ChevronRight,
   Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon, History,
-  Plus, Trash2, Pencil, ToggleLeft, ToggleRight, AlertTriangle, KeyRound, Calendar, Phone, Scale, FileText,
+  Plus, Trash2, Pencil, ToggleLeft, ToggleRight, AlertTriangle, KeyRound, Calendar, Phone, Scale, FileText, Hotel,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -35,7 +35,7 @@ function timeAgo(dateStr: string, lang: string) {
 }
 
 // ── فئات مزودي المنتجات (يبيعون أصنافاً من كتالوج)
-const PRODUCT_CATS = ["restaurant", "grocery", "pharmacy", "bakery", "butcher", "cafe", "sweets", "hotel"];
+const PRODUCT_CATS = ["restaurant", "grocery", "pharmacy", "bakery", "butcher", "cafe", "sweets"];
 // ── فئات المزودين القادرين على الاستجابة لطلبات SOS
 const SOS_CATS     = ["mechanic", "doctor", "emergency", "sos"];
 
@@ -318,6 +318,7 @@ export default function ProviderDashboard() {
   const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos" | "lawyer">("pending");
   const [driverNotif, setDriverNotif] = useState<Notification | null>(null);
   const [carBookings, setCarBookings]       = useState<any[]>([]);
+  const [hotelBookings, setHotelBookings]   = useState<any[]>([]);
   const [sosRequests, setSosRequests]       = useState<any[]>([]);
   const [sosLoading, setSosLoading]         = useState(false);
   const [lawyerRequests, setLawyerRequests] = useState<any[]>([]);
@@ -407,6 +408,27 @@ export default function ProviderDashboard() {
     } catch {}
   };
 
+  const loadHotelBookings = async (provider: Supplier) => {
+    try {
+      const session = getSession();
+      const res = await fetch(`/api/hotel-bookings/hotel/${provider.id}`, {
+        headers: { "x-session-token": session?.token || "" },
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setHotelBookings(data);
+    } catch {}
+  };
+
+  const updateHotelBooking = async (bookingId: number, status: string) => {
+    const session = getSession();
+    await fetch(`/api/hotel-bookings/${bookingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-session-token": session?.token || "" },
+      body: JSON.stringify({ status }),
+    });
+    setHotelBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b));
+  };
+
   const loadSosRequests = async (provider: Supplier) => {
     setSosLoading(true);
     try {
@@ -478,6 +500,7 @@ export default function ProviderDashboard() {
     startPolling(provider);
     startProviderNotifPolling(provider);
     if (provider.category === "car_rental") loadCarBookings(provider);
+    if (provider.category === "hotel")    loadHotelBookings(provider);
     if (provider.category === "lawyer") loadLawyerRequests(provider);
     else loadSosRequests(provider);
   };
@@ -704,7 +727,7 @@ export default function ProviderDashboard() {
                     : t("الخدمات","Services"),
                   icon: <Package size={10} />,
                 },
-                ...(selected.category === "car_rental" ? [{ id: "bookings", label: t("حجوزات","Réserv."), icon: <KeyRound size={10} /> }] : []),
+                ...((selected.category === "car_rental" || selected.category === "hotel") ? [{ id: "bookings", label: t("حجوزات","Réserv."), icon: <KeyRound size={10} />, badge: (selected.category === "hotel" ? hotelBookings : carBookings).filter((b:any)=>b.status==="pending").length }] : []),
                 // SOS tab: فقط لمزودي خدمات الطوارئ (ميكانيكي، طبيب، طوارئ...)
                 ...(isSosCat(selected.category) ? [{
                   id: "sos", label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true,
@@ -811,6 +834,96 @@ export default function ProviderDashboard() {
                         className="mt-3 w-full py-2 rounded-xl font-black text-xs flex items-center justify-center gap-1.5"
                         style={{ background: "#EDE9FE", color: "#6D28D9" }}>
                         {t("إنهاء الكراء ✓", "Terminer ✓")}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Hotel bookings */}
+        {tab === "bookings" && selected.category === "hotel" && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black opacity-50" style={{ color: "#1A4D1F" }}>{t("حجوزات الفندق", "Réservations hôtel")}</p>
+              <button onClick={() => loadHotelBookings(selected)} className="p-1.5 rounded-lg" style={{ background: "#1A4D1F22" }}>
+                <RefreshCw size={12} style={{ color: "#1A4D1F" }} />
+              </button>
+            </div>
+            {hotelBookings.length === 0 ? (
+              <div className="flex flex-col items-center py-12 gap-2 opacity-30">
+                <Hotel size={32} style={{ color: "#1A4D1F" }} />
+                <p className="text-sm font-bold" style={{ color: "#1A4D1F" }}>{t("لا توجد حجوزات", "Aucune réservation")}</p>
+              </div>
+            ) : hotelBookings.map((b: any) => {
+              const statusColors: Record<string, { bg: string; color: string }> = {
+                pending:   { bg: "#FEF3C7", color: "#92400E" },
+                confirmed: { bg: "#DBEAFE", color: "#1D4ED8" },
+                rejected:  { bg: "#FEE2E2", color: "#DC2626" },
+                completed: { bg: "#EDE9FE", color: "#6D28D9" },
+                cancelled: { bg: "#F3F4F6", color: "#6B7280" },
+              };
+              const statusLabel: Record<string, { ar: string; fr: string }> = {
+                pending:   { ar: "في الانتظار", fr: "En attente" },
+                confirmed: { ar: "مؤكد",        fr: "Confirmé" },
+                rejected:  { ar: "مرفوض",       fr: "Refusé" },
+                completed: { ar: "مكتمل",       fr: "Terminé" },
+                cancelled: { ar: "ملغي",        fr: "Annulé" },
+              };
+              const sc = statusColors[b.status] || statusColors.pending;
+              let parsedRooms: any[] = [];
+              try { parsedRooms = JSON.parse(b.selectedRooms || "[]"); } catch {}
+              const nights = Math.max(0, Math.floor((new Date(b.checkOut).getTime() - new Date(b.checkIn).getTime()) / 86400000));
+              return (
+                <div key={b.id} className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid #1A4D1F11" }}>
+                  <div className="flex items-center justify-between px-4 py-2.5" style={{ background: "#1A4D1F08" }}>
+                    <span className="text-xs font-black" style={{ color: "#1A4D1F" }}>#{String(b.id).padStart(4,"0")}</span>
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ color: sc.color, background: sc.bg }}>
+                      {lang === "ar" ? statusLabel[b.status]?.ar : statusLabel[b.status]?.fr}
+                    </span>
+                  </div>
+                  <div className="p-4 space-y-2">
+                    <p className="font-black text-sm" style={{ color: "#1A4D1F" }}>{b.customerName}</p>
+                    <p className="text-xs flex items-center gap-1" style={{ color: "#1A4D1F", opacity: 0.5 }}><Phone size={10} />{b.customerPhone}</p>
+                    <div className="flex items-center gap-2 text-xs font-bold" style={{ color: "#1A4D1F" }}>
+                      <Calendar size={11} />
+                      {String(b.checkIn).split("T")[0]} → {String(b.checkOut).split("T")[0]}
+                      {nights > 0 && <span className="text-[#FFA500]">({nights} {t("ليلة","nuit(s)")})</span>}
+                    </div>
+                    {parsedRooms.length > 0 && (
+                      <div className="rounded-xl bg-[#FFF3E0] p-2.5 space-y-1">
+                        {parsedRooms.map((r: any, i: number) => (
+                          <div key={i} className="flex justify-between text-xs font-bold" style={{ color: "#1A4D1F" }}>
+                            <span>{r.qty}× {lang === "ar" ? r.nameAr : r.nameFr}</span>
+                            <span>{(r.qty * r.pricePerNight).toFixed(3)} TND/ليلة</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {b.totalPrice && (
+                      <p className="text-sm font-black" style={{ color: "#FFA500" }}>{Number(b.totalPrice).toFixed(3)} TND {t("إجمالي", "total")}</p>
+                    )}
+                    {b.status === "pending" && (
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={() => updateHotelBooking(b.id, "confirmed")}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl font-black text-xs"
+                          style={{ background: "#1A4D1F", color: "#fff" }}>
+                          <Check size={12} /> {t("تأكيد", "Confirmer")}
+                        </button>
+                        <button onClick={() => updateHotelBooking(b.id, "rejected")}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl font-black text-xs"
+                          style={{ background: "#FEE2E2", color: "#DC2626" }}>
+                          <X size={12} /> {t("رفض", "Refuser")}
+                        </button>
+                      </div>
+                    )}
+                    {b.status === "confirmed" && (
+                      <button onClick={() => updateHotelBooking(b.id, "completed")}
+                        className="mt-2 w-full py-2 rounded-xl font-black text-xs flex items-center justify-center gap-1.5"
+                        style={{ background: "#EDE9FE", color: "#6D28D9" }}>
+                        {t("إنهاء الإقامة ✓", "Séjour terminé ✓")}
                       </button>
                     )}
                   </div>

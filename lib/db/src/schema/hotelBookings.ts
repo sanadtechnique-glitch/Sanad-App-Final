@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { serviceProvidersTable } from "./serviceProviders";
 
-export const hotelBookingStatusEnum = ["pending", "confirmed", "rejected", "cancelled"] as const;
+export const hotelBookingStatusEnum = ["pending", "confirmed", "rejected", "cancelled", "completed"] as const;
 export type HotelBookingStatus = typeof hotelBookingStatusEnum[number];
 
 export const hotelBookingsTable = pgTable("hotel_bookings", {

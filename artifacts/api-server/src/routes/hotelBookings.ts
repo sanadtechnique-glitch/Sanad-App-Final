@@ -101,7 +101,7 @@ router.patch("/hotel-bookings/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   const { status } = req.body;
-  if (!["pending", "confirmed", "rejected", "cancelled"].includes(status)) {
+  if (!["pending", "confirmed", "rejected", "cancelled", "completed"].includes(status)) {
     res.status(400).json({ message: "Invalid status" }); return;
   }
   try {
