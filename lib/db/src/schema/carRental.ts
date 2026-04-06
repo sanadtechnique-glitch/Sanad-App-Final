@@ -13,6 +13,7 @@ export const carsTable = pgTable("cars", {
   model:        text("model").notNull(),
   year:         integer("year"),
   color:        text("color").default(""),
+  plateNumber:  text("plate_number").default(""),        // رقم اللوحة المنجمية مثال: 123 TU 4567
   pricePerDay:  real("price_per_day").notNull(),
   seats:        integer("seats").default(5),
   transmission: text("transmission").default("manual"),

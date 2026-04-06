@@ -3455,7 +3455,7 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [activeAgency, setActiveAgency] = useState<any | null>(null);
   const [showCarForm, setShowCarForm]   = useState(false);
   const [showAgencyForm, setShowAgencyForm] = useState(false);
-  const [carForm, setCarForm] = useState({ make: "", model: "", year: "", color: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "", description: "" });
+  const [carForm, setCarForm] = useState({ make: "", model: "", year: "", color: "", plateNumber: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "", description: "" });
   const [agencyForm, setAgencyForm] = useState({ nameAr: "", name: "", phone: "", address: "", photoUrl: "" });
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<"cars" | "bookings">("cars");
@@ -3519,7 +3519,7 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
       });
       const car = await res.json();
       setCars(prev => [...prev, car]);
-      setCarForm({ make: "", model: "", year: "", color: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "", description: "" });
+      setCarForm({ make: "", model: "", year: "", color: "", plateNumber: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "", description: "" });
       setShowCarForm(false);
     } finally { setSaving(false); }
   };
@@ -3657,7 +3657,8 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
                           { key: "model", label: t("الموديل","Modèle"), placeholder: "Yaris" },
                           { key: "year", label: t("السنة","Année"), placeholder: "2022" },
                           { key: "color", label: t("اللون","Couleur"), placeholder: t("أبيض","Blanc") },
-                          { key: "pricePerDay", label: t("السعر/يوم","Prix/jour"), placeholder: "50" },
+                          { key: "plateNumber", label: t("رقم اللوحة المنجمية","Numéro d'immatriculation"), placeholder: "123 TU 4567" },
+                          { key: "pricePerDay", label: t("السعر/يوم (د.ت)","Prix/jour (DT)"), placeholder: "50" },
                           { key: "seats", label: t("المقاعد","Places"), placeholder: "5" },
                         ].map(f => (
                           <div key={f.key}>
@@ -3720,6 +3721,11 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-sm truncate" style={{ color: "#1A4D1F" }}>{car.make} {car.model} {car.year && `(${car.year})`}</p>
                           <p className="text-xs opacity-50" style={{ color: "#1A4D1F" }}>{car.color && `${car.color} · `}{car.transmission === "automatic" ? t("أوتوماتيك","Auto") : t("يدوي","Manuel")} · {car.fuelType}</p>
+                          {car.plateNumber && (
+                            <p className="text-xs font-black mt-0.5 tracking-widest px-2 py-0.5 rounded inline-block" style={{ background: "#1A4D1F", color: "#FFA500", fontFamily: "monospace", letterSpacing: "0.15em" }}>
+                              🇹🇳 {car.plateNumber}
+                            </p>
+                          )}
                           <p className="text-xs font-black mt-0.5" style={{ color: "#1565C0" }}>{car.pricePerDay} {t("د.ت/يوم","TND/j")} · {car.seats} {t("مقاعد","places")}</p>
                         </div>
                         <div className="flex flex-col gap-1.5 items-end">

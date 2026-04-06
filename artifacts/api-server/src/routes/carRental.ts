@@ -57,12 +57,13 @@ router.get("/car-rental/cars/:id", async (req, res) => {
 // ── Admin: create car ─────────────────────────────────────────────────────────
 router.post("/admin/car-rental/cars", requireAuth, async (req, res) => {
   try {
-    const { agencyId, make, model, year, color, pricePerDay, seats, transmission, fuelType, imageUrl, description, descriptionAr } = req.body;
+    const { agencyId, make, model, year, color, plateNumber, pricePerDay, seats, transmission, fuelType, imageUrl, description, descriptionAr } = req.body;
     if (!agencyId || !make || !model || !pricePerDay) return res.status(400).json({ error: "missing_fields" });
     const [car] = await db.insert(carsTable).values({
       agencyId: Number(agencyId), make, model,
       year: year ? Number(year) : null,
       color: color || "",
+      plateNumber: plateNumber || "",
       pricePerDay: Number(pricePerDay),
       seats: seats ? Number(seats) : 5,
       transmission: transmission || "manual",
@@ -73,6 +74,51 @@ router.post("/admin/car-rental/cars", requireAuth, async (req, res) => {
       isAvailable: true,
     }).returning();
     res.status(201).json(car);
+  } catch (e) {
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ── Provider: create car for own agency ───────────────────────────────────────
+router.post("/provider/car-rental/cars", requireAuth, async (req, res) => {
+  try {
+    const { agencyId, make, model, year, color, plateNumber, pricePerDay, seats, transmission, fuelType, imageUrl, description, descriptionAr } = req.body;
+    if (!agencyId || !make || !model || !pricePerDay) return res.status(400).json({ error: "missing_fields" });
+    const [car] = await db.insert(carsTable).values({
+      agencyId: Number(agencyId), make, model,
+      year: year ? Number(year) : null,
+      color: color || "",
+      plateNumber: plateNumber || "",
+      pricePerDay: Number(pricePerDay),
+      seats: seats ? Number(seats) : 5,
+      transmission: transmission || "manual",
+      fuelType: fuelType || "essence",
+      imageUrl: imageUrl || null,
+      description: description || "",
+      descriptionAr: descriptionAr || "",
+      isAvailable: true,
+    }).returning();
+    res.status(201).json(car);
+  } catch (e) {
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ── Provider: update own car ──────────────────────────────────────────────────
+router.patch("/provider/car-rental/cars/:id", requireAuth, async (req, res) => {
+  try {
+    const [car] = await db.update(carsTable).set(req.body).where(eq(carsTable.id, Number(req.params.id))).returning();
+    res.json(car);
+  } catch (e) {
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ── Provider: delete own car ──────────────────────────────────────────────────
+router.delete("/provider/car-rental/cars/:id", requireAuth, async (req, res) => {
+  try {
+    await db.delete(carsTable).where(eq(carsTable.id, Number(req.params.id)));
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: "server_error" });
   }

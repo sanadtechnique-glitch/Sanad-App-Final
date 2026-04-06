@@ -52,7 +52,7 @@ interface Article {
 }
 
 // ── Products Management Component ─────────────────────────────────────────────
-function ProductsManager({ providerId, t, lang, isService = false }: { providerId: number; t: (ar: string, fr: string) => string; lang: string; isService?: boolean }) {
+function ProductsManager({ providerId, t, lang, isService = false, overrideLabel }: { providerId: number; t: (ar: string, fr: string) => string; lang: string; isService?: boolean; overrideLabel?: { titleAr: string; titleFr: string; unitAr: string; unitFr: string } }) {
   const [products, setProducts]   = useState<Article[]>([]);
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm]   = useState(false);
@@ -126,10 +126,10 @@ function ProductsManager({ providerId, t, lang, isService = false }: { providerI
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-black text-[#1A4D1F]">
-            {isService ? t("خدماتي", "Mes services") : t("منتجاتي", "Mes produits")}
+            {overrideLabel ? t(overrideLabel.titleAr, overrideLabel.titleFr) : isService ? t("خدماتي", "Mes services") : t("منتجاتي", "Mes produits")}
           </h3>
           <p className="text-xs text-[#1A4D1F]/40">
-            {products.length} {isService ? t("خدمة", "service(s)") : t("منتج", "produit(s)")}
+            {products.length} {overrideLabel ? t(overrideLabel.unitAr, overrideLabel.unitFr) : isService ? t("خدمة", "service(s)") : t("منتج", "produit(s)")}
           </p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-black" style={{ background: "#1A4D1F" }}>
@@ -291,7 +291,7 @@ function ProductsManager({ providerId, t, lang, isService = false }: { providerI
                 <button onClick={save} disabled={saving || !form.nameAr || !form.price}
                   className="flex-1 py-2.5 rounded-xl text-white font-black text-sm disabled:opacity-40"
                   style={{ background: "#1A4D1F" }}>
-                  {saving ? <RefreshCw size={14} className="animate-spin mx-auto" /> : t("حفظ المنتج", "Enregistrer")}
+                  {saving ? <RefreshCw size={14} className="animate-spin mx-auto" /> : isService ? t("حفظ", "Enregistrer") : t("حفظ المنتج", "Enregistrer")}
                 </button>
                 <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-xl text-sm font-black text-[#1A4D1F]/50 border border-[#1A4D1F]/15">
                   {t("إلغاء", "Annuler")}
@@ -301,6 +301,199 @@ function ProductsManager({ providerId, t, lang, isService = false }: { providerI
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Car Manager (for car_rental providers) ────────────────────────────────────
+function CarManager({ agencyId, t }: { agencyId: number; t: (ar: string, fr: string) => string }) {
+  const EMPTY_CAR = { make: "", model: "", year: "", color: "", plateNumber: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "" };
+  const [cars, setCars]           = useState<any[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [showForm, setShowForm]   = useState(false);
+  const [saving, setSaving]       = useState(false);
+  const [form, setForm]           = useState(EMPTY_CAR);
+
+  const loadCars = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/car-rental/cars/all?agencyId=${agencyId}`, {
+        headers: { "x-session-token": getSession()?.token || "" },
+      });
+      const data = await res.json();
+      setCars(Array.isArray(data) ? data : []);
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { loadCars(); }, [agencyId]);
+
+  const addCar = async () => {
+    if (!form.make || !form.model || !form.pricePerDay) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/provider/car-rental/cars", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-session-token": getSession()?.token || "" },
+        body: JSON.stringify({ ...form, agencyId, pricePerDay: Number(form.pricePerDay), seats: Number(form.seats), year: form.year ? Number(form.year) : null }),
+      });
+      const car = await res.json();
+      setCars(prev => [...prev, car]);
+      setForm(EMPTY_CAR);
+      setShowForm(false);
+    } finally { setSaving(false); }
+  };
+
+  const toggleAvail = async (car: any) => {
+    await fetch(`/api/provider/car-rental/cars/${car.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-session-token": getSession()?.token || "" },
+      body: JSON.stringify({ isAvailable: !car.isAvailable }),
+    });
+    setCars(prev => prev.map(c => c.id === car.id ? { ...c, isAvailable: !car.isAvailable } : c));
+  };
+
+  const deleteCar = async (id: number) => {
+    if (!confirm(t("حذف هذه السيارة؟", "Supprimer cette voiture ?"))) return;
+    await fetch(`/api/provider/car-rental/cars/${id}`, {
+      method: "DELETE",
+      headers: { "x-session-token": getSession()?.token || "" },
+    });
+    setCars(prev => prev.filter(c => c.id !== id));
+  };
+
+  if (loading) return <div className="flex justify-center py-10"><RefreshCw size={18} className="animate-spin text-[#1A4D1F]/30" /></div>;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-black text-[#1A4D1F]">{t("سياراتي", "Mes voitures")}</h3>
+          <p className="text-xs text-[#1A4D1F]/40">{cars.length} {t("سيارة", "voiture(s)")}</p>
+        </div>
+        <button onClick={() => { setForm(EMPTY_CAR); setShowForm(!showForm); }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-xs text-white"
+          style={{ background: "#1565C0" }}>
+          <Plus size={13} />{t("إضافة سيارة", "Ajouter")}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="rounded-2xl p-4 space-y-3" style={{ background: "#EFF6FF", border: "1.5px solid #1565C033" }}>
+          <p className="text-sm font-black" style={{ color: "#1565C0" }}>{t("بيانات السيارة", "Détails de la voiture")}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { key: "make",        label: t("العلامة","Marque"),            placeholder: "Toyota" },
+              { key: "model",       label: t("الموديل","Modèle"),            placeholder: "Yaris" },
+              { key: "year",        label: t("السنة","Année"),               placeholder: "2022" },
+              { key: "color",       label: t("اللون","Couleur"),             placeholder: t("أبيض","Blanc") },
+              { key: "plateNumber", label: t("رقم اللوحة المنجمية","Immatriculation"), placeholder: "123 TU 4567" },
+              { key: "pricePerDay", label: t("السعر/يوم (د.ت)","Prix/j (DT)"),         placeholder: "50" },
+              { key: "seats",       label: t("المقاعد","Places"),            placeholder: "5" },
+            ].map(f => (
+              <div key={f.key} className={f.key === "plateNumber" ? "col-span-2" : ""}>
+                <label className="block text-xs font-black mb-1 opacity-60" style={{ color: "#1565C0" }}>{f.label}</label>
+                <input value={(form as any)[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder} dir={f.key === "plateNumber" ? "ltr" : undefined}
+                  className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+                  style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033",
+                    ...(f.key === "plateNumber" ? { fontFamily: "monospace", letterSpacing: "0.1em" } : {}) }} />
+                {f.key === "plateNumber" && <p className="text-[10px] mt-0.5 opacity-50" style={{ color: "#1565C0" }}>{t("مثال: 123 TU 4567 أو 123 TN 4567","Ex: 123 TU 4567 ou 123 TN 4567")}</p>}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-black mb-1 opacity-60" style={{ color: "#1565C0" }}>{t("ناقل الحركة","Boîte")}</label>
+              <select value={form.transmission} onChange={e => setForm(p => ({ ...p, transmission: e.target.value }))}
+                className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+                style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033" }}>
+                <option value="manual">{t("يدوي","Manuelle")}</option>
+                <option value="automatic">{t("أوتوماتيك","Automatique")}</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-black mb-1 opacity-60" style={{ color: "#1565C0" }}>{t("الوقود","Carburant")}</label>
+              <select value={form.fuelType} onChange={e => setForm(p => ({ ...p, fuelType: e.target.value }))}
+                className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+                style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033" }}>
+                <option value="essence">{t("بنزين","Essence")}</option>
+                <option value="diesel">{t("ديزل","Diesel")}</option>
+                <option value="hybrid">{t("هجين","Hybride")}</option>
+                <option value="electrique">{t("كهربائي","Électrique")}</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-black mb-1 opacity-60" style={{ color: "#1565C0" }}>{t("رابط صورة السيارة","URL photo")}</label>
+            <input value={form.imageUrl} onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value }))}
+              placeholder="https://..." dir="ltr"
+              className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+              style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033" }} />
+          </div>
+          <div>
+            <label className="block text-xs font-black mb-1 opacity-60" style={{ color: "#1565C0" }}>{t("وصف السيارة (اختياري)","Description (optionnel)")}</label>
+            <input value={form.descriptionAr} onChange={e => setForm(p => ({ ...p, descriptionAr: e.target.value }))}
+              placeholder={t("أي ملاحظات إضافية...","Remarques supplémentaires...")}
+              className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+              style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033" }} />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={addCar} disabled={saving || !form.make || !form.model || !form.pricePerDay}
+              className="flex-1 py-2.5 rounded-xl font-black text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: "#1565C0" }}>
+              {saving ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+              {t("إضافة السيارة","Ajouter la voiture")}
+            </button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-xl font-black text-sm"
+              style={{ background: "#1565C022", color: "#1565C0" }}>
+              {t("إلغاء","Annuler")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {cars.length === 0 && !showForm && (
+        <div className="text-center py-10 opacity-30">
+          <p className="text-2xl mb-2">🚗</p>
+          <p className="text-sm font-bold text-[#1A4D1F]">{t("لا توجد سيارات بعد","Aucune voiture encore")}</p>
+          <p className="text-xs mt-1 text-[#1A4D1F]/60">{t("اضغط 'إضافة سيارة' لإدراج أول سيارة","Cliquez 'Ajouter' pour commencer")}</p>
+        </div>
+      )}
+
+      {cars.map(car => (
+        <div key={car.id} className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #1A4D1F11" }}>
+          <div className="flex items-center gap-3 p-3">
+            {car.imageUrl
+              ? <img src={car.imageUrl} alt="" className="w-16 h-12 rounded-lg object-cover flex-shrink-0" />
+              : <div className="w-16 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#EFF6FF" }}>
+                  <span className="text-2xl">🚗</span>
+                </div>
+            }
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-sm" style={{ color: "#1A4D1F" }}>{car.make} {car.model} {car.year && `(${car.year})`}</p>
+              <p className="text-xs opacity-50 truncate" style={{ color: "#1A4D1F" }}>{car.color && `${car.color} · `}{car.transmission === "automatic" ? t("أوتوماتيك","Auto") : t("يدوي","Manuel")} · {car.fuelType}</p>
+              {car.plateNumber && (
+                <span className="text-xs font-black px-2 py-0.5 rounded mt-0.5 inline-block tracking-widest" dir="ltr"
+                  style={{ background: "#1A4D1F", color: "#FFA500", fontFamily: "monospace" }}>
+                  🇹🇳 {car.plateNumber}
+                </span>
+              )}
+              <p className="text-xs font-black mt-0.5" style={{ color: "#1565C0" }}>{car.pricePerDay} {t("د.ت/يوم","TND/j")} · {car.seats} {t("مقاعد","places")}</p>
+            </div>
+            <div className="flex flex-col gap-1.5 items-end flex-shrink-0">
+              <button onClick={() => toggleAvail(car)}
+                className="text-xs font-black px-2.5 py-1 rounded-full"
+                style={{ background: car.isAvailable ? "#D1FAE5" : "#FEE2E2", color: car.isAvailable ? "#059669" : "#DC2626" }}>
+                {car.isAvailable ? t("متاح","Dispo") : t("غير متاح","Indispo")}
+              </button>
+              <button onClick={() => deleteCar(car.id)}
+                className="text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1"
+                style={{ background: "#FEE2E2", color: "#DC2626" }}>
+                <Trash2 size={10} />{t("حذف","Suppr.")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -315,7 +508,7 @@ export default function ProviderDashboard() {
   const [pendingCount, setPendingCount] = useState(0);
   const [hasNewOrder, setHasNewOrder] = useState(false);
   const [photoModal, setPhotoModal] = useState<string | null>(null);
-  const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos" | "lawyer">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos" | "lawyer" | "cars">("pending");
   const [driverNotif, setDriverNotif] = useState<Notification | null>(null);
   const [carBookings, setCarBookings]       = useState<any[]>([]);
   const [hotelBookings, setHotelBookings]   = useState<any[]>([]);
@@ -520,7 +713,7 @@ export default function ProviderDashboard() {
 
   const selectProvider = async (provider: Supplier) => {
     setSelected(provider);
-    setTab(provider.category === "lawyer" ? "lawyer" : "pending");
+    setTab(provider.category === "lawyer" ? "lawyer" : provider.category === "car_rental" ? "cars" : "pending");
     await loadOrders(provider);
     startPolling(provider);
     startProviderNotifPolling(provider);
@@ -701,7 +894,7 @@ export default function ProviderDashboard() {
               : t("المحل مغلق ← اضغط للفتح", "Fermé ← Cliquez pour ouvrir")}
           </button>
 
-          {/* Stats bar */}
+          {/* Stats bar — مختلف حسب نوع المزود */}
           {selected.category === "lawyer" ? (
             <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#1A4D1F]/5">
               <div className="text-center">
@@ -715,6 +908,36 @@ export default function ProviderDashboard() {
               <div className="text-center">
                 <p className="text-2xl font-black text-red-400">{lawyerRequests.filter(r => r.status === "rejected").length}</p>
                 <p className="text-xs text-[#1A4D1F]/30">{t("مرفوض", "Refusé")}</p>
+              </div>
+            </div>
+          ) : selected.category === "car_rental" ? (
+            <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#1A4D1F]/5">
+              <div className="text-center">
+                <p className="text-2xl font-black text-amber-400">{carBookings.filter(b => b.status === "pending").length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("حجز جديد", "Nouv. réserv.")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-blue-400">{carBookings.filter(b => ["confirmed","active"].includes(b.status)).length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("نشط", "Actif")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-emerald-400">{carBookings.filter(b => b.status === "completed").length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("مكتمل", "Terminé")}</p>
+              </div>
+            </div>
+          ) : isSosCat(selected.category) ? (
+            <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#1A4D1F]/5">
+              <div className="text-center">
+                <p className="text-2xl font-black text-amber-400">{sosRequests.filter(r => r.status === "pending").length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("انتظار", "En attente")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-orange-400">{sosRequests.filter(r => r.status === "offered").length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("عرض سعر", "Offre envoyée")}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-emerald-400">{sosRequests.filter(r => r.status === "accepted").length}</p>
+                <p className="text-xs text-[#1A4D1F]/30">{t("مقبول", "Accepté")}</p>
               </div>
             </div>
           ) : (
@@ -739,21 +962,27 @@ export default function ProviderDashboard() {
         <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: "#FFFDE7" }}>
           {(selected.category === "lawyer"
             ? [
-                { id: "lawyer",   label: t("قضايا","Dossiers"),   icon: <Scale size={10} />, badge: lawyerRequests.filter(r=>r.status==="pending").length },
-                { id: "products", label: t("منتجات","Produits"), icon: <Package size={10} /> },
+                { id: "lawyer",   label: t("القضايا","Dossiers"),   icon: <Scale size={10} />, badge: lawyerRequests.filter(r=>r.status==="pending").length },
+                { id: "products", label: t("تخصصاتي","Spécialités"), icon: <FileText size={10} /> },
+              ]
+            : selected.category === "car_rental"
+            ? [
+                { id: "cars",     label: t("السيارات","Voitures"),  icon: <span className="text-[10px]">🚗</span> },
+                { id: "bookings", label: t("الحجوزات","Réserv."),  icon: <KeyRound size={10} />, badge: carBookings.filter((b:any)=>b.status==="pending").length },
               ]
             : [
                 { id: "pending",  label: t("جديد","Nouv."),       badge: pendingOrders.length },
                 { id: "all",      label: t("الطلبات","Cmds") },
                 {
                   id: "products",
-                  label: isProductCat(selected.category)
-                    ? t("المنتجات","Produits")
-                    : t("الخدمات","Services"),
-                  icon: <Package size={10} />,
+                  label: selected.category === "hotel"
+                    ? t("الغرف","Chambres")
+                    : isProductCat(selected.category)
+                      ? t("المنتجات","Produits")
+                      : t("الخدمات","Services"),
+                  icon: selected.category === "hotel" ? <Hotel size={10} /> : <Package size={10} />,
                 },
-                ...((selected.category === "car_rental" || selected.category === "hotel") ? [{ id: "bookings", label: t("حجوزات","Réserv."), icon: <KeyRound size={10} />, badge: (selected.category === "hotel" ? hotelBookings : carBookings).filter((b:any)=>b.status==="pending").length }] : []),
-                // SOS tab: فقط لمزودي خدمات الطوارئ (ميكانيكي، طبيب، طوارئ...)
+                ...(selected.category === "hotel" ? [{ id: "bookings", label: t("حجوزات","Réserv."), icon: <KeyRound size={10} />, badge: hotelBookings.filter((b:any)=>b.status==="pending").length }] : []),
                 ...(isSosCat(selected.category) ? [{
                   id: "sos", label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true,
                 }] : []),
@@ -765,7 +994,7 @@ export default function ProviderDashboard() {
                   ? tb.danger ? "bg-red-500 text-white" : "bg-[#1A4D1F] text-white"
                   : tb.danger ? "text-red-400 hover:text-red-500" : "text-[#1A4D1F]/40 hover:text-[#1A4D1F]")}>
               {tb.icon}{tb.label}
-              {tb.badge > 0 && (
+              {(tb.badge ?? 0) > 0 && (
                 <span className={cn("px-1.5 py-0.5 rounded-full text-xs font-black",
                   tab === tb.id ? "bg-white/20 text-white" : tb.danger ? "bg-red-400/20 text-red-400" : "bg-amber-400/20 text-amber-400")}>
                   {tb.badge}
@@ -775,18 +1004,28 @@ export default function ProviderDashboard() {
           ))}
         </div>
 
-        {/* Products / Services Manager */}
-        {tab === "products" && (
+        {/* Car Manager (وكالات السيارات فقط) */}
+        {tab === "cars" && selected.category === "car_rental" && (
+          <CarManager agencyId={selected.id} t={t} />
+        )}
+
+        {/* Products / Services / Rooms Manager */}
+        {tab === "products" && selected.category !== "car_rental" && (
           <ProductsManager
             providerId={selected.id}
             t={t}
             lang={lang}
             isService={!isProductCat(selected.category)}
+            overrideLabel={selected.category === "hotel"
+              ? { titleAr: "غرفي", titleFr: "Mes chambres", unitAr: "غرفة", unitFr: "chambre(s)" }
+              : selected.category === "lawyer"
+              ? { titleAr: "تخصصاتي", titleFr: "Mes spécialités", unitAr: "تخصص", unitFr: "spécialité(s)" }
+              : undefined}
           />
         )}
 
         {/* Car Rental Bookings */}
-        {tab === "bookings" && (
+        {tab === "bookings" && selected.category === "car_rental" && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-black opacity-50" style={{ color: "#1A4D1F" }}>{t("حجوزات السيارات", "Réservations voitures")}</p>
