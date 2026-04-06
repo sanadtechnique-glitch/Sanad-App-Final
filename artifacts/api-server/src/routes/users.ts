@@ -248,6 +248,17 @@ router.post("/auth/client-register", async (req, res) => {
       return;
     }
 
+    // Check email uniqueness
+    const [existingEmail] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.email, email!.trim().toLowerCase()));
+
+    if (existingEmail) {
+      res.status(409).json({ message: "البريد الإلكتروني مسجل مسبقاً · Cette adresse e-mail est déjà utilisée" });
+      return;
+    }
+
     // Auto-generate a unique username from phone number
     const baseUsername = `user_${phone.trim().replace(/\D/g, "")}`;
     const hashedPw = await hashPassword(password.trim());
@@ -465,7 +476,14 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
     res.status(201).json(safeUser);
   } catch (err: any) {
     if (err?.code === "23505") {
-      res.status(409).json({ message: "Username already exists" });
+      const detail = err?.detail ?? "";
+      if (detail.includes("email")) {
+        res.status(409).json({ message: "البريد الإلكتروني مسجل مسبقاً · E-mail déjà utilisé" });
+      } else if (detail.includes("phone")) {
+        res.status(409).json({ message: "رقم الهاتف مسجل مسبقاً · Numéro déjà utilisé" });
+      } else {
+        res.status(409).json({ message: "اسم المستخدم موجود بالفعل · Identifiant déjà utilisé" });
+      }
       return;
     }
     req.log.error({ err }, "Error creating user");
@@ -521,7 +539,18 @@ router.patch("/admin/users/:id", requireAdmin, async (req, res) => {
     if (!user) { res.status(404).json({ message: "User not found" }); return; }
     const { password: _pw, ...safeUser } = user;
     res.json(safeUser);
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      const detail = err?.detail ?? "";
+      if (detail.includes("email")) {
+        res.status(409).json({ message: "البريد الإلكتروني مسجل مسبقاً · E-mail déjà utilisé" });
+      } else if (detail.includes("phone")) {
+        res.status(409).json({ message: "رقم الهاتف مسجل مسبقاً · Numéro déjà utilisé" });
+      } else {
+        res.status(409).json({ message: "اسم المستخدم موجود بالفعل · Identifiant déjà utilisé" });
+      }
+      return;
+    }
     req.log.error({ err }, "Error updating user");
     res.status(500).json({ message: "Internal server error" });
   }
