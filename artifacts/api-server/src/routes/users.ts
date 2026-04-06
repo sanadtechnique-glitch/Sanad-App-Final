@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "@workspace/db";
 import {
   usersTable, serviceProvidersTable, deliveryStaffTable,
-  ordersTable, productsTable, ratingsTable, hotelBookingsTable,
+  ordersTable, ratingsTable, hotelBookingsTable,
   taxiDriversTable, passwordResetTokensTable,
 } from "@workspace/db/schema";
 import { eq, ne, and, gt } from "drizzle-orm";
@@ -729,7 +729,6 @@ router.post("/admin/reset-all-data", requireAdmin, async (req, res) => {
     const ratings   = await db.delete(ratingsTable);
     const bookings  = await db.delete(hotelBookingsTable);
     const orders    = await db.delete(ordersTable);
-    const products  = await db.delete(productsTable);
     const staff     = await db.delete(deliveryStaffTable);
     const providers = await db.delete(serviceProvidersTable);
     const users     = await db.delete(usersTable).where(ne(usersTable.role, "super_admin"));

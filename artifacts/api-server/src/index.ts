@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import {
   usersTable, serviceProvidersTable, deliveryStaffTable,
-  ordersTable, productsTable, ratingsTable, hotelBookingsTable,
+  ordersTable, ratingsTable, hotelBookingsTable,
 } from "@workspace/db/schema";
 import { eq, ne } from "drizzle-orm";
 
@@ -102,7 +102,6 @@ async function oneTimeCleanupIfNeeded() {
     await db.delete(ratingsTable);
     await db.delete(hotelBookingsTable);
     await db.delete(ordersTable);
-    await db.delete(productsTable);
     await db.delete(deliveryStaffTable);
     await db.delete(serviceProvidersTable);
     await db.delete(usersTable).where(ne(usersTable.role, "super_admin"));

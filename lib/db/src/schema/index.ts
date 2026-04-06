@@ -1,6 +1,5 @@
 export * from "./serviceProviders";
 export * from "./orders";
-export * from "./categories";
 export * from "./articles";
 export * from "./delegations";
 export * from "./deliveryStaff";
@@ -10,7 +9,6 @@ export * from "./hotelBookings";
 export * from "./users";
 export * from "./broadcasts";
 export * from "./ads";
-export * from "./products";
 export * from "./deliveryConfig";
 export * from "./taxiDrivers";
 export * from "./taxiRequests";

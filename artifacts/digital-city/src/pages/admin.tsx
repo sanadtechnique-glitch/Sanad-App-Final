@@ -32,7 +32,6 @@ interface Order {
   status: OrderStatus; deliveryFee?: number; deliveryStaffId?: number;
   createdAt: string; notes?: string; delegationId?: number;
 }
-interface Category { id: number; slug: string; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; icon: string; color: string; }
 interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; }
 interface Article { id: number; supplierId: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; originalPrice?: number; discountedPrice?: number; photoUrl?: string | null; isAvailable: boolean; supplierName?: string; }
 interface DeliveryStaff { id: number; name: string; nameAr: string; phone: string; zone?: string; isAvailable: boolean; }
@@ -182,8 +181,8 @@ function Stars({ rating }: { rating?: number | null }) {
 // ──────────────────────────────────────────────────────────────────────────────
 interface DbStats {
   database: string; status: string; timestamp: string;
-  tables: { users: number; providers: number; products: number; orders: number;
-    banners: number; ads: number; categories: number; delivery_staff: number;
+  tables: { users: number; providers: number; articles: number; orders: number;
+    banners: number; ads: number; delivery_staff: number;
     broadcasts: number; ratings: number; };
 }
 
@@ -219,11 +218,10 @@ function OverviewSection({ t }: { t: (ar: string, fr: string) => string }) {
   const dbRows: { ar: string; fr: string; key: keyof DbStats["tables"]; icon: string }[] = [
     { ar: "المستخدمون",    fr: "Utilisateurs",   key: "users",          icon: "👤" },
     { ar: "المزودون",      fr: "Prestataires",    key: "providers",      icon: "🏪" },
-    { ar: "المنتجات",      fr: "Produits",        key: "products",       icon: "📦" },
+    { ar: "المقالات",      fr: "Articles",        key: "articles",       icon: "📦" },
     { ar: "الطلبات",       fr: "Commandes",       key: "orders",         icon: "🛒" },
     { ar: "البنرات",       fr: "Bannières",       key: "banners",        icon: "🖼️" },
     { ar: "الإعلانات",     fr: "Annonces",        key: "ads",            icon: "📢" },
-    { ar: "التصنيفات",     fr: "Catégories",      key: "categories",     icon: "🏷️" },
     { ar: "موظفو التوصيل", fr: "Livreurs",        key: "delivery_staff", icon: "🚴" },
     { ar: "الإذاعات",      fr: "Broadcasts",      key: "broadcasts",     icon: "📡" },
     { ar: "التقييمات",     fr: "Avis",            key: "ratings",        icon: "⭐" },
@@ -434,77 +432,6 @@ function OrdersSection({ t, lang }: { t: (ar: string, fr: string) => string; lan
           })}
         </div>
       )}
-    </div>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Section: Categories
-// ──────────────────────────────────────────────────────────────────────────────
-function CategoriesSection({ t }: { t: (ar: string, fr: string) => string }) {
-  const [items, setItems] = useState<Category[]>([]);
-  const [modal, setModal] = useState<null | "add" | Category>(null);
-  const [form, setForm] = useState({ slug: "", nameAr: "", nameFr: "", descriptionAr: "", descriptionFr: "", icon: "grid", color: "amber" });
-
-  const load = () => get<Category[]>("/admin/categories").then(setItems).catch(() => {});
-  useEffect(() => { load(); }, []);
-
-  const openAdd = () => { setForm({ slug:"",nameAr:"",nameFr:"",descriptionAr:"",descriptionFr:"",icon:"grid",color:"amber" }); setModal("add"); };
-  const openEdit = (c: Category) => { setForm({ slug: c.slug, nameAr: c.nameAr, nameFr: c.nameFr, descriptionAr: c.descriptionAr, descriptionFr: c.descriptionFr, icon: c.icon, color: c.color }); setModal(c); };
-
-  const save = async () => {
-    if (modal === "add") await post("/admin/categories", form);
-    else await patch(`/admin/categories/${(modal as Category).id}`, form);
-    setModal(null); load();
-  };
-
-  const remove = async (id: number) => {
-    if (!confirm(t("هل تريد الحذف؟","Confirmer la suppression ?"))) return;
-    await del(`/admin/categories/${id}`); load();
-  };
-
-  const colors = ["amber","orange","emerald","blue","rose","purple","zinc"];
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-black text-[#1A4D1F]">{t("الفئات","Catégories")}</h2>
-        <GoldBtn onClick={openAdd}><Plus size={14} />{t("إضافة فئة","Ajouter")}</GoldBtn>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map(c => (
-          <div key={c.id} className="glass-panel rounded-2xl p-4 flex items-start justify-between gap-3">
-            <div>
-              <p className="font-bold text-[#1A4D1F]">{c.nameAr}</p>
-              <p className="text-sm text-[#1A4D1F]/40">{c.nameFr}</p>
-              <p className="text-xs text-[#1A4D1F]/20 mt-1 font-mono">{c.slug}</p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => openEdit(c)} className="p-2 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-colors"><Pencil size={14} /></button>
-              <button onClick={() => remove(c.id)} className="p-2 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-red-400 transition-colors"><Trash2 size={14} /></button>
-            </div>
-          </div>
-        ))}
-      </div>
-      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === "add" ? t("إضافة فئة","Ajouter catégorie") : t("تعديل فئة","Modifier catégorie")}>
-        <Field label="Slug (unique)"><Input value={form.slug} onChange={v => setForm(f => ({...f, slug: v}))} placeholder="restaurant" /></Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("الاسم بالعربية","Nom arabe")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder="مطاعم" /></Field>
-          <Field label={t("الاسم بالفرنسية","Nom français")}><Input value={form.nameFr} onChange={v => setForm(f => ({...f, nameFr: v}))} placeholder="Restaurants" /></Field>
-        </div>
-        <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>
-        <Field label={t("الوصف فرنسي","Description française")}><Input value={form.descriptionFr} onChange={v => setForm(f => ({...f, descriptionFr: v}))} /></Field>
-        <Field label={t("اللون","Couleur")}>
-          <div className="flex gap-2 flex-wrap">
-            {colors.map(c => (
-              <button key={c} onClick={() => setForm(f => ({...f, color: c}))}
-                className={cn("w-8 h-8 rounded-lg border-2 transition-all", form.color === c ? "border-[#1A4D1F] scale-110" : "border-transparent opacity-60")}
-                style={{ background: `var(--color-${c}-500, #888)` }} />
-            ))}
-          </div>
-        </Field>
-        <GoldBtn onClick={save} className="w-full justify-center">{t("حفظ","Enregistrer")}</GoldBtn>
-      </Modal>
     </div>
   );
 }
@@ -5326,7 +5253,7 @@ function LawyerRequestsSection({ t, lang }: { t: (ar: string, fr: string) => str
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "categories" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests";
+type Section = "overview" | "orders" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests";
 
 type NavItem = { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean };
 type NavGroup = { id: string; icon: React.FC<any>; ar: string; fr: string; color: string; items: NavItem[] };
@@ -5352,7 +5279,6 @@ const NAV_GROUPS: NavGroup[] = [
     fr: "Produits & Livraison",
     color: "#B45309",
     items: [
-      { id: "categories",     icon: Tag,       ar: "الفئات",          fr: "Catégories",    superOnly: true },
       { id: "suppliers",      icon: Users,     ar: "المزودون",        fr: "Fournisseurs",  superOnly: true },
       { id: "articles",       icon: ShoppingBag, ar: "المنتجات",      fr: "Articles",      superOnly: true },
       { id: "staff",          icon: Truck,     ar: "السائقون",        fr: "Livreurs",      superOnly: true },
@@ -5671,7 +5597,6 @@ export default function Admin() {
             {active === "ticker"        && <TickerSection t={t} />}
             {active === "ads"           && <AdsSection t={t} />}
             {active === "broadcast"     && <BroadcastSection t={t} lang={lang} />}
-            {active === "categories"    && isSuper && <CategoriesSection t={t} />}
             {active === "suppliers"     && isSuper && <SuppliersSection t={t} lang={lang} />}
             {active === "articles"      && isSuper && <ArticlesSection t={t} lang={lang} />}
             {active === "staff"         && isSuper && <DeliveryStaffSection t={t} />}

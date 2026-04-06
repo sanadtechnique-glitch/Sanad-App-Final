@@ -27,7 +27,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("ROLE_SECTIONS — access control per role", () => {
-  const ADMIN_SECTIONS = ["overview", "orders", "categories", "suppliers", "articles", "staff", "delegations", "banners", "users"];
+  const ADMIN_SECTIONS = ["overview", "orders", "suppliers", "articles", "staff", "delegations", "banners", "users"];
 
   it("super_admin has access to all admin sections", () => {
     const sections = ROLE_SECTIONS["super_admin"];
