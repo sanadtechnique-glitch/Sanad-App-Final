@@ -18,11 +18,24 @@ interface DealProduct {
   description?: string;
   imageUrl?: string;
   category?: string;
+  supplierName?: string;
   originalPrice?: string;
   salePrice?: string;
   isAvailable: boolean;
   createdAt: string;
 }
+
+// Category labels for display
+const CAT_AR: Record<string, string> = {
+  restaurant: "مطعم", grocery: "بقالة", pharmacy: "صيدلية",
+  bakery: "مخبزة", butcher: "ملّاح", cafe: "مقهى", sweets: "حلويات",
+  hotel: "فندق", car_rental: "كراء سيارات", sos: "SOS", lawyer: "محامي",
+};
+const CAT_FR: Record<string, string> = {
+  restaurant: "Restaurant", grocery: "Épicerie", pharmacy: "Pharmacie",
+  bakery: "Boulangerie", butcher: "Boucherie", cafe: "Café", sweets: "Pâtisserie",
+  hotel: "Hôtel", car_rental: "Location auto", sos: "SOS", lawyer: "Avocat",
+};
 
 // ── Price helpers ─────────────────────────────────────────────────────────────
 function discountPct(orig: string, sale: string) {
@@ -32,9 +45,12 @@ function discountPct(orig: string, sale: string) {
 }
 
 // ── Product Card ──────────────────────────────────────────────────────────────
-function ProductCard({ p, t }: { p: DealProduct; t: (ar: string, fr: string) => string }) {
+function ProductCard({ p, t, lang }: { p: DealProduct; t: (ar: string, fr: string) => string; lang: string }) {
   const [expanded, setExpanded] = useState(false);
   const pct = discountPct(p.originalPrice ?? "0", p.salePrice ?? "0");
+  const catLabel = p.category
+    ? (lang === "ar" ? (CAT_AR[p.category] ?? p.category) : (CAT_FR[p.category] ?? p.category))
+    : null;
 
   return (
     <motion.div
@@ -64,22 +80,38 @@ function ProductCard({ p, t }: { p: DealProduct; t: (ar: string, fr: string) => 
         {/* Info */}
         <div className="flex-1 min-w-0">
           <p className="font-black text-sm text-[#1A4D1F] truncate">{p.title}</p>
-          {p.category && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1A4D1F]/40 bg-[#1A4D1F]/5 px-2 py-0.5 rounded-full mt-0.5">
-              <Tag size={9} />
-              {p.category}
-            </span>
-          )}
+
+          {/* Supplier + category badges */}
+          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+            {p.supplierName && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1A4D1F]/60 bg-[#1A4D1F]/8 px-2 py-0.5 rounded-full">
+                <Store size={9} />
+                {p.supplierName}
+              </span>
+            )}
+            {catLabel && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#FFA500] bg-[#FFA500]/10 px-2 py-0.5 rounded-full">
+                <Tag size={9} />
+                {catLabel}
+              </span>
+            )}
+          </div>
+
           {/* Prices */}
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-1.5">
             {p.salePrice && (
-              <span className="text-lg font-black" style={{ color: "#1A4D1F" }}>
-                {parseFloat(p.salePrice).toFixed(3)} TND
+              <span className="text-base font-black" style={{ color: "#B91C1C" }}>
+                {parseFloat(p.salePrice).toFixed(3)} <span className="text-xs">TND</span>
               </span>
             )}
             {p.originalPrice && (
-              <span className="text-sm font-bold line-through" style={{ color: "#9CA3AF" }}>
-                {parseFloat(p.originalPrice).toFixed(3)}
+              <span className="text-xs font-bold line-through" style={{ color: "#9CA3AF" }}>
+                {parseFloat(p.originalPrice).toFixed(3)} TND
+              </span>
+            )}
+            {pct > 0 && (
+              <span className="text-[10px] font-black text-white bg-red-500 px-1.5 py-0.5 rounded-full">
+                -{pct}%
               </span>
             )}
           </div>
@@ -306,7 +338,7 @@ export default function Deals() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
               >
-                <ProductCard p={p} t={t} />
+                <ProductCard p={p} t={t} lang={lang} />
               </motion.div>
             ))}
           </div>

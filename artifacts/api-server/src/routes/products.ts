@@ -1,11 +1,11 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { productsTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { productsTable, articlesTable, serviceProvidersTable } from "@workspace/db/schema";
+import { eq, and, isNotNull, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-// Public — all available products (for deals page etc.)
+// Public — all available products (legacy table)
 router.get("/products", async (req, res) => {
   try {
     const rows = await db.select().from(productsTable)
@@ -15,17 +15,70 @@ router.get("/products", async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-// Public — deals: products where salePrice < originalPrice
+// Public — deals: articles on discount from articlesTable
+// Two discount patterns:
+//   1. Admin sets discountedPrice < price
+//   2. Provider sets price (sale) < originalPrice
 router.get("/products/deals", async (req, res) => {
   try {
-    const rows = await db.select().from(productsTable)
-      .where(eq(productsTable.isAvailable, true))
-      .orderBy(productsTable.createdAt);
-    const deals = rows.filter(p => {
-      const orig = parseFloat(p.originalPrice ?? "0");
-      const sale = parseFloat(p.salePrice ?? "0");
-      return orig > 0 && sale > 0 && sale < orig;
-    });
+    const rows = await db
+      .select({
+        id:            articlesTable.id,
+        providerId:    articlesTable.supplierId,
+        title:         articlesTable.nameAr,
+        description:   articlesTable.descriptionAr,
+        imageUrl:      articlesTable.photoUrl,
+        category:      serviceProvidersTable.category,
+        supplierName:  serviceProvidersTable.nameAr,
+        // raw fields to compute correct originalPrice / salePrice below
+        price:          articlesTable.price,
+        originalPrice:  articlesTable.originalPrice,
+        discountedPrice: articlesTable.discountedPrice,
+        isAvailable:   articlesTable.isAvailable,
+        createdAt:     articlesTable.createdAt,
+      })
+      .from(articlesTable)
+      .innerJoin(serviceProvidersTable, eq(articlesTable.supplierId, serviceProvidersTable.id))
+      .where(eq(articlesTable.isAvailable, true))
+      .orderBy(articlesTable.createdAt);
+
+    // Normalise to { originalPrice, salePrice } and filter to discounted only
+    const deals = rows
+      .map(p => {
+        const price     = p.price ?? 0;
+        const origPrice = p.originalPrice ?? 0;
+        const discPrice = p.discountedPrice ?? 0;
+
+        let originalPrice: number, salePrice: number;
+
+        if (discPrice > 0 && discPrice < price) {
+          // Pattern 1 (admin): price is base, discountedPrice is sale price
+          originalPrice = price;
+          salePrice     = discPrice;
+        } else if (origPrice > 0 && price > 0 && price < origPrice) {
+          // Pattern 2 (provider): originalPrice is base, price is sale price
+          originalPrice = origPrice;
+          salePrice     = price;
+        } else {
+          return null; // not a deal
+        }
+
+        return {
+          id:           p.id,
+          providerId:   p.providerId,
+          title:        p.title,
+          description:  p.description,
+          imageUrl:     p.imageUrl,
+          category:     p.category,
+          supplierName: p.supplierName,
+          originalPrice: String(originalPrice),
+          salePrice:     String(salePrice),
+          isAvailable:  p.isAvailable,
+          createdAt:    p.createdAt,
+        };
+      })
+      .filter(Boolean);
+
     res.json(deals);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
