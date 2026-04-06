@@ -498,6 +498,287 @@ function CarManager({ agencyId, t }: { agencyId: number; t: (ar: string, fr: str
   );
 }
 
+// ── Room Manager (for hotel providers) ───────────────────────────────────────
+function RoomManager({ providerId, t, lang }: { providerId: number; t: (ar: string, fr: string) => string; lang: string }) {
+  const ROOM_TYPES = [
+    { value: "single",  arLabel: "مفردة",   frLabel: "Simple",   icon: "🛏️" },
+    { value: "double",  arLabel: "مزدوجة",  frLabel: "Double",   icon: "🛏️🛏️" },
+    { value: "suite",   arLabel: "جناح",    frLabel: "Suite",    icon: "👑" },
+    { value: "family",  arLabel: "عائلية",  frLabel: "Familiale", icon: "👨‍👩‍👧" },
+  ];
+  const EMPTY = { roomNumber: "", floor: "0", type: "single", pricePerNight: "", photoUrl: "" };
+  const [rooms, setRooms]         = useState<any[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [showForm, setShowForm]   = useState(false);
+  const [editing, setEditing]     = useState<any | null>(null);
+  const [saving, setSaving]       = useState(false);
+  const [form, setForm]           = useState(EMPTY);
+
+  const parseRoom = (article: any) => {
+    const desc = article.descriptionAr || "";
+    // format: "floor:2|type:double" — language-independent
+    const floorMatch = desc.match(/floor:(\d+)/);
+    const typeMatch  = desc.match(/type:(\w+)/);
+    const numMatch   = (article.nameAr || "").match(/غرفة\s*(.+)/);
+    return {
+      ...article,
+      roomNumber: numMatch ? numMatch[1].trim() : article.nameAr,
+      floor: floorMatch ? floorMatch[1] : "0",
+      type: typeMatch ? typeMatch[1] : "single",
+    };
+  };
+
+  const buildPayload = (f: typeof EMPTY) => {
+    const typeObj = ROOM_TYPES.find(r => r.value === f.type) || ROOM_TYPES[0];
+    const floorLabelFr = f.floor === "0" ? "Rez-de-chaussée" : `Étage ${f.floor}`;
+    return {
+      nameAr: `غرفة ${f.roomNumber}`,
+      nameFr: `Chambre ${f.roomNumber}`,
+      descriptionAr: `floor:${f.floor}|type:${f.type}`,        // machine-readable
+      descriptionFr: `${floorLabelFr} • ${typeObj.frLabel}`,   // human-readable
+      price: f.pricePerNight ? Number(f.pricePerNight) : 0,
+      originalPrice: null,
+      photoUrl: f.photoUrl || null,
+      isAvailable: true,
+    };
+  };
+
+  const loadRooms = async () => {
+    setLoading(true);
+    try {
+      const rows = await get<any[]>(`/provider/${providerId}/articles`);
+      setRooms(rows.map(parseRoom));
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { loadRooms(); }, [providerId]);
+
+  const openAdd = () => { setEditing(null); setForm(EMPTY); setShowForm(true); };
+  const openEdit = (room: any) => {
+    setEditing(room);
+    setForm({ roomNumber: room.roomNumber, floor: room.floor, type: room.type, pricePerNight: room.price ? String(room.price) : "", photoUrl: room.photoUrl || "" });
+    setShowForm(true);
+  };
+
+  const save = async () => {
+    if (!form.roomNumber || !form.pricePerNight) return;
+    setSaving(true);
+    try {
+      const payload = buildPayload(form);
+      if (editing) await patch(`/provider/${providerId}/articles/${editing.id}`, payload);
+      else await post(`/provider/${providerId}/articles`, payload);
+      await loadRooms();
+      setShowForm(false);
+    } finally { setSaving(false); }
+  };
+
+  const remove = async (id: number) => {
+    if (!confirm(t("حذف هذه الغرفة؟", "Supprimer cette chambre ?"))) return;
+    await del(`/provider/${providerId}/articles/${id}`);
+    await loadRooms();
+  };
+
+  const toggleAvail = async (room: any) => {
+    await patch(`/provider/${providerId}/articles/${room.id}`, { isAvailable: !room.isAvailable });
+    await loadRooms();
+  };
+
+  if (loading) return <div className="flex justify-center py-10"><RefreshCw size={18} className="animate-spin text-[#1A4D1F]/30" /></div>;
+
+  return (
+    <div className="space-y-3">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-black text-[#1A4D1F]">{t("غرف النزل", "Chambres de l'hôtel")}</h3>
+          <p className="text-xs text-[#1A4D1F]/40">{rooms.length} {t("غرفة", "chambre(s)")}</p>
+        </div>
+        <button onClick={openAdd}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-xs text-white"
+          style={{ background: "#1A4D1F" }}>
+          <Plus size={13} />{t("إضافة غرفة", "Ajouter chambre")}
+        </button>
+      </div>
+
+      {/* Form */}
+      {showForm && (
+        <div className="rounded-2xl p-4 space-y-3" style={{ background: "#FFF8E1", border: "1.5px solid #FFA50033" }}>
+          <p className="text-sm font-black" style={{ color: "#1A4D1F" }}>
+            {editing ? t("تعديل الغرفة", "Modifier la chambre") : t("غرفة جديدة", "Nouvelle chambre")}
+          </p>
+
+          {/* Room number + floor */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-black mb-1.5 opacity-60" style={{ color: "#1A4D1F" }}>
+                {t("رقم الغرفة *", "N° chambre *")}
+              </label>
+              <input
+                value={form.roomNumber}
+                onChange={e => setForm(p => ({ ...p, roomNumber: e.target.value }))}
+                placeholder="101"
+                dir="ltr"
+                className="w-full rounded-xl px-3 py-2.5 text-center text-xl font-black border-2 outline-none"
+                style={{ background: "#fff", color: "#1A4D1F", borderColor: form.roomNumber ? "#1A4D1F" : "#1A4D1F22", letterSpacing: "0.05em" }}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black mb-1.5 opacity-60" style={{ color: "#1A4D1F" }}>
+                {t("الطابق", "Étage")}
+              </label>
+              <select
+                value={form.floor}
+                onChange={e => setForm(p => ({ ...p, floor: e.target.value }))}
+                className="w-full rounded-xl px-3 py-2.5 text-sm font-black border-2 outline-none"
+                style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F22" }}>
+                <option value="0">{t("الأرضي","Rez-de-chaussée")}</option>
+                {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                  <option key={n} value={String(n)}>{t(`الطابق ${n}`,`Étage ${n}`)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Room type */}
+          <div>
+            <label className="block text-xs font-black mb-2 opacity-60" style={{ color: "#1A4D1F" }}>
+              {t("نوع الغرفة", "Type de chambre")}
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {ROOM_TYPES.map(rt => (
+                <button key={rt.value} onClick={() => setForm(p => ({ ...p, type: rt.value }))}
+                  className="py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 border-2 transition-all"
+                  style={form.type === rt.value
+                    ? { background: "#1A4D1F", color: "#FFA500", borderColor: "#1A4D1F" }
+                    : { background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F22" }}>
+                  <span>{rt.icon}</span>
+                  {lang === "ar" ? rt.arLabel : rt.frLabel}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Price */}
+          <div>
+            <label className="block text-xs font-black mb-1.5 opacity-60" style={{ color: "#1A4D1F" }}>
+              {t("السعر / ليلة (د.ت) *", "Prix / nuit (DT) *")}
+            </label>
+            <input
+              type="number" step="0.5" min="0"
+              value={form.pricePerNight}
+              onChange={e => setForm(p => ({ ...p, pricePerNight: e.target.value }))}
+              placeholder="80"
+              dir="ltr"
+              className="w-full rounded-xl px-3 py-2.5 text-lg font-black border-2 outline-none"
+              style={{ background: "#fff", color: "#1565C0", borderColor: form.pricePerNight ? "#1565C0" : "#1A4D1F22" }}
+            />
+          </div>
+
+          {/* Photo URL */}
+          <div>
+            <label className="block text-xs font-black mb-1.5 opacity-60" style={{ color: "#1A4D1F" }}>
+              {t("صورة الغرفة (رابط)", "Photo chambre (URL)")}
+            </label>
+            <input
+              value={form.photoUrl}
+              onChange={e => setForm(p => ({ ...p, photoUrl: e.target.value }))}
+              placeholder="https://..."
+              dir="ltr"
+              className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border-2 outline-none"
+              style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F22" }}
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <button onClick={save} disabled={saving || !form.roomNumber || !form.pricePerNight}
+              className="flex-1 py-2.5 rounded-xl font-black text-sm text-white disabled:opacity-40 flex items-center justify-center gap-2"
+              style={{ background: "#1A4D1F" }}>
+              {saving ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+              {editing ? t("حفظ التعديل", "Enregistrer") : t("إضافة الغرفة", "Ajouter la chambre")}
+            </button>
+            <button onClick={() => setShowForm(false)}
+              className="px-4 py-2.5 rounded-xl font-black text-sm"
+              style={{ background: "#1A4D1F15", color: "#1A4D1F" }}>
+              {t("إلغاء", "Annuler")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {rooms.length === 0 && !showForm && (
+        <div className="text-center py-12 opacity-30">
+          <span className="text-4xl block mb-3">🏨</span>
+          <p className="text-sm font-bold text-[#1A4D1F]">{t("لا توجد غرف بعد", "Aucune chambre encore")}</p>
+          <p className="text-xs mt-1 text-[#1A4D1F]/60">{t("اضغط 'إضافة غرفة' للبدء", "Cliquez 'Ajouter chambre' pour commencer")}</p>
+        </div>
+      )}
+
+      {/* Rooms list */}
+      <div className="space-y-2">
+        {rooms.map(room => {
+          const typeObj = ROOM_TYPES.find(r => r.value === room.type) || ROOM_TYPES[0];
+          const floorLabel = room.floor === "0" ? t("الأرضي","RDC") : `${t("ط","Ét.")} ${room.floor}`;
+          return (
+            <div key={room.id} className="rounded-2xl overflow-hidden border transition-all"
+              style={{ background: "#fff", borderColor: room.isAvailable ? "#1A4D1F15" : "#EF444420" }}>
+              <div className="flex items-stretch gap-0">
+                {/* Room number badge */}
+                <div className="flex flex-col items-center justify-center px-4 py-3 min-w-[72px]"
+                  style={{ background: room.isAvailable ? "#1A4D1F" : "#6B7280" }}>
+                  <span className="text-2xl font-black text-white leading-none">{room.roomNumber}</span>
+                  <span className="text-[9px] font-black mt-1 opacity-70"
+                    style={{ color: "#FFA500" }}>{floorLabel}</span>
+                </div>
+                {/* Info */}
+                <div className="flex-1 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-sm">{typeObj.icon}</span>
+                    <span className="font-black text-sm" style={{ color: "#1A4D1F" }}>
+                      {lang === "ar" ? typeObj.arLabel : typeObj.frLabel}
+                    </span>
+                    {!room.isAvailable && (
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full ml-auto"
+                        style={{ background: "#FEE2E2", color: "#DC2626" }}>
+                        {t("محجوزة", "Occupée")}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-base font-black" style={{ color: "#1565C0" }}>
+                    {room.price} {t("د.ت / ليلة", "TND / nuit")}
+                  </p>
+                </div>
+                {/* Actions */}
+                <div className="flex flex-col gap-1.5 p-2 items-end justify-center">
+                  <button onClick={() => openEdit(room)}
+                    className="p-1.5 rounded-lg"
+                    style={{ background: "#1A4D1F15" }}>
+                    <Pencil size={12} style={{ color: "#1A4D1F" }} />
+                  </button>
+                  <button onClick={() => toggleAvail(room)}
+                    className="p-1.5 rounded-lg"
+                    style={{ background: room.isAvailable ? "#D1FAE5" : "#FEE2E2" }}>
+                    {room.isAvailable ? <ToggleRight size={12} style={{ color: "#059669" }} /> : <ToggleLeft size={12} style={{ color: "#DC2626" }} />}
+                  </button>
+                  <button onClick={() => remove(room.id)}
+                    className="p-1.5 rounded-lg"
+                    style={{ background: "#FEE2E2" }}>
+                    <Trash2 size={12} style={{ color: "#DC2626" }} />
+                  </button>
+                </div>
+              </div>
+              {room.photoUrl && (
+                <img src={room.photoUrl} alt={`Chambre ${room.roomNumber}`}
+                  className="w-full h-28 object-cover" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function ProviderDashboard() {
   const { lang, t, isRTL } = useLang();
   const [providers, setProviders] = useState<Supplier[]>([]);
@@ -1009,16 +1290,19 @@ export default function ProviderDashboard() {
           <CarManager agencyId={selected.id} t={t} />
         )}
 
-        {/* Products / Services / Rooms Manager */}
-        {tab === "products" && selected.category !== "car_rental" && (
+        {/* Room Manager — فقط للفنادق */}
+        {tab === "products" && selected.category === "hotel" && (
+          <RoomManager providerId={selected.id} t={t} lang={lang} />
+        )}
+
+        {/* Products / Services Manager — لكل الفئات عدا الفنادق وكراء السيارات */}
+        {tab === "products" && selected.category !== "car_rental" && selected.category !== "hotel" && (
           <ProductsManager
             providerId={selected.id}
             t={t}
             lang={lang}
             isService={!isProductCat(selected.category)}
-            overrideLabel={selected.category === "hotel"
-              ? { titleAr: "غرفي", titleFr: "Mes chambres", unitAr: "غرفة", unitFr: "chambre(s)" }
-              : selected.category === "lawyer"
+            overrideLabel={selected.category === "lawyer"
               ? { titleAr: "تخصصاتي", titleFr: "Mes spécialités", unitAr: "تخصص", unitFr: "spécialité(s)" }
               : undefined}
           />
