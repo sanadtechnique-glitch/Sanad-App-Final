@@ -86,23 +86,28 @@ interface PromoSlide {
 // SERVICE CATEGORIES — with emoji images for circles
 // ─────────────────────────────────────────────────────────────────────────────
 const CATEGORIES = [
+  // ── حلقة داخلية (6) ────────────────────────────────────────────────────────
   { id: "restaurant",  ar: "مطاعم",       fr: "Restaurants",   href: null,            emoji: "🍽️",  bg: "radial-gradient(circle at 35% 30%, #FF8C00 0%, #C84B00 100%)" },
   { id: "grocery",     ar: "بقالة",       fr: "Épicerie",      href: null,            emoji: "🛒",  bg: "radial-gradient(circle at 35% 30%, #F59E0B 0%, #92400E 100%)" },
   { id: "pharmacy",    ar: "صيدلية",      fr: "Pharmacie",     href: null,            emoji: "💊",  bg: "radial-gradient(circle at 35% 30%, #10B981 0%, #065F46 100%)" },
+  { id: "bakery",      ar: "مخبز",        fr: "Boulangerie",   href: null,            emoji: "🥖",  bg: "radial-gradient(circle at 35% 30%, #D97706 0%, #78350F 100%)" },
+  { id: "butcher",     ar: "جزار",        fr: "Boucherie",     href: null,            emoji: "🥩",  bg: "radial-gradient(circle at 35% 30%, #DC2626 0%, #7F1D1D 100%)" },
+  { id: "sweets",      ar: "مرطبات",      fr: "Pâtisserie",    href: null,            emoji: "🍬",  bg: "radial-gradient(circle at 35% 30%, #EC4899 0%, #831843 100%)" },
+  // ── حلقة خارجية (7) ────────────────────────────────────────────────────────
+  { id: "cafe",        ar: "مقهى",        fr: "Café",          href: null,            emoji: "☕",  bg: "radial-gradient(circle at 35% 30%, #92400E 0%, #3B1A08 100%)" },
   { id: "doctor",      ar: "طبيب",        fr: "Médecin",       href: null,            emoji: "🩺",  bg: "radial-gradient(circle at 35% 30%, #0EA5E9 0%, #0C4A6E 100%)" },
   { id: "taxi",        ar: "تاكسي",       fr: "Taxi",          href: "/taxi",         emoji: "🚕",  bg: "radial-gradient(circle at 35% 30%, #FCD34D 0%, #92400E 100%)" },
   { id: "car_rental",  ar: "كراء سيارات", fr: "Location auto", href: "/car-rental",   emoji: "🚗",  bg: "radial-gradient(circle at 35% 30%, #3B82F6 0%, #1E3A8A 100%)" },
   { id: "sos",         ar: "SOS",         fr: "SOS",           href: "/sos",          emoji: "🚨",  bg: "radial-gradient(circle at 35% 30%, #EF4444 0%, #7F1D1D 100%)" },
   { id: "lawyer",      ar: "محامي",       fr: "Avocat",        href: "/lawyer",       emoji: "⚖️",  bg: "radial-gradient(circle at 35% 30%, #1A4D1F 0%, #0D2B0F 100%)" },
   { id: "hotel",       ar: "فنادق",       fr: "Hôtels",        href: null,            emoji: "🏨",  bg: "radial-gradient(circle at 35% 30%, #8B5CF6 0%, #4C1D95 100%)" },
-  { id: "mechanic",    ar: "ميكانيكي",    fr: "Mécanicien",    href: null,            emoji: "🔧",  bg: "radial-gradient(circle at 35% 30%, #6B7280 0%, #1F2937 100%)" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DUAL-RING ORBITAL SYSTEM
 // ─────────────────────────────────────────────────────────────────────────────
-const INNER_CATS = CATEGORIES.slice(0, 5);   // مطاعم، بقالة، صيدلية، طبيب، تاكسي
-const OUTER_CATS = CATEGORIES.slice(5);      // كراء، SOS، محامي، فنادق، ميكانيكي
+const INNER_CATS = CATEGORIES.slice(0, 6);   // مطاعم، بقالة، صيدلية، مخبز، جزار، مرطبات
+const OUTER_CATS = CATEGORIES.slice(6);      // مقهى، طبيب، تاكسي، كراء، SOS، محامي، فنادق
 
 function OrbitRing({
   cats, radius, size, duration, clockwise, lang, cx, cy,
@@ -235,15 +240,14 @@ function OrbitSystem({ lang }: { lang: string }) {
 
   // Responsive sizing — fills the full available width
   const CX     = cw / 2;                        // center X
-  const R_IN   = Math.round(cw * 0.330);        // inner orbit radius  ≈ 129px @ 390
-  const R_OUT  = Math.round(cw * 0.520);        // outer orbit radius  ≈ 203px @ 390
-  const S_IN   = Math.round(cw * 0.290);        // inner circle px     ≈ 113px @ 390
-  const S_OUT  = Math.round(cw * 0.268);        // outer circle px     ≈ 104px @ 390
+  const R_IN   = Math.round(cw * 0.378);        // inner orbit radius  ≈ 147px @ 390 (6 items need more room)
+  const R_OUT  = Math.round(cw * 0.535);        // outer orbit radius  ≈ 208px @ 390
+  const S_IN   = Math.round(cw * 0.268);        // inner circle px     ≈ 104px @ 390
+  const S_OUT  = Math.round(cw * 0.252);        // outer circle px     ≈ 98px  @ 390
   const BADGE  = Math.round(cw * 0.295);        // center badge px     ≈ 115px @ 390
   // CY = space needed from center to outermost card edge (including label)
-  // This keeps the center badge exactly in the middle of the section
-  const CY     = R_OUT + Math.round(S_OUT / 2) + 38; // ≈ 203+52+38 = 293px @ 390
-  const HEIGHT = CY * 2;                        // total height  ≈ 586px (balanced top/bottom)
+  const CY     = R_OUT + Math.round(S_OUT / 2) + 38; // ≈ 208+49+38 = 295px @ 390
+  const HEIGHT = CY * 2;                        // total height  ≈ 590px (balanced top/bottom)
 
   return (
     <div className="w-full overflow-hidden orbit-running" style={{ height: HEIGHT }}>
