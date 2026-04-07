@@ -248,18 +248,11 @@
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* ─── Infinite marquee animation ────────────────────────────────────────────── */
-@keyframes marquee-rtl {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.animate-marquee-rtl {
-  animation: marquee-rtl 15s linear infinite;
-  will-change: transform;
-}
-.animate-marquee-rtl:hover {
-  animation-play-state: paused;
-}
+/* ─── Orbital animations ─────────────────────────────────────────────────────── */
+@keyframes orbit-cw  { from { transform: rotate(0deg);    } to { transform: rotate(360deg);  } }
+@keyframes orbit-ccw { from { transform: rotate(0deg);    } to { transform: rotate(-360deg); } }
+@keyframes spin-cw   { from { transform: rotate(0deg);    } to { transform: rotate(360deg);  } }
+@keyframes spin-ccw  { from { transform: rotate(0deg);    } to { transform: rotate(-360deg); } }
 
 /* ─── RTL helpers ────────────────────────────────────────────────────────────── */
 [lang="ar"], .ar-text {

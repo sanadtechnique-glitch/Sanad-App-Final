@@ -99,7 +99,207 @@ const CATEGORIES = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STATUS CONFIG
+// DUAL-RING ORBITAL SYSTEM
+// ─────────────────────────────────────────────────────────────────────────────
+const INNER_CATS = CATEGORIES.slice(0, 5);   // مطاعم، بقالة، صيدلية، طبيب، تاكسي
+const OUTER_CATS = CATEGORIES.slice(5);      // كراء، SOS، محامي، فنادق، ميكانيكي
+
+function OrbitRing({
+  cats, radius, size, duration, clockwise, lang,
+}: {
+  cats: typeof CATEGORIES; radius: number; size: number;
+  duration: number; clockwise: boolean; lang: string;
+}) {
+  const spinIn  = clockwise ? "orbit-cw"  : "orbit-ccw";
+  const spinOut = clockwise ? "spin-ccw"  : "spin-cw";   // counter to keep upright
+
+  return (
+    <>
+      {cats.map((cat, i) => {
+        const delay = -((duration * i) / cats.length);
+        return (
+          <div
+            key={`${cat.id}-${i}`}
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              width: 0,
+              height: 0,
+              animationName: spinIn,
+              animationDuration: `${duration}s`,
+              animationTimingFunction: "linear",
+              animationIterationCount: "infinite",
+              animationDelay: `${delay}s`,
+              animationFillMode: "both",
+            }}
+          >
+            {/* Offset to orbit radius */}
+            <div style={{ position: "absolute", left: radius - size / 2, top: -size / 2 }}>
+              {/* Counter-rotate so content stays upright */}
+              <div
+                style={{
+                  animationName: spinOut,
+                  animationDuration: `${duration}s`,
+                  animationTimingFunction: "linear",
+                  animationIterationCount: "infinite",
+                  animationDelay: `${delay}s`,
+                }}
+              >
+                <Link href={cat.href ?? `/services?category=${cat.id}`}>
+                  <div
+                    className="flex flex-col items-center cursor-pointer active:scale-90 transition-transform duration-100"
+                    style={{ gap: 4 }}
+                  >
+                    {/* Circle */}
+                    <div
+                      style={{
+                        width: size,
+                        height: size,
+                        borderRadius: "50%",
+                        background: cat.bg,
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.22)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        position: "relative",
+                        overflow: "hidden",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {/* Shine */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0, left: 0, right: 0,
+                          height: "45%",
+                          borderRadius: "50% 50% 0 0",
+                          background: "linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%)",
+                          pointerEvents: "none",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: size * 0.42,
+                          lineHeight: 1,
+                          filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.35))",
+                          userSelect: "none",
+                        }}
+                      >
+                        {cat.emoji}
+                      </span>
+                    </div>
+                    {/* Label */}
+                    <p
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 900,
+                        color: "#1A4D1F",
+                        textAlign: "center",
+                        width: size + 10,
+                        lineHeight: 1.2,
+                        fontFamily: "'Cairo','Tajawal',sans-serif",
+                      }}
+                    >
+                      {lang === "ar" ? cat.ar : cat.fr}
+                    </p>
+                  </div>
+                </Link>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function OrbitSystem({ lang }: { lang: string }) {
+  const R_INNER = 82;
+  const R_OUTER = 138;
+  const S_INNER = 52;   // inner circle size
+  const S_OUTER = 48;   // outer circle size
+  const CENTER  = 170;  // half the container
+
+  return (
+    <div className="w-full flex items-center justify-center py-3">
+      <div style={{ position: "relative", width: CENTER * 2, height: CENTER * 2 }}>
+
+        {/* ── Orbit path rings (decorative) ── */}
+        {[R_INNER, R_OUTER].map(r => (
+          <div
+            key={r}
+            style={{
+              position: "absolute",
+              top: CENTER - r,
+              left: CENTER - r,
+              width: r * 2,
+              height: r * 2,
+              borderRadius: "50%",
+              border: "1px dashed rgba(26,77,31,0.14)",
+            }}
+          />
+        ))}
+
+        {/* ── Subtle glow behind center ── */}
+        <div
+          style={{
+            position: "absolute",
+            top: CENTER - 55,
+            left: CENTER - 55,
+            width: 110,
+            height: 110,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(26,77,31,0.08) 0%, transparent 70%)",
+          }}
+        />
+
+        {/* ── Center badge ── */}
+        <div
+          style={{
+            position: "absolute",
+            top: CENTER - 34,
+            left: CENTER - 34,
+            width: 68,
+            height: 68,
+            borderRadius: "50%",
+            background: "linear-gradient(145deg, #1A4D1F 0%, #0D3311 100%)",
+            boxShadow: "0 6px 24px rgba(26,77,31,0.40), inset 0 1px 0 rgba(255,255,255,0.15)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 1,
+          }}
+        >
+          <span style={{ color: "#FFA500", fontSize: 15, fontWeight: 900, lineHeight: 1, fontFamily: "'Cairo',sans-serif" }}>سند</span>
+          <span style={{ color: "rgba(255,165,0,0.60)", fontSize: 8, fontWeight: 700, fontFamily: "'Outfit',sans-serif", letterSpacing: 1 }}>SANAD</span>
+        </div>
+
+        {/* ── Inner ring — clockwise, 20s ── */}
+        <OrbitRing
+          cats={INNER_CATS}
+          radius={R_INNER}
+          size={S_INNER}
+          duration={20}
+          clockwise={true}
+          lang={lang}
+        />
+
+        {/* ── Outer ring — counter-clockwise, 30s ── */}
+        <OrbitRing
+          cats={OUTER_CATS}
+          radius={R_OUTER}
+          size={S_OUTER}
+          duration={30}
+          clockwise={false}
+          lang={lang}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 const ONGOING_STATUSES = ["pending", "accepted", "prepared", "driver_accepted", "in_delivery"];
 
@@ -843,15 +1043,15 @@ export default function Home() {
       </motion.section>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          2. SERVICES — animated marquee circles
+          2. SERVICES — dual-ring orbital system
       ══════════════════════════════════════════════════════════════════════ */}
-      <section className="mt-6">
-        {/* Section header */}
+      <section className="mt-4">
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex items-center justify-between mb-3 px-4 sm:px-6"
+          className="flex items-center justify-between mb-1 px-4 sm:px-6"
           dir="rtl"
         >
           <div className="flex items-center gap-2">
@@ -865,51 +1065,8 @@ export default function Home() {
           </Link>
         </motion.div>
 
-        {/* ── Infinite marquee ── */}
-        <div className="overflow-hidden">
-          <div className="animate-marquee-rtl flex gap-5 px-2" style={{ width: "max-content" }}>
-            {/* Double the items for seamless loop */}
-            {[...CATEGORIES, ...CATEGORIES].map((cat, i) => (
-              <Link key={i} href={cat.href ?? `/services?category=${cat.id}`}>
-                <div
-                  className="flex flex-col items-center gap-1.5 cursor-pointer active:scale-90 transition-transform duration-150"
-                  style={{ width: 68 }}
-                >
-                  {/* Emoji-filled circle */}
-                  <div
-                    className="relative overflow-hidden flex items-center justify-center"
-                    style={{
-                      width: 62,
-                      height: 62,
-                      borderRadius: "50%",
-                      background: cat.bg,
-                      boxShadow: "0 4px 14px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.20)",
-                    }}
-                  >
-                    {/* Top shine */}
-                    <div
-                      className="absolute top-0 inset-x-0 h-1/2 rounded-t-full pointer-events-none"
-                      style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 100%)" }}
-                    />
-                    <span
-                      className="relative z-10 select-none leading-none"
-                      style={{ fontSize: 28, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.3))" }}
-                    >
-                      {cat.emoji}
-                    </span>
-                  </div>
-                  {/* Label */}
-                  <p
-                    className="font-black text-[11px] text-center leading-tight truncate"
-                    style={{ color: "#1A4D1F", width: 68 }}
-                  >
-                    {lang === "ar" ? cat.ar : cat.fr}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+        {/* ── Orbital system ── */}
+        <OrbitSystem lang={lang} />
       </section>
 
       {/* ══════════════════════════════════════════════════════════════════════
