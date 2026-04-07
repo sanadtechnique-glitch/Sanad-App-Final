@@ -1402,8 +1402,8 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
 
         {/* Common fields */}
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("الاسم عربي","Nom arabe")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder="صيدلية الأمل" /></Field>
-          <Field label={t("الاسم فرنسي","Nom français")}><Input value={form.name} onChange={v => setForm(f => ({...f, name: v}))} placeholder="Pharmacie Amal" /></Field>
+          <Field label={t("الاسم","Nom")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder={isTaxiForm ? t("اسم السائق","Nom chauffeur") : t("صيدلية الأمل","Pharmacie Amal")} /></Field>
+          {!isTaxiForm && <Field label={t("الاسم فرنسي","Nom français")}><Input value={form.name} onChange={v => setForm(f => ({...f, name: v}))} placeholder="Pharmacie Amal" /></Field>}
         </div>
 
         {/* Category */}
@@ -1420,44 +1420,79 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
           </Field>
         )}
 
-        {/* Supplier Logo / Photo */}
-        <AdminImagePicker
-          value={form.photoUrl}
-          onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
-          label={t("شعار / صورة المحل", "Logo / Photo de l'établissement")}
-          guideAr="شعار واضح على خلفية بيضاء أو بيضاوية"
-          guideFr="Logo net sur fond blanc ou neutre"
-          aspect="1:1"
-          accent="#1A4D1F"
-          t={t}
-        />
-
-        <Field label={t("العنوان","Adresse")}><Input value={form.address} onChange={v => setForm(f => ({...f, address: v}))} /></Field>
-        <Field label={t("رقم WhatsApp","Numéro WhatsApp")}><Input value={form.phone} onChange={v => setForm(f => ({...f, phone: v}))} placeholder="21698..." /></Field>
-        <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>
-        <Field label={t("الوصف فرنسي","Description française")}><Input value={form.description} onChange={v => setForm(f => ({...f, description: v}))} /></Field>
-        <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>
-
-        {/* GPS */}
-        <div className="rounded-xl p-3 border border-[#FFA500]/30 bg-[#FFA500]/5">
-          <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-2">
-            {t("إحداثيات GPS (لحساب المسافة)","Coordonnées GPS (calcul distance)")}
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label={t("خط العرض","Latitude")}>
-              <Input value={form.latitude} onChange={v => setForm(f => ({...f, latitude: v}))} placeholder="33.1167" />
-            </Field>
-            <Field label={t("خط الطول","Longitude")}>
-              <Input value={form.longitude} onChange={v => setForm(f => ({...f, longitude: v}))} placeholder="11.2167" />
-            </Field>
+        {/* Taxi-specific fields */}
+        {isTaxiForm && modal === "add" && (
+          <div className="rounded-xl p-3 border-2 space-y-3" style={{ borderColor: "#FFA50040", background: "#FFA50008" }}>
+            <div className="flex items-center gap-2">
+              <Car size={13} style={{ color: "#FFA500" }} />
+              <p className="text-xs font-black" style={{ color: "#FFA500" }}>
+                {t("بيانات الحساب (مطلوبة)", "Informations du compte (obligatoires)")}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("رقم الهاتف *","Tél. *")}>
+                <Input value={form.providerPhone} onChange={v => setForm(f => ({...f, providerPhone: v}))} placeholder="21698..." />
+              </Field>
+              <Field label={t("كلمة المرور *","Mot de passe *")}>
+                <Input value={form.providerPassword} onChange={v => setForm(f => ({...f, providerPassword: v}))} placeholder="6+ أحرف" type="password" />
+              </Field>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label={t("نوع السيارة","Modèle")}>
+                <Input value={form.carModel} onChange={v => setForm(f => ({...f, carModel: v}))} placeholder="Kia Picanto" />
+              </Field>
+              <Field label={t("اللون","Couleur")}>
+                <Input value={form.carColor} onChange={v => setForm(f => ({...f, carColor: v}))} placeholder={t("أبيض","Blanc")} />
+              </Field>
+              <Field label={t("رقم اللوحة","Plaque")}>
+                <Input value={form.carPlate} onChange={v => setForm(f => ({...f, carPlate: v}))} placeholder="123TU456" />
+              </Field>
+            </div>
           </div>
-          <p className="text-[10px] text-[#1A4D1F]/30 mt-1">
-            {t("اختياري · بن قردان: 33.1167, 11.2167","Optionnel · Ben Guerdane: 33.1167, 11.2167")}
-          </p>
-        </div>
+        )}
 
-        {/* Account creation — add mode only */}
-        {modal === "add" && (
+        {/* Supplier Logo / Photo — not for taxi */}
+        {!isTaxiForm && (
+          <AdminImagePicker
+            value={form.photoUrl}
+            onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
+            label={t("شعار / صورة المحل", "Logo / Photo de l'établissement")}
+            guideAr="شعار واضح على خلفية بيضاء أو بيضاوية"
+            guideFr="Logo net sur fond blanc ou neutre"
+            aspect="1:1"
+            accent="#1A4D1F"
+            t={t}
+          />
+        )}
+
+        {!isTaxiForm && <Field label={t("العنوان","Adresse")}><Input value={form.address} onChange={v => setForm(f => ({...f, address: v}))} /></Field>}
+        {!isTaxiForm && <Field label={t("رقم WhatsApp","Numéro WhatsApp")}><Input value={form.phone} onChange={v => setForm(f => ({...f, phone: v}))} placeholder="21698..." /></Field>}
+        {!isTaxiForm && <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>}
+        {!isTaxiForm && <Field label={t("الوصف فرنسي","Description française")}><Input value={form.description} onChange={v => setForm(f => ({...f, description: v}))} /></Field>}
+        {!isTaxiForm && <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>}
+
+        {/* GPS — not for taxi */}
+        {!isTaxiForm && (
+          <div className="rounded-xl p-3 border border-[#FFA500]/30 bg-[#FFA500]/5">
+            <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-2">
+              {t("إحداثيات GPS (لحساب المسافة)","Coordonnées GPS (calcul distance)")}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label={t("خط العرض","Latitude")}>
+                <Input value={form.latitude} onChange={v => setForm(f => ({...f, latitude: v}))} placeholder="33.1167" />
+              </Field>
+              <Field label={t("خط الطول","Longitude")}>
+                <Input value={form.longitude} onChange={v => setForm(f => ({...f, longitude: v}))} placeholder="11.2167" />
+              </Field>
+            </div>
+            <p className="text-[10px] text-[#1A4D1F]/30 mt-1">
+              {t("اختياري · بن قردان: 33.1167, 11.2167","Optionnel · Ben Guerdane: 33.1167, 11.2167")}
+            </p>
+          </div>
+        )}
+
+        {/* Account creation — add mode only, not for taxi (taxi has its own above) */}
+        {modal === "add" && !isTaxiForm && (
           <div className="rounded-xl p-3 border-2 space-y-3" style={{ borderColor: "#1565C030", background: "#1565C008" }}>
             <div className="flex items-center gap-2">
               <KeyRound size={13} style={{ color: "#1565C0" }} />
