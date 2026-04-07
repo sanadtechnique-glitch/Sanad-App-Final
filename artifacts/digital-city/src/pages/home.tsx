@@ -1072,10 +1072,6 @@ export default function Home() {
         <OrbitSystem lang={lang} />
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          3. PARTENAIRES — horizontal circular logo strip
-      ══════════════════════════════════════════════════════════════════════ */}
-      <PartnersStrip lang={lang} t={t} />
 
       {/* ══════════════════════════════════════════════════════════════════════
           4. MY ORDERS — shown only for logged-in clients
