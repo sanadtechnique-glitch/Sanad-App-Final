@@ -1185,7 +1185,7 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
       get<Supplier[]>("/admin/suppliers").catch(() => [] as Supplier[]),
       get<TaxiDriver[]>("/admin/taxi/drivers").catch(() => [] as TaxiDriver[]),
     ]);
-    setItems(sups);
+    setItems(sups.filter((s: Supplier) => s.category !== "taxi"));
     setTaxiItems(taxis);
   };
   useEffect(() => { load(); }, []);
