@@ -136,6 +136,7 @@ function OrbitRing({
               willChange: "transform",
               WebkitTransform: "translateZ(0)",
               transform: "translateZ(0)",
+              pointerEvents: "none",
             }}
           >
             {/* Offset to orbit radius */}
@@ -151,9 +152,10 @@ function OrbitRing({
                   willChange: "transform",
                   WebkitTransform: "translateZ(0)",
                   transform: "translateZ(0)",
+                  pointerEvents: "none",
                 }}
               >
-                <Link href={cat.href ?? `/services?category=${cat.id}`}>
+                <Link href={cat.href ?? `/services?category=${cat.id}`} style={{ pointerEvents: "auto" }}>
                   <div
                     className="flex flex-col items-center cursor-pointer active:scale-90 transition-transform duration-100"
                     style={{ gap: 4 }}
@@ -242,7 +244,7 @@ function OrbitSystem({ lang }: { lang: string }) {
   const HEIGHT = CY * 2 + 30;                   // total height        ≈ 460px
 
   return (
-    <div className="w-full overflow-hidden" style={{ height: HEIGHT }}>
+    <div className="w-full overflow-hidden orbit-running" style={{ height: HEIGHT }}>
       <div style={{ position: "relative", width: cw, height: HEIGHT, margin: "0 auto" }}>
 
         {/* ── Orbit path rings (decorative) ── */}
