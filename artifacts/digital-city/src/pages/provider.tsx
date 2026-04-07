@@ -21,13 +21,14 @@ interface Order { id: number; customerName: string; customerPhone?: string; cust
 interface OrderItem { id: number; orderId: number; articleId?: number | null; nameAr: string; nameFr: string; price: number; qty: number; subtotal: number; }
 
 const STATUS: Record<string, { ar: string; fr: string; color: string }> = {
+  searching_for_driver: { ar: "🔔 جديد · انتظار سائق", fr: "🔔 Nouveau · Cherche livreur", color: "text-amber-500 border-amber-500/30 bg-amber-500/10" },
   pending:         { ar: "قيد الانتظار",       fr: "En attente",          color: "text-amber-400 border-amber-400/30 bg-amber-400/10" },
-  accepted:        { ar: "مقبول",              fr: "Accepté",             color: "text-blue-400 border-blue-400/30 bg-blue-400/10" },
-  prepared:        { ar: "جاهز للتوصيل",      fr: "Prêt à livrer",       color: "text-[#1A4D1F] border-[#1A4D1F]/30 bg-[#1A4D1F]/10" },
-  driver_accepted: { ar: "سائق في الطريق",    fr: "Livreur en route",    color: "text-orange-400 border-orange-400/30 bg-orange-400/10" },
-  in_delivery:     { ar: "تم الاستلام · في الطريق", fr: "Récupéré · En route", color: "text-purple-400 border-purple-400/30 bg-purple-400/10" },
-  delivered:       { ar: "تم التوصيل",         fr: "Livré",               color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" },
-  cancelled:       { ar: "ملغي",               fr: "Annulé",              color: "text-red-400 border-red-400/30 bg-red-400/10" },
+  accepted:        { ar: "✅ مقبول",           fr: "✅ Accepté",           color: "text-blue-400 border-blue-400/30 bg-blue-400/10" },
+  prepared:        { ar: "📦 جاهز للتوصيل",   fr: "📦 Prêt à livrer",    color: "text-[#1A4D1F] border-[#1A4D1F]/30 bg-[#1A4D1F]/10" },
+  driver_accepted: { ar: "🛵 سائق في الطريق", fr: "🛵 Livreur en route",  color: "text-orange-400 border-orange-400/30 bg-orange-400/10" },
+  in_delivery:     { ar: "🚀 في الطريق",       fr: "🚀 En livraison",      color: "text-purple-400 border-purple-400/30 bg-purple-400/10" },
+  delivered:       { ar: "🎉 تم التوصيل",      fr: "🎉 Livré",             color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" },
+  cancelled:       { ar: "❌ ملغي",            fr: "❌ Annulé",            color: "text-red-400 border-red-400/30 bg-red-400/10" },
 };
 
 function timeAgo(dateStr: string, lang: string) {
@@ -1081,7 +1082,7 @@ export default function ProviderDashboard() {
     try {
       const data = await get<Order[]>(`/provider/${provider.id}/orders`);
       setOrders(data);
-      const p = data.filter(o => o.status === "pending").length;
+      const p = data.filter(o => o.status === "pending" || o.status === "searching_for_driver").length;
       setPendingCount(p);
       // Fetch items for active orders (not delivered/cancelled) that we don't have yet
       const activeOrders = data.filter(o => !["delivered","cancelled"].includes(o.status));
@@ -1305,7 +1306,7 @@ export default function ProviderDashboard() {
     window.open(`https://wa.me/${phone.replace(/\D/g, "")}`, "_blank");
   };
 
-  const pendingOrders = orders.filter(o => o.status === "pending");
+  const pendingOrders = orders.filter(o => o.status === "pending" || o.status === "searching_for_driver");
   const displayOrders = tab === "pending" ? pendingOrders : orders;
 
   /* ── If not linked to a supplier → send back to login ── */
@@ -2067,11 +2068,11 @@ export default function ProviderDashboard() {
                       </div>
 
                       {/* Action buttons */}
-                      {order.status === "pending" && (
+                      {(order.status === "pending" || order.status === "searching_for_driver") && (
                         <div className="flex gap-2">
                           <button onClick={() => updateStatus(order.id, "accepted")}
                             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black text-sm hover:bg-emerald-500/20 transition-all">
-                            <Check size={14} />{t("قبول", "Accepter")}
+                            <Check size={14} />{t("قبول الطلب ✓", "Accepter ✓")}
                           </button>
                           <button onClick={() => updateStatus(order.id, "cancelled")}
                             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 font-black text-sm hover:bg-red-500/20 transition-all">

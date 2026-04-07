@@ -108,6 +108,27 @@ router.post("/upload/image", requireAuth, memUpload.single("image"), async (req,
   }
 });
 
+// POST /upload/prescription — public upload for customer prescriptions (no auth required)
+router.post("/upload/prescription", memUpload.single("image"), async (req, res) => {
+  if (!req.file) { res.status(400).json({ message: "No file uploaded" }); return; }
+  // Only allow images
+  if (!req.file.mimetype.startsWith("image/")) {
+    res.status(400).json({ message: "Images only" }); return;
+  }
+  // Limit to 5MB for prescriptions
+  if (req.file.size > 5 * 1024 * 1024) {
+    res.status(400).json({ message: "Image too large (max 5MB)" }); return;
+  }
+  try {
+    const objectPath = await uploadToGCS(req.file.buffer, req.file.mimetype, req.file.originalname);
+    const url = `/api/storage${objectPath}`;
+    res.json({ url, filename: path.basename(objectPath) });
+  } catch (err) {
+    console.error("GCS prescription upload error", err);
+    res.status(500).json({ message: "Upload failed" });
+  }
+});
+
 // ── Backward-compat: serve old local uploads still in DB ──────────────────
 import express from "express";
 router.use("/uploads/ads",    express.static(uploadsDir));

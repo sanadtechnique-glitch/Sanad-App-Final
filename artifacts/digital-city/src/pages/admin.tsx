@@ -1800,15 +1800,28 @@ function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
 function DeliveryStaffSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [items, setItems] = useState<DeliveryStaff[]>([]);
   const [modal, setModal] = useState<null | "add" | DeliveryStaff>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState("");
   const [form, setForm] = useState({ name:"", nameAr:"", phone:"", zone:"", isAvailable: true });
+  const [acctForm, setAcctForm] = useState({ driverPhone:"", driverPassword:"", createAccount: false });
 
   const load = () => get<DeliveryStaff[]>("/admin/delivery-staff").then(setItems).catch(() => {});
   useEffect(() => { load(); }, []);
 
   const save = async () => {
-    if (modal === "add") await post("/admin/delivery-staff", form);
-    else await patch(`/admin/delivery-staff/${(modal as DeliveryStaff).id}`, form);
-    setModal(null); load();
+    setSaveErr(""); setSaving(true);
+    try {
+      const payload: Record<string, unknown> = { ...form };
+      if (modal === "add" && acctForm.createAccount) {
+        payload.driverPhone    = acctForm.driverPhone.trim();
+        payload.driverPassword = acctForm.driverPassword;
+      }
+      if (modal === "add") await post("/admin/delivery-staff", payload);
+      else await patch(`/admin/delivery-staff/${(modal as DeliveryStaff).id}`, payload);
+      setModal(null); load();
+    } catch (err: any) {
+      setSaveErr(err?.message || t("حدث خطأ", "Erreur serveur"));
+    } finally { setSaving(false); }
   };
 
   const toggle = async (id: number, current: boolean) => {
@@ -1825,7 +1838,11 @@ function DeliveryStaffSection({ t }: { t: (ar: string, fr: string) => string }) 
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-black text-[#1A4D1F]">{t("عمال التوصيل","Livreurs")}</h2>
-        <GoldBtn onClick={() => { setForm({name:"",nameAr:"",phone:"",zone:"",isAvailable:true}); setModal("add"); }}><Plus size={14}/>{t("إضافة","Ajouter")}</GoldBtn>
+        <GoldBtn onClick={() => {
+          setForm({name:"",nameAr:"",phone:"",zone:"",isAvailable:true});
+          setAcctForm({driverPhone:"",driverPassword:"",createAccount:false});
+          setSaveErr(""); setModal("add");
+        }}><Plus size={14}/>{t("إضافة","Ajouter")}</GoldBtn>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map(s => (
@@ -1833,30 +1850,62 @@ function DeliveryStaffSection({ t }: { t: (ar: string, fr: string) => string }) 
             <div className="flex justify-between items-start">
               <div>
                 <p className="font-bold text-[#1A4D1F]">{s.nameAr}</p>
+                <p className="text-sm text-[#1A4D1F]/60">{s.name}</p>
                 <p className="text-xs text-[#1A4D1F]/40">{s.phone}</p>
-                {s.zone && <p className="text-xs text-[#1A4D1F]/60 mt-1">{s.zone}</p>}
+                {s.zone && <p className="text-xs text-[#FFA500] mt-1 font-bold">{s.zone}</p>}
               </div>
               <div className="flex gap-2 items-center">
                 <button onClick={() => toggle(s.id, s.isAvailable)}
                   className={cn("p-2 rounded-xl border transition-all", s.isAvailable ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20" : "bg-red-400/10 text-red-400 border-red-400/20")}>
                   <Power size={14} />
                 </button>
-                <button onClick={() => { setForm({name:s.name,nameAr:s.nameAr,phone:s.phone,zone:s.zone||"",isAvailable:s.isAvailable}); setModal(s); }} className="p-2 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-colors"><Pencil size={14} /></button>
+                <button onClick={() => {
+                  setForm({name:s.name,nameAr:s.nameAr,phone:s.phone,zone:s.zone||"",isAvailable:s.isAvailable});
+                  setAcctForm({driverPhone:"",driverPassword:"",createAccount:false});
+                  setSaveErr(""); setModal(s);
+                }} className="p-2 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-colors"><Pencil size={14} /></button>
                 <button onClick={() => remove(s.id)} className="p-2 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-red-400 transition-colors"><Trash2 size={14} /></button>
               </div>
             </div>
           </div>
         ))}
+        {items.length === 0 && (
+          <div className="col-span-3 text-center py-8 text-[#1A4D1F]/30 text-sm">
+            {t("لا يوجد عمال توصيل بعد", "Aucun livreur enregistré")}
+          </div>
+        )}
       </div>
-      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === "add" ? t("إضافة سائق","Ajouter livreur") : t("تعديل سائق","Modifier livreur")}>
+      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === "add" ? t("إضافة سائق توصيل","Ajouter livreur") : t("تعديل سائق","Modifier livreur")}>
         <div className="grid grid-cols-2 gap-3">
           <Field label={t("الاسم عربي","Nom arabe")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder="أحمد" /></Field>
           <Field label={t("الاسم فرنسي","Nom français")}><Input value={form.name} onChange={v => setForm(f => ({...f, name: v}))} placeholder="Ahmed" /></Field>
         </div>
         <Field label={t("رقم الهاتف (WhatsApp)","Téléphone (WhatsApp)")}><Input value={form.phone} onChange={v => setForm(f => ({...f, phone: v}))} placeholder="+21698..." /></Field>
-        <Field label={t("المنطقة","Zone")}><Input value={form.zone} onChange={v => setForm(f => ({...f, zone: v}))} placeholder={t("بن قردان الوسط","Centre BG")} /></Field>
-        <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} /></Field>
-        <GoldBtn onClick={save} className="w-full justify-center">{t("حفظ","Enregistrer")}</GoldBtn>
+        <Field label={t("المنطقة / العمالة","Zone / Délégation")}><Input value={form.zone} onChange={v => setForm(f => ({...f, zone: v}))} placeholder={t("بن قردان الوسط","Centre BG")} /></Field>
+        <Field label={t("متاح الآن","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} /></Field>
+
+        {/* ── Account creation (add mode only) ── */}
+        {modal === "add" && (
+          <div className="border border-[#1A4D1F]/10 rounded-xl p-4 space-y-3 mt-1" style={{ background: "rgba(26,77,31,0.03)" }}>
+            <Field label={t("إنشاء حساب تسجيل دخول للسائق","Créer un compte de connexion")}>
+              <Toggle checked={acctForm.createAccount} onChange={v => setAcctForm(f => ({...f, createAccount: v}))} />
+            </Field>
+            {acctForm.createAccount && (<>
+              <Field label={t("هاتف تسجيل الدخول","Tél. connexion")}>
+                <Input value={acctForm.driverPhone} onChange={v => setAcctForm(f => ({...f, driverPhone: v}))} placeholder="+21698..." />
+              </Field>
+              <Field label={t("كلمة المرور","Mot de passe")}>
+                <Input value={acctForm.driverPassword} onChange={v => setAcctForm(f => ({...f, driverPassword: v}))} placeholder={t("6 أحرف على الأقل","6 caractères min.")} type="password" />
+              </Field>
+              <p className="text-xs text-[#1A4D1F]/40 text-center">{t("سيتم ربط الحساب تلقائياً بملف السائق","Le compte sera lié automatiquement au profil du livreur")}</p>
+            </>)}
+          </div>
+        )}
+
+        {saveErr && <p className="text-sm text-red-400 font-bold text-center">{saveErr}</p>}
+        <GoldBtn onClick={save} disabled={saving} className="w-full justify-center">
+          {saving ? <><div className="w-4 h-4 border-2 border-[#1A4D1F] border-t-transparent rounded-full animate-spin" />{t("جارٍ الحفظ...","Sauvegarde...")}</> : t("حفظ","Enregistrer")}
+        </GoldBtn>
       </Modal>
     </div>
   );

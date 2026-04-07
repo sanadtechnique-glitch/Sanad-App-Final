@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { deliveryStaffTable, ordersTable } from "@workspace/db/schema";
+import { deliveryStaffTable, ordersTable, usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdmin, requireStaff } from "../lib/authMiddleware";
 import { isValidPhone } from "../lib/validate";
+import { hashPassword } from "../lib/crypto";
 
 const router: IRouter = Router();
 
@@ -14,19 +15,65 @@ router.get("/admin/delivery-staff", requireStaff, async (req, res) => {
 });
 
 router.post("/admin/delivery-staff", requireAdmin, async (req, res) => {
-  const { name, nameAr, phone, zone, isAvailable } = req.body;
+  const { name, nameAr, phone, zone, isAvailable, driverPhone, driverPassword } = req.body;
   if (!name || !nameAr || !phone) {
     res.status(400).json({ message: "name, nameAr, phone required" }); return;
   }
   if (!isValidPhone(phone)) {
     res.status(400).json({ message: "Invalid phone number format" }); return;
   }
+
+  // Optional: create linked login account for the driver
+  const createAccount = !!(driverPhone && driverPassword);
+  if (createAccount) {
+    if (!isValidPhone(driverPhone)) {
+      res.status(400).json({ message: "رقم هاتف الحساب غير صالح · Numéro de compte invalide" }); return;
+    }
+    if ((driverPassword as string).length < 6) {
+      res.status(400).json({ message: "كلمة المرور 6 أحرف على الأقل · Mot de passe min. 6 caractères" }); return;
+    }
+    const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, driverPhone.trim()));
+    if (existing) {
+      res.status(409).json({ message: "رقم الهاتف مسجل مسبقاً · Ce numéro est déjà utilisé" }); return;
+    }
+  }
+
   try {
-    const [row] = await db.insert(deliveryStaffTable)
+    // 1. Create delivery staff record
+    const [staff] = await db.insert(deliveryStaffTable)
       .values({ name, nameAr, phone, zone, isAvailable: isAvailable ?? true })
       .returning();
-    res.status(201).json(row);
-  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+
+    // 2. Optionally create driver user account linked to this staff record
+    let driverUser = null;
+    if (createAccount) {
+      const hashedPw = await hashPassword(driverPassword.trim());
+      const username = `driver_${driverPhone.trim().replace(/\D/g, "")}`;
+      const [user] = await db.insert(usersTable).values({
+        username,
+        name: nameAr,
+        phone: driverPhone.trim(),
+        password: hashedPw,
+        role: "driver",
+        isActive: true,
+        linkedStaffId: staff.id,
+      }).returning({
+        id: usersTable.id,
+        username: usersTable.username,
+        phone: usersTable.phone,
+        role: usersTable.role,
+        linkedStaffId: usersTable.linkedStaffId,
+      });
+      driverUser = user;
+    }
+
+    res.status(201).json({ staff, driverUser });
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ message: "رقم الهاتف مسجل مسبقاً · Ce numéro est déjà utilisé" }); return;
+    }
+    req.log.error({ err }); res.status(500).json({ message: "Server error" });
+  }
 });
 
 router.patch("/admin/delivery-staff/:id", requireAdmin, async (req, res) => {
@@ -54,13 +101,14 @@ router.delete("/admin/delivery-staff/:id", requireAdmin, async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-// Driver's own orders — requires auth (driver uses their own token from login)
+// Driver's own history — by staffId (used by delivery dashboard)
 router.get("/delivery/:staffId/orders", async (req, res) => {
   const staffId = parseInt(req.params.staffId);
   if (isNaN(staffId)) { res.status(400).json({ message: "Invalid staffId" }); return; }
   try {
-    const orders = await db.select().from(ordersTable).where(eq(ordersTable.deliveryStaffId, staffId));
-    res.json(orders);
+    const orders = await db.select().from(ordersTable)
+      .where(eq(ordersTable.deliveryStaffId, staffId));
+    res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 

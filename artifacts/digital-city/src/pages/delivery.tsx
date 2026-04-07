@@ -463,6 +463,12 @@ export default function DeliveryDashboard() {
   const waitingPickupOrders = orders.filter(o => o.status === "driver_accepted" && o.deliveryStaffId === selected.id);
   const inDeliveryOrders   = orders.filter(o => o.status === "in_delivery"      && o.deliveryStaffId === selected.id);
   const deliveredOrders    = orders.filter(o => o.status === "delivered"         && o.deliveryStaffId === selected.id);
+  // Pool: orders available for acceptance (not yet assigned to any driver, or prepared with no driver)
+  const poolOrders = orders.filter(o =>
+    (o.status === "searching_for_driver" || o.status === "prepared") &&
+    !o.deliveryStaffId &&
+    !rejectedIds.current.has(o.id)
+  );
   const currentIncoming    = incomingQueue[0] ?? null;
 
   return (
@@ -744,8 +750,82 @@ export default function DeliveryDashboard() {
             </div>
           )}
 
+          {/* ── Section 3: Available Pool — orders waiting for any driver ── */}
+          {poolOrders.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Zap size={13} className="text-[#FFA500]" />
+                <p className="text-xs font-black text-[#FFA500] uppercase tracking-widest">
+                  {t("طلبات متاحة للقبول", "Commandes disponibles")}
+                </p>
+                <span className="px-2 py-0.5 rounded-full bg-[#FFA500]/20 text-[#FFA500] text-xs font-black">{poolOrders.length}</span>
+              </div>
+              <div className="space-y-3">
+                {poolOrders.map(order => (
+                  <motion.div key={order.id} layout
+                    className="rounded-[15px] border border-[#FFA500]/40 overflow-hidden"
+                    style={{ background: "#FFFDE7" }}>
+                    <div className="px-4 py-2 border-b border-[#FFA500]/10 flex items-center justify-between" style={{ background: "rgba(255,165,0,0.06)" }}>
+                      <span className="font-mono text-xs text-[#1A4D1F]/25">#{order.id.toString().padStart(4, "0")}</span>
+                      <span className="text-xs font-black text-[#FFA500]">
+                        {order.status === "prepared" ? t("📦 جاهز للاستلام", "📦 Prêt à récupérer") : t("🔔 بحث عن سائق", "🔔 Cherche livreur")}
+                      </span>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-[#1A4D1F]">{order.customerName}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <MapPin size={10} className="text-[#FFA500]/60" />
+                            <p className="text-sm text-[#1A4D1F]/40 truncate">{order.customerAddress}</p>
+                          </div>
+                          <p className="text-xs text-[#1A4D1F]/50 mt-1">{t("من", "De")} {order.serviceProviderName}</p>
+                          {order.deliveryFee && order.deliveryFee > 0 && (
+                            <p className="text-sm text-emerald-500 font-bold mt-1">{t("رسوم التوصيل", "Frais de livraison")}: {order.deliveryFee} TND</p>
+                          )}
+                          {order.notes && (
+                            <p className="text-xs text-[#1A4D1F]/30 mt-1 italic">{order.notes}</p>
+                          )}
+                          <p className="text-xs text-[#1A4D1F]/20 mt-1">{timeAgo(order.createdAt, lang)}</p>
+                        </div>
+                        {order.customerPhone && (
+                          <button onClick={() => openWhatsApp(order.customerPhone)}
+                            className="p-2.5 rounded-xl bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 flex-shrink-0">
+                            <MessageCircle size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => { rejectedIds.current.add(order.id); setOrders(prev => [...prev]); }}
+                          className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-black text-sm transition-all border border-red-400/30"
+                          style={{ background: "rgba(239,68,68,0.07)", color: "#ef4444" }}
+                        >
+                          <X size={13} />
+                          {t("تجاهل", "Ignorer")}
+                        </button>
+                        <button
+                          onClick={() => handleAcceptIncoming(order)}
+                          disabled={acceptingId === order.id}
+                          className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-black text-sm text-white transition-all disabled:opacity-60"
+                          style={{ background: "#1A4D1F" }}
+                        >
+                          {acceptingId === order.id ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <><CheckCircle size={13} />{t("قبول", "Accepter")}</>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ── Empty state ── */}
-          {waitingPickupOrders.length === 0 && inDeliveryOrders.length === 0 && !loading && (
+          {waitingPickupOrders.length === 0 && inDeliveryOrders.length === 0 && poolOrders.length === 0 && !loading && (
             <div className="text-center py-14 rounded-[15px] border border-[#1A4D1F]/20" style={{ background: "#FFFDE7" }}>
               <div className="w-16 h-16 rounded-2xl bg-[#1A4D1F]/5 flex items-center justify-center mx-auto mb-4">
                 <Package size={28} className="text-[#1A4D1F]/15" />

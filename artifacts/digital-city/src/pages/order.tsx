@@ -62,6 +62,8 @@ export default function Order() {
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
   const [prescriptionPhoto, setPrescriptionPhoto] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [customerLat, setCustomerLat] = useState<number | null>(null);
   const [customerLng, setCustomerLng] = useState<number | null>(null);
@@ -133,12 +135,29 @@ export default function Order() {
     );
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadError(null);
+    // Show local preview immediately
     const reader = new FileReader();
     reader.onload = ev => setPrescriptionPhoto(ev.target?.result as string);
     reader.readAsDataURL(file);
+    // Upload to GCS in background
+    setUploadingPhoto(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch("/api/upload/prescription", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("upload_failed");
+      const { url } = await res.json() as { url: string };
+      setPrescriptionPhoto(url); // Replace base64 with GCS URL
+    } catch {
+      setUploadError(lang === "ar" ? "فشل رفع الصورة، ستُرسل مع الطلب" : "Échec upload, envoi avec commande");
+      // Keep the base64 as fallback (already set by reader above)
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   const onSubmit = async (data: FormValues) => {
@@ -384,16 +403,29 @@ export default function Order() {
                     {prescriptionPhoto ? (
                       <div className="relative rounded-xl overflow-hidden border border-[#1A4D1F]/30">
                         <img src={prescriptionPhoto} alt="prescription" className="w-full h-40 object-cover" />
-                        <button type="button" onClick={() => setPrescriptionPhoto(null)}
-                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500/90 text-[#1A4D1F] flex items-center justify-center hover:bg-red-600 transition-colors">
+                        {uploadingPhoto && (
+                          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)" }}>
+                            <div className="w-8 h-8 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        )}
+                        <button type="button" onClick={() => { setPrescriptionPhoto(null); setUploadError(null); }}
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:bg-red-600 transition-colors">
                           <X size={13} />
                         </button>
-                        <div className="absolute bottom-2 left-2 text-xs bg-[#FFA500]/60 text-[#1A4D1F] px-2 py-1 rounded-lg backdrop-blur-sm">
-                          {t("✓ تم رفع الوصفة", "✓ Ordonnance jointe")}
+                        <div className="absolute bottom-2 left-2 text-xs px-2 py-1 rounded-lg backdrop-blur-sm font-bold"
+                          style={{ background: uploadingPhoto ? "rgba(0,0,0,0.5)" : "rgba(255,165,0,0.75)", color: "#1A4D1F" }}>
+                          {uploadingPhoto
+                            ? t("⬆️ جارٍ الرفع...", "⬆️ Envoi en cours...")
+                            : t("✓ تم رفع الوصفة", "✓ Ordonnance jointe")}
                         </div>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-dashed border-[#1A4D1F]/15 cursor-pointer hover:border-[#1A4D1F]/40 hover:bg-[#1A4D1F]/3 transition-all group">
+                      <label className={cn(
+                        "flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-dashed transition-all group",
+                        uploadingPhoto
+                          ? "border-[#FFA500]/40 cursor-wait"
+                          : "border-[#1A4D1F]/15 cursor-pointer hover:border-[#1A4D1F]/40 hover:bg-[#1A4D1F]/3"
+                      )}>
                         <div className="w-12 h-12 rounded-xl bg-[#1A4D1F]/10 border border-[#1A4D1F]/20 flex items-center justify-center group-hover:bg-[#1A4D1F]/20 transition-colors">
                           <Camera size={20} className="text-[#1A4D1F]/60" />
                         </div>
@@ -401,10 +433,15 @@ export default function Order() {
                           <p className="text-sm font-bold text-[#1A4D1F]/50 group-hover:text-[#1A4D1F]/70 transition-colors">
                             {t("اضغط لرفع صورة الوصفة", "Cliquez pour télécharger")}
                           </p>
-                          <p className="text-xs text-[#1A4D1F]/25 mt-0.5">JPG, PNG, WEBP</p>
+                          <p className="text-xs text-[#1A4D1F]/25 mt-0.5">JPG, PNG, WEBP · max 5MB</p>
                         </div>
-                        <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                        <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} disabled={uploadingPhoto} />
                       </label>
+                    )}
+                    {uploadError && (
+                      <p className="text-xs text-amber-500 font-bold flex items-center gap-1">
+                        <AlertTriangle size={11} />{uploadError}
+                      </p>
                     )}
                   </div>
                 )}

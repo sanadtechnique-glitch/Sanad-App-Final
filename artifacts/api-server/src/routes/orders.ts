@@ -306,28 +306,4 @@ router.get("/delivery/orders", async (req, res) => {
   }
 });
 
-router.get("/delivery/staff/:staffId/orders", async (req, res) => {
-  const staffId = parseInt(req.params.staffId);
-  if (isNaN(staffId)) { res.status(400).json({ message: "Invalid staffId" }); return; }
-  try {
-    const orders = await db.select().from(ordersTable)
-      .where(eq(ordersTable.deliveryStaffId, staffId));
-    res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-  } catch (err) {
-    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-router.get("/delivery/:staffId/orders", async (req, res) => {
-  const staffId = parseInt(req.params.staffId);
-  if (isNaN(staffId)) { res.status(400).json({ message: "Invalid staffId" }); return; }
-  try {
-    const orders = await db.select().from(ordersTable)
-      .where(eq(ordersTable.deliveryStaffId, staffId));
-    res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-  } catch (err) {
-    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
-  }
-});
-
 export default router;
