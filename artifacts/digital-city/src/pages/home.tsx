@@ -235,13 +235,15 @@ function OrbitSystem({ lang }: { lang: string }) {
 
   // Responsive sizing — fills the full available width
   const CX     = cw / 2;                        // center X
-  const CY     = 250;                            // center Y  ≈ 250px
   const R_IN   = Math.round(cw * 0.308);        // inner orbit radius  ≈ 120px @ 390
   const R_OUT  = Math.round(cw * 0.484);        // outer orbit radius  ≈ 189px @ 390
   const S_IN   = Math.round(cw * 0.240);        // inner circle px     ≈ 94px  @ 390
   const S_OUT  = Math.round(cw * 0.218);        // outer circle px     ≈ 85px  @ 390
   const BADGE  = Math.round(cw * 0.264);        // center badge px     ≈ 103px @ 390
-  const HEIGHT = CY * 2 + 40;                   // total height        ≈ 540px
+  // CY = space needed from center to outermost card edge (including label)
+  // This keeps the center badge exactly in the middle of the section
+  const CY     = R_OUT + Math.round(S_OUT / 2) + 34; // ≈ 189+42+34 = 265px @ 390
+  const HEIGHT = CY * 2;                        // total height  ≈ 530px (balanced top/bottom)
 
   return (
     <div className="w-full overflow-hidden orbit-running" style={{ height: HEIGHT }}>
