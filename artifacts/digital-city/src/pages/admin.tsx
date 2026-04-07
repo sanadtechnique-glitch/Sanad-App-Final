@@ -1768,7 +1768,16 @@ function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
         </div>
         <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>
         <Field label={t("الوصف فرنسي","Description française")}><Input value={form.descriptionFr} onChange={v => setForm(f => ({...f, descriptionFr: v}))} /></Field>
-        <Field label={t("رابط الصورة","URL de l'image")}><Input value={form.photoUrl} onChange={v => setForm(f => ({...f, photoUrl: v}))} placeholder="https://..." /></Field>
+        <AdminImagePicker
+          value={form.photoUrl}
+          onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
+          label={t("صورة المنتج", "Photo du produit")}
+          guideAr="صورة واضحة للمنتج على خلفية محايدة"
+          guideFr="Photo nette du produit sur fond neutre"
+          aspect="1:1"
+          accent="#1A4D1F"
+          t={t}
+        />
         <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>
 
         {errMsg && (
