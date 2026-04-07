@@ -19,14 +19,20 @@ router.get("/services", async (req, res) => {
           and(
             eq(serviceProvidersTable.category, category as any),
             ne(serviceProvidersTable.category, "taxi"),
+            eq(serviceProvidersTable.isActive, true),
           ),
         );
     } else {
-      // "all" or unspecified: return every category EXCEPT taxi
+      // "all" or unspecified: return every category EXCEPT taxi, only active
       providers = await db
         .select()
         .from(serviceProvidersTable)
-        .where(ne(serviceProvidersTable.category, "taxi"));
+        .where(
+          and(
+            ne(serviceProvidersTable.category, "taxi"),
+            eq(serviceProvidersTable.isActive, true),
+          ),
+        );
     }
     res.json(providers);
   } catch (err) {

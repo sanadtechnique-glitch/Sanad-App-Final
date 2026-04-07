@@ -4434,7 +4434,7 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
 
   useEffect(() => {
     Promise.all([
-      get<any[]>("/suppliers").then(d => d.filter((s: any) => s.category === "car_rental")),
+      get<any[]>("/admin/suppliers").then(d => d.filter((s: any) => s.category === "car_rental")),
       fetch("/api/car-rental/cars/all", { headers: { "x-session-token": getSession()?.token || "" } }).then(r => r.json()),
       fetch("/api/car-rental/bookings", { headers: { "x-session-token": getSession()?.token || "" } }).then(r => r.json()),
     ]).then(([ag, ca, bo]) => {
@@ -4541,13 +4541,16 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
               </div>
             ))}
           </div>
-          <div>
-            <label className="block text-xs font-black mb-1 opacity-60 text-[#1565C0]">{t("رابط الشعار / الصورة","Logo / Photo URL")}</label>
-            <input value={agencyForm.photoUrl} onChange={e => setAgencyForm(p => ({ ...p, photoUrl: e.target.value }))}
-              placeholder="https://..." dir="ltr"
-              className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
-              style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033" }} />
-          </div>
+          <AdminImagePicker
+            value={agencyForm.photoUrl}
+            onChange={v => setAgencyForm(p => ({ ...p, photoUrl: v }))}
+            label={t("شعار / صورة الوكالة", "Logo / Photo de l'agence")}
+            guideAr="شعار الوكالة على خلفية بيضاء"
+            guideFr="Logo de l'agence sur fond blanc"
+            aspect="1:1"
+            accent="#1565C0"
+            t={t}
+          />
           <div className="flex gap-2">
             <button onClick={addAgency} disabled={saving || !agencyForm.nameAr || !agencyForm.name}
               className="flex-1 py-2.5 rounded-xl font-black text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2"

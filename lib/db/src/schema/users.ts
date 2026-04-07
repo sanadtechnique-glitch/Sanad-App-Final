@@ -2,7 +2,7 @@ import { pgTable, text, serial, boolean, timestamp, integer, date, index } from 
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const ROLES = ["super_admin", "manager", "provider", "driver", "customer"] as const;
+export const ROLES = ["super_admin", "manager", "provider", "driver", "taxi_driver", "customer"] as const;
 export type AppRole = (typeof ROLES)[number];
 
 export const usersTable = pgTable("users", {

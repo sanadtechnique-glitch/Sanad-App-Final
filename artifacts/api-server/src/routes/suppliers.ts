@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { serviceProvidersTable, usersTable } from "@workspace/db/schema";
-import { eq, ne } from "drizzle-orm";
+import { eq, ne, and } from "drizzle-orm";
 import { requireAdmin, requireStaff } from "../lib/authMiddleware";
 import { isValidPhone } from "../lib/validate";
 import { withCache, cacheDeletePrefix } from "../lib/cache";
@@ -30,7 +30,10 @@ router.get("/suppliers", async (req, res) => {
       latitude:      serviceProvidersTable.latitude,
       longitude:     serviceProvidersTable.longitude,
     }).from(serviceProvidersTable)
-      .where(ne(serviceProvidersTable.category, "taxi"))
+      .where(and(
+        ne(serviceProvidersTable.category, "taxi"),
+        eq(serviceProvidersTable.isActive, true),
+      ))
       .orderBy(serviceProvidersTable.name));
     res.json(rows);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
@@ -54,7 +57,8 @@ router.get("/suppliers/:id", async (req, res) => {
       shift:         serviceProvidersTable.shift,
       latitude:      serviceProvidersTable.latitude,
       longitude:     serviceProvidersTable.longitude,
-    }).from(serviceProvidersTable).where(eq(serviceProvidersTable.id, id));
+    }).from(serviceProvidersTable)
+      .where(and(eq(serviceProvidersTable.id, id), eq(serviceProvidersTable.isActive, true)));
     if (!row) { res.status(404).json({ message: "Not found" }); return; }
     res.json(row);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
