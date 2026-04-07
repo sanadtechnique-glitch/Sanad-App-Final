@@ -28,23 +28,43 @@ const memUpload = multer({
   fileFilter: imageFilter,
 });
 
-// ── Helper: upload buffer to GCS and return objectPath ────────────────────
+// ── Helper: parse a "/bucketId/objectName" path ────────────────────────────
+function parseGcsPath(p: string): { bucketName: string; objectName: string } {
+  const norm = p.startsWith("/") ? p : `/${p}`;
+  const parts = norm.split("/");
+  return { bucketName: parts[1]!, objectName: parts.slice(2).join("/") };
+}
+
+// ── Helper: upload buffer to GCS using PRIVATE_OBJECT_DIR ─────────────────
+// PRIVATE_OBJECT_DIR = "/replit-objstore-xxx/.private"
+// Files saved at:  bucketId / .private/uploads/uid.ext
+// Served via:      GET /api/storage/objects/uploads/uid.ext
+//   → getObjectEntityFile("/objects/uploads/uid.ext")
+//   → entityId = "uploads/uid.ext"
+//   → objectEntityPath = PRIVATE_OBJECT_DIR + "/uploads/uid.ext"
+//   → bucketId/.private/uploads/uid.ext  ✓
 async function uploadToGCS(buffer: Buffer, mimetype: string, originalname: string): Promise<string> {
-  const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-  if (!bucketId) throw new Error("Object storage bucket not configured");
+  const privateDir = process.env.PRIVATE_OBJECT_DIR;
+  if (!privateDir) throw new Error("PRIVATE_OBJECT_DIR not configured");
 
-  const ext  = path.extname(originalname).toLowerCase() || ".jpg";
-  const name = `uploads/${randomBytes(16).toString("hex")}${ext}`;
+  const ext = path.extname(originalname).toLowerCase() || ".jpg";
+  const uid = randomBytes(16).toString("hex");
 
-  const bucket = objectStorageClient.bucket(bucketId);
-  const file   = bucket.file(name);
+  // Build the full GCS path: /bucketId/.private/uploads/uid.ext
+  const dir = privateDir.endsWith("/") ? privateDir.slice(0, -1) : privateDir;
+  const fullPath = `${dir}/uploads/${uid}${ext}`;
+
+  const { bucketName, objectName } = parseGcsPath(fullPath);
+  const bucket = objectStorageClient.bucket(bucketName);
+  const file   = bucket.file(objectName);
 
   await file.save(buffer, {
     metadata: { contentType: mimetype },
     resumable: false,
   });
 
-  return `/objects/${name}`;
+  // Return the objectPath that storage.ts can serve
+  return `/objects/uploads/${uid}${ext}`;
 }
 
 const router = Router();
