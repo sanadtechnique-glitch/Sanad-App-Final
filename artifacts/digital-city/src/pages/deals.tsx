@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Percent, Tag, ArrowRight, RefreshCw, Search, X,
-  Store, Star,
+  Store, Star, ShoppingBag,
   Package, Sparkles,
 } from "lucide-react";
 import { get } from "@/lib/admin-api";
