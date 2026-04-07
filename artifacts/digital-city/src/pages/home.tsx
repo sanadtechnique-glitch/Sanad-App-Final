@@ -240,14 +240,14 @@ function OrbitSystem({ lang }: { lang: string }) {
 
   // Responsive sizing — fills the full available width
   const CX     = cw / 2;                        // center X
-  const R_IN   = Math.round(cw * 0.378);        // inner orbit radius  ≈ 147px @ 390 (6 items need more room)
-  const R_OUT  = Math.round(cw * 0.535);        // outer orbit radius  ≈ 208px @ 390
-  const S_IN   = Math.round(cw * 0.315);        // inner circle px     ≈ 123px @ 390 (أكبر)
-  const S_OUT  = Math.round(cw * 0.210);        // outer circle px     ≈ 82px  @ 390 (أصغر)
+  const R_IN   = Math.round(cw * 0.295);        // inner orbit radius  ≈ 115px @ 390 (أقرب للمركز)
+  const R_OUT  = Math.round(cw * 0.625);        // outer orbit radius  ≈ 244px @ 390 (أبعد عن المركز)
+  const S_IN   = Math.round(cw * 0.285);        // inner circle px     ≈ 111px @ 390 (أكبر)
+  const S_OUT  = Math.round(cw * 0.200);        // outer circle px     ≈ 78px  @ 390 (أصغر)
   const BADGE  = Math.round(cw * 0.295);        // center badge px     ≈ 115px @ 390
   // CY = space needed from center to outermost card edge (including label)
-  const CY     = R_OUT + Math.round(S_OUT / 2) + 38; // ≈ 208+49+38 = 295px @ 390
-  const HEIGHT = CY * 2;                        // total height  ≈ 590px (balanced top/bottom)
+  const CY     = R_OUT + Math.round(S_OUT / 2) + 38; // ≈ 244+39+38 = 321px @ 390
+  const HEIGHT = CY * 2;                        // total height  ≈ 642px
 
   return (
     <div className="w-full overflow-hidden orbit-running" style={{ height: HEIGHT }}>
