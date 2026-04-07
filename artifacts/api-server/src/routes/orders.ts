@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { ordersTable, serviceProvidersTable, deliveryStaffTable } from "@workspace/db/schema";
+import { ordersTable, serviceProvidersTable, deliveryStaffTable, orderItemsTable } from "@workspace/db/schema";
 import { eq, inArray, and, ilike } from "drizzle-orm";
 import { emitNewOrder, emitOrderTaken, emitOrderStatus } from "../lib/socket";
 import { requireStaff, requireAdmin } from "../lib/authMiddleware";
@@ -87,7 +87,7 @@ router.get("/distance", async (req, res) => {
 router.post("/orders", async (req, res) => {
   const { customerName, customerPhone, customerAddress, delegationId, notes,
     serviceProviderId, serviceType, photoUrl, customerId,
-    customerLat, customerLng } = req.body;
+    customerLat, customerLng, items } = req.body;
 
   if (!customerName || !customerAddress || !serviceProviderId || !serviceType) {
     res.status(400).json({ message: "customerName, customerAddress, serviceProviderId, serviceType are required" });
@@ -132,10 +132,40 @@ router.post("/orders", async (req, res) => {
       etaMinutes,
     }).returning();
 
+    // Save ordered items if provided (from cart)
+    if (Array.isArray(items) && items.length > 0) {
+      const rows = items
+        .filter((item: any) => item.nameAr && item.qty > 0)
+        .map((item: any) => ({
+          orderId: order.id,
+          articleId: item.articleId ? parseInt(String(item.articleId)) : null,
+          nameAr: String(item.nameAr),
+          nameFr: String(item.nameFr || item.nameAr),
+          price: parseFloat(String(item.price)) || 0,
+          qty: parseInt(String(item.qty)) || 1,
+          subtotal: (parseFloat(String(item.price)) || 0) * (parseInt(String(item.qty)) || 1),
+        }));
+      if (rows.length > 0) {
+        await db.insert(orderItemsTable).values(rows);
+      }
+    }
+
     // Real-time: broadcast instantly to ALL connected drivers
     emitNewOrder({ ...order });
 
     res.status(201).json(order);
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// GET /orders/:id/items — fetch ordered items for a specific order
+router.get("/orders/:id/items", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid order ID" }); return; }
+  try {
+    const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, id));
+    res.json(items);
   } catch (err) {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
   }

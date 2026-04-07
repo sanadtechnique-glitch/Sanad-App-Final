@@ -18,6 +18,7 @@ import { playSanadSound, unlockAudio } from "@/lib/notification-sound";
 
 interface Supplier { id: number; name: string; nameAr: string; category: string; isAvailable: boolean; shift?: string; rating?: number; phone?: string; photoUrl?: string | null; }
 interface Order { id: number; customerName: string; customerPhone?: string; customerAddress: string; notes?: string; status: string; createdAt: string; deliveryFee?: number; photoUrl?: string; }
+interface OrderItem { id: number; orderId: number; articleId?: number | null; nameAr: string; nameFr: string; price: number; qty: number; subtotal: number; }
 
 const STATUS: Record<string, { ar: string; fr: string; color: string }> = {
   pending:         { ar: "قيد الانتظار",       fr: "En attente",          color: "text-amber-400 border-amber-400/30 bg-amber-400/10" },
@@ -1048,6 +1049,7 @@ export default function ProviderDashboard() {
   const [sosOffering, setSosOffering]       = useState<Record<number, boolean>>({});
   const [lawyerRequests, setLawyerRequests] = useState<any[]>([]);
   const [lawyerLoading, setLawyerLoading]   = useState(false);
+  const [orderItemsMap, setOrderItemsMap] = useState<Record<number, OrderItem[]>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const providerNotifPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -1081,6 +1083,23 @@ export default function ProviderDashboard() {
       setOrders(data);
       const p = data.filter(o => o.status === "pending").length;
       setPendingCount(p);
+      // Fetch items for active orders (not delivered/cancelled) that we don't have yet
+      const activeOrders = data.filter(o => !["delivered","cancelled"].includes(o.status));
+      setOrderItemsMap(prev => {
+        const newIds = activeOrders.map(o => o.id).filter(id => !(id in prev));
+        if (newIds.length === 0) return prev;
+        // Fire async fetches, update map when done
+        Promise.all(newIds.map(id =>
+          get<OrderItem[]>(`/orders/${id}/items`).then(items => ({ id, items })).catch(() => ({ id, items: [] as OrderItem[] }))
+        )).then(results => {
+          setOrderItemsMap(m => {
+            const updated = { ...m };
+            results.forEach(({ id, items }) => { updated[id] = items; });
+            return updated;
+          });
+        });
+        return prev;
+      });
     } catch {}
     if (!silent) setLoading(false); else setRefreshing(false);
   }, []);
@@ -1990,6 +2009,43 @@ export default function ProviderDashboard() {
                           {order.deliveryFee && order.deliveryFee > 0 && (
                             <p className="text-sm text-[#1A4D1F] font-bold mt-1">{t("رسوم التوصيل", "Livraison")}: {order.deliveryFee} TND</p>
                           )}
+
+                          {/* ── قائمة المنتجات المطلوبة ── */}
+                          {orderItemsMap[order.id] && orderItemsMap[order.id].length > 0 && (
+                            <div className="mt-3 rounded-xl border border-[#1A4D1F]/20 overflow-hidden">
+                              <div className="px-3 py-1.5 flex items-center gap-2" style={{ background: "#1A4D1F", borderRadius: "0" }}>
+                                <Package size={12} className="text-[#FFA500]" />
+                                <span className="text-xs font-black text-[#FFA500]">
+                                  {t("المنتجات المطلوبة", "Articles commandés")} ({orderItemsMap[order.id].reduce((s, i) => s + i.qty, 0)})
+                                </span>
+                              </div>
+                              <div className="divide-y divide-[#1A4D1F]/8">
+                                {orderItemsMap[order.id].map(item => (
+                                  <div key={item.id} className="flex items-center justify-between px-3 py-2" style={{ background: "#FFFDE7" }}>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black text-white flex-shrink-0"
+                                        style={{ background: "#1A4D1F" }}>
+                                        {item.qty}
+                                      </span>
+                                      <span className="text-sm font-bold text-[#1A4D1F] truncate">
+                                        {lang === "ar" ? item.nameAr : (item.nameFr || item.nameAr)}
+                                      </span>
+                                    </div>
+                                    <span className="text-sm font-black text-[#FFA500] flex-shrink-0 ml-2">
+                                      {item.subtotal.toFixed(2)} <span className="text-[10px] font-normal opacity-60">TND</span>
+                                    </span>
+                                  </div>
+                                ))}
+                                <div className="flex items-center justify-between px-3 py-2" style={{ background: "rgba(26,77,31,0.06)" }}>
+                                  <span className="text-xs font-black text-[#1A4D1F]/60">{t("المجموع", "Total")}</span>
+                                  <span className="text-sm font-black text-[#1A4D1F]">
+                                    {orderItemsMap[order.id].reduce((s, i) => s + i.subtotal, 0).toFixed(2)} TND
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {order.notes && (
                             <p className="text-xs text-[#1A4D1F]/30 mt-2 p-2 rounded-lg border border-[#1A4D1F]/5" style={{ background: "#D4A800" }}>{order.notes}</p>
                           )}

@@ -208,6 +208,8 @@ function StatusBadge({ status, lang }: { status: string; lang: string }) {
   );
 }
 
+interface OrderItem { id: number; nameAr: string; nameFr: string; price: number; qty: number; subtotal: number; }
+
 // ── Order Card ────────────────────────────────────────────────────────────────
 function OrderCard({
   order, lang, expanded, onToggle, role,
@@ -216,6 +218,15 @@ function OrderCard({
 }) {
   const t = (ar: string, fr: string) => lang === "ar" ? ar : fr;
   const cfg = STATUS[order.status] ?? STATUS.pending;
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [itemsFetched, setItemsFetched] = useState(false);
+
+  useEffect(() => {
+    if (expanded && !itemsFetched) {
+      setItemsFetched(true);
+      get<OrderItem[]>(`/orders/${order.id}/items`).then(setItems).catch(() => {});
+    }
+  }, [expanded, itemsFetched, order.id]);
 
   return (
     <motion.div
@@ -287,6 +298,42 @@ function OrderCard({
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 pt-1 border-t border-[#1A4D1F]/8 space-y-2.5">
+              {/* ── المنتجات المطلوبة ── */}
+              {items.length > 0 && (
+                <div className="rounded-xl border border-[#1A4D1F]/15 overflow-hidden">
+                  <div className="px-3 py-1.5 flex items-center gap-2" style={{ background: "#1A4D1F" }}>
+                    <Package size={12} className="text-[#FFA500]" />
+                    <span className="text-xs font-black text-[#FFA500]">
+                      {t("المنتجات المطلوبة", "Articles commandés")}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-[#1A4D1F]/5">
+                    {items.map(item => (
+                      <div key={item.id} className="flex items-center justify-between px-3 py-2" style={{ background: "#FFFDE7" }}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black text-white flex-shrink-0"
+                            style={{ background: "#1A4D1F" }}>
+                            {item.qty}
+                          </span>
+                          <span className="text-sm text-[#1A4D1F] truncate">
+                            {lang === "ar" ? item.nameAr : (item.nameFr || item.nameAr)}
+                          </span>
+                        </div>
+                        <span className="text-sm font-black text-[#FFA500] flex-shrink-0 ml-2">
+                          {item.subtotal.toFixed(2)} TND
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between px-3 py-2" style={{ background: "rgba(26,77,31,0.05)" }}>
+                      <span className="text-xs font-bold text-[#1A4D1F]/50">{t("إجمالي المنتجات", "Total articles")}</span>
+                      <span className="text-sm font-black text-[#1A4D1F]">
+                        {items.reduce((s, i) => s + i.subtotal, 0).toFixed(2)} TND
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Address */}
               <div className="flex items-start gap-2">
                 <MapPin size={13} className="text-[#1A4D1F]/40 mt-0.5 flex-shrink-0" />

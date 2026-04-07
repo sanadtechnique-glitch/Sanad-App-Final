@@ -51,7 +51,7 @@ export default function Order() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { lang, t, isRTL } = useLang();
-  const { clearCart } = useCart();
+  const { cart, clearCart } = useCart();
   const session = getSession();
 
   const [supplier, setSupplier] = useState<Supplier | null>(null);
@@ -145,6 +145,17 @@ export default function Order() {
     if (!supplier) return;
     setSubmitting(true);
     try {
+      // Build cart items payload — maps cart.items → orderItems stored in DB
+      const cartItems = cart.supplierId === supplier.id && cart.items.length > 0
+        ? cart.items.map(i => ({
+            articleId: i.id,
+            nameAr: i.nameAr,
+            nameFr: i.name,
+            price: i.price,
+            qty: i.qty,
+          }))
+        : [];
+
       const payload = {
         customerName:    data.customerName,
         customerPhone:   data.customerPhone,
@@ -158,6 +169,7 @@ export default function Order() {
         customerId:      session?.userId ?? null,
         customerLat:     customerLat ?? undefined,
         customerLng:     customerLng ?? undefined,
+        items:           cartItems,
       };
       const res = await post<{ id: number }>("/orders", payload);
       setOrderId(res.id);
