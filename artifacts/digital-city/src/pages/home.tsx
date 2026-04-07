@@ -242,8 +242,8 @@ function OrbitSystem({ lang }: { lang: string }) {
   const CX     = cw / 2;                        // center X
   const R_IN   = Math.round(cw * 0.378);        // inner orbit radius  ≈ 147px @ 390 (6 items need more room)
   const R_OUT  = Math.round(cw * 0.535);        // outer orbit radius  ≈ 208px @ 390
-  const S_IN   = Math.round(cw * 0.268);        // inner circle px     ≈ 104px @ 390
-  const S_OUT  = Math.round(cw * 0.252);        // outer circle px     ≈ 98px  @ 390
+  const S_IN   = Math.round(cw * 0.315);        // inner circle px     ≈ 123px @ 390 (أكبر)
+  const S_OUT  = Math.round(cw * 0.210);        // outer circle px     ≈ 82px  @ 390 (أصغر)
   const BADGE  = Math.round(cw * 0.295);        // center badge px     ≈ 115px @ 390
   // CY = space needed from center to outermost card edge (including label)
   const CY     = R_OUT + Math.round(S_OUT / 2) + 38; // ≈ 208+49+38 = 295px @ 390
