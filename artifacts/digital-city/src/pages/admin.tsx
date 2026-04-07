@@ -3443,14 +3443,14 @@ function PartnersSection({ t }: { t: (ar: string, fr: string) => string }) {
 
 // ──────────────────────────────────────────────────────────────────────────────
 // ── Ads Section ───────────────────────────────────────────────────────────────
-interface AdRow { id: number; title: string; imageUrl?: string; isActive: boolean; expiresAt?: string; clickCount: number; createdAt: string; }
+interface AdRow { id: number; title: string; imageUrl?: string; linkUrl?: string; isActive: boolean; expiresAt?: string; clickCount: number; createdAt: string; }
 
 function AdsSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [ads, setAds]           = useState<AdRow[]>([]);
   const [loading, setLoading]   = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing]   = useState<AdRow | null>(null);
-  const [form, setForm]         = useState({ title: "", imageUrl: "", expiresAt: "", isActive: true });
+  const [form, setForm]         = useState({ title: "", imageUrl: "", linkUrl: "", expiresAt: "", isActive: true });
   const [saving, setSaving]     = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -3471,11 +3471,12 @@ function AdsSection({ t }: { t: (ar: string, fr: string) => string }) {
   };
   useEffect(() => { load(); }, []);
 
-  const openAdd  = () => { setEditing(null); setForm({ title: "", imageUrl: "", expiresAt: "", isActive: true }); setShowForm(true); };
+  const openAdd  = () => { setEditing(null); setForm({ title: "", imageUrl: "", linkUrl: "", expiresAt: "", isActive: true }); setShowForm(true); };
   const openEdit = (a: AdRow) => {
     setEditing(a);
     setForm({
       title: a.title, imageUrl: a.imageUrl || "",
+      linkUrl: a.linkUrl || "",
       expiresAt: a.expiresAt ? a.expiresAt.slice(0, 10) : "",
       isActive: a.isActive,
     });
@@ -3633,6 +3634,12 @@ function AdsSection({ t }: { t: (ar: string, fr: string) => string }) {
                       }
                     </button>
                   )}
+                </div>
+                <div>
+                  <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("رابط الموقع عند النقر (اختياري)","Lien au clic (optionnel)")}</label>
+                  <input value={form.linkUrl} onChange={e => setForm(f => ({ ...f, linkUrl: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/60" />
                 </div>
                 <div>
                   <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("تاريخ الانتهاء","Date d'expiration")}</label>

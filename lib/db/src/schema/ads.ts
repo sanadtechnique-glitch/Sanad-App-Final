@@ -6,6 +6,7 @@ export const adsTable = pgTable("ads", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   imageUrl: text("image_url"),
+  linkUrl: text("link_url"),
   isActive: boolean("is_active").notNull().default(true),
   expiresAt: timestamp("expires_at"),
   clickCount: integer("click_count").notNull().default(0),

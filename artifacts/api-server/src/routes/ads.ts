@@ -29,11 +29,12 @@ router.get("/admin/ads", async (req, res) => {
 // Admin — create ad
 router.post("/admin/ads", async (req, res) => {
   try {
-    const { title, imageUrl, isActive, expiresAt } = req.body;
+    const { title, imageUrl, linkUrl, isActive, expiresAt } = req.body;
     if (!title) return res.status(400).json({ message: "title required" });
     const [ad] = await db.insert(adsTable).values({
       title,
       imageUrl: imageUrl || null,
+      linkUrl: linkUrl || null,
       isActive: isActive !== false,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
     }).returning();
@@ -45,10 +46,11 @@ router.post("/admin/ads", async (req, res) => {
 router.patch("/admin/ads/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { title, imageUrl, isActive, expiresAt } = req.body;
+    const { title, imageUrl, linkUrl, isActive, expiresAt } = req.body;
     const updates: Record<string, unknown> = {};
     if (title !== undefined)     updates.title     = title;
     if (imageUrl !== undefined)  updates.imageUrl  = imageUrl;
+    if (linkUrl !== undefined)   updates.linkUrl   = linkUrl || null;
     if (isActive !== undefined)  updates.isActive  = isActive;
     if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
     const [ad] = await db.update(adsTable).set(updates).where(eq(adsTable.id, id)).returning();

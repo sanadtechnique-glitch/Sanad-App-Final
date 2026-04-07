@@ -1074,16 +1074,26 @@ function WhySanadSection({ lang, t }: { lang: string; t: (ar: string, fr: string
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADVANCED ADS SECTION — إعلانات متقدمة
+// ADVANCED ADS SECTION — إعلانات متقدمة (full-width auto-slideshow)
 // ─────────────────────────────────────────────────────────────────────────────
 interface AdRow {
   id: number; title: string; imageUrl?: string | null;
-  isActive: boolean; expiresAt?: string | null;
+  linkUrl?: string | null; isActive: boolean; expiresAt?: string | null;
 }
+
+const AD_PALETTES = [
+  { bg: "linear-gradient(135deg,#1A4D1F 0%,#2E7D32 60%,#388E3C 100%)", accent: "#FFA500", circle: "rgba(255,165,0,0.18)" },
+  { bg: "linear-gradient(135deg,#B45309 0%,#D97706 60%,#F59E0B 100%)", accent: "#fff",     circle: "rgba(255,255,255,0.18)" },
+  { bg: "linear-gradient(135deg,#7C3AED 0%,#8B5CF6 60%,#A78BFA 100%)", accent: "#FCD34D", circle: "rgba(252,211,77,0.18)" },
+  { bg: "linear-gradient(135deg,#0F766E 0%,#0D9488 60%,#14B8A6 100%)", accent: "#FFF",     circle: "rgba(255,255,255,0.18)" },
+  { bg: "linear-gradient(135deg,#BE185D 0%,#EC4899 60%,#F472B6 100%)", accent: "#FCD34D", circle: "rgba(252,211,77,0.18)" },
+];
 
 function AdvancedAdsSection({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
   const [ads, setAds]       = useState<AdRow[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     get<AdRow[]>("/ads")
@@ -1091,100 +1101,151 @@ function AdvancedAdsSection({ lang, t }: { lang: string; t: (ar: string, fr: str
       .catch(() => setLoaded(true));
   }, []);
 
+  // Auto-advance every 5 seconds
+  useEffect(() => {
+    if (ads.length <= 1) return;
+    timerRef.current = setInterval(() => {
+      setCurrent(c => (c + 1) % ads.length);
+    }, 5000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [ads.length]);
+
+  const goTo = (idx: number) => {
+    setCurrent(idx);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setCurrent(c => (c + 1) % ads.length);
+    }, 5000);
+  };
+
+  const handleClick = (ad: AdRow) => {
+    fetch(`/api/ads/${ad.id}/click`, { method: "POST" }).catch(() => {});
+    if (ad.linkUrl) window.open(ad.linkUrl, "_blank", "noopener,noreferrer");
+  };
+
   if (!loaded || ads.length === 0) return null;
+
+  const ad = ads[current];
+  const p = AD_PALETTES[current % AD_PALETTES.length];
 
   return (
     <motion.section
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="px-4 sm:px-6 lg:px-10 mt-6"
+      className="mt-6"
     >
       {/* Header */}
-      <div className="flex items-center gap-2.5 mb-3" dir="rtl">
+      <div className="flex items-center gap-2.5 mb-3 px-4 sm:px-6 lg:px-10" dir="rtl">
         <span className="w-1.5 h-6 rounded-full bg-[#FFA500] block flex-shrink-0" />
         <Megaphone size={16} style={{ color: "#1A4D1F" }} />
         <h2 className="text-base font-black text-[#1A4D1F]">
           {t("إعلانات", "Annonces")}
         </h2>
+        <span className="mr-auto text-xs font-bold text-[#1A4D1F]/40">
+          {current + 1} / {ads.length}
+        </span>
       </div>
 
-      {/* Ads horizontal scroll */}
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
-        {ads.map((ad, idx) => {
-          const palettes = [
-            { bg: "linear-gradient(135deg,#1A4D1F 0%,#2E7D32 60%,#388E3C 100%)", accent: "#FFA500", circle: "rgba(255,165,0,0.15)" },
-            { bg: "linear-gradient(135deg,#B45309 0%,#D97706 60%,#F59E0B 100%)", accent: "#fff",     circle: "rgba(255,255,255,0.15)" },
-            { bg: "linear-gradient(135deg,#7C3AED 0%,#8B5CF6 60%,#A78BFA 100%)", accent: "#FCD34D", circle: "rgba(252,211,77,0.15)" },
-            { bg: "linear-gradient(135deg,#0F766E 0%,#0D9488 60%,#14B8A6 100%)", accent: "#FFF",     circle: "rgba(255,255,255,0.15)" },
-            { bg: "linear-gradient(135deg,#BE185D 0%,#EC4899 60%,#F472B6 100%)", accent: "#FCD34D", circle: "rgba(252,211,77,0.15)" },
-          ];
-          const p = palettes[idx % palettes.length];
-          return (
-            <div
-              key={ad.id}
-              className="flex-shrink-0 snap-start rounded-2xl overflow-hidden relative cursor-pointer"
-              style={{
-                width: 230,
-                height: 128,
-                boxShadow: "0 6px 20px rgba(0,0,0,0.13)",
-              }}
-              onClick={() => {
-                fetch(`/api/ads/${ad.id}/click`, { method: "POST" }).catch(() => {});
-              }}
-            >
-              {ad.imageUrl ? (
-                <>
-                  <img
-                    src={ad.imageUrl}
-                    alt={ad.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div
-                    className="absolute inset-0"
-                    style={{ background: "linear-gradient(to top, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)" }}
-                  />
-                  <div className="absolute bottom-0 inset-x-0 px-3 py-2.5" dir="rtl">
-                    <p
-                      className="text-white text-xs font-black line-clamp-2 leading-relaxed"
-                      style={{ fontFamily: "'Cairo','Tajawal',sans-serif", textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}
-                    >
-                      {ad.title}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <div className="w-full h-full relative" style={{ background: p.bg }}>
-                  {/* Decorative circles */}
-                  <div className="absolute -top-6 -left-6 w-24 h-24 rounded-full" style={{ background: p.circle }} />
-                  <div className="absolute -bottom-4 -right-4 w-16 h-16 rounded-full" style={{ background: p.circle }} />
-                  {/* Content */}
-                  <div className="absolute inset-0 flex flex-col justify-between p-3.5" dir="rtl">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.2)" }}>
-                        <Megaphone size={12} style={{ color: p.accent }} />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-wide" style={{ color: p.accent, opacity: 0.9 }}>
-                        {lang === "ar" ? "إعلان" : "Publicité"}
-                      </span>
+      {/* Full-width slide */}
+      <div className="relative overflow-hidden" style={{ height: 180 }}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={ad.id}
+            initial={{ opacity: 0, x: lang === "ar" ? -40 : 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: lang === "ar" ? 40 : -40 }}
+            transition={{ duration: 0.45, ease: "easeInOut" }}
+            className="absolute inset-0 cursor-pointer"
+            onClick={() => handleClick(ad)}
+            style={{ cursor: ad.linkUrl ? "pointer" : "default" }}
+          >
+            {ad.imageUrl ? (
+              <>
+                <img src={ad.imageUrl} alt={ad.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.1) 55%, transparent 100%)" }} />
+                <div className="absolute bottom-0 inset-x-0 px-5 py-3" dir="rtl">
+                  <p className="text-white text-sm font-black line-clamp-2 leading-relaxed" style={{ fontFamily: "'Cairo','Tajawal',sans-serif", textShadow: "0 1px 5px rgba(0,0,0,0.6)" }}>
+                    {ad.title}
+                  </p>
+                  {ad.linkUrl && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-[11px] font-black text-[#FFA500]">{lang === "ar" ? "اضغط لمعرفة أكثر" : "Cliquer pour en savoir plus"}</span>
+                      <ChevronLeft size={11} className="text-[#FFA500]" />
                     </div>
-                    <p
-                      className="text-white text-sm font-black leading-snug line-clamp-2"
-                      style={{ fontFamily: "'Cairo','Tajawal',sans-serif", textShadow: "0 1px 3px rgba(0,0,0,0.25)" }}
-                    >
-                      {ad.title}
-                    </p>
-                    <div className="flex items-center gap-1" style={{ color: p.accent }}>
-                      <span className="text-[10px] font-black">{lang === "ar" ? "اعرف أكثر" : "En savoir plus"}</span>
-                      <ChevronLeft size={10} />
-                    </div>
-                  </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              </>
+            ) : (
+              <div className="w-full h-full relative" style={{ background: p.bg }}>
+                <div className="absolute -top-10 -left-10 w-40 h-40 rounded-full" style={{ background: p.circle }} />
+                <div className="absolute -bottom-6 -right-6 w-28 h-28 rounded-full" style={{ background: p.circle }} />
+                <div className="absolute top-3 right-3 w-12 h-12 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+                <div className="absolute inset-0 flex flex-col justify-between px-5 py-4" dir="rtl">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.2)" }}>
+                      <Megaphone size={14} style={{ color: p.accent }} />
+                    </div>
+                    <span className="text-[11px] font-black uppercase tracking-widest" style={{ color: p.accent, opacity: 0.9 }}>
+                      {lang === "ar" ? "إعلان" : "Publicité"}
+                    </span>
+                  </div>
+                  <p className="text-white text-lg font-black leading-snug line-clamp-2" style={{ fontFamily: "'Cairo','Tajawal',sans-serif", textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>
+                    {ad.title}
+                  </p>
+                  {ad.linkUrl ? (
+                    <div className="flex items-center gap-1.5" style={{ color: p.accent }}>
+                      <span className="text-xs font-black">{lang === "ar" ? "اضغط لمعرفة أكثر" : "Cliquer pour en savoir plus"}</span>
+                      <ChevronLeft size={12} />
+                    </div>
+                  ) : (
+                    <div className="h-4" />
+                  )}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Prev / Next arrows — only when 2+ ads */}
+        {ads.length > 1 && (
+          <>
+            <button
+              onClick={e => { e.stopPropagation(); goTo((current - 1 + ads.length) % ads.length); }}
+              className="absolute top-1/2 right-3 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110"
+              style={{ background: "rgba(0,0,0,0.30)", backdropFilter: "blur(4px)" }}
+            >
+              <ChevronRight size={16} className="text-white" />
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); goTo((current + 1) % ads.length); }}
+              className="absolute top-1/2 left-3 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110"
+              style={{ background: "rgba(0,0,0,0.30)", backdropFilter: "blur(4px)" }}
+            >
+              <ChevronLeft size={16} className="text-white" />
+            </button>
+          </>
+        )}
       </div>
+
+      {/* Dot indicators */}
+      {ads.length > 1 && (
+        <div className="flex items-center justify-center gap-1.5 mt-2.5">
+          {ads.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goTo(i)}
+              className="transition-all"
+              style={{
+                width: i === current ? 20 : 6,
+                height: 6,
+                borderRadius: 999,
+                background: i === current ? "#FFA500" : "rgba(26,77,31,0.2)",
+              }}
+            />
+          ))}
+        </div>
+      )}
     </motion.section>
   );
 }
