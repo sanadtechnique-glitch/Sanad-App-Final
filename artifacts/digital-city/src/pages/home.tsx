@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { AdBanner } from "@/components/ad-banner";
-import { PhotoAdGallery } from "@/components/PhotoAdGallery";
 import { useLang } from "@/lib/language";
 import { getSession, clearSession } from "@/lib/auth";
 import { get } from "@/lib/admin-api";
@@ -1043,10 +1042,12 @@ function AdvancedAdsSection({ lang, t }: { lang: string; t: (ar: string, fr: str
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PANORAMIC SLIDER COMPONENT
+// FLASH DEALS BANNER — eye-catching rotating promo panel
 // ─────────────────────────────────────────────────────────────────────────────
 function PromoMarquee({ lang }: { lang: string }) {
   const [slides, setSlides] = useState<PromoSlide[]>(DEFAULT_SLIDES);
+  const [active, setActive] = useState(0);
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     get<PromoSlide[]>("/banners").then(data => {
@@ -1054,57 +1055,146 @@ function PromoMarquee({ lang }: { lang: string }) {
     }).catch(() => {});
   }, []);
 
-  // Duplicate items for seamless infinite loop
-  const items = [...slides, ...slides, ...slides];
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const timer = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setActive(a => (a + 1) % slides.length);
+        setVisible(true);
+      }, 350);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [slides.length]);
+
+  const slide = slides[active];
 
   return (
     <div
-      className="w-full overflow-hidden"
-      style={{ height: 40, background: "transparent" }}
+      className="w-full relative overflow-hidden"
+      style={{
+        background: "linear-gradient(100deg, #0D3311 0%, #1A4D1F 45%, #0D3311 100%)",
+        borderRadius: 0,
+        minHeight: 60,
+      }}
     >
+      {/* Shimmering animated border top */}
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0 52px",
-          width: "max-content",
-          height: "100%",
-          animation: `marquee-ltr ${Math.max(slides.length * 14, 28)}s linear infinite`,
-          willChange: "transform",
+          position: "absolute", top: 0, left: 0, right: 0, height: 2,
+          background: "linear-gradient(90deg, transparent 0%, #FFA500 30%, #FFD700 50%, #FFA500 70%, transparent 100%)",
+          animation: "marquee-ltr 3s linear infinite",
         }}
-      >
-        {items.map((s, i) => (
-          <div key={i} className="flex items-center gap-3 flex-shrink-0">
-            <span style={{ color: "#FFA500", fontSize: 11, lineHeight: 1 }}>❖</span>
-            <span
-              style={{
-                fontFamily: "'Cairo','Tajawal',sans-serif",
-                fontWeight: 900,
-                fontStyle: "italic",
-                fontSize: 14,
-                color: "#1A4D1F",
-                whiteSpace: "nowrap",
-                letterSpacing: "0.01em",
-              }}
-            >
-              {lang === "ar" ? s.titleAr : s.titleFr}
-            </span>
-            {(s.subtitleAr || s.subtitleFr) && (
-              <span
-                style={{
-                  fontFamily: "'Cairo','Tajawal',sans-serif",
-                  fontWeight: 700,
-                  fontStyle: "italic",
-                  fontSize: 12,
-                  color: "rgba(26,77,31,0.50)",
-                  whiteSpace: "nowrap",
-                }}
+      />
+      {/* Shimmering animated border bottom */}
+      <div
+        style={{
+          position: "absolute", bottom: 0, left: 0, right: 0, height: 2,
+          background: "linear-gradient(90deg, transparent 0%, #FFA500 30%, #FFD700 50%, #FFA500 70%, transparent 100%)",
+          animation: "marquee-ltr 3s linear infinite reverse",
+        }}
+      />
+
+      <div className="flex items-center h-full px-4 py-2 gap-3" dir={lang === "ar" ? "rtl" : "ltr"}>
+        {/* Pulsing badge */}
+        <div
+          className="flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg"
+          style={{ background: "rgba(255,165,0,0.18)", border: "1px solid rgba(255,165,0,0.35)" }}
+        >
+          <span
+            className="inline-block w-2 h-2 rounded-full"
+            style={{
+              background: "#FFA500",
+              animation: "pulse 1.2s ease-in-out infinite",
+              boxShadow: "0 0 6px #FFA500",
+            }}
+          />
+          <span
+            style={{
+              fontFamily: "'Outfit',sans-serif",
+              fontWeight: 900,
+              fontSize: 10,
+              color: "#FFA500",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+            }}
+          >
+            {lang === "ar" ? "عروض" : "OFFRES"}
+          </span>
+        </div>
+
+        {/* Separator */}
+        <div style={{ width: 1, height: 30, background: "rgba(255,165,0,0.25)", flexShrink: 0 }} />
+
+        {/* Rotating text */}
+        <div className="flex-1 overflow-hidden" style={{ minHeight: 36 }}>
+          <AnimatePresence mode="wait">
+            {visible && (
+              <motion.div
+                key={active}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col justify-center"
               >
-                — {lang === "ar" ? s.subtitleAr : s.subtitleFr}
-              </span>
+                <p
+                  style={{
+                    fontFamily: "'Cairo','Tajawal',sans-serif",
+                    fontWeight: 900,
+                    fontStyle: "italic",
+                    fontSize: 15,
+                    color: "#FFA500",
+                    lineHeight: 1.2,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    textShadow: "0 1px 8px rgba(255,165,0,0.35)",
+                  }}
+                >
+                  {lang === "ar" ? slide.titleAr : slide.titleFr}
+                </p>
+                {(slide.subtitleAr || slide.subtitleFr) && (
+                  <p
+                    style={{
+                      fontFamily: "'Cairo','Tajawal',sans-serif",
+                      fontWeight: 600,
+                      fontSize: 11,
+                      color: "rgba(255,255,255,0.55)",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {lang === "ar" ? slide.subtitleAr : slide.subtitleFr}
+                  </p>
+                )}
+              </motion.div>
             )}
+          </AnimatePresence>
+        </div>
+
+        {/* Dots indicator */}
+        {slides.length > 1 && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => { setActive(i); setVisible(true); }}
+                style={{
+                  width: i === active ? 16 : 5,
+                  height: 5,
+                  borderRadius: 3,
+                  background: i === active ? "#FFA500" : "rgba(255,165,0,0.25)",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  transition: "all 0.3s",
+                }}
+              />
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -1221,9 +1311,9 @@ export default function Home() {
       </header>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          PROMO MARQUEE — transparent slow strip
+          FLASH DEALS BANNER — eye-catching rotating promo
       ══════════════════════════════════════════════════════════════════════ */}
-      <div className="mt-3 border-y" style={{ borderColor: "rgba(26,77,31,0.08)" }}>
+      <div className="mt-3">
         <PromoMarquee lang={lang} />
       </div>
 
@@ -1280,7 +1370,16 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════════════════════════
           2. SERVICES — dual-ring orbital system
       ══════════════════════════════════════════════════════════════════════ */}
-      <section className="mt-4">
+      <section
+        className="mt-4 relative overflow-hidden"
+        style={{
+          background: "radial-gradient(ellipse 90% 60% at 50% 60%, rgba(26,77,31,0.09) 0%, rgba(255,165,0,0.04) 55%, transparent 80%)",
+        }}
+      >
+        {/* Decorative corner circles */}
+        <div style={{ position:"absolute", top:-40, right:-40, width:130, height:130, borderRadius:"50%", background:"rgba(255,165,0,0.055)", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", bottom:-30, left:-30, width:100, height:100, borderRadius:"50%", background:"rgba(26,77,31,0.06)", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", top:"20%", left:-20, width:70, height:70, borderRadius:"50%", background:"rgba(255,165,0,0.04)", pointerEvents:"none" }} />
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -1372,42 +1471,8 @@ export default function Home() {
         </motion.section>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          BOTTOM — شركاؤنا + footer (أسفل الصفحة)
-      ══════════════════════════════════════════════════════════════════════ */}
-      <div className="mt-auto">
-        {/* شركاؤنا */}
-        <div className="px-4 sm:px-6 lg:px-10 mt-8">
-          <PhotoAdGallery />
-        </div>
-
-        {/* Footer */}
-        <footer
-          className="mt-6 py-5 text-center border-t"
-          style={{
-            borderColor: "rgba(46,125,50,0.12)",
-            background: "rgba(46,125,50,0.04)",
-          }}
-        >
-          <p className="text-xs font-bold" style={{ color: "rgba(46,125,50,0.55)", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-            جميع الحقوق محفوظة © سند · Sanad
-          </p>
-          <a
-            href="tel:27777589"
-            dir="ltr"
-            className="inline-flex items-center gap-1.5 mt-1 group"
-            style={{ fontFamily: "'Outfit',sans-serif" }}
-          >
-            <Phone size={12} style={{ color: "#1A4D1F" }} />
-            <span
-              className="text-xs font-black tracking-widest group-hover:underline"
-              style={{ color: "rgba(46,125,50,0.65)", letterSpacing: "0.10em" }}
-            >
-              27 777 589
-            </span>
-          </a>
-        </footer>
-      </div>
+      {/* bottom spacing */}
+      <div className="mt-4" />
 
     </div>
   );

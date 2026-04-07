@@ -34,11 +34,11 @@ export default function ProviderStore() {
     if (!id) return;
     setLoading(true);
     Promise.all([
-      get<Supplier>(`/suppliers/${id}`),
-      get<Article[]>(`/articles?supplierId=${id}`),
+      get<Supplier>(`/suppliers/${id}`).catch(() => null),
+      get<Article[]>(`/articles?supplierId=${id}`).catch(() => []),
     ]).then(([sup, arts]) => {
       setSupplier(sup || null);
-      setArticles(arts.filter((a: Article) => a.isAvailable));
+      setArticles(Array.isArray(arts) ? arts.filter((a: Article) => a.isAvailable) : []);
     }).finally(() => setLoading(false));
   }, [id]);
 

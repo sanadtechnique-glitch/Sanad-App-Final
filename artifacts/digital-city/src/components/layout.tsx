@@ -8,6 +8,7 @@ import { getSession, clearSession } from "@/lib/auth";
 import { useNotifications } from "@/lib/notifications";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdBanner } from "@/components/ad-banner";
+import { PhotoAdGallery } from "@/components/PhotoAdGallery";
 import { useAppLogo } from "@/lib/useAppLogo";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -634,8 +635,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 w-full max-w-7xl mx-auto pb-20 md:pb-4">
         {children}
 
+        {/* ── شركاؤنا — Partners Section (all pages) ── */}
+        <div className="px-4 sm:px-6 lg:px-10 mt-10">
+          <PhotoAdGallery />
+        </div>
+
         {/* ── Global Ad Banner — above footer, non-intrusive ── */}
-        <div className="px-4 sm:px-6 mt-8 mb-4">
+        <div className="px-4 sm:px-6 mt-6 mb-4">
           <AdBanner />
         </div>
 
