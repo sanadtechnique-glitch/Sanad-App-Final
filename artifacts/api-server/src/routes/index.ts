@@ -23,6 +23,7 @@ import sosRouter from "./sos";
 import lawyerRequestsRouter from "./lawyerRequests";
 import pushRouter from "./push";
 import partnersRouter from "./partners";
+import searchRouter from "./search";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use(sosRouter);
 router.use(lawyerRequestsRouter);
 router.use(pushRouter);
 router.use(partnersRouter);
+router.use(searchRouter);
 
 export default router;

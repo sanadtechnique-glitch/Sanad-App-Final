@@ -12,7 +12,8 @@ import {
   ShoppingCart, LogIn, UserCircle, ChevronLeft, ChevronRight,
   MapPin, Truck, Eye, LogOut, Clock, CheckCircle, XCircle,
   Package, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Bike,
-  Percent, Tag, Phone, ArrowLeft,
+  Percent, Tag, Phone, ArrowLeft, Search, X as XIcon, Store, ShoppingBag,
+  Megaphone,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -723,6 +724,323 @@ function MyOrdersSection({ name, t }: { name: string; t: (ar: string, fr: string
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HOME SEARCH BAR
+// ─────────────────────────────────────────────────────────────────────────────
+interface SearchProvider {
+  id: number; name: string; nameAr: string; category: string;
+  photoUrl?: string | null; isAvailable: boolean; address?: string | null;
+}
+interface SearchArticle {
+  id: number; nameAr: string; nameFr: string; price: string;
+  photoUrl?: string | null; supplierId: number;
+}
+interface SearchResults { providers: SearchProvider[]; articles: SearchArticle[]; }
+
+const CAT_LABELS: Record<string, { ar: string; emoji: string }> = {
+  restaurant: { ar: "مطعم",    emoji: "🍽️" }, grocery:    { ar: "بقالة",   emoji: "🛒" },
+  pharmacy:   { ar: "صيدلية",  emoji: "💊" }, bakery:     { ar: "مخبز",    emoji: "🥖" },
+  butcher:    { ar: "جزار",    emoji: "🥩" }, cafe:       { ar: "مقهى",    emoji: "☕" },
+  sweets:     { ar: "مرطبات",  emoji: "🍬" }, hotel:      { ar: "فندق",    emoji: "🏨" },
+  car_rental: { ar: "سيارات",  emoji: "🚗" }, sos:        { ar: "إنقاذ",   emoji: "🚨" },
+  lawyer:     { ar: "محامي",   emoji: "⚖️" }, doctor:     { ar: "طبيب",    emoji: "🩺" },
+  taxi:       { ar: "تاكسي",   emoji: "🚕" },
+};
+
+function HomeSearchBar({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
+  const [query, setQuery]         = useState("");
+  const [results, setResults]     = useState<SearchResults | null>(null);
+  const [loading, setLoading]     = useState(false);
+  const [focused, setFocused]     = useState(false);
+  const [, navigate]              = useLocation();
+  const inputRef                  = useRef<HTMLInputElement>(null);
+  const timerRef                  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef              = useRef<HTMLDivElement>(null);
+
+  const doSearch = useCallback(async (q: string) => {
+    if (q.length < 2) { setResults(null); return; }
+    setLoading(true);
+    try {
+      const data = await get<SearchResults>(`/search?q=${encodeURIComponent(q)}`);
+      setResults(data);
+    } catch { setResults(null); }
+    finally { setLoading(false); }
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    setQuery(v);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => doSearch(v), 320);
+  };
+
+  const clear = () => { setQuery(""); setResults(null); inputRef.current?.focus(); };
+
+  const isEmpty   = results && results.providers.length === 0 && results.articles.length === 0;
+  const showPanel = focused && query.length >= 2;
+
+  // Close panel on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setFocused(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative w-full" dir="rtl">
+      {/* Input */}
+      <div
+        className="flex items-center gap-3 rounded-2xl px-4 transition-all duration-200"
+        style={{
+          background: "rgba(255,255,255,0.92)",
+          border: focused ? "2px solid #FFA500" : "2px solid rgba(26,77,31,0.15)",
+          boxShadow: focused ? "0 4px 20px rgba(255,165,0,0.18)" : "0 2px 12px rgba(26,77,31,0.07)",
+          height: 52,
+        }}
+      >
+        {loading
+          ? <div className="w-4 h-4 border-2 border-[#FFA500] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+          : <Search size={18} className="flex-shrink-0" style={{ color: focused ? "#FFA500" : "rgba(26,77,31,0.4)" }} />
+        }
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={handleChange}
+          onFocus={() => setFocused(true)}
+          placeholder={t("ابحث عن مزود، خدمة أو منتوج...", "Chercher fournisseur, service ou produit...")}
+          className="flex-1 bg-transparent outline-none text-sm font-bold text-right"
+          style={{
+            color: "#1A4D1F",
+            fontFamily: "'Cairo','Tajawal',sans-serif",
+            caretColor: "#FFA500",
+          }}
+        />
+        {query && (
+          <button onClick={clear} className="flex-shrink-0 p-0.5 rounded-full hover:bg-gray-100 transition-colors">
+            <XIcon size={15} style={{ color: "rgba(26,77,31,0.4)" }} />
+          </button>
+        )}
+      </div>
+
+      {/* Results panel */}
+      <AnimatePresence>
+        {showPanel && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+            className="absolute z-50 w-full mt-2 rounded-2xl overflow-hidden"
+            style={{
+              background: "#fff",
+              border: "1.5px solid rgba(26,77,31,0.12)",
+              boxShadow: "0 12px 40px rgba(26,77,31,0.14)",
+              maxHeight: 380,
+              overflowY: "auto",
+            }}
+          >
+            {isEmpty && (
+              <div className="py-8 text-center" dir="rtl">
+                <Search size={28} className="mx-auto mb-2 opacity-20" style={{ color: "#1A4D1F" }} />
+                <p className="text-sm font-bold" style={{ color: "rgba(26,77,31,0.4)", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                  {t("لا توجد نتائج", "Aucun résultat")}
+                </p>
+              </div>
+            )}
+
+            {/* Providers */}
+            {(results?.providers.length ?? 0) > 0 && (
+              <div>
+                <div
+                  className="px-4 py-2 text-xs font-black uppercase tracking-widest flex items-center gap-2"
+                  style={{ color: "rgba(26,77,31,0.35)", borderBottom: "1px solid rgba(26,77,31,0.06)", background: "rgba(26,77,31,0.02)" }}
+                  dir="rtl"
+                >
+                  <Store size={12} />
+                  {t("المزودون", "Fournisseurs")} — {results!.providers.length}
+                </div>
+                {results!.providers.map(p => {
+                  const cat = CAT_LABELS[p.category] ?? { ar: p.category, emoji: "🏪" };
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => { navigate(`/provider/${p.id}`); setFocused(false); setQuery(""); setResults(null); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#FFF3E0] transition-colors text-right"
+                      dir="rtl"
+                    >
+                      <div
+                        className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden"
+                        style={{ background: "rgba(26,77,31,0.07)" }}
+                      >
+                        {p.photoUrl
+                          ? <img src={p.photoUrl} alt={p.nameAr} className="w-full h-full object-cover" onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                          : <span style={{ fontSize: 20 }}>{cat.emoji}</span>
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black truncate" style={{ color: "#1A4D1F", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                          {lang === "ar" ? p.nameAr || p.name : p.name || p.nameAr}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold" style={{ color: "rgba(26,77,31,0.45)" }}>{cat.emoji} {cat.ar}</span>
+                          {p.isAvailable && (
+                            <span className="text-xs font-black px-1.5 py-0.5 rounded-full" style={{ background: "rgba(26,77,31,0.08)", color: "#1A4D1F" }}>
+                              {t("متاح", "Disponible")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronLeft size={14} style={{ color: "rgba(26,77,31,0.3)" }} />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Articles */}
+            {(results?.articles.length ?? 0) > 0 && (
+              <div>
+                <div
+                  className="px-4 py-2 text-xs font-black uppercase tracking-widest flex items-center gap-2"
+                  style={{ color: "rgba(26,77,31,0.35)", borderBottom: "1px solid rgba(26,77,31,0.06)", background: "rgba(26,77,31,0.02)", borderTop: "1px solid rgba(26,77,31,0.06)" }}
+                  dir="rtl"
+                >
+                  <ShoppingBag size={12} />
+                  {t("المنتوجات", "Produits")} — {results!.articles.length}
+                </div>
+                {results!.articles.map(a => (
+                  <button
+                    key={a.id}
+                    onClick={() => { navigate(`/provider/${a.supplierId}`); setFocused(false); setQuery(""); setResults(null); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#FFF3E0] transition-colors text-right"
+                    dir="rtl"
+                  >
+                    <div
+                      className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden"
+                      style={{ background: "rgba(255,165,0,0.08)" }}
+                    >
+                      {a.photoUrl
+                        ? <img src={a.photoUrl} alt={a.nameAr} className="w-full h-full object-cover" onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                        : <ShoppingBag size={18} style={{ color: "rgba(255,165,0,0.6)" }} />
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black truncate" style={{ color: "#1A4D1F", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                        {lang === "ar" ? a.nameAr : a.nameFr || a.nameAr}
+                      </p>
+                      <p className="text-xs font-bold" style={{ color: "#FFA500" }}>
+                        {parseFloat(a.price).toFixed(3)} {t("د.ت", "TND")}
+                      </p>
+                    </div>
+                    <ChevronLeft size={14} style={{ color: "rgba(26,77,31,0.3)" }} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADVANCED ADS SECTION — إعلانات متقدمة
+// ─────────────────────────────────────────────────────────────────────────────
+interface AdRow {
+  id: number; title: string; imageUrl?: string | null;
+  isActive: boolean; expiresAt?: string | null;
+}
+
+function AdvancedAdsSection({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
+  const [ads, setAds]       = useState<AdRow[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    get<AdRow[]>("/ads")
+      .then(data => { setAds(Array.isArray(data) ? data : []); setLoaded(true); })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  if (!loaded || ads.length === 0) return null;
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="px-4 sm:px-6 lg:px-10 mt-6"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-2.5 mb-3" dir="rtl">
+        <span className="w-1.5 h-6 rounded-full bg-[#FFA500] block flex-shrink-0" />
+        <Megaphone size={16} style={{ color: "#1A4D1F" }} />
+        <h2 className="text-base font-black text-[#1A4D1F]">
+          {t("إعلانات", "Annonces")}
+        </h2>
+      </div>
+
+      {/* Ads horizontal scroll */}
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
+        {ads.map(ad => (
+          <div
+            key={ad.id}
+            className="flex-shrink-0 snap-start rounded-2xl overflow-hidden relative"
+            style={{
+              width: 220,
+              height: 120,
+              background: ad.imageUrl ? "transparent" : "linear-gradient(135deg,#1A4D1F,#0D3311)",
+              border: "1.5px solid rgba(26,77,31,0.10)",
+              boxShadow: "0 4px 16px rgba(26,77,31,0.10)",
+            }}
+          >
+            {ad.imageUrl ? (
+              <>
+                <img
+                  src={ad.imageUrl}
+                  alt={ad.title}
+                  className="w-full h-full object-cover"
+                  onError={e => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                    (e.currentTarget.nextElementSibling as HTMLElement | null)?.classList.remove("hidden");
+                  }}
+                />
+                {/* Gradient overlay for text readability */}
+                <div
+                  className="absolute inset-0"
+                  style={{ background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 60%)" }}
+                />
+                <div className="absolute bottom-0 inset-x-0 px-3 py-2" dir="rtl">
+                  <p
+                    className="text-white text-xs font-black line-clamp-2"
+                    style={{ fontFamily: "'Cairo','Tajawal',sans-serif", textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}
+                  >
+                    {ad.title}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3" dir="rtl">
+                <Megaphone size={22} className="text-[#FFA500] opacity-80" />
+                <p
+                  className="text-white text-xs font-black text-center leading-tight"
+                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}
+                >
+                  {ad.title}
+                </p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </motion.section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PANORAMIC SLIDER COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 function PromoMarquee({ lang }: { lang: string }) {
@@ -981,6 +1299,23 @@ export default function Home() {
         <OrbitSystem lang={lang} />
       </section>
 
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          3. SEARCH BAR — full width between services and orders
+      ══════════════════════════════════════════════════════════════════════ */}
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.2 }}
+        className="px-4 sm:px-6 lg:px-10 mt-6"
+      >
+        <HomeSearchBar lang={lang} t={t} />
+      </motion.section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          3b. ADVANCED ADS — إعلانات متقدمة
+      ══════════════════════════════════════════════════════════════════════ */}
+      <AdvancedAdsSection lang={lang} t={t} />
 
       {/* ══════════════════════════════════════════════════════════════════════
           4. MY ORDERS — shown only for logged-in clients
