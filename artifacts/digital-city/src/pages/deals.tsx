@@ -3,8 +3,8 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Percent, Tag, ArrowRight, RefreshCw, Search, X,
-  ShoppingBag, Store, ChevronDown, ChevronUp, Star,
-  Package, Truck, Sparkles,
+  Store, Star,
+  Package, Sparkles,
 } from "lucide-react";
 import { get } from "@/lib/admin-api";
 import { useLang } from "@/lib/language";
@@ -46,7 +46,6 @@ function discountPct(orig: string, sale: string) {
 
 // ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ p, t, lang }: { p: DealProduct; t: (ar: string, fr: string) => string; lang: string }) {
-  const [expanded, setExpanded] = useState(false);
   const pct = discountPct(p.originalPrice ?? "0", p.salePrice ?? "0");
   const catLabel = p.category
     ? (lang === "ar" ? (CAT_AR[p.category] ?? p.category) : (CAT_FR[p.category] ?? p.category))
@@ -55,95 +54,69 @@ function ProductCard({ p, t, lang }: { p: DealProduct; t: (ar: string, fr: strin
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border overflow-hidden cursor-pointer"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="rounded-2xl border overflow-hidden flex flex-col"
       style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.15)" }}
-      onClick={() => setExpanded(e => !e)}
-      whileTap={{ scale: 0.99 }}
     >
-      <div className="flex gap-3 p-4" dir="rtl">
-        {/* Circular product image */}
-        <div className="relative flex-shrink-0">
-          <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-[#1A4D1F]/5 flex items-center justify-center">
+      {/* Circle image area */}
+      <div className="flex flex-col items-center pt-5 pb-2 px-3"
+        style={{ background: "linear-gradient(to bottom, #FFF8E7, #FFFDE7)" }}>
+        <div className="relative">
+          <div className="w-24 h-24 rounded-full overflow-hidden border-[3px] border-white shadow-lg bg-[#1A4D1F]/5 flex items-center justify-center">
             {p.imageUrl ? (
               <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
             ) : (
-              <Package size={22} className="text-[#1A4D1F]/20" />
+              <Package size={32} className="text-[#1A4D1F]/20" />
             )}
           </div>
           {pct > 0 && (
-            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
-              -{pct}
+            <div className="absolute -top-1 -end-1 bg-red-500 text-white text-[9px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-sm">
+              -{pct}%
             </div>
           )}
         </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className="font-black text-sm text-[#1A4D1F] truncate">{p.title}</p>
-
-          {/* Supplier + category badges */}
-          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-            {p.supplierName && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1A4D1F]/60 bg-[#1A4D1F]/8 px-2 py-0.5 rounded-full">
-                <Store size={9} />
-                {p.supplierName}
-              </span>
-            )}
-            {catLabel && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#FFA500] bg-[#FFA500]/10 px-2 py-0.5 rounded-full">
-                <Tag size={9} />
-                {catLabel}
-              </span>
-            )}
-          </div>
-
-          {/* Prices */}
-          <div className="flex items-center gap-2 mt-1.5">
-            {p.salePrice && (
-              <span className="text-base font-black" style={{ color: "#B91C1C" }}>
-                {parseFloat(p.salePrice).toFixed(3)} <span className="text-xs">TND</span>
-              </span>
-            )}
-            {p.originalPrice && (
-              <span className="text-xs font-bold line-through" style={{ color: "#9CA3AF" }}>
-                {parseFloat(p.originalPrice).toFixed(3)} TND
-              </span>
-            )}
-            {pct > 0 && (
-              <span className="text-[10px] font-black text-white bg-red-500 px-1.5 py-0.5 rounded-full">
-                -{pct}%
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Expand */}
-        <div className="flex-shrink-0 self-center">
-          {expanded
-            ? <ChevronUp size={16} className="text-[#1A4D1F]/30" />
-            : <ChevronDown size={16} className="text-[#1A4D1F]/30" />
-          }
-        </div>
       </div>
 
-      {/* Expanded description */}
-      <AnimatePresence>
-        {expanded && p.description && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4 pt-1 border-t" style={{ borderColor: "rgba(46,125,50,0.08)" }} dir="rtl">
-              <p className="text-xs font-bold text-[#1A4D1F]/60 leading-relaxed">{p.description}</p>
-            </div>
-          </motion.div>
+      {/* Info */}
+      <div className="p-3 flex flex-col flex-1 gap-1" dir="rtl">
+        <p className="font-black text-sm text-[#1A4D1F] text-center leading-tight line-clamp-2">{p.title}</p>
+
+        {/* Supplier + category */}
+        <div className="flex flex-wrap justify-center gap-1">
+          {p.supplierName && (
+            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#1A4D1F]/55 bg-[#1A4D1F]/8 px-1.5 py-0.5 rounded-full">
+              <Store size={7} />
+              {p.supplierName}
+            </span>
+          )}
+          {catLabel && (
+            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#FFA500] bg-[#FFA500]/10 px-1.5 py-0.5 rounded-full">
+              <Tag size={7} />
+              {catLabel}
+            </span>
+          )}
+        </div>
+
+        {/* Prices */}
+        <div className="flex flex-col items-center mt-auto pt-1">
+          {p.salePrice && (
+            <span className="text-base font-black text-red-600">
+              {parseFloat(p.salePrice).toFixed(3)} <span className="text-xs">TND</span>
+            </span>
+          )}
+          {p.originalPrice && (
+            <span className="text-[10px] font-bold line-through text-[#1A4D1F]/30">
+              {parseFloat(p.originalPrice).toFixed(3)} TND
+            </span>
+          )}
+        </div>
+
+        {/* Description */}
+        {p.description && (
+          <p className="text-[10px] text-[#1A4D1F]/40 line-clamp-2 leading-tight text-center">{p.description}</p>
         )}
-      </AnimatePresence>
+      </div>
     </motion.div>
   );
 }
@@ -332,12 +305,12 @@ export default function Deals() {
             )}
           </motion.div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {sorted.map((p, i) => (
               <motion.div
                 key={p.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.04 }}
               >
                 <ProductCard p={p} t={t} lang={lang} />

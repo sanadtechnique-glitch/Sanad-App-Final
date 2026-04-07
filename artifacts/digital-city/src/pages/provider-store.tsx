@@ -172,20 +172,20 @@ export default function ProviderStore() {
                   )}
                   style={{ background: "#FFFFFF" }}>
 
-                  {/* Circular product image */}
+                  {/* Circular product image — fills card top */}
                   <div className="flex flex-col items-center pt-5 pb-2 px-3 relative"
                     style={{ background: "linear-gradient(to bottom, #FFF8E7, #FFFFFF)" }}>
                     <div className="relative">
-                      <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-lg bg-[#FFA500]/10 flex items-center justify-center">
+                      <div className="w-28 h-28 rounded-full overflow-hidden border-[3px] border-white shadow-lg bg-[#FFA500]/10 flex items-center justify-center">
                         {article.photoUrl ? (
                           <img src={article.photoUrl} alt={article.nameAr} className="w-full h-full object-cover" />
                         ) : (
-                          <Package size={28} className="text-[#1A4D1F]/20" />
+                          <Package size={36} className="text-[#1A4D1F]/20" />
                         )}
                       </div>
                       {qty > 0 && (
-                        <div className="absolute -top-1 -end-1 w-5 h-5 rounded-full bg-[#1A4D1F] flex items-center justify-center shadow-sm">
-                          <span className="text-black text-[9px] font-black">{qty}</span>
+                        <div className="absolute -top-1 -end-1 w-6 h-6 rounded-full bg-[#1A4D1F] flex items-center justify-center shadow-sm">
+                          <span className="text-black text-[10px] font-black">{qty}</span>
                         </div>
                       )}
                     </div>
