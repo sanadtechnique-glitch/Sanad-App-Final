@@ -248,6 +248,19 @@
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
+/* ─── Infinite marquee animation ────────────────────────────────────────────── */
+@keyframes marquee-rtl {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee-rtl {
+  animation: marquee-rtl 15s linear infinite;
+  will-change: transform;
+}
+.animate-marquee-rtl:hover {
+  animation-play-state: paused;
+}
+
 /* ─── RTL helpers ────────────────────────────────────────────────────────────── */
 [lang="ar"], .ar-text {
   direction: rtl;

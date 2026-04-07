@@ -9,11 +9,10 @@ import { get } from "@/lib/admin-api";
 import { useAppLogo } from "@/lib/useAppLogo";
 import { useSocket } from "@/lib/use-socket";
 import {
-  Utensils, Pill, Scale, ShoppingCart, Wrench, Stethoscope,
-  Car, Hotel, LogIn, UserCircle, ChevronLeft, ChevronRight,
-  MapPin, Truck, Eye, Grid, LogOut, Clock, CheckCircle, XCircle,
+  ShoppingCart, LogIn, UserCircle, ChevronLeft, ChevronRight,
+  MapPin, Truck, Eye, LogOut, Clock, CheckCircle, XCircle,
   Package, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Bike,
-  Percent, Tag, Phone, ArrowLeft, AlertTriangle, KeyRound,
+  Percent, Tag, Phone, ArrowLeft,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,19 +83,19 @@ interface PromoSlide {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SERVICE CATEGORIES
+// SERVICE CATEGORIES — with emoji images for circles
 // ─────────────────────────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { id: "restaurant",  icon: Utensils,       ar: "مطاعم",          fr: "Restaurants",   href: null },
-  { id: "grocery",     icon: ShoppingCart,   ar: "بقالة",          fr: "Épicerie",      href: null },
-  { id: "pharmacy",    icon: Pill,           ar: "صيدلية",         fr: "Pharmacie",     href: null },
-  { id: "doctor",      icon: Stethoscope,    ar: "طبيب",           fr: "Médecin",       href: null },
-  { id: "taxi",        icon: Car,            ar: "تاكسي",          fr: "Taxi",          href: "/taxi" },
-  { id: "car_rental",  icon: KeyRound,       ar: "كراء سيارات",    fr: "Location auto", href: "/car-rental" },
-  { id: "sos",         icon: AlertTriangle,  ar: "SOS",            fr: "SOS",           href: "/sos" },
-  { id: "lawyer",      icon: Scale,          ar: "محامي",          fr: "Avocat",        href: "/lawyer" },
-  { id: "hotel",       icon: Hotel,          ar: "فنادق",          fr: "Hôtels",        href: null },
-  { id: "mechanic",    icon: Wrench,         ar: "ميكانيكي",       fr: "Mécanicien",    href: null },
+  { id: "restaurant",  ar: "مطاعم",       fr: "Restaurants",   href: null,            emoji: "🍽️",  bg: "radial-gradient(circle at 35% 30%, #FF8C00 0%, #C84B00 100%)" },
+  { id: "grocery",     ar: "بقالة",       fr: "Épicerie",      href: null,            emoji: "🛒",  bg: "radial-gradient(circle at 35% 30%, #F59E0B 0%, #92400E 100%)" },
+  { id: "pharmacy",    ar: "صيدلية",      fr: "Pharmacie",     href: null,            emoji: "💊",  bg: "radial-gradient(circle at 35% 30%, #10B981 0%, #065F46 100%)" },
+  { id: "doctor",      ar: "طبيب",        fr: "Médecin",       href: null,            emoji: "🩺",  bg: "radial-gradient(circle at 35% 30%, #0EA5E9 0%, #0C4A6E 100%)" },
+  { id: "taxi",        ar: "تاكسي",       fr: "Taxi",          href: "/taxi",         emoji: "🚕",  bg: "radial-gradient(circle at 35% 30%, #FCD34D 0%, #92400E 100%)" },
+  { id: "car_rental",  ar: "كراء سيارات", fr: "Location auto", href: "/car-rental",   emoji: "🚗",  bg: "radial-gradient(circle at 35% 30%, #3B82F6 0%, #1E3A8A 100%)" },
+  { id: "sos",         ar: "SOS",         fr: "SOS",           href: "/sos",          emoji: "🚨",  bg: "radial-gradient(circle at 35% 30%, #EF4444 0%, #7F1D1D 100%)" },
+  { id: "lawyer",      ar: "محامي",       fr: "Avocat",        href: "/lawyer",       emoji: "⚖️",  bg: "radial-gradient(circle at 35% 30%, #1A4D1F 0%, #0D2B0F 100%)" },
+  { id: "hotel",       ar: "فنادق",       fr: "Hôtels",        href: null,            emoji: "🏨",  bg: "radial-gradient(circle at 35% 30%, #8B5CF6 0%, #4C1D95 100%)" },
+  { id: "mechanic",    ar: "ميكانيكي",    fr: "Mécanicien",    href: null,            emoji: "🔧",  bg: "radial-gradient(circle at 35% 30%, #6B7280 0%, #1F2937 100%)" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -844,137 +843,73 @@ export default function Home() {
       </motion.section>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          2. SERVICES GRID — redesigned
+          2. SERVICES — animated marquee circles
       ══════════════════════════════════════════════════════════════════════ */}
-      <section className="px-4 sm:px-6 lg:px-10 mt-8">
-
-        {/* ── Section header ─────────────────────────────────────────────── */}
+      <section className="mt-6">
+        {/* Section header */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex items-center justify-between mb-5"
+          className="flex items-center justify-between mb-3 px-4 sm:px-6"
           dir="rtl"
         >
-          <div className="flex items-center gap-2.5">
-            <span className="w-1.5 h-7 rounded-full bg-[#FFA500] block flex-shrink-0" />
-            <div>
-              <h2 className="text-xl font-black text-[#1A4D1F] leading-tight">
-                {t("خدماتنا", "Nos Services")}
-              </h2>
-              <p className="text-xs font-medium leading-none mt-0.5" style={{ color: "rgba(46,125,50,0.45)" }}>
-                {t("اختر الخدمة المناسبة", "Choisissez votre service")}
-              </p>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="w-1 h-5 rounded-full bg-[#FFA500] block flex-shrink-0" />
+            <h2 className="text-base font-black text-[#1A4D1F]">{t("خدماتنا", "Nos Services")}</h2>
           </div>
           <Link href="/services">
-            <button
-              className="text-[11px] font-black px-3 py-1.5 rounded-full border transition-all active:scale-95"
-              style={{
-                color: "#FFA500",
-                borderColor: "rgba(255,165,0,0.35)",
-                background: "rgba(255,165,0,0.07)",
-              }}
-            >
-              {t("عرض الكل", "Voir tout")} ←
-            </button>
+            <span className="text-[11px] font-black text-[#FFA500] border border-[#FFA500]/30 px-2.5 py-1 rounded-full">
+              {t("الكل", "Tout")} ←
+            </span>
           </Link>
         </motion.div>
 
-        {/* ── Horizontal scrollable category row ─────────────────────────── */}
-        {(() => {
-          const CAT_THEME: Record<string, { from: string; to: string; glow: string }> = {
-            restaurant: { from: "#E8820A", to: "#FFA500", glow: "#FFA50066" },
-            pharmacy:   { from: "#005432", to: "#007A48", glow: "#006B3C55" },
-            lawyer:     { from: "#0D3311", to: "#1A4D1F", glow: "#1A4D1F55" },
-            grocery:    { from: "#B85C00", to: "#E8960A", glow: "#E8960A55" },
-            taxi:       { from: "#D4850A", to: "#FFA500", glow: "#FFA50099" },
-            mechanic:   { from: "#1A4D1F", to: "#2E7D32", glow: "#2E7D3255" },
-            doctor:     { from: "#C96B00", to: "#F59E0B", glow: "#F59E0B55" },
-            hotel:      { from: "#A86A00", to: "#D4930A", glow: "#D4930A55" },
-            car_rental: { from: "#1565C0", to: "#1976D2", glow: "#1976D255" },
-            sos:        { from: "#B91C1C", to: "#EF4444", glow: "#EF444499" },
-          };
-          return (
-            <div
-              className="flex gap-4 overflow-x-auto pb-3"
-              style={{ scrollbarWidth: "none", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
-            >
-              {CATEGORIES.map((cat, i) => {
-                const Icon = cat.icon;
-                const theme = CAT_THEME[cat.id] ?? { from: "#1A4D1F", to: "#006B3C", glow: "#1A4D1F55" };
-                return (
-                  <motion.div
-                    key={cat.id}
-                    initial={{ opacity: 0, x: 24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.06 + i * 0.05, type: "spring", stiffness: 300, damping: 26 }}
-                    style={{ scrollSnapAlign: "start", flexShrink: 0 }}
+        {/* ── Infinite marquee ── */}
+        <div className="overflow-hidden">
+          <div className="animate-marquee-rtl flex gap-5 px-2" style={{ width: "max-content" }}>
+            {/* Double the items for seamless loop */}
+            {[...CATEGORIES, ...CATEGORIES].map((cat, i) => (
+              <Link key={i} href={cat.href ?? `/services?category=${cat.id}`}>
+                <div
+                  className="flex flex-col items-center gap-1.5 cursor-pointer active:scale-90 transition-transform duration-150"
+                  style={{ width: 68 }}
+                >
+                  {/* Emoji-filled circle */}
+                  <div
+                    className="relative overflow-hidden flex items-center justify-center"
+                    style={{
+                      width: 62,
+                      height: 62,
+                      borderRadius: "50%",
+                      background: cat.bg,
+                      boxShadow: "0 4px 14px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.20)",
+                    }}
                   >
-                    <Link href={cat.href ?? `/services?category=${cat.id}`}>
-                      <div className="flex flex-col items-center gap-2.5 cursor-pointer group active:scale-95 transition-transform duration-150" style={{ width: 72 }}>
-
-                        {/* Gradient circle */}
-                        <div
-                          className="relative flex items-center justify-center transition-transform duration-200 group-hover:scale-105"
-                          style={{
-                            width: 64,
-                            height: 64,
-                            borderRadius: 20,
-                            background: `linear-gradient(145deg, ${theme.from} 0%, ${theme.to} 100%)`,
-                            boxShadow: `0 6px 18px ${theme.glow}`,
-                          }}
-                        >
-                          {/* Inner shine */}
-                          <div
-                            className="absolute top-0 inset-x-0 h-1/2 rounded-t-[20px] pointer-events-none"
-                            style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 100%)" }}
-                          />
-                          <Icon size={26} color="white" strokeWidth={2} />
-                        </div>
-
-                        {/* Arabic label */}
-                        <p
-                          className="font-black text-[12px] text-center leading-tight"
-                          style={{ color: "#1A4D1F", width: 72 }}
-                        >
-                          {cat.ar}
-                        </p>
-                      </div>
-                    </Link>
-                  </motion.div>
-                );
-              })}
-
-              {/* "See all" pill at the end */}
-              <motion.div
-                initial={{ opacity: 0, x: 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.55, type: "spring", stiffness: 300, damping: 26 }}
-                style={{ scrollSnapAlign: "start", flexShrink: 0 }}
-              >
-                <Link href="/services">
-                  <div className="flex flex-col items-center gap-2.5 cursor-pointer group active:scale-95 transition-transform duration-150" style={{ width: 72 }}>
+                    {/* Top shine */}
                     <div
-                      className="flex items-center justify-center transition-transform duration-200 group-hover:scale-105"
-                      style={{
-                        width: 64, height: 64, borderRadius: 20,
-                        background: "rgba(26,77,31,0.07)",
-                        border: "2px dashed rgba(26,77,31,0.25)",
-                      }}
+                      className="absolute top-0 inset-x-0 h-1/2 rounded-t-full pointer-events-none"
+                      style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 100%)" }}
+                    />
+                    <span
+                      className="relative z-10 select-none leading-none"
+                      style={{ fontSize: 28, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.3))" }}
                     >
-                      <span className="font-black text-2xl" style={{ color: "#1A4D1F" }}>+</span>
-                    </div>
-                    <p className="font-black text-[11px] text-center leading-tight" style={{ color: "#1A4D1F", width: 72 }}>
-                      {lang === "ar" ? "الكل" : "Tout"}
-                    </p>
+                      {cat.emoji}
+                    </span>
                   </div>
-                </Link>
-              </motion.div>
-            </div>
-          );
-        })()}
-
+                  {/* Label */}
+                  <p
+                    className="font-black text-[11px] text-center leading-tight truncate"
+                    style={{ color: "#1A4D1F", width: 68 }}
+                  >
+                    {lang === "ar" ? cat.ar : cat.fr}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ══════════════════════════════════════════════════════════════════════
@@ -1022,59 +957,24 @@ export default function Home() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          ABOUT US
+          ABOUT — ultra-compact strip
       ══════════════════════════════════════════════════════════════════════ */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ delay: 0.35 }}
-        className="px-4 sm:px-8 lg:px-16 mt-10 mb-6"
+        className="mx-4 mt-5 mb-2 rounded-2xl px-4 py-3 flex items-center gap-3"
+        style={{ background: "rgba(26,77,31,0.06)", border: "1px solid rgba(26,77,31,0.12)" }}
+        dir="rtl"
       >
-        <div className="flex items-center gap-4 mb-7">
-          <div className="flex-1 h-px" style={{ background: "rgba(46,125,50,0.18)" }} />
-          <MapPin size={18} style={{ color: "#1A4D1F", flexShrink: 0 }} />
-          <div className="flex-1 h-px" style={{ background: "rgba(46,125,50,0.18)" }} />
-        </div>
-
-        <h2
-          className="text-2xl font-black text-center mb-8"
-          style={{ color: "#1A4D1F", fontFamily: "'Cairo','Tajawal',sans-serif" }}
-          dir="rtl"
-        >
-          عن سند.. لماذا نحن هنا؟
-        </h2>
-
-        <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-          {[
-            { icon: Truck, titleAr: "لماذا وضعناه على ذمتكم؟", bodyAr: "لأن وقتكم غالي، ولأننا نؤمن بضرورة تقريب المسافات وتسهيل حياتكم اليومية." },
-            { icon: Grid,  titleAr: "ما هو دورنا؟",            bodyAr: "نحن الرابط الذكي بينك وبين احتياجاتك؛ سواء كانت قضية من المغازة، طرد مستعجل، أو وجبة من مطعمك المفضل." },
-            { icon: Eye,   titleAr: "رؤيتنا",                   bodyAr: "أن نكون الخيار الأول والآمن لكل مواطن بفضل تكنولوجيا محلية تحترم خصوصيتكم وتلبي تطلعاتكم." },
-          ].map(({ icon: Icon, titleAr, bodyAr }, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 + idx * 0.08 }}
-              className="rounded-2xl p-5 text-center"
-              style={{
-                background: "rgba(46,125,50,0.06)",
-                border: "1.5px solid rgba(46,125,50,0.14)",
-              }}
-            >
-              <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
-                style={{ background: "#1A4D1F" }}>
-                <Icon size={18} className="text-white" />
-              </div>
-              <p className="font-black text-base mb-1" style={{ color: "#1A4D1F", fontFamily: "'Cairo','Tajawal',sans-serif" }} dir="rtl">
-                {titleAr}
-              </p>
-              <p className="text-sm leading-relaxed" style={{ color: "rgba(46,125,50,0.75)", fontFamily: "'Cairo','Tajawal',sans-serif" }} dir="rtl">
-                {bodyAr}
-              </p>
-            </motion.div>
-          ))}
-        </div>
-      </motion.section>
+        <MapPin size={14} className="text-[#1A4D1F]/40 flex-shrink-0" />
+        <p className="text-xs font-bold text-[#1A4D1F]/60 leading-snug">
+          {t(
+            "سندك في التوصيل لباب الدار — نربطك بكل ما تحتاجه في المدينة",
+            "Votre partenaire livraison à domicile — nous vous connectons à tout ce dont vous avez besoin"
+          )}
+        </p>
+      </motion.div>
 
       {/* ══════════════════════════════════════════════════════════════════════
           PHOTO AD GALLERY — 5 image slots, no text
