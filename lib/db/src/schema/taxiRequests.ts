@@ -1,6 +1,6 @@
 import { pgTable, serial, integer, text, real, boolean, timestamp, index } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
-import { taxiDriversTable } from "./taxiDrivers";
+import { serviceProvidersTable } from "./serviceProviders";
 
 export const taxiStatusEnum = [
   "searching",    // looking for a driver
@@ -28,7 +28,7 @@ export const taxiRequestsTable = pgTable("taxi_requests", {
   commissionType:     text("commission_type").$type<TaxiCommission>().notNull().default("meter"),
   fixedAmount:        real("fixed_amount"),
   status:             text("status").$type<TaxiStatus>().notNull().default("searching"),
-  assignedDriverId:   integer("assigned_driver_id").references(() => taxiDriversTable.id),
+  assignedDriverId:   integer("assigned_driver_id").references(() => serviceProvidersTable.id),
   etaMinutes:         integer("eta_minutes"),
   rejectedDriverIds:  text("rejected_driver_ids").default(""),
   createdAt:          timestamp("created_at").defaultNow().notNull(),
