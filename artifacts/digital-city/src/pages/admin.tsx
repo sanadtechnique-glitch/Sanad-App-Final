@@ -61,22 +61,25 @@ const STATUS: Record<string, { ar: string; fr: string; color: string; icon: Reac
 
 const CATEGORY_LABELS: Record<string, { ar: string; fr: string }> = {
   // ── مزودو المنتجات (توصيل) ──
-  restaurant: { ar: "مطعم",    fr: "Restaurant" },
-  grocery:    { ar: "بقالة",   fr: "Épicerie"   },
-  pharmacy:   { ar: "صيدلية",  fr: "Pharmacie"  },
-  bakery:     { ar: "مخبزة",   fr: "Boulangerie"},
-  butcher:    { ar: "ملّاح",   fr: "Boucherie"  },
-  cafe:       { ar: "مقهى",    fr: "Café"       },
-  sweets:     { ar: "حلويات",  fr: "Pâtisserie" },
+  restaurant: { ar: "مطعم",        fr: "Restaurant"      },
+  grocery:    { ar: "بقالة",       fr: "Épicerie"        },
+  pharmacy:   { ar: "صيدلية",      fr: "Pharmacie"       },
+  bakery:     { ar: "مخبزة",       fr: "Boulangerie"     },
+  butcher:    { ar: "ملّاح",       fr: "Boucherie"       },
+  cafe:       { ar: "مقهى",        fr: "Café"            },
+  sweets:     { ar: "حلويات",      fr: "Pâtisserie"      },
   // ── مزودو الخدمات ──
-  hotel:      { ar: "فندق",    fr: "Hôtel"      },
-  car_rental: { ar: "كراء سيارات", fr: "Location auto" },
+  hotel:      { ar: "فندق",        fr: "Hôtel"           },
+  car_rental: { ar: "كراء سيارات", fr: "Location auto"   },
   sos:        { ar: "SOS · إنقاذ", fr: "SOS · Dépannage" },
-  lawyer:     { ar: "محامي",   fr: "Avocat"     },
+  lawyer:     { ar: "محامي",       fr: "Avocat"          },
+  taxi:       { ar: "تاكسي",       fr: "Taxi"            },
+  doctor:     { ar: "طبيب / عيادة",fr: "Médecin / Clinique" },
+  mechanic:   { ar: "ميكانيكي",    fr: "Mécanicien"      },
 };
 
 const PRODUCT_CATS = ["restaurant","grocery","pharmacy","bakery","butcher","cafe","sweets"] as const;
-const SERVICE_CATS = ["hotel","car_rental","sos","lawyer"] as const;
+const SERVICE_CATS = ["hotel","car_rental","sos","lawyer","taxi","doctor","mechanic"] as const;
 
 function supplierType(cat: string): "product" | "service" {
   return (PRODUCT_CATS as readonly string[]).includes(cat) ? "product" : "service";
@@ -1166,18 +1169,28 @@ function SupplierCard({ s, t, lang, type, typeConfig, onManage, onToggle, onEdit
 // Section: Suppliers
 // ──────────────────────────────────────────────────────────────────────────────
 function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
-  const [items, setItems]       = useState<Supplier[]>([]);
-  const [modal, setModal]       = useState<null | "add" | Supplier>(null);
-  const [managing, setManaging] = useState<Supplier | null>(null);
-  const [filter, setFilter]     = useState<"all" | "products" | "services">("all");
-  const [formType, setFormType] = useState<"product" | "service">("product");
+  const [items, setItems]         = useState<Supplier[]>([]);
+  const [taxiItems, setTaxiItems] = useState<TaxiDriver[]>([]);
+  const [modal, setModal]         = useState<null | "add" | Supplier>(null);
+  const [managing, setManaging]   = useState<Supplier | null>(null);
+  const [filter, setFilter]       = useState<"all" | "products" | "services">("all");
+  const [formType, setFormType]   = useState<"product" | "service">("product");
   const [createdCreds, setCreatedCreds] = useState<{ phone: string; password: string } | null>(null);
-  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", photoUrl:"", shift:"all", isAvailable: true, latitude:"", longitude:"", providerPhone:"", providerPassword:"" });
+  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", photoUrl:"", shift:"all", isAvailable: true, latitude:"", longitude:"", providerPhone:"", providerPassword:"", carModel:"", carColor:"", carPlate:"" });
 
-  const load = () => get<Supplier[]>("/admin/suppliers").then(setItems).catch(() => {});
+  const isTaxiForm = form.category === "taxi";
+
+  const load = async () => {
+    const [sups, taxis] = await Promise.all([
+      get<Supplier[]>("/admin/suppliers").catch(() => [] as Supplier[]),
+      get<TaxiDriver[]>("/admin/taxi/drivers").catch(() => [] as TaxiDriver[]),
+    ]);
+    setItems(sups);
+    setTaxiItems(taxis);
+  };
   useEffect(() => { load(); }, []);
 
-  const EMPTY_FORM = { name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",photoUrl:"",shift:"all",isAvailable:true,latitude:"",longitude:"",providerPhone:"",providerPassword:"" };
+  const EMPTY_FORM = { name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",photoUrl:"",shift:"all",isAvailable:true,latitude:"",longitude:"",providerPhone:"",providerPassword:"",carModel:"",carColor:"",carPlate:"" };
 
   const openAdd = () => {
     setFormType("product");
@@ -1188,16 +1201,24 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   const openEdit = (s: Supplier) => {
     setFormType(supplierType(s.category));
     setCreatedCreds(null);
-    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", photoUrl:(s as any).photoUrl||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"", providerPhone:"", providerPassword:"" });
+    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", photoUrl:(s as any).photoUrl||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"", providerPhone:"", providerPassword:"", carModel:"", carColor:"", carPlate:"" });
     setModal(s);
   };
 
   const save = async () => {
     if (modal === "add") {
+      if (isTaxiForm) {
+        // Create taxi driver via taxi endpoint
+        const name = form.nameAr.trim() || form.name.trim();
+        const phone = form.providerPhone.trim();
+        const password = form.providerPassword.trim();
+        if (!name || !phone || !password) return;
+        await post("/admin/taxi/drivers", { name, phone, password, carModel: form.carModel, carColor: form.carColor, carPlate: form.carPlate, isAvailable: true, isActive: true });
+        setModal(null); load(); return;
+      }
       const res = await post<{ supplier: Supplier; providerUser: { phone: string } | null }>("/admin/suppliers", form);
       if (form.providerPhone && res?.providerUser) {
         setCreatedCreds({ phone: form.providerPhone, password: form.providerPassword });
-        // Keep modal open to show credentials
         load(); setModal(null);
         return;
       }
@@ -1230,7 +1251,7 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
 
   // Filtered list
   const productCount = items.filter(s => supplierType(s.category) === "product").length;
-  const serviceCount = items.filter(s => supplierType(s.category) === "service").length;
+  const serviceCount = items.filter(s => supplierType(s.category) === "service").length + taxiItems.length;
   const visible = filter === "all" ? items
     : items.filter(s => supplierType(s.category) === (filter === "products" ? "product" : "service"));
 
@@ -1241,7 +1262,7 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   };
 
   const tabBtns: { key: "all" | "products" | "services"; arLabel: string; frLabel: string; count: number }[] = [
-    { key: "all",      arLabel: "الكل",          frLabel: "Tous",      count: items.length    },
+    { key: "all",      arLabel: "الكل",          frLabel: "Tous",      count: items.length + taxiItems.length },
     { key: "products", arLabel: "مزودو المنتجات", frLabel: "Produits",  count: productCount    },
     { key: "services", arLabel: "مزودو الخدمات",  frLabel: "Services",  count: serviceCount    },
   ];
@@ -1317,7 +1338,37 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
               onEdit={() => openEdit(s)}
               onDelete={() => remove(s.id)} />
           ))}
-          {visible.filter(s => supplierType(s.category) === "service").length === 0 && filter === "services" && (
+          {/* Taxi drivers merged into services */}
+          {(filter === "all" || filter === "services") && taxiItems.map(d => (
+            <div key={`taxi-${d.id}`} className="glass-panel rounded-2xl p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: "#FFA50020" }}>🚕</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-[#1A4D1F]">{d.name}</span>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "#FFA50020", color: "#FFA500" }}>
+                    {t("تاكسي","Taxi")}
+                  </span>
+                  {d.carPlate && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#1A4D1F]/10 text-[#1A4D1F]/60">{d.carPlate}</span>}
+                </div>
+                <p className="text-xs text-[#1A4D1F]/40 mt-0.5">{d.phone}{d.carModel ? ` · ${d.carModel}` : ""}{d.carColor ? ` · ${d.carColor}` : ""}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`w-2 h-2 rounded-full ${d.isAvailable ? "bg-emerald-400" : "bg-red-400"}`} />
+                <button
+                  onClick={async () => { await patch(`/admin/taxi/drivers/${d.id}`, { isAvailable: !d.isAvailable }); load(); }}
+                  className={`p-1.5 rounded-lg border text-xs transition-all ${d.isAvailable ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20" : "bg-red-400/10 text-red-400 border-red-400/20"}`}
+                  title={d.isAvailable ? t("إيقاف","Désactiver") : t("تفعيل","Activer")}>
+                  <Power size={12} />
+                </button>
+                <button
+                  onClick={async () => { if (confirm(t("حذف هذا السائق؟","Supprimer ce chauffeur ?"))) { await del(`/admin/taxi/drivers/${d.id}`); load(); } }}
+                  className="p-1.5 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-red-400 transition-colors">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            </div>
+          ))}
+          {visible.filter(s => supplierType(s.category) === "service").length === 0 && taxiItems.length === 0 && filter === "services" && (
             <p className="text-center text-xs opacity-40 py-6 text-[#1565C0]">{t("لا يوجد مزودو خدمات", "Aucun fournisseur de services")}</p>
           )}
         </div>

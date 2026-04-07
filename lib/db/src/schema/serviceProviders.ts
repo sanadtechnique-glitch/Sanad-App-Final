@@ -2,7 +2,7 @@ import { pgTable, text, serial, boolean, real, timestamp, index } from "drizzle-
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const serviceCategoryEnum = ["restaurant", "pharmacy", "lawyer", "grocery", "mechanic", "doctor", "car", "hotel", "car_rental", "sos"] as const;
+export const serviceCategoryEnum = ["restaurant", "pharmacy", "lawyer", "grocery", "mechanic", "doctor", "car", "hotel", "car_rental", "sos", "taxi"] as const;
 export type ServiceCategory = typeof serviceCategoryEnum[number];
 
 export const pharmacyShiftEnum = ["day", "night", "all"] as const;
