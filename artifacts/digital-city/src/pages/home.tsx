@@ -105,10 +105,11 @@ const INNER_CATS = CATEGORIES.slice(0, 5);   // مطاعم، بقالة، صيد
 const OUTER_CATS = CATEGORIES.slice(5);      // كراء، SOS، محامي، فنادق، ميكانيكي
 
 function OrbitRing({
-  cats, radius, size, duration, clockwise, lang,
+  cats, radius, size, duration, clockwise, lang, cx, cy,
 }: {
   cats: typeof CATEGORIES; radius: number; size: number;
   duration: number; clockwise: boolean; lang: string;
+  cx: number; cy: number;
 }) {
   const spinIn  = clockwise ? "orbit-cw"  : "orbit-ccw";
   const spinOut = clockwise ? "spin-ccw"  : "spin-cw";   // counter to keep upright
@@ -122,8 +123,8 @@ function OrbitRing({
             key={`${cat.id}-${i}`}
             style={{
               position: "absolute",
-              top: "50%",
-              left: "50%",
+              top: cy,
+              left: cx,
               width: 0,
               height: 0,
               animationName: spinIn,
@@ -192,11 +193,11 @@ function OrbitRing({
                     {/* Label */}
                     <p
                       style={{
-                        fontSize: 10,
+                        fontSize: Math.round(size * 0.155),
                         fontWeight: 900,
                         color: "#1A4D1F",
                         textAlign: "center",
-                        width: size + 10,
+                        width: size + 12,
                         lineHeight: 1.2,
                         fontFamily: "'Cairo','Tajawal',sans-serif",
                       }}
@@ -215,86 +216,72 @@ function OrbitRing({
 }
 
 function OrbitSystem({ lang }: { lang: string }) {
-  const R_INNER = 82;
-  const R_OUTER = 138;
-  const S_INNER = 52;   // inner circle size
-  const S_OUTER = 48;   // outer circle size
-  const CENTER  = 170;  // half the container
+  const [cw, setCw] = useState(() => Math.min(typeof window !== "undefined" ? window.innerWidth : 390, 430));
+
+  useEffect(() => {
+    const update = () => setCw(Math.min(window.innerWidth, 430));
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  // Responsive sizing — fills the full available width
+  const CX     = cw / 2;                        // center X
+  const CY     = 215;                            // center Y (fixed, leaves room for bottom labels)
+  const R_IN   = Math.round(cw * 0.272);        // inner orbit radius  ≈ 106px @ 390
+  const R_OUT  = Math.round(cw * 0.444);        // outer orbit radius  ≈ 173px @ 390
+  const S_IN   = Math.round(cw * 0.196);        // inner circle px     ≈ 76px  @ 390
+  const S_OUT  = Math.round(cw * 0.172);        // outer circle px     ≈ 67px  @ 390
+  const BADGE  = Math.round(cw * 0.226);        // center badge px     ≈ 88px  @ 390
+  const HEIGHT = CY * 2 + 30;                   // total height        ≈ 460px
 
   return (
-    <div className="w-full flex items-center justify-center py-3">
-      <div style={{ position: "relative", width: CENTER * 2, height: CENTER * 2 }}>
+    <div className="w-full overflow-hidden" style={{ height: HEIGHT }}>
+      <div style={{ position: "relative", width: cw, height: HEIGHT, margin: "0 auto" }}>
 
         {/* ── Orbit path rings (decorative) ── */}
-        {[R_INNER, R_OUTER].map(r => (
+        {[R_IN, R_OUT].map(r => (
           <div
             key={r}
             style={{
               position: "absolute",
-              top: CENTER - r,
-              left: CENTER - r,
-              width: r * 2,
-              height: r * 2,
+              top: CY - r, left: CX - r,
+              width: r * 2, height: r * 2,
               borderRadius: "50%",
-              border: "1px dashed rgba(26,77,31,0.14)",
+              border: "1.5px dashed rgba(26,77,31,0.13)",
             }}
           />
         ))}
 
-        {/* ── Subtle glow behind center ── */}
-        <div
-          style={{
-            position: "absolute",
-            top: CENTER - 55,
-            left: CENTER - 55,
-            width: 110,
-            height: 110,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(26,77,31,0.08) 0%, transparent 70%)",
-          }}
-        />
+        {/* ── Glow behind center ── */}
+        <div style={{
+          position: "absolute",
+          top: CY - BADGE * 0.75, left: CX - BADGE * 0.75,
+          width: BADGE * 1.5, height: BADGE * 1.5,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(26,77,31,0.10) 0%, transparent 70%)",
+        }} />
 
         {/* ── Center badge ── */}
-        <div
-          style={{
-            position: "absolute",
-            top: CENTER - 34,
-            left: CENTER - 34,
-            width: 68,
-            height: 68,
-            borderRadius: "50%",
-            background: "linear-gradient(145deg, #1A4D1F 0%, #0D3311 100%)",
-            boxShadow: "0 6px 24px rgba(26,77,31,0.40), inset 0 1px 0 rgba(255,255,255,0.15)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 1,
-          }}
-        >
-          <span style={{ color: "#FFA500", fontSize: 15, fontWeight: 900, lineHeight: 1, fontFamily: "'Cairo',sans-serif" }}>سند</span>
-          <span style={{ color: "rgba(255,165,0,0.60)", fontSize: 8, fontWeight: 700, fontFamily: "'Outfit',sans-serif", letterSpacing: 1 }}>SANAD</span>
+        <div style={{
+          position: "absolute",
+          top: CY - BADGE / 2, left: CX - BADGE / 2,
+          width: BADGE, height: BADGE,
+          borderRadius: "50%",
+          background: "linear-gradient(145deg, #1A4D1F 0%, #0D3311 100%)",
+          boxShadow: "0 8px 30px rgba(26,77,31,0.45), inset 0 1px 0 rgba(255,255,255,0.18)",
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", gap: 2,
+        }}>
+          <span style={{ color: "#FFA500", fontSize: Math.round(BADGE * 0.20), fontWeight: 900, lineHeight: 1, fontFamily: "'Cairo',sans-serif" }}>سند</span>
+          <span style={{ color: "rgba(255,165,0,0.55)", fontSize: Math.round(BADGE * 0.11), fontWeight: 700, fontFamily: "'Outfit',sans-serif", letterSpacing: 1.5 }}>SANAD</span>
         </div>
 
-        {/* ── Inner ring — clockwise, 20s ── */}
-        <OrbitRing
-          cats={INNER_CATS}
-          radius={R_INNER}
-          size={S_INNER}
-          duration={20}
-          clockwise={true}
-          lang={lang}
-        />
+        {/* ── Inner ring — clockwise 20s ── */}
+        <OrbitRing cats={INNER_CATS} radius={R_IN}  size={S_IN}  duration={20} clockwise={true}  lang={lang} cx={CX} cy={CY} />
 
-        {/* ── Outer ring — counter-clockwise, 30s ── */}
-        <OrbitRing
-          cats={OUTER_CATS}
-          radius={R_OUTER}
-          size={S_OUTER}
-          duration={30}
-          clockwise={false}
-          lang={lang}
-        />
+        {/* ── Outer ring — counter-clockwise 30s ── */}
+        <OrbitRing cats={OUTER_CATS} radius={R_OUT} size={S_OUT} duration={30} clockwise={false} lang={lang} cx={CX} cy={CY} />
       </div>
     </div>
   );
