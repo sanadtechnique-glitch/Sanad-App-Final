@@ -463,7 +463,8 @@ function AdminImagePicker({ value, onChange, label, guideAr, guideFr, aspect = "
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState("");
-  const cls = aspect === "4:3" ? "aspect-[4/3]" : aspect === "1:1" ? "aspect-square" : "aspect-video";
+  const [imgErr, setImgErr] = useState(false);
+  const isCircle = aspect === "1:1";
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -471,6 +472,7 @@ function AdminImagePicker({ value, onChange, label, guideAr, guideFr, aspect = "
     e.target.value = "";
     setUploading(true);
     setUploadErr("");
+    setImgErr(false);
     try {
       const token = getSessionToken() || "";
       const url = await uploadImageFileAdmin(file, token);
@@ -486,8 +488,83 @@ function AdminImagePicker({ value, onChange, label, guideAr, guideFr, aspect = "
     e.stopPropagation();
     onChange("");
     setUploadErr("");
+    setImgErr(false);
   };
 
+  /* ── Circle picker (1:1) ── */
+  if (isCircle) {
+    return (
+      <div className="space-y-1.5">
+        <label className="block text-xs font-black opacity-60" style={{ color: accent }}>{label}</label>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+
+        <div className="flex flex-col items-center gap-3">
+          {/* Circle preview */}
+          <div
+            className="relative w-32 h-32 rounded-full overflow-hidden border-[3px] border-dashed cursor-pointer transition-all flex items-center justify-center"
+            style={{ borderColor: (value && !imgErr) ? accent + "80" : accent + "30", background: accent + "0A" }}
+            onClick={() => !uploading && fileRef.current?.click()}
+          >
+            {(value && !imgErr) ? (
+              <img
+                src={value}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={() => setImgErr(true)}
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-1.5">
+                <Camera size={28} style={{ color: accent, opacity: 0.35 }} />
+                <p className="text-[10px] font-black text-center px-2 opacity-40" style={{ color: accent }}>
+                  {imgErr
+                    ? t("فشل التحميل", "Erreur")
+                    : t("اضغط لاختيار", "Appuyer")}
+                </p>
+              </div>
+            )}
+
+            {uploading && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.85)" }}>
+                <RefreshCw size={22} className="animate-spin" style={{ color: accent }} />
+              </div>
+            )}
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="px-3 py-1.5 rounded-xl text-xs font-black border transition-all"
+              style={{ borderColor: accent + "40", color: accent, background: accent + "0A" }}
+            >
+              <Camera size={11} className="inline me-1" />
+              {(value && !imgErr) ? t("تغيير", "Changer") : t("اختر صورة", "Choisir")}
+            </button>
+            {(value && !imgErr) && (
+              <button
+                type="button"
+                onClick={clear}
+                className="px-3 py-1.5 rounded-xl text-xs font-black border border-red-400/30 text-red-500 bg-red-50 transition-all"
+              >
+                <X size={11} className="inline me-1" />
+                {t("حذف", "Suppr.")}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {uploadErr && <p className="text-xs font-bold text-red-500 text-center">{uploadErr}</p>}
+        <p className="text-[10px] font-bold opacity-25 text-center flex items-center justify-center gap-1" style={{ color: accent }}>
+          <ImageIcon size={9} />{t("صورة مربعة 1:1 للحصول على دائرة مثالية", "Image carrée 1:1 pour un cercle parfait")}
+        </p>
+      </div>
+    );
+  }
+
+  /* ── Rectangle picker (16:9 / 4:3) ── */
+  const cls = aspect === "4:3" ? "aspect-[4/3]" : "aspect-video";
   return (
     <div className="space-y-1.5">
       <label className="block text-xs font-black opacity-60" style={{ color: accent }}>{label}</label>
@@ -496,12 +573,12 @@ function AdminImagePicker({ value, onChange, label, guideAr, guideFr, aspect = "
 
       <div
         className={`relative w-full rounded-2xl overflow-hidden border-2 border-dashed cursor-pointer transition-all ${cls}`}
-        style={{ borderColor: value ? accent + "55" : accent + "22", background: accent + "08" }}
+        style={{ borderColor: (value && !imgErr) ? accent + "55" : accent + "22", background: accent + "08" }}
         onClick={() => !uploading && fileRef.current?.click()}>
 
-        {value ? (
+        {(value && !imgErr) ? (
           <>
-            <img src={value} alt="" className="w-full h-full object-cover" />
+            <img src={value} alt="" className="w-full h-full object-cover" onError={() => setImgErr(true)} />
             {!uploading && (
               <div className="absolute top-2 end-2 flex gap-1.5">
                 <button
@@ -521,7 +598,7 @@ function AdminImagePicker({ value, onChange, label, guideAr, guideFr, aspect = "
             <Camera size={32} style={{ color: accent, opacity: 0.4 }} />
             <div className="text-center px-3 space-y-0.5">
               <p className="text-xs font-black opacity-50" style={{ color: accent }}>
-                {t("اضغط لاختيار صورة", "Appuyer pour choisir")}
+                {imgErr ? t("فشل التحميل — اضغط لتغيير", "Erreur — appuyer pour changer") : t("اضغط لاختيار صورة", "Appuyer pour choisir")}
               </p>
               <p className="text-[10px] opacity-30 font-bold" style={{ color: accent }}>{t(guideAr, guideFr)}</p>
             </div>
