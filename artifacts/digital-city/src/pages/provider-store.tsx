@@ -155,7 +155,7 @@ export default function ProviderStore() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5">
             {articles.map((article, i) => {
               const qty = getQty(article.id);
               return (
@@ -173,18 +173,18 @@ export default function ProviderStore() {
                   style={{ background: "#FFFFFF" }}>
 
                   {/* Circular product image */}
-                  <div className="flex flex-col items-center pt-5 pb-2 px-3 relative"
+                  <div className="flex flex-col items-center pt-3 pb-1 px-2 relative"
                     style={{ background: "linear-gradient(to bottom, #FFF8E7, #FFFFFF)" }}>
                     <div className="relative">
-                      <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-lg bg-[#FFA500]/10 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-[#FFA500]/10 flex items-center justify-center">
                         {article.photoUrl ? (
                           <img src={article.photoUrl} alt={article.nameAr} className="w-full h-full object-cover" />
                         ) : (
-                          <Package size={28} className="text-[#1A4D1F]/20" />
+                          <Package size={22} className="text-[#1A4D1F]/20" />
                         )}
                       </div>
                       {qty > 0 && (
-                        <div className="absolute -top-1 -end-1 w-5 h-5 rounded-full bg-[#1A4D1F] flex items-center justify-center shadow-sm">
+                        <div className="absolute -top-0.5 -end-0.5 w-5 h-5 rounded-full bg-[#1A4D1F] flex items-center justify-center shadow-sm">
                           <span className="text-black text-[9px] font-black">{qty}</span>
                         </div>
                       )}
@@ -192,40 +192,37 @@ export default function ProviderStore() {
                   </div>
 
                   {/* Info */}
-                  <div className="p-3 flex flex-col flex-1">
-                    <p className="text-sm font-black text-[#1A4D1F] leading-tight mb-1">
+                  <div className="p-2 flex flex-col flex-1">
+                    <p className="text-xs font-black text-[#1A4D1F] leading-tight mb-1 line-clamp-2">
                       {lang === "ar" ? article.nameAr : article.nameFr}
                     </p>
-                    {(lang === "ar" ? article.descriptionAr : article.descriptionFr) && (
-                      <p className="text-[11px] text-[#1A4D1F]/30 leading-tight line-clamp-2 mb-2">
-                        {lang === "ar" ? article.descriptionAr : article.descriptionFr}
-                      </p>
-                    )}
-                    <div className="mt-auto space-y-2">
-                      <p className="text-[#1A4D1F] font-black text-base">{article.price.toFixed(2)} DT</p>
-                      {article.originalPrice && article.originalPrice > article.price && (
-                        <p className="text-[#1A4D1F]/25 text-xs line-through -mt-1">{article.originalPrice.toFixed(2)} DT</p>
-                      )}
+                    <div className="mt-auto space-y-1.5">
+                      <div className="flex items-baseline gap-1 flex-wrap">
+                        <p className="text-[#1A4D1F] font-black text-sm">{article.price.toFixed(2)} DT</p>
+                        {article.originalPrice && article.originalPrice > article.price && (
+                          <p className="text-[#1A4D1F]/25 text-[10px] line-through">{article.originalPrice.toFixed(2)}</p>
+                        )}
+                      </div>
                       {qty > 0 ? (
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center justify-between gap-1">
                           <button
                             onClick={() => updateQty(article.id, qty - 1)}
-                            className="w-8 h-8 rounded-xl bg-[#1A4D1F]/5 border border-[#1A4D1F]/10 flex items-center justify-center hover:border-red-400/30 hover:text-red-400 transition-all text-[#1A4D1F]/60">
-                            <Minus size={12} />
+                            className="w-6 h-6 rounded-lg bg-[#1A4D1F]/5 border border-[#1A4D1F]/10 flex items-center justify-center hover:border-red-400/30 hover:text-red-400 transition-all text-[#1A4D1F]/60">
+                            <Minus size={10} />
                           </button>
-                          <span className="text-[#1A4D1F] font-black text-sm flex-1 text-center">{qty}</span>
+                          <span className="text-[#1A4D1F] font-black text-xs flex-1 text-center">{qty}</span>
                           <button
                             onClick={() => updateQty(article.id, qty + 1)}
-                            className="w-8 h-8 rounded-xl bg-[#1A4D1F]/20 border border-[#1A4D1F]/40 flex items-center justify-center hover:bg-[#1A4D1F]/30 transition-all text-[#1A4D1F]">
-                            <Plus size={12} />
+                            className="w-6 h-6 rounded-lg bg-[#1A4D1F]/20 border border-[#1A4D1F]/40 flex items-center justify-center hover:bg-[#1A4D1F]/30 transition-all text-[#1A4D1F]">
+                            <Plus size={10} />
                           </button>
                         </div>
                       ) : (
                         <button
                           onClick={() => handleAdd(article)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#1A4D1F]/15 border border-[#1A4D1F]/30 text-[#1A4D1F] text-xs font-black hover:bg-[#1A4D1F]/25 transition-all">
-                          <Plus size={12} />
-                          {t("إضافة للسلة", "Ajouter")}
+                          className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-[#1A4D1F]/15 border border-[#1A4D1F]/30 text-[#1A4D1F] text-[10px] font-black hover:bg-[#1A4D1F]/25 transition-all">
+                          <Plus size={10} />
+                          {t("+", "+")}
                         </button>
                       )}
                     </div>

@@ -5,10 +5,10 @@ import { Layout } from "@/components/layout";
 import { useLang } from "@/lib/language";
 import { get } from "@/lib/admin-api";
 import {
-  MapPin, Star, ChevronRight, Utensils, Pill, Scale,
+  Star, ChevronRight, Utensils, Pill, Scale,
   ShoppingCart, Wrench, Stethoscope, Car, Hotel,
   Moon, Sun, AlertTriangle, KeyRound, Cake, Coffee,
-  Beef, Scissors, ExternalLink,
+  Beef, Scissors,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,17 +38,6 @@ const CATS = [
   { id: "taxi",       ar: "تاكسي",        fr: "Taxi",          icon: Car,          gradient: "from-[#FFA500]/20 to-yellow-500/10", iconColor: "text-[#FFA500]",   border: "hover:border-[#FFA500]/30",  href: "/taxi" },
 ];
 
-function StarRow({ rating }: { rating?: number | null }) {
-  const r = Math.round(rating ?? 0);
-  return (
-    <span className="flex items-center gap-0.5">
-      {[1,2,3,4,5].map(i => (
-        <Star key={i} size={11} className={i <= r ? "text-[#1A4D1F] fill-[#1A4D1F]" : "text-[#1A4D1F]/15 fill-white/15"} />
-      ))}
-      {rating != null && <span className="ml-1.5 text-xs text-[#1A4D1F]/40 font-mono tabular-nums">{rating.toFixed(1)}</span>}
-    </span>
-  );
-}
 
 const container = {
   hidden: { opacity: 0 },
@@ -67,40 +56,23 @@ function isPharmacyShiftActive(shift?: string): boolean {
 }
 
 // Special card shown in "all" and "taxi" tabs that redirects to /taxi page
-function TaxiShortcutCard({ t, isRTL }: { t: (ar: string, fr: string) => string; isRTL: boolean }) {
+function TaxiShortcutCard({ t }: { t: (ar: string, fr: string) => string; isRTL: boolean }) {
   const [, navigate] = useLocation();
   const taxi = CATS.find(c => c.id === "taxi")!;
   const Icon = taxi.icon!;
   return (
     <motion.div variants={cardAnim}>
       <div
-        className="relative rounded-[15px] p-5 flex flex-col h-full group border border-[#FFA500]/30 cursor-pointer card-hover"
-        style={{ background: "#FFFDE7" }}
+        className="flex flex-col items-center gap-2 p-2 cursor-pointer group"
         onClick={() => navigate("/taxi")}
       >
-        <div className="flex justify-between items-start mb-4">
-          <div className={cn("w-12 h-12 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br border-2 border-white shadow-md", taxi.gradient)}>
-            <Icon size={18} className={taxi.iconColor} />
-          </div>
-          <span className="text-xs font-black px-2.5 py-1 rounded-full border bg-[#FFA500]/10 text-[#FFA500] border-[#FFA500]/20 flex items-center gap-1">
-            <ExternalLink size={9} />
-            {t("متاح", "Disponible")}
-          </span>
+        <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-[#FFA500]/60 shadow-md bg-gradient-to-br from-[#FFA500]/20 to-yellow-500/10 flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+          <Icon size={22} className="text-[#FFA500]" />
+          <div className="absolute bottom-0.5 end-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white shadow-sm" />
         </div>
-        <h3 className="text-lg font-black text-[#1A4D1F] mb-0.5 leading-snug">
+        <span className="text-[11px] font-black text-center text-[#1A4D1F] leading-tight line-clamp-2 max-w-[60px]">
           {t("تاكسي", "Taxi")}
-        </h3>
-        <p className="text-sm text-[#1A4D1F]/40 line-clamp-2 mb-3 flex-1 leading-relaxed">
-          {t("طلب تاكسي أينما كنت في المدينة", "Commandez un taxi où vous êtes en ville")}
-        </p>
-        <div className="mt-4 pt-3.5 border-t border-[#1A4D1F]/5 flex items-center justify-between">
-          <span className="text-xs font-black text-[#1A4D1F]/60 tracking-wide">
-            {t("اطلب تاكسي", "Appeler un taxi")}
-          </span>
-          <div className="w-8 h-8 rounded-full border border-[#FFA500]/30 bg-[#FFA500]/10 flex items-center justify-center group-hover:bg-[#FFA500] group-hover:border-[#FFA500] transition-all duration-300">
-            <ChevronRight size={14} className={cn("text-[#FFA500] group-hover:text-white transition-colors", isRTL && "rotate-180")} />
-          </div>
-        </div>
+        </span>
       </div>
     </motion.div>
   );
@@ -192,10 +164,12 @@ export default function Services() {
 
         {/* ── States ── */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
             {[1,2,3,4,5,6].map(i => (
-              <div key={i} className="glass-panel rounded-3xl h-56 animate-pulse border border-[#1A4D1F]/5"
-                style={{ animationDelay: `${i * 60}ms` }} />
+              <div key={i} className="flex flex-col items-center gap-2 p-2">
+                <div className="w-16 h-16 rounded-full animate-pulse bg-[#1A4D1F]/8" style={{ animationDelay: `${i * 60}ms` }} />
+                <div className="h-2.5 w-12 rounded-full animate-pulse bg-[#1A4D1F]/8" />
+              </div>
             ))}
           </div>
         ) : hasError ? (
@@ -217,9 +191,9 @@ export default function Services() {
         ) : (
           <AnimatePresence mode="wait">
             <motion.div key={active} variants={container} initial="hidden" animate="show"
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              className="grid grid-cols-3 sm:grid-cols-4 gap-4">
 
-              {/* Taxi shortcut card — shown in "all" tab */}
+              {/* Taxi shortcut — shown in "all" tab */}
               {showTaxiCard && <TaxiShortcutCard t={t} isRTL={isRTL} />}
 
               {suppliers.map(s => {
@@ -234,78 +208,51 @@ export default function Services() {
                   <motion.div key={s.id} variants={cardAnim}>
                     <Link href={targetHref}>
                       <div className={cn(
-                        "relative rounded-[15px] p-5 flex flex-col h-full group border",
-                        "card-hover",
-                        avail
-                          ? "border-[#1A4D1F]/30 cursor-pointer"
-                          : "border-[#1A4D1F]/5 cursor-not-allowed opacity-55"
-                      )} style={{ background: "#FFFDE7" }}>
-                        {avail && (
-                          <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                            style={{ background: "linear-gradient(135deg, rgba(46,125,50,0.04) 0%, transparent 60%)" }} />
-                        )}
-
-                        <div className="flex justify-between items-start mb-4">
-                          {/* Circular supplier avatar */}
-                          <div className="w-12 h-12 rounded-full flex-shrink-0 overflow-hidden border-2 border-white shadow-md">
-                            {s.photoUrl ? (
-                              <img src={s.photoUrl} alt={s.nameAr} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className={cn("w-full h-full flex items-center justify-center bg-gradient-to-br", c.gradient)}>
-                                <Icon size={18} className={c.iconColor} />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex flex-col items-end gap-1.5">
-                            <span className={cn("text-xs font-black px-2.5 py-1 rounded-full border",
-                              avail
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                : shiftOff
-                                  ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                  : "bg-red-500/10 text-red-400 border-red-500/20"
-                            )}>
-                              {avail ? t("متاح", "Disponible") : shiftOff ? t("خارج الوردية", "Hors shift") : t("مشغول", "Occupé")}
-                            </span>
-                            {s.category === "pharmacy" && s.shift && s.shift !== "all" && (
-                              <span className={cn("text-xs px-2 py-0.5 rounded-full border flex items-center gap-1 font-bold",
-                                s.shift === "day"
-                                  ? "bg-amber-400/10 text-amber-400 border-amber-400/20"
-                                  : "bg-indigo-400/10 text-indigo-400 border-indigo-400/20"
-                              )}>
-                                {s.shift === "day" ? <Sun size={9} /> : <Moon size={9} />}
-                                {s.shift === "day" ? t("نهاري 8ص-8م", "Jour 8h-20h") : t("ليلي 8م-8ص", "Nuit 20h-8h")}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <h3 className="text-lg font-black text-[#1A4D1F] mb-0.5 leading-snug group-hover:text-[#1A4D1F] transition-colors duration-300">
-                          {lang === "ar" ? s.nameAr : (s.name || s.nameAr)}
-                        </h3>
-                        {lang === "fr" && s.name && (
-                          <p className="text-xs text-[#1A4D1F]/20 mb-1.5 font-medium">{s.nameAr}</p>
-                        )}
-
-                        <p className="text-sm text-[#1A4D1F]/40 line-clamp-2 mb-3 flex-1 leading-relaxed">
-                          {lang === "ar" ? s.descriptionAr : (s.description || s.descriptionAr)}
-                        </p>
-
-                        <div className="flex items-center gap-1.5 text-xs text-[#1A4D1F]/25 mb-3">
-                          <MapPin size={11} className="text-[#1A4D1F]/50 flex-shrink-0" />
-                          <span className="truncate">{s.address}</span>
-                        </div>
-
-                        {s.rating != null && <StarRow rating={s.rating} />}
-
-                        {avail && (
-                          <div className="mt-4 pt-3.5 border-t border-[#1A4D1F]/5 flex items-center justify-between">
-                            <span className="text-xs font-black text-[#1A4D1F]/60 tracking-wide">
-                              {s.category === "hotel" ? t("احجز الآن", "Réserver") : t("اطلب الآن", "Commander")}
-                            </span>
-                            <div className="w-8 h-8 rounded-full border border-[#1A4D1F]/25 bg-[#1A4D1F]/8 flex items-center justify-center group-hover:bg-[#1A4D1F] group-hover:border-[#1A4D1F] transition-all duration-300">
-                              <ChevronRight size={14} className={cn("text-[#1A4D1F] group-hover:text-black transition-colors", isRTL && "rotate-180")} />
+                        "flex flex-col items-center gap-2 p-2 group",
+                        avail ? "cursor-pointer" : "cursor-not-allowed opacity-55"
+                      )}>
+                        {/* Circle */}
+                        <div className={cn(
+                          "relative w-16 h-16 rounded-full overflow-hidden border-2 shadow-md flex-shrink-0",
+                          "group-hover:scale-105 transition-transform duration-200",
+                          avail ? "border-[#1A4D1F]/30" : "border-[#1A4D1F]/10"
+                        )}>
+                          {s.photoUrl ? (
+                            <img src={s.photoUrl} alt={s.nameAr} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className={cn("w-full h-full flex items-center justify-center bg-gradient-to-br", c.gradient)}>
+                              <Icon size={22} className={c.iconColor} />
                             </div>
-                          </div>
+                          )}
+                          {/* Status dot */}
+                          <div className={cn(
+                            "absolute bottom-0.5 end-0.5 w-3 h-3 rounded-full border-2 border-white shadow-sm",
+                            avail ? "bg-emerald-400" : shiftOff ? "bg-blue-400" : "bg-red-400"
+                          )} />
+                        </div>
+
+                        {/* Name */}
+                        <span className="text-[11px] font-black text-center text-[#1A4D1F] leading-tight line-clamp-2 max-w-[60px]">
+                          {lang === "ar" ? s.nameAr : (s.name || s.nameAr)}
+                        </span>
+
+                        {/* Pharmacy shift badge */}
+                        {s.category === "pharmacy" && s.shift && s.shift !== "all" && (
+                          <span className={cn(
+                            "text-[8px] px-1 py-0.5 rounded-full flex items-center gap-0.5 font-bold -mt-1",
+                            s.shift === "day" ? "bg-amber-400/15 text-amber-600" : "bg-indigo-400/15 text-indigo-500"
+                          )}>
+                            {s.shift === "day" ? <Sun size={7} /> : <Moon size={7} />}
+                            {s.shift === "day" ? t("نهاري", "Jour") : t("ليلي", "Nuit")}
+                          </span>
+                        )}
+
+                        {/* Rating */}
+                        {s.rating != null && (
+                          <span className="flex items-center gap-0.5 -mt-1">
+                            <Star size={8} className="text-[#FFA500] fill-[#FFA500]" />
+                            <span className="text-[8px] font-black text-[#1A4D1F]/50">{s.rating.toFixed(1)}</span>
+                          </span>
                         )}
                       </div>
                     </Link>

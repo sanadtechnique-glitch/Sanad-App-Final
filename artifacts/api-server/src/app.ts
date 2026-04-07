@@ -37,9 +37,10 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
-// Serve uploaded ad images statically
+// Serve uploaded files statically — both paths for dev (Vite proxy) and production
 const uploadsDir = path.resolve(__dirname, "../uploads");
-app.use("/uploads", express.static(uploadsDir));
+app.use("/api/uploads", express.static(uploadsDir));
+app.use("/uploads",     express.static(uploadsDir)); // keep for any old stored URLs
 
 // ── Global error handler — catches unhandled thrown errors ───────────────────
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
