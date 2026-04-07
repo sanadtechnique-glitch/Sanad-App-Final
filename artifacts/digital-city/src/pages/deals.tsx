@@ -63,16 +63,18 @@ function ProductCard({ p, t, lang }: { p: DealProduct; t: (ar: string, fr: strin
       whileTap={{ scale: 0.99 }}
     >
       <div className="flex gap-3 p-4" dir="rtl">
-        {/* Image */}
-        <div className="w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden border border-[#1A4D1F]/10 bg-[#1A4D1F]/5 flex items-center justify-center relative">
-          {p.imageUrl ? (
-            <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
-          ) : (
-            <Package size={22} className="text-[#1A4D1F]/20" />
-          )}
+        {/* Circular product image */}
+        <div className="relative flex-shrink-0">
+          <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-[#1A4D1F]/5 flex items-center justify-center">
+            {p.imageUrl ? (
+              <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
+            ) : (
+              <Package size={22} className="text-[#1A4D1F]/20" />
+            )}
+          </div>
           {pct > 0 && (
-            <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-bl-xl rounded-tr-xl">
-              -{pct}%
+            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
+              -{pct}
             </div>
           )}
         </div>

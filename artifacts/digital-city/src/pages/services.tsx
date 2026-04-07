@@ -16,6 +16,7 @@ interface Supplier {
   id: number; name: string; nameAr: string; category: string;
   description: string; descriptionAr: string; address: string;
   rating?: number; isAvailable: boolean; shift?: string;
+  photoUrl?: string | null;
 }
 
 // Matches exact DB category values
@@ -78,8 +79,8 @@ function TaxiShortcutCard({ t, isRTL }: { t: (ar: string, fr: string) => string;
         onClick={() => navigate("/taxi")}
       >
         <div className="flex justify-between items-start mb-4">
-          <div className={cn("rounded-2xl flex items-center justify-center w-12 h-12 bg-gradient-to-br border border-[#FFA500]/20", taxi.gradient)}>
-            <Icon size={22} className={taxi.iconColor} />
+          <div className={cn("w-12 h-12 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br border-2 border-white shadow-md", taxi.gradient)}>
+            <Icon size={18} className={taxi.iconColor} />
           </div>
           <span className="text-xs font-black px-2.5 py-1 rounded-full border bg-[#FFA500]/10 text-[#FFA500] border-[#FFA500]/20 flex items-center gap-1">
             <ExternalLink size={9} />
@@ -245,8 +246,15 @@ export default function Services() {
                         )}
 
                         <div className="flex justify-between items-start mb-4">
-                          <div className={cn("rounded-2xl flex items-center justify-center w-12 h-12 bg-gradient-to-br border border-[#1A4D1F]/8", c.gradient)}>
-                            <Icon size={22} className={c.iconColor} />
+                          {/* Circular supplier avatar */}
+                          <div className="w-12 h-12 rounded-full flex-shrink-0 overflow-hidden border-2 border-white shadow-md">
+                            {s.photoUrl ? (
+                              <img src={s.photoUrl} alt={s.nameAr} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className={cn("w-full h-full flex items-center justify-center bg-gradient-to-br", c.gradient)}>
+                                <Icon size={18} className={c.iconColor} />
+                              </div>
+                            )}
                           </div>
                           <div className="flex flex-col items-end gap-1.5">
                             <span className={cn("text-xs font-black px-2.5 py-1 rounded-full border",

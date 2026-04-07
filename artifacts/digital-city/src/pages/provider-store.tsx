@@ -97,9 +97,8 @@ export default function ProviderStore() {
           initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
           className="rounded-[20px] p-5 mb-8 border border-[#1A4D1F]/20 flex items-center gap-4"
           style={{ background: "#FFFFFF" }}>
-          <div
-            className="w-16 h-16 rounded-2xl border-2 border-[#1A4D1F]/40 flex items-center justify-center flex-shrink-0 overflow-hidden"
-            style={{ background: "#FFFFFF" }}>
+          <div className="w-16 h-16 rounded-full border-2 border-[#1A4D1F]/30 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-md"
+            style={{ background: "#FFF3E0" }}>
             {supplier.photoUrl
               ? <img src={supplier.photoUrl} alt="" className="w-full h-full object-cover" />
               : <Package size={26} className="text-[#1A4D1F]" />}
@@ -173,19 +172,20 @@ export default function ProviderStore() {
                   )}
                   style={{ background: "#FFFFFF" }}>
 
-                  {/* 1:1 image */}
-                  <div className="relative w-full" style={{ paddingBottom: "100%" }}>
-                    <div className="absolute inset-0 border-b border-[#1A4D1F]/15" style={{ background: "#FFA500" }}>
-                      {article.photoUrl ? (
-                        <img src={article.photoUrl} alt={article.nameAr} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Package size={32} className="text-[#1A4D1F]/15" />
-                        </div>
-                      )}
+                  {/* Circular product image */}
+                  <div className="flex flex-col items-center pt-5 pb-2 px-3 relative"
+                    style={{ background: "linear-gradient(to bottom, #FFF8E7, #FFFFFF)" }}>
+                    <div className="relative">
+                      <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-lg bg-[#FFA500]/10 flex items-center justify-center">
+                        {article.photoUrl ? (
+                          <img src={article.photoUrl} alt={article.nameAr} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package size={28} className="text-[#1A4D1F]/20" />
+                        )}
+                      </div>
                       {qty > 0 && (
-                        <div className="absolute top-2 end-2 w-5 h-5 rounded-full bg-[#1A4D1F] flex items-center justify-center">
-                          <span className="text-black text-[10px] font-black">{qty}</span>
+                        <div className="absolute -top-1 -end-1 w-5 h-5 rounded-full bg-[#1A4D1F] flex items-center justify-center shadow-sm">
+                          <span className="text-black text-[9px] font-black">{qty}</span>
                         </div>
                       )}
                     </div>
