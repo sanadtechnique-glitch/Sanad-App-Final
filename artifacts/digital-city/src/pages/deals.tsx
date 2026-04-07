@@ -60,18 +60,18 @@ function ProductCard({ p, t, lang }: { p: DealProduct; t: (ar: string, fr: strin
       style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.15)" }}
     >
       {/* Circle image area */}
-      <div className="flex flex-col items-center pt-5 pb-2 px-3"
+      <div className="flex flex-col items-center pt-3 pb-1 px-2"
         style={{ background: "linear-gradient(to bottom, #FFF8E7, #FFFDE7)" }}>
         <div className="relative">
-          <div className="w-24 h-24 rounded-full overflow-hidden border-[3px] border-white shadow-lg bg-[#1A4D1F]/5 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-[#1A4D1F]/5 flex items-center justify-center">
             {p.imageUrl ? (
               <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
             ) : (
-              <Package size={32} className="text-[#1A4D1F]/20" />
+              <Package size={22} className="text-[#1A4D1F]/20" />
             )}
           </div>
           {pct > 0 && (
-            <div className="absolute -top-1 -end-1 bg-red-500 text-white text-[9px] font-black w-6 h-6 rounded-full flex items-center justify-center shadow-sm">
+            <div className="absolute -top-0.5 -end-0.5 bg-red-500 text-white text-[8px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
               -{pct}%
             </div>
           )}
@@ -79,43 +79,30 @@ function ProductCard({ p, t, lang }: { p: DealProduct; t: (ar: string, fr: strin
       </div>
 
       {/* Info */}
-      <div className="p-3 flex flex-col flex-1 gap-1" dir="rtl">
-        <p className="font-black text-sm text-[#1A4D1F] text-center leading-tight line-clamp-2">{p.title}</p>
+      <div className="p-2 flex flex-col flex-1 gap-0.5" dir="rtl">
+        <p className="font-black text-xs text-[#1A4D1F] text-center leading-tight line-clamp-2">{p.title}</p>
 
-        {/* Supplier + category */}
-        <div className="flex flex-wrap justify-center gap-1">
-          {p.supplierName && (
-            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#1A4D1F]/55 bg-[#1A4D1F]/8 px-1.5 py-0.5 rounded-full">
-              <Store size={7} />
-              {p.supplierName}
-            </span>
-          )}
-          {catLabel && (
-            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#FFA500] bg-[#FFA500]/10 px-1.5 py-0.5 rounded-full">
-              <Tag size={7} />
-              {catLabel}
-            </span>
-          )}
-        </div>
+        {/* Supplier */}
+        {p.supplierName && (
+          <span className="inline-flex items-center justify-center gap-0.5 text-[8px] font-bold text-[#1A4D1F]/45">
+            <Store size={7} />
+            {p.supplierName}
+          </span>
+        )}
 
         {/* Prices */}
-        <div className="flex flex-col items-center mt-auto pt-1">
+        <div className="flex flex-col items-center mt-auto pt-0.5">
           {p.salePrice && (
-            <span className="text-base font-black text-red-600">
-              {parseFloat(p.salePrice).toFixed(3)} <span className="text-xs">TND</span>
+            <span className="text-sm font-black text-red-600">
+              {parseFloat(p.salePrice).toFixed(3)} <span className="text-[9px]">TND</span>
             </span>
           )}
           {p.originalPrice && (
-            <span className="text-[10px] font-bold line-through text-[#1A4D1F]/30">
-              {parseFloat(p.originalPrice).toFixed(3)} TND
+            <span className="text-[9px] font-bold line-through text-[#1A4D1F]/30">
+              {parseFloat(p.originalPrice).toFixed(3)}
             </span>
           )}
         </div>
-
-        {/* Description */}
-        {p.description && (
-          <p className="text-[10px] text-[#1A4D1F]/40 line-clamp-2 leading-tight text-center">{p.description}</p>
-        )}
       </div>
     </motion.div>
   );
@@ -305,7 +292,7 @@ export default function Deals() {
             )}
           </motion.div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
             {sorted.map((p, i) => (
               <motion.div
                 key={p.id}
