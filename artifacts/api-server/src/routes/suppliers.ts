@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { serviceProvidersTable, usersTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { requireAdmin, requireStaff } from "../lib/authMiddleware";
 import { isValidPhone } from "../lib/validate";
 import { withCache, cacheDeletePrefix } from "../lib/cache";
@@ -29,7 +29,9 @@ router.get("/suppliers", async (req, res) => {
       shift:         serviceProvidersTable.shift,
       latitude:      serviceProvidersTable.latitude,
       longitude:     serviceProvidersTable.longitude,
-    }).from(serviceProvidersTable).orderBy(serviceProvidersTable.name));
+    }).from(serviceProvidersTable)
+      .where(ne(serviceProvidersTable.category, "taxi"))
+      .orderBy(serviceProvidersTable.name));
     res.json(rows);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });

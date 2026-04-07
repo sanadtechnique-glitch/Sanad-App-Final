@@ -196,7 +196,7 @@ export default function Services() {
               {/* Taxi shortcut — shown in "all" tab */}
               {showTaxiCard && <TaxiShortcutCard t={t} isRTL={isRTL} />}
 
-              {suppliers.map(s => {
+              {suppliers.filter(s => s.category !== "taxi").map(s => {
                 const c = cfg(s.category);
                 const Icon = c.icon ?? Utensils;
                 const avail = effectivelyAvailable(s);
