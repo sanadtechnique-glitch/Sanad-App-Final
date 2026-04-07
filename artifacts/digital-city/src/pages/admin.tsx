@@ -1201,7 +1201,7 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   const openEdit = (s: Supplier) => {
     setFormType(supplierType(s.category));
     setCreatedCreds(null);
-    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", photoUrl:(s as any).photoUrl||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"", providerPhone:"", providerPassword:"", carModel:"", carColor:"", carPlate:"" });
+    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", photoUrl:(s as any).photoUrl||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"", providerPhone:"", providerPassword:"", carModel:(s as any).carModel||"", carColor:(s as any).carColor||"", carPlate:(s as any).carPlate||"" });
     setModal(s);
   };
 
@@ -1421,22 +1421,28 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
         )}
 
         {/* Taxi-specific fields */}
-        {isTaxiForm && modal === "add" && (
+        {isTaxiForm && (
           <div className="rounded-xl p-3 border-2 space-y-3" style={{ borderColor: "#FFA50040", background: "#FFA50008" }}>
             <div className="flex items-center gap-2">
               <Car size={13} style={{ color: "#FFA500" }} />
               <p className="text-xs font-black" style={{ color: "#FFA500" }}>
-                {t("بيانات الحساب (مطلوبة)", "Informations du compte (obligatoires)")}
+                {modal === "add"
+                  ? t("بيانات الحساب (مطلوبة)", "Informations du compte (obligatoires)")
+                  : t("بيانات السيارة", "Informations du véhicule")}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label={t("رقم الهاتف *","Tél. *")}>
-                <Input value={form.providerPhone} onChange={v => setForm(f => ({...f, providerPhone: v}))} placeholder="21698..." />
-              </Field>
-              <Field label={t("كلمة المرور *","Mot de passe *")}>
-                <Input value={form.providerPassword} onChange={v => setForm(f => ({...f, providerPassword: v}))} placeholder="6+ أحرف" type="password" />
-              </Field>
-            </div>
+            {/* Account fields — add mode only */}
+            {modal === "add" && (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label={t("رقم الهاتف *","Tél. *")}>
+                  <Input value={form.providerPhone} onChange={v => setForm(f => ({...f, providerPhone: v}))} placeholder="21698..." />
+                </Field>
+                <Field label={t("كلمة المرور *","Mot de passe *")}>
+                  <Input value={form.providerPassword} onChange={v => setForm(f => ({...f, providerPassword: v}))} placeholder="6+ أحرف" type="password" />
+                </Field>
+              </div>
+            )}
+            {/* Car fields — always shown for taxi */}
             <div className="grid grid-cols-3 gap-3">
               <Field label={t("نوع السيارة","Modèle")}>
                 <Input value={form.carModel} onChange={v => setForm(f => ({...f, carModel: v}))} placeholder="Kia Picanto" />

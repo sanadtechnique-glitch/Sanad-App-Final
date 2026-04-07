@@ -82,6 +82,7 @@ router.post("/admin/suppliers", requireAdmin, async (req, res) => {
   const {
     name, nameAr, category, description, descriptionAr, address, phone, photoUrl,
     shift, rating, isAvailable, latitude, longitude,
+    carModel, carColor, carPlate,
     // optional account creation
     providerPhone, providerPassword,
   } = req.body;
@@ -124,6 +125,9 @@ router.post("/admin/suppliers", requireAdmin, async (req, res) => {
       isAvailable: isAvailable ?? true,
       latitude: latitude ? parseFloat(String(latitude)) : null,
       longitude: longitude ? parseFloat(String(longitude)) : null,
+      carModel: carModel || null,
+      carColor: carColor || null,
+      carPlate: carPlate || null,
     }).returning();
 
     // 2. Create provider account if requested
@@ -157,7 +161,7 @@ router.post("/admin/suppliers", requireAdmin, async (req, res) => {
 router.patch("/admin/suppliers/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
-  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable, latitude, longitude } = req.body;
+  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable, latitude, longitude, carModel, carColor, carPlate } = req.body;
   if (phone !== undefined && phone !== "" && !isValidPhone(phone)) {
     res.status(400).json({ message: "Invalid phone number format" }); return;
   }
@@ -167,6 +171,9 @@ router.patch("/admin/suppliers/:id", requireAdmin, async (req, res) => {
         name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable,
         latitude: latitude !== undefined ? (latitude ? parseFloat(String(latitude)) : null) : undefined,
         longitude: longitude !== undefined ? (longitude ? parseFloat(String(longitude)) : null) : undefined,
+        carModel: carModel !== undefined ? (carModel || null) : undefined,
+        carColor: carColor !== undefined ? (carColor || null) : undefined,
+        carPlate: carPlate !== undefined ? (carPlate || null) : undefined,
       })
       .where(eq(serviceProvidersTable.id, id)).returning();
     if (!row) { res.status(404).json({ message: "Not found" }); return; }
