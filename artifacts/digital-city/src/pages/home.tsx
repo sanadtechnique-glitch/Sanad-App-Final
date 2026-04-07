@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { AdBanner } from "@/components/ad-banner";
-import { PhotoAdGallery } from "@/components/PhotoAdGallery";
 import { useLang } from "@/lib/language";
 import { getSession, clearSession } from "@/lib/auth";
 import { get } from "@/lib/admin-api";
@@ -1640,18 +1639,6 @@ export default function Home() {
           3c. WHY SANAD — لماذا سند؟
       ══════════════════════════════════════════════════════════════════════ */}
       <WhySanadSection lang={lang} t={t} />
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          4. PARTNERS — شركاؤنا
-      ══════════════════════════════════════════════════════════════════════ */}
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.25 }}
-        className="px-4 sm:px-6 lg:px-10 mt-10"
-      >
-        <PhotoAdGallery />
-      </motion.section>
 
       {/* bottom spacing */}
       <div className="mt-6" />

@@ -631,23 +631,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* ── Main Content ── */}
-      <main className="flex-1 w-full max-w-7xl mx-auto pb-20 md:pb-4">
+      {/* ── Main Content (grows to push footer down) ── */}
+      <main className="flex-1 w-full max-w-7xl mx-auto pb-4">
         {children}
+      </main>
 
-        {/* ── شركاؤنا — Partners Section (all pages except home, which has its own) ── */}
-        {location !== "/home" && location !== "/" && (
-          <div className="px-4 sm:px-6 lg:px-10 mt-10">
-            <PhotoAdGallery />
-          </div>
-        )}
+      {/* ══════════════════════════════════════════════════════════
+          PAGE BOTTOM — شركاؤنا + footer  (always pinned to bottom)
+          The outer div is min-h-screen flex flex-col, main is flex-1,
+          so this section is always pushed to the very bottom.
+      ══════════════════════════════════════════════════════════ */}
+      <div className="w-full max-w-7xl mx-auto pb-20 md:pb-4">
+        {/* شركاؤنا */}
+        <div className="px-4 sm:px-6 lg:px-10 mt-10">
+          <PhotoAdGallery />
+        </div>
 
-        {/* ── Global Ad Banner — above footer, non-intrusive ── */}
+        {/* Global Ad Banner */}
         <div className="px-4 sm:px-6 mt-6 mb-4">
           <AdBanner />
         </div>
 
-        {/* ── Footer ── */}
+        {/* Footer */}
         <footer className="mt-2 mb-4 flex flex-col items-center gap-1 select-none">
           <p
             className="text-[11px] font-bold tracking-wide"
@@ -670,7 +675,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </span>
           </a>
         </footer>
-      </main>
+      </div>
 
       {/* ── Mobile Bottom Navigation ── */}
       <nav
