@@ -725,10 +725,8 @@ function MyOrdersSection({ name, t }: { name: string; t: (ar: string, fr: string
 // ─────────────────────────────────────────────────────────────────────────────
 // PANORAMIC SLIDER COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-function PromoSlider({ lang }: { lang: string }) {
-  const [active, setActive] = useState(0);
+function PromoMarquee({ lang }: { lang: string }) {
   const [slides, setSlides] = useState<PromoSlide[]>(DEFAULT_SLIDES);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     get<PromoSlide[]>("/banners").then(data => {
@@ -736,137 +734,53 @@ function PromoSlider({ lang }: { lang: string }) {
     }).catch(() => {});
   }, []);
 
-  const resetTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setActive(i => (i + 1) % slides.length);
-    }, 5000);
-  };
-
-  useEffect(() => {
-    setActive(0);
-    resetTimer();
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [slides]);
-
-  const slide = slides[active] ?? slides[0];
-
-  const goTo = (idx: number) => {
-    setActive(idx);
-    resetTimer();
-  };
+  // Duplicate items for seamless infinite loop
+  const items = [...slides, ...slides, ...slides];
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl"
-      style={{
-        aspectRatio: "16/7",
-        minHeight: 130,
-        maxHeight: 260,
-        border: "1.5px solid rgba(46,125,50,0.22)",
-        boxShadow: "0 6px 28px rgba(46,125,50,0.18), 0 1px 4px rgba(0,0,0,0.08)",
-      }}
+      className="w-full overflow-hidden"
+      style={{ height: 40, background: "transparent" }}
     >
-
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={slide.id}
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -40 }}
-          transition={{ duration: 0.45, ease: "easeInOut" }}
-          className="absolute inset-0 flex items-center justify-center px-10 sm:px-16"
-          style={{
-            background: `linear-gradient(135deg, ${slide.bgFrom || "#1A4D1F"} 0%, ${slide.bgTo || "#0D3311"} 100%)`,
-          }}
-        >
-          {/* Subtle pattern overlay */}
-          <div className="absolute inset-0 opacity-10"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 20% 50%, rgba(255,255,255,0.30) 0%, transparent 52%), " +
-                "radial-gradient(circle at 80% 50%, rgba(255,255,255,0.18) 0%, transparent 52%)",
-            }} />
-
-          {/* Accent circle decoration */}
-          <div
-            className="absolute right-5 top-1/2 -translate-y-1/2 w-24 h-24 rounded-full opacity-15"
-            style={{ background: slide.accent || "#FFA500" }}
-          />
-          <div
-            className="absolute left-5 bottom-2 w-14 h-14 rounded-full opacity-8"
-            style={{ background: slide.accent || "#FFA500" }}
-          />
-
-          {/* Text block */}
-          <div className="relative z-10 text-center w-full" dir="rtl">
-            <motion.p
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="text-xs sm:text-sm font-black mb-1.5 leading-snug"
-              style={{
-                color: slide.accent,
-                fontFamily: "'Cairo','Tajawal',sans-serif",
-                opacity: 0.95,
-                textShadow: "0 1px 4px rgba(0,0,0,0.2)",
-              }}
-            >
-              {lang === "ar" ? slide.subtitleAr : slide.subtitleFr}
-            </motion.p>
-            <motion.h2
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-xl sm:text-2xl font-black text-white leading-snug"
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0 52px",
+          width: "max-content",
+          height: "100%",
+          animation: `marquee-ltr ${Math.max(slides.length * 14, 28)}s linear infinite`,
+          willChange: "transform",
+        }}
+      >
+        {items.map((s, i) => (
+          <div key={i} className="flex items-center gap-3 flex-shrink-0">
+            <span style={{ color: "#FFA500", fontSize: 10, lineHeight: 1 }}>◆</span>
+            <span
               style={{
                 fontFamily: "'Cairo','Tajawal',sans-serif",
-                textShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                fontWeight: 800,
+                fontSize: 13,
+                color: "rgba(26,77,31,0.75)",
+                whiteSpace: "nowrap",
               }}
             >
-              {lang === "ar" ? slide.titleAr : slide.titleFr}
-            </motion.h2>
+              {lang === "ar" ? s.titleAr : s.titleFr}
+            </span>
+            {(s.subtitleAr || s.subtitleFr) && (
+              <span
+                style={{
+                  fontFamily: "'Cairo','Tajawal',sans-serif",
+                  fontWeight: 600,
+                  fontSize: 11,
+                  color: "rgba(26,77,31,0.40)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                — {lang === "ar" ? s.subtitleAr : s.subtitleFr}
+              </span>
+            )}
           </div>
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Nav arrows */}
-      {slides.length > 1 && (
-        <button
-          onClick={() => goTo((active - 1 + slides.length) % slides.length)}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all"
-          style={{ background: "rgba(46,125,50,0.35)", backdropFilter: "blur(4px)" }}
-          aria-label="Previous"
-        >
-          <ChevronRight size={14} className="text-white" />
-        </button>
-      )}
-      {slides.length > 1 && (
-        <button
-          onClick={() => goTo((active + 1) % slides.length)}
-          className="absolute left-2.5 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all"
-          style={{ background: "rgba(46,125,50,0.35)", backdropFilter: "blur(4px)" }}
-          aria-label="Next"
-        >
-          <ChevronLeft size={14} className="text-white" />
-        </button>
-      )}
-
-      {/* Dot indicators */}
-      <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
-        {slides.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => goTo(i)}
-            className="rounded-full transition-all duration-300"
-            style={{
-              width: i === active ? 18 : 6,
-              height: 6,
-              background: i === active ? "#fff" : "rgba(255,255,255,0.45)",
-              border: i === active ? "1px solid rgba(46,125,50,0.5)" : "none",
-            }}
-            aria-label={`Slide ${i + 1}`}
-          />
         ))}
       </div>
     </div>
@@ -984,16 +898,11 @@ export default function Home() {
       </header>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          PANORAMIC ADVERTISING SLIDER
+          PROMO MARQUEE — transparent slow strip
       ══════════════════════════════════════════════════════════════════════ */}
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="px-4 sm:px-6 lg:px-10 mt-4"
-      >
-        <PromoSlider lang={lang} />
-      </motion.section>
+      <div className="mt-3 border-y" style={{ borderColor: "rgba(26,77,31,0.08)" }}>
+        <PromoMarquee lang={lang} />
+      </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
           ACTIVE ORDERS BAR — real-time mini-cards (logged-in clients only)
@@ -1118,60 +1027,41 @@ export default function Home() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          ABOUT — ultra-compact strip
+          BOTTOM — شركاؤنا + footer (أسفل الصفحة)
       ══════════════════════════════════════════════════════════════════════ */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.35 }}
-        className="mx-4 mt-5 mb-2 rounded-2xl px-4 py-3 flex items-center gap-3"
-        style={{ background: "rgba(26,77,31,0.06)", border: "1px solid rgba(26,77,31,0.12)" }}
-        dir="rtl"
-      >
-        <MapPin size={14} className="text-[#1A4D1F]/40 flex-shrink-0" />
-        <p className="text-xs font-bold text-[#1A4D1F]/60 leading-snug">
-          {t(
-            "سندك في التوصيل لباب الدار — نربطك بكل ما تحتاجه في المدينة",
-            "Votre partenaire livraison à domicile — nous vous connectons à tout ce dont vous avez besoin"
-          )}
-        </p>
-      </motion.div>
+      <div className="mt-auto">
+        {/* شركاؤنا */}
+        <div className="px-4 sm:px-6 lg:px-10 mt-8">
+          <PhotoAdGallery />
+        </div>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          PHOTO AD GALLERY — 5 image slots, no text
-      ══════════════════════════════════════════════════════════════════════ */}
-      <div className="px-4 sm:px-6 lg:px-10 mt-8">
-        <PhotoAdGallery />
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          FOOTER
-      ══════════════════════════════════════════════════════════════════════ */}
-      <footer
-        className="mt-10 py-5 text-center border-t"
-        style={{
-          borderColor: "rgba(46,125,50,0.12)",
-          background: "rgba(46,125,50,0.04)",
-        }}
-      >
-        <p className="text-xs font-bold" style={{ color: "rgba(46,125,50,0.55)", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-          جميع الحقوق محفوظة © سند · Sanad
-        </p>
-        <a
-          href="tel:27777589"
-          dir="ltr"
-          className="inline-flex items-center gap-1.5 mt-1 group"
-          style={{ fontFamily: "'Outfit',sans-serif" }}
+        {/* Footer */}
+        <footer
+          className="mt-6 py-5 text-center border-t"
+          style={{
+            borderColor: "rgba(46,125,50,0.12)",
+            background: "rgba(46,125,50,0.04)",
+          }}
         >
-          <Phone size={12} style={{ color: "#1A4D1F" }} />
-          <span
-            className="text-xs font-black tracking-widest group-hover:underline"
-            style={{ color: "rgba(46,125,50,0.65)", letterSpacing: "0.10em" }}
+          <p className="text-xs font-bold" style={{ color: "rgba(46,125,50,0.55)", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+            جميع الحقوق محفوظة © سند · Sanad
+          </p>
+          <a
+            href="tel:27777589"
+            dir="ltr"
+            className="inline-flex items-center gap-1.5 mt-1 group"
+            style={{ fontFamily: "'Outfit',sans-serif" }}
           >
-            27 777 589
-          </span>
-        </a>
-      </footer>
+            <Phone size={12} style={{ color: "#1A4D1F" }} />
+            <span
+              className="text-xs font-black tracking-widest group-hover:underline"
+              style={{ color: "rgba(46,125,50,0.65)", letterSpacing: "0.10em" }}
+            >
+              27 777 589
+            </span>
+          </a>
+        </footer>
+      </div>
 
     </div>
   );

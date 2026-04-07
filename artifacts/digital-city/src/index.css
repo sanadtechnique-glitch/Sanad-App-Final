@@ -257,6 +257,7 @@
 @keyframes orbit-ccw { from { transform: rotate(0deg);    } to { transform: rotate(-360deg); } }
 @keyframes spin-cw   { from { transform: rotate(0deg);    } to { transform: rotate(360deg);  } }
 @keyframes spin-ccw  { from { transform: rotate(0deg);    } to { transform: rotate(-360deg); } }
+@keyframes marquee-ltr { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 /* keep orbit animations running during touch/scroll events */
 .orbit-running { touch-action: pan-y; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
