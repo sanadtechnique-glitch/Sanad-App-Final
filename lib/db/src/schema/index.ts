@@ -20,3 +20,4 @@ export * from "./sosRequests";
 export * from "./lawyerRequests";
 export * from "./passwordResetTokens";
 export * from "./pushSubscriptions";
+export * from "./partners";

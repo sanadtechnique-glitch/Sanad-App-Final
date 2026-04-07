@@ -3322,6 +3322,126 @@ function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// ── Partners Section ──────────────────────────────────────────────────────────
+interface PartnerLogo { id: number; name: string; imageUrl: string; isActive: boolean; sortOrder: number; }
+
+function PartnersSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const [items, setItems]   = useState<PartnerLogo[]>([]);
+  const [modal, setModal]   = useState<null | "add" | PartnerLogo>(null);
+  const [saving, setSaving] = useState(false);
+  const [errMsg, setErrMsg] = useState("");
+  const EMPTY = { name: "", imageUrl: "", isActive: true, sortOrder: 0 };
+  const [form, setForm]     = useState(EMPTY);
+
+  const load = () => get<PartnerLogo[]>("/admin/partners").then(setItems).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const openAdd  = () => { setForm(EMPTY); setErrMsg(""); setModal("add"); };
+  const openEdit = (p: PartnerLogo) => {
+    setForm({ name: p.name, imageUrl: p.imageUrl, isActive: p.isActive, sortOrder: p.sortOrder });
+    setErrMsg(""); setModal(p);
+  };
+
+  const save = async () => {
+    if (!form.imageUrl) { setErrMsg(t("صورة الشريك مطلوبة", "L'image est requise")); return; }
+    if (!form.name.trim()) { setErrMsg(t("اسم الشريك مطلوب", "Le nom est requis")); return; }
+    setSaving(true);
+    try {
+      const payload = { name: form.name.trim(), imageUrl: form.imageUrl, isActive: form.isActive, sortOrder: Number(form.sortOrder) || 0 };
+      if (modal === "add") await post("/admin/partners", payload);
+      else await patch(`/admin/partners/${(modal as PartnerLogo).id}`, payload);
+      setModal(null); load();
+    } catch (e: any) {
+      setErrMsg(e?.message || t("حدث خطأ", "Erreur"));
+    } finally { setSaving(false); }
+  };
+
+  const remove = async (id: number) => {
+    if (!confirm(t("هل تريد الحذف؟", "Confirmer ?"))) return;
+    await del(`/admin/partners/${id}`); load();
+  };
+
+  const toggleActive = async (p: PartnerLogo) => {
+    await patch(`/admin/partners/${p.id}`, { isActive: !p.isActive }); load();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-black text-[#1A4D1F]">{t("شركاء · Partenaires", "Partenaires")}</h2>
+          <p className="text-xs text-[#1A4D1F]/40 mt-0.5">{items.length} {t("شريك", "partenaire(s)")}</p>
+        </div>
+        <GoldBtn onClick={openAdd}><Plus size={14} />{t("إضافة شريك", "Ajouter")}</GoldBtn>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="glass-panel rounded-2xl p-10 text-center">
+          <p className="text-4xl mb-3">🤝</p>
+          <p className="text-[#1A4D1F]/30 font-bold">{t("لا يوجد شركاء بعد", "Aucun partenaire")}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {items.map(p => (
+            <div key={p.id} className="glass-panel rounded-2xl p-4 flex flex-col items-center gap-2 text-center">
+              {/* Circular logo preview */}
+              <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[#1A4D1F]/10 flex-shrink-0">
+                <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+              </div>
+              <p className="font-bold text-[#1A4D1F] text-sm truncate w-full">{p.name}</p>
+              <div className="flex gap-1.5">
+                <button onClick={() => toggleActive(p)}
+                  className={`p-1.5 rounded-lg border text-xs transition-all ${p.isActive ? "bg-emerald-400/10 text-emerald-500 border-emerald-400/20" : "bg-red-400/10 text-red-400 border-red-400/20"}`}
+                  title={p.isActive ? t("تعطيل","Désactiver") : t("تفعيل","Activer")}>
+                  <Power size={11} />
+                </button>
+                <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-colors"><Pencil size={12} /></button>
+                <button onClick={() => remove(p.id)} className="p-1.5 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal open={!!modal} onClose={() => { setModal(null); setErrMsg(""); }}
+        title={modal === "add" ? t("إضافة شريك","Ajouter un partenaire") : t("تعديل الشريك","Modifier le partenaire")}>
+
+        {/* Circular logo picker */}
+        <AdminImagePicker
+          value={form.imageUrl}
+          onChange={v => setForm(f => ({ ...f, imageUrl: v }))}
+          label={t("شعار الشريك (دائري)","Logo du partenaire (circulaire)")}
+          guideAr="شعار مربع 1:1 سيظهر دائرياً في الصفحة الرئيسية"
+          guideFr="Logo carré 1:1 affiché en cercle sur la page d'accueil"
+          aspect="1:1"
+          accent="#1A4D1F"
+          t={t}
+        />
+
+        <Field label={t("اسم الشريك","Nom du partenaire")}>
+          <Input value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder={t("مثال: بنك الأمل","Ex: Banque Espoir")} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("الترتيب","Ordre")}>
+            <Input type="number" value={String(form.sortOrder)} onChange={v => setForm(f => ({ ...f, sortOrder: Number(v) || 0 }))} />
+          </Field>
+          <Field label={t("ظاهر","Visible")}>
+            <Toggle checked={form.isActive} onChange={v => setForm(f => ({ ...f, isActive: v }))} label={form.isActive ? t("نعم","Oui") : t("لا","Non")} />
+          </Field>
+        </div>
+
+        {errMsg && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-400 font-bold text-center">⚠️ {errMsg}</div>
+        )}
+        <GoldBtn onClick={save} disabled={saving} className="w-full justify-center">
+          {saving ? <RefreshCw size={14} className="animate-spin mx-auto" /> : t("حفظ","Enregistrer")}
+        </GoldBtn>
+      </Modal>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // ── Ads Section ───────────────────────────────────────────────────────────────
 interface AdRow { id: number; title: string; imageUrl?: string; isActive: boolean; expiresAt?: string; clickCount: number; createdAt: string; }
 
@@ -5339,7 +5459,7 @@ function LawyerRequestsSection({ t, lang }: { t: (ar: string, fr: string) => str
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests";
+type Section = "overview" | "orders" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests" | "partners";
 
 type NavItem = { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean };
 type NavGroup = { id: string; icon: React.FC<any>; ar: string; fr: string; color: string; items: NavItem[] };
@@ -5395,6 +5515,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "banners",    icon: Megaphone, ar: "الإعلانات",       fr: "Publicités" },
       { id: "ticker",     icon: Radio,     ar: "شريط الإشهار",   fr: "Ticker Pub" },
+      { id: "partners",   icon: Users,     ar: "شركاء",           fr: "Partenaires" },
       { id: "ads",        icon: Image,     ar: "إعلانات متقدمة", fr: "Ads avancées" },
       { id: "broadcast",  icon: Radio,     ar: "بث إشعار",       fr: "Diffusion" },
       { id: "appearance", icon: Image,     ar: "المظهر والشعار", fr: "Apparence",  superOnly: true },
@@ -5681,6 +5802,7 @@ export default function Admin() {
             {active === "hotelBookings" && <HotelBookingsSection t={t} lang={lang} />}
             {active === "banners"       && <BannersSection t={t} />}
             {active === "ticker"        && <TickerSection t={t} />}
+            {active === "partners"      && <PartnersSection t={t} />}
             {active === "ads"           && <AdsSection t={t} />}
             {active === "broadcast"     && <BroadcastSection t={t} lang={lang} />}
             {active === "suppliers"     && isSuper && <SuppliersSection t={t} lang={lang} />}
