@@ -949,6 +949,130 @@ function HomeSearchBar({ lang, t }: { lang: string; t: (ar: string, fr: string) 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// WHY SANAD — لماذا سند؟
+// ─────────────────────────────────────────────────────────────────────────────
+const WHY_FEATURES = [
+  { emoji: "🚀", ar: "توصيل سريع",      fr: "Livraison rapide",    desc_ar: "نوصّل لباب الدار",          desc_fr: "Jusqu'à votre porte",     color: "#FFA500", bg: "rgba(255,165,0,0.10)" },
+  { emoji: "🏪", ar: "أفضل المحلات",    fr: "Meilleurs commerces", desc_ar: "محلات موثوقة في بنقردان",   desc_fr: "Commerces locaux vérifiés", color: "#1A4D1F", bg: "rgba(26,77,31,0.08)"  },
+  { emoji: "🔐", ar: "آمن وموثوق",      fr: "Sûr & fiable",        desc_ar: "خصوصيتك مكفولة دائماً",    desc_fr: "Votre vie privée protégée", color: "#0369A1", bg: "rgba(3,105,161,0.08)" },
+  { emoji: "📍", ar: "100% محلي",       fr: "100% Local",          desc_ar: "نخدم منطقة بنقردان",        desc_fr: "Service à Ben Guerdane",    color: "#7C3AED", bg: "rgba(124,58,237,0.08)"},
+  { emoji: "🌍", ar: "ثنائي اللغة",     fr: "Bilingue",            desc_ar: "عربي وفرنسي",               desc_fr: "Arabe et Français",          color: "#DC2626", bg: "rgba(220,38,38,0.08)" },
+  { emoji: "🕐", ar: "متاح دائماً",     fr: "Disponible 24/7",     desc_ar: "خدمة مستمرة كل يوم",       desc_fr: "Service continu chaque jour", color: "#059669", bg: "rgba(5,150,105,0.08)" },
+];
+
+function WhySanadSection({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.15 }}
+      className="px-4 sm:px-6 lg:px-10 mt-10"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6" dir="rtl">
+        <div className="flex items-center gap-2.5">
+          <span className="w-1.5 h-6 rounded-full bg-[#FFA500] block" />
+          <div>
+            <h2 className="text-xl font-black text-[#1A4D1F]">{t("لماذا سند؟", "Pourquoi Sanad ?")}</h2>
+            <p className="text-[10px] font-bold text-[#1A4D1F]/40 mt-0.5">{t("سندك في التوصيل.. لباب الدار", "Votre partenaire de livraison")}</p>
+          </div>
+        </div>
+        <span
+          className="text-2xl select-none"
+          style={{ filter: "drop-shadow(0 2px 6px rgba(255,165,0,0.4))" }}
+        >
+          🌟
+        </span>
+      </div>
+
+      {/* Feature cards grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {WHY_FEATURES.map((f, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.07 }}
+            className="rounded-2xl p-4 flex flex-col gap-2 relative overflow-hidden"
+            style={{
+              background: "#FFFFFF",
+              border: `1.5px solid ${f.color}22`,
+              boxShadow: `0 2px 12px ${f.color}14`,
+            }}
+          >
+            {/* Color accent strip */}
+            <div
+              style={{
+                position: "absolute", top: 0, right: 0, left: 0, height: 3,
+                background: f.color, borderRadius: "12px 12px 0 0",
+                opacity: 0.75,
+              }}
+            />
+            {/* Icon */}
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center mt-1"
+              style={{ background: f.bg }}
+            >
+              <span style={{ fontSize: 22 }}>{f.emoji}</span>
+            </div>
+            {/* Text */}
+            <div dir={lang === "ar" ? "rtl" : "ltr"}>
+              <p
+                style={{
+                  fontFamily: "'Cairo','Tajawal',sans-serif",
+                  fontWeight: 900,
+                  fontSize: 13,
+                  color: "#1A4D1F",
+                  lineHeight: 1.2,
+                }}
+              >
+                {lang === "ar" ? f.ar : f.fr}
+              </p>
+              <p
+                style={{
+                  fontFamily: "'Cairo','Tajawal',sans-serif",
+                  fontWeight: 500,
+                  fontSize: 10,
+                  color: "rgba(26,77,31,0.45)",
+                  marginTop: 3,
+                  lineHeight: 1.4,
+                }}
+              >
+                {lang === "ar" ? f.desc_ar : f.desc_fr}
+              </p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Bottom slogan */}
+      <div
+        className="mt-5 rounded-2xl px-5 py-4 flex items-center justify-center gap-3"
+        style={{
+          background: "linear-gradient(100deg, #1A4D1F 0%, #0D3311 100%)",
+          boxShadow: "0 4px 20px rgba(26,77,31,0.25)",
+        }}
+        dir="rtl"
+      >
+        <span style={{ fontSize: 20 }}>🤝</span>
+        <p
+          style={{
+            fontFamily: "'Cairo','Tajawal',sans-serif",
+            fontWeight: 900,
+            fontStyle: "italic",
+            fontSize: 14,
+            color: "#FFA500",
+            textAlign: "center",
+          }}
+        >
+          {t("سندك في التوصيل.. لباب الدار", "Votre partenaire de confiance à Ben Guerdane")}
+        </p>
+      </div>
+    </motion.section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ADVANCED ADS SECTION — إعلانات متقدمة
 // ─────────────────────────────────────────────────────────────────────────────
 interface AdRow {
@@ -1426,6 +1550,11 @@ export default function Home() {
           3b. ADVANCED ADS — إعلانات متقدمة
       ══════════════════════════════════════════════════════════════════════ */}
       <AdvancedAdsSection lang={lang} t={t} />
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          3c. WHY SANAD — لماذا سند؟
+      ══════════════════════════════════════════════════════════════════════ */}
+      <WhySanadSection lang={lang} t={t} />
 
       {/* ══════════════════════════════════════════════════════════════════════
           4. MY ORDERS — shown only for logged-in clients
