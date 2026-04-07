@@ -795,9 +795,11 @@ function HomeSearchBar({ lang, t }: { lang: string; t: (ar: string, fr: string) 
       <div
         className="flex items-center gap-3 rounded-2xl px-4 transition-all duration-200"
         style={{
-          background: "rgba(255,255,255,0.92)",
-          border: focused ? "2px solid #FFA500" : "2px solid rgba(26,77,31,0.15)",
-          boxShadow: focused ? "0 4px 20px rgba(255,165,0,0.18)" : "0 2px 12px rgba(26,77,31,0.07)",
+          background: "#fff",
+          border: focused ? "2px solid #FFA500" : "2px solid rgba(26,77,31,0.22)",
+          boxShadow: focused
+            ? "0 4px 20px rgba(255,165,0,0.22)"
+            : "0 3px 14px rgba(26,77,31,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
           height: 52,
         }}
       >
@@ -1303,14 +1305,20 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════════════════════════
           3. SEARCH BAR — full width between services and orders
       ══════════════════════════════════════════════════════════════════════ */}
-      <motion.section
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.2 }}
-        className="px-4 sm:px-6 lg:px-10 mt-6"
-      >
+      <div className="px-4 sm:px-6 lg:px-10 mt-4">
+        {/* Label row */}
+        <div className="flex items-center gap-2 mb-2" dir="rtl">
+          <span className="w-1 h-5 rounded-full bg-[#FFA500] block" />
+          <Search size={13} style={{ color: "#FFA500" }} />
+          <span
+            className="text-xs font-black"
+            style={{ color: "#1A4D1F", opacity: 0.65, fontFamily: "'Cairo','Tajawal',sans-serif" }}
+          >
+            {t("ابحث في المدينة الرقمية", "Rechercher dans la ville")}
+          </span>
+        </div>
         <HomeSearchBar lang={lang} t={t} />
-      </motion.section>
+      </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
           3b. ADVANCED ADS — إعلانات متقدمة
