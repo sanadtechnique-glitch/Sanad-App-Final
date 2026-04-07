@@ -3452,6 +3452,18 @@ function AdsSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [editing, setEditing]   = useState<AdRow | null>(null);
   const [form, setForm]         = useState({ title: "", imageUrl: "", expiresAt: "", isActive: true });
   const [saving, setSaving]     = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = async (file: File) => {
+    const token = getSession()?.token || getSessionToken() || "";
+    if (!token) return;
+    setUploading(true);
+    try {
+      const url = await uploadImageFileAdmin(file, token);
+      setForm(f => ({ ...f, imageUrl: url }));
+    } catch { /* ignore */ } finally { setUploading(false); }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -3593,10 +3605,34 @@ function AdsSection({ t }: { t: (ar: string, fr: string) => string }) {
                     className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/60" />
                 </div>
                 <div>
-                  <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("رابط الصورة (URL)","URL de l'image")}</label>
-                  <input value={form.imageUrl} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
-                    placeholder="https://..."
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/60" />
+                  <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("صورة الإعلان","Image de la publicité")}</label>
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }} />
+                  {form.imageUrl ? (
+                    <div className="relative rounded-xl overflow-hidden border border-[#1A4D1F]/20" style={{ height: 110 }}>
+                      <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setForm(f => ({ ...f, imageUrl: "" }))}
+                        className="absolute top-2 left-2 bg-white/90 rounded-full p-1 shadow hover:bg-red-50 transition-all">
+                        <X size={12} className="text-red-500" />
+                      </button>
+                      <button
+                        onClick={() => fileRef.current?.click()}
+                        className="absolute top-2 right-2 bg-white/90 rounded-full p-1.5 shadow hover:bg-[#1A4D1F]/10 transition-all">
+                        <Upload size={12} className="text-[#1A4D1F]" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => fileRef.current?.click()}
+                      disabled={uploading}
+                      className="w-full flex flex-col items-center justify-center gap-2 py-5 rounded-xl border-2 border-dashed border-[#1A4D1F]/20 bg-[#1A4D1F]/3 hover:bg-[#1A4D1F]/8 transition-all">
+                      {uploading
+                        ? <RefreshCw size={18} className="animate-spin text-[#1A4D1F]/40" />
+                        : <><Upload size={18} className="text-[#1A4D1F]/40" /><span className="text-xs font-black text-[#1A4D1F]/40">{t("اضغط لرفع صورة","Cliquer pour importer")}</span></>
+                      }
+                    </button>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-black text-[#1A4D1F]/60 block mb-1">{t("تاريخ الانتهاء","Date d'expiration")}</label>

@@ -1111,56 +1111,79 @@ function AdvancedAdsSection({ lang, t }: { lang: string; t: (ar: string, fr: str
 
       {/* Ads horizontal scroll */}
       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
-        {ads.map(ad => (
-          <div
-            key={ad.id}
-            className="flex-shrink-0 snap-start rounded-2xl overflow-hidden relative"
-            style={{
-              width: 220,
-              height: 120,
-              background: ad.imageUrl ? "transparent" : "linear-gradient(135deg,#1A4D1F,#0D3311)",
-              border: "1.5px solid rgba(26,77,31,0.10)",
-              boxShadow: "0 4px 16px rgba(26,77,31,0.10)",
-            }}
-          >
-            {ad.imageUrl ? (
-              <>
-                <img
-                  src={ad.imageUrl}
-                  alt={ad.title}
-                  className="w-full h-full object-cover"
-                  onError={e => {
-                    (e.currentTarget as HTMLImageElement).style.display = "none";
-                    (e.currentTarget.nextElementSibling as HTMLElement | null)?.classList.remove("hidden");
-                  }}
-                />
-                {/* Gradient overlay for text readability */}
-                <div
-                  className="absolute inset-0"
-                  style={{ background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 60%)" }}
-                />
-                <div className="absolute bottom-0 inset-x-0 px-3 py-2" dir="rtl">
-                  <p
-                    className="text-white text-xs font-black line-clamp-2"
-                    style={{ fontFamily: "'Cairo','Tajawal',sans-serif", textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}
-                  >
-                    {ad.title}
-                  </p>
+        {ads.map((ad, idx) => {
+          const palettes = [
+            { bg: "linear-gradient(135deg,#1A4D1F 0%,#2E7D32 60%,#388E3C 100%)", accent: "#FFA500", circle: "rgba(255,165,0,0.15)" },
+            { bg: "linear-gradient(135deg,#B45309 0%,#D97706 60%,#F59E0B 100%)", accent: "#fff",     circle: "rgba(255,255,255,0.15)" },
+            { bg: "linear-gradient(135deg,#7C3AED 0%,#8B5CF6 60%,#A78BFA 100%)", accent: "#FCD34D", circle: "rgba(252,211,77,0.15)" },
+            { bg: "linear-gradient(135deg,#0F766E 0%,#0D9488 60%,#14B8A6 100%)", accent: "#FFF",     circle: "rgba(255,255,255,0.15)" },
+            { bg: "linear-gradient(135deg,#BE185D 0%,#EC4899 60%,#F472B6 100%)", accent: "#FCD34D", circle: "rgba(252,211,77,0.15)" },
+          ];
+          const p = palettes[idx % palettes.length];
+          return (
+            <div
+              key={ad.id}
+              className="flex-shrink-0 snap-start rounded-2xl overflow-hidden relative cursor-pointer"
+              style={{
+                width: 230,
+                height: 128,
+                boxShadow: "0 6px 20px rgba(0,0,0,0.13)",
+              }}
+              onClick={() => {
+                fetch(`/api/ads/${ad.id}/click`, { method: "POST" }).catch(() => {});
+              }}
+            >
+              {ad.imageUrl ? (
+                <>
+                  <img
+                    src={ad.imageUrl}
+                    alt={ad.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div
+                    className="absolute inset-0"
+                    style={{ background: "linear-gradient(to top, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)" }}
+                  />
+                  <div className="absolute bottom-0 inset-x-0 px-3 py-2.5" dir="rtl">
+                    <p
+                      className="text-white text-xs font-black line-clamp-2 leading-relaxed"
+                      style={{ fontFamily: "'Cairo','Tajawal',sans-serif", textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}
+                    >
+                      {ad.title}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-full relative" style={{ background: p.bg }}>
+                  {/* Decorative circles */}
+                  <div className="absolute -top-6 -left-6 w-24 h-24 rounded-full" style={{ background: p.circle }} />
+                  <div className="absolute -bottom-4 -right-4 w-16 h-16 rounded-full" style={{ background: p.circle }} />
+                  {/* Content */}
+                  <div className="absolute inset-0 flex flex-col justify-between p-3.5" dir="rtl">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.2)" }}>
+                        <Megaphone size={12} style={{ color: p.accent }} />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wide" style={{ color: p.accent, opacity: 0.9 }}>
+                        {lang === "ar" ? "إعلان" : "Publicité"}
+                      </span>
+                    </div>
+                    <p
+                      className="text-white text-sm font-black leading-snug line-clamp-2"
+                      style={{ fontFamily: "'Cairo','Tajawal',sans-serif", textShadow: "0 1px 3px rgba(0,0,0,0.25)" }}
+                    >
+                      {ad.title}
+                    </p>
+                    <div className="flex items-center gap-1" style={{ color: p.accent }}>
+                      <span className="text-[10px] font-black">{lang === "ar" ? "اعرف أكثر" : "En savoir plus"}</span>
+                      <ChevronLeft size={10} />
+                    </div>
+                  </div>
                 </div>
-              </>
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3" dir="rtl">
-                <Megaphone size={22} className="text-[#FFA500] opacity-80" />
-                <p
-                  className="text-white text-xs font-black text-center leading-tight"
-                  style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}
-                >
-                  {ad.title}
-                </p>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
     </motion.section>
   );
