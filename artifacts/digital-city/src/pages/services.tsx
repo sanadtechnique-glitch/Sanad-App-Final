@@ -94,13 +94,24 @@ export default function Services() {
   }, [search]);
 
   useEffect(() => {
-    // Taxi has its own page — redirect immediately
-    if (active === "taxi") { navigate("/taxi"); return; }
+    // Categories with dedicated pages — redirect immediately
+    if (active === "taxi")       { navigate("/taxi");       return; }
+    if (active === "car_rental") { navigate("/car-rental"); return; }
+    if (active === "sos")        { navigate("/sos");        return; }
+    if (active === "lawyer")     { navigate("/lawyer");     return; }
 
     setLoading(true); setHasError(false);
+    // Exclude special categories from the "all" list (they have dedicated pages)
+    const DEDICATED = ["car_rental", "sos", "lawyer", "taxi"];
     const path = active === "all" ? "/services" : `/services?category=${active}`;
     get<Supplier[]>(path)
-      .then(data => { setSuppliers(data); setLoading(false); })
+      .then(data => {
+        const filtered = active === "all"
+          ? data.filter((s: Supplier) => !DEDICATED.includes(s.category))
+          : data;
+        setSuppliers(filtered);
+        setLoading(false);
+      })
       .catch(() => { setHasError(true); setLoading(false); });
   }, [active, navigate]);
 

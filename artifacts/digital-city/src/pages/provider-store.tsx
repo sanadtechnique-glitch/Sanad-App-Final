@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Layout } from "@/components/layout";
 import { useLang } from "@/lib/language";
@@ -8,6 +8,13 @@ import { get } from "@/lib/admin-api";
 import { Plus, Minus, Package, Star, ArrowRight, ChevronLeft } from "lucide-react";
 import { AdCarousel } from "@/components/AdCarousel";
 import { cn } from "@/lib/utils";
+
+const CATEGORY_REDIRECT: Record<string, string> = {
+  car_rental: "/car-rental",
+  sos: "/sos",
+  lawyer: "/lawyer",
+  taxi: "/taxi",
+};
 
 interface Supplier {
   id: number; name: string; nameAr: string; category: string;
@@ -25,6 +32,7 @@ export default function ProviderStore() {
   const { id } = useParams<{ id: string }>();
   const { lang, t, isRTL } = useLang();
   const { addItem, updateQty, removeItem, cart } = useCart();
+  const [, navigate] = useLocation();
 
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
@@ -37,6 +45,11 @@ export default function ProviderStore() {
       get<Supplier>(`/suppliers/${id}`).catch(() => null),
       get<Article[]>(`/articles?supplierId=${id}`).catch(() => []),
     ]).then(([sup, arts]) => {
+      // Suppliers with dedicated pages — redirect there instead of showing product catalog
+      if (sup && CATEGORY_REDIRECT[sup.category]) {
+        navigate(CATEGORY_REDIRECT[sup.category]);
+        return;
+      }
       setSupplier(sup || null);
       setArticles(Array.isArray(arts) ? arts.filter((a: Article) => a.isAvailable) : []);
     }).finally(() => setLoading(false));

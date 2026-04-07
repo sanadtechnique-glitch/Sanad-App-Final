@@ -172,7 +172,7 @@ function Router() {
         {() => <ProtectedRoute component={Provider} roles={["provider"]} />}
       </Route>
       <Route path="/delivery">
-        {() => <ProtectedRoute component={Delivery} roles={["delivery"]} />}
+        {() => <ProtectedRoute component={Delivery} roles={["delivery", "driver"]} />}
       </Route>
 
       {/* ── Taxi pages ── */}
