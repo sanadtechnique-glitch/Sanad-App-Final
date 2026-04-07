@@ -235,13 +235,13 @@ function OrbitSystem({ lang }: { lang: string }) {
 
   // Responsive sizing — fills the full available width
   const CX     = cw / 2;                        // center X
-  const CY     = 215;                            // center Y (fixed, leaves room for bottom labels)
-  const R_IN   = Math.round(cw * 0.272);        // inner orbit radius  ≈ 106px @ 390
-  const R_OUT  = Math.round(cw * 0.444);        // outer orbit radius  ≈ 173px @ 390
-  const S_IN   = Math.round(cw * 0.196);        // inner circle px     ≈ 76px  @ 390
-  const S_OUT  = Math.round(cw * 0.172);        // outer circle px     ≈ 67px  @ 390
-  const BADGE  = Math.round(cw * 0.226);        // center badge px     ≈ 88px  @ 390
-  const HEIGHT = CY * 2 + 30;                   // total height        ≈ 460px
+  const CY     = 250;                            // center Y  ≈ 250px
+  const R_IN   = Math.round(cw * 0.308);        // inner orbit radius  ≈ 120px @ 390
+  const R_OUT  = Math.round(cw * 0.484);        // outer orbit radius  ≈ 189px @ 390
+  const S_IN   = Math.round(cw * 0.240);        // inner circle px     ≈ 94px  @ 390
+  const S_OUT  = Math.round(cw * 0.218);        // outer circle px     ≈ 85px  @ 390
+  const BADGE  = Math.round(cw * 0.264);        // center badge px     ≈ 103px @ 390
+  const HEIGHT = CY * 2 + 40;                   // total height        ≈ 540px
 
   return (
     <div className="w-full overflow-hidden orbit-running" style={{ height: HEIGHT }}>
@@ -1046,15 +1046,15 @@ export default function Home() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex items-center justify-between mb-1 px-4 sm:px-6"
+          className="flex items-center justify-between mb-2 px-4 sm:px-6"
           dir="rtl"
         >
-          <div className="flex items-center gap-2">
-            <span className="w-1 h-5 rounded-full bg-[#FFA500] block flex-shrink-0" />
-            <h2 className="text-base font-black text-[#1A4D1F]">{t("خدماتنا", "Nos Services")}</h2>
+          <div className="flex items-center gap-2.5">
+            <span className="w-1.5 h-6 rounded-full bg-[#FFA500] block flex-shrink-0" />
+            <h2 className="text-xl font-black text-[#1A4D1F]">{t("خدماتنا", "Nos Services")}</h2>
           </div>
           <Link href="/services">
-            <span className="text-[11px] font-black text-[#FFA500] border border-[#FFA500]/30 px-2.5 py-1 rounded-full">
+            <span className="text-xs font-black text-[#FFA500] border border-[#FFA500]/30 px-3 py-1.5 rounded-full">
               {t("الكل", "Tout")} ←
             </span>
           </Link>
