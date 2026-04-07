@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { serviceProvidersTable, taxiRequestsTable, usersTable } from "@workspace/db/schema";
+import { taxiDriversTable, taxiRequestsTable, usersTable } from "@workspace/db/schema";
 import { eq, and, not, inArray, gte, lte, desc } from "drizzle-orm";
 import { emitTaxiRequest, emitTaxiResponse, emitTaxiDriverUpdate } from "../lib/socket";
 import { requireAuth, requireAdmin } from "../lib/authMiddleware";
@@ -8,30 +8,26 @@ import { requireAuth, requireAdmin } from "../lib/authMiddleware";
 const router = Router();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TYPE ALIAS — a taxi driver is a ServiceProvider with category="taxi"
-// ─────────────────────────────────────────────────────────────────────────────
-type TaxiProvider = typeof serviceProvidersTable.$inferSelect;
-
-// ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Parse rejected driver IDs list stored as comma-separated string */
 function parseRejected(raw: string | null): number[] {
   if (!raw) return [];
   return raw.split(",").map(Number).filter(n => !isNaN(n) && n > 0);
 }
 
-async function findNextDriver(rejectedIds: number[]): Promise<TaxiProvider | null> {
+/** Find the next available taxi driver excluding already-rejected ones */
+async function findNextDriver(rejectedIds: number[]): Promise<typeof taxiDriversTable.$inferSelect | null> {
   const [driver] = await db
     .select()
-    .from(serviceProvidersTable)
+    .from(taxiDriversTable)
     .where(
       and(
-        eq(serviceProvidersTable.category, "taxi"),
-        eq(serviceProvidersTable.isAvailable, true),
-        eq(serviceProvidersTable.isActive, true),
+        eq(taxiDriversTable.isAvailable, true),
+        eq(taxiDriversTable.isActive, true),
         rejectedIds.length > 0
-          ? not(inArray(serviceProvidersTable.id, rejectedIds))
+          ? not(inArray(taxiDriversTable.id, rejectedIds))
           : undefined
       )
     )
@@ -39,7 +35,13 @@ async function findNextDriver(rejectedIds: number[]): Promise<TaxiProvider | nul
   return driver ?? null;
 }
 
-async function findBusyDriver(rejectedIds: number[]): Promise<TaxiProvider | null> {
+/**
+ * Find a driver who is currently on an active (in_progress) ride.
+ * Used as fallback when no available driver exists — notify them of a new request
+ * so they can handle it after finishing the current ride.
+ */
+async function findBusyDriver(rejectedIds: number[]): Promise<typeof taxiDriversTable.$inferSelect | null> {
+  // Find drivers who have an in_progress ride assigned to them
   const [activeReq] = await db
     .select({ assignedDriverId: taxiRequestsTable.assignedDriverId })
     .from(taxiRequestsTable)
@@ -51,12 +53,11 @@ async function findBusyDriver(rejectedIds: number[]): Promise<TaxiProvider | nul
 
   const [driver] = await db
     .select()
-    .from(serviceProvidersTable)
+    .from(taxiDriversTable)
     .where(
       and(
-        eq(serviceProvidersTable.category, "taxi"),
-        eq(serviceProvidersTable.id, activeReq.assignedDriverId),
-        eq(serviceProvidersTable.isActive, true)
+        eq(taxiDriversTable.id, activeReq.assignedDriverId),
+        eq(taxiDriversTable.isActive, true)
       )
     )
     .limit(1);
@@ -65,7 +66,7 @@ async function findBusyDriver(rejectedIds: number[]): Promise<TaxiProvider | nul
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PUBLIC — GET /api/taxi/request/:id/status
+// PUBLIC — GET /api/taxi/request/:id/status  (customer polls)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/taxi/request/:id/status", async (req, res) => {
   const id = parseInt(req.params.id);
@@ -82,10 +83,10 @@ router.get("/taxi/request/:id/status", async (req, res) => {
   if (request.assignedDriverId) {
     const [d] = await db
       .select()
-      .from(serviceProvidersTable)
-      .where(and(eq(serviceProvidersTable.id, request.assignedDriverId), eq(serviceProvidersTable.category, "taxi")));
+      .from(taxiDriversTable)
+      .where(eq(taxiDriversTable.id, request.assignedDriverId));
     if (d) {
-      driverInfo = { name: d.nameAr, phone: d.phone ?? "", carModel: d.carModel ?? null, carColor: d.carColor ?? null, carPlate: d.carPlate ?? null };
+      driverInfo = { name: d.name, phone: d.phone, carModel: d.carModel, carColor: d.carColor, carPlate: d.carPlate };
     }
   }
 
@@ -93,7 +94,7 @@ router.get("/taxi/request/:id/status", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER — POST /api/taxi/request
+// CUSTOMER — POST /api/taxi/request  (create a new taxi request)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/taxi/request", async (req, res) => {
   const {
@@ -123,6 +124,7 @@ router.post("/taxi/request", async (req, res) => {
     return;
   }
 
+  // Block customer from making a new request if they already have an active one
   if (customerId) {
     const [existingActive] = await db
       .select({ id: taxiRequestsTable.id, status: taxiRequestsTable.status })
@@ -145,8 +147,11 @@ router.post("/taxi/request", async (req, res) => {
     }
   }
 
+  // 1) Try to find an available driver first
   const firstDriver = await findNextDriver([]);
+  // 2) If no available driver, try a busy one (currently on an in_progress ride)
   const busyDriver  = firstDriver ? null : await findBusyDriver([]);
+
   const chosenDriver  = firstDriver ?? busyDriver;
   const isBusyDriver  = !firstDriver && !!busyDriver;
 
@@ -163,24 +168,33 @@ router.post("/taxi/request", async (req, res) => {
       notes:             notes?.trim() ?? null,
       commissionType,
       fixedAmount:       fixedAmount ?? null,
+      // Busy driver gets "pending" too — they'll see a queued banner and handle it after current ride
       status:            chosenDriver ? "pending" : "searching",
       assignedDriverId:  chosenDriver?.id ?? null,
       rejectedDriverIds: "",
     })
     .returning();
 
-  if (chosenDriver?.linkedUserId) {
-    emitTaxiRequest(chosenDriver.linkedUserId, {
-      requestId:      request.id,
-      customerName:   request.customerName,
-      customerPhone:  request.customerPhone,
-      pickupAddress:  request.pickupAddress,
-      dropoffAddress: request.dropoffAddress,
-      notes:          request.notes,
-      commissionType: request.commissionType,
-      fixedAmount:    request.fixedAmount,
-      isQueued:       isBusyDriver,
-    });
+  // Notify the chosen driver via socket
+  if (chosenDriver) {
+    const [driverUser] = await db
+      .select({ userId: taxiDriversTable.userId })
+      .from(taxiDriversTable)
+      .where(eq(taxiDriversTable.id, chosenDriver.id));
+
+    if (driverUser) {
+      emitTaxiRequest(driverUser.userId, {
+        requestId:      request.id,
+        customerName:   request.customerName,
+        customerPhone:  request.customerPhone,
+        pickupAddress:  request.pickupAddress,
+        dropoffAddress: request.dropoffAddress,
+        notes:          request.notes,
+        commissionType: request.commissionType,
+        fixedAmount:    request.fixedAmount,
+        isQueued:       isBusyDriver,   // <-- tells driver it's for after current ride
+      });
+    }
   }
 
   res.status(201).json(request);
@@ -200,10 +214,11 @@ router.post("/taxi/request/:id/accept", requireAuth, async (req, res) => {
     return;
   }
 
+  // Get the taxi driver record linked to this user
   const [taxiDriver] = await db
     .select()
-    .from(serviceProvidersTable)
-    .where(and(eq(serviceProvidersTable.category, "taxi"), eq(serviceProvidersTable.linkedUserId, driverUserId)));
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
 
   if (!taxiDriver) {
     res.status(403).json({ message: "غير مرخص · Non autorisé" });
@@ -226,12 +241,15 @@ router.post("/taxi/request/:id/accept", requireAuth, async (req, res) => {
     .where(eq(taxiRequestsTable.id, id))
     .returning();
 
+  // NOTE: driver stays available until customer confirms
+
+  // Notify customer — waiting for their confirmation
   if (request.customerId) {
     emitTaxiResponse(request.customerId, {
       requestId:   id,
       status:      "accepted",
       etaMinutes,
-      driverName:  taxiDriver.nameAr,
+      driverName:  taxiDriver.name,
       driverPhone: taxiDriver.phone,
       carModel:    taxiDriver.carModel,
       carColor:    taxiDriver.carColor,
@@ -243,7 +261,7 @@ router.post("/taxi/request/:id/accept", requireAuth, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER — POST /api/taxi/request/:id/confirm
+// CUSTOMER — POST /api/taxi/request/:id/confirm  (customer confirms driver ETA)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/taxi/request/:id/confirm", async (req, res) => {
   const id = parseInt(req.params.id);
@@ -264,19 +282,21 @@ router.post("/taxi/request/:id/confirm", async (req, res) => {
     .set({ status: "in_progress", updatedAt: new Date() })
     .where(eq(taxiRequestsTable.id, id));
 
+  // Mark driver as unavailable now that the ride is confirmed
   if (request.assignedDriverId) {
     await db
-      .update(serviceProvidersTable)
+      .update(taxiDriversTable)
       .set({ isAvailable: false })
-      .where(and(eq(serviceProvidersTable.id, request.assignedDriverId), eq(serviceProvidersTable.category, "taxi")));
+      .where(eq(taxiDriversTable.id, request.assignedDriverId));
 
-    const [driverProvider] = await db
-      .select({ linkedUserId: serviceProvidersTable.linkedUserId })
-      .from(serviceProvidersTable)
-      .where(and(eq(serviceProvidersTable.id, request.assignedDriverId), eq(serviceProvidersTable.category, "taxi")));
+    // Notify driver: customer confirmed → go pick them up
+    const [driverUser] = await db
+      .select({ userId: taxiDriversTable.userId })
+      .from(taxiDriversTable)
+      .where(eq(taxiDriversTable.id, request.assignedDriverId));
 
-    if (driverProvider?.linkedUserId) {
-      emitTaxiDriverUpdate(driverProvider.linkedUserId, {
+    if (driverUser) {
+      emitTaxiDriverUpdate(driverUser.userId, {
         status:        "confirmed",
         requestId:     id,
         customerName:  request.customerName,
@@ -289,7 +309,7 @@ router.post("/taxi/request/:id/confirm", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER — POST /api/taxi/request/:id/decline
+// CUSTOMER — POST /api/taxi/request/:id/decline  (customer rejects driver ETA)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/taxi/request/:id/decline", async (req, res) => {
   const id = parseInt(req.params.id);
@@ -310,14 +330,15 @@ router.post("/taxi/request/:id/decline", async (req, res) => {
     .set({ status: "cancelled", updatedAt: new Date() })
     .where(eq(taxiRequestsTable.id, id));
 
+  // Notify driver: customer declined → they stay available
   if (request.assignedDriverId) {
-    const [driverProvider] = await db
-      .select({ linkedUserId: serviceProvidersTable.linkedUserId })
-      .from(serviceProvidersTable)
-      .where(and(eq(serviceProvidersTable.id, request.assignedDriverId), eq(serviceProvidersTable.category, "taxi")));
+    const [driverUser] = await db
+      .select({ userId: taxiDriversTable.userId })
+      .from(taxiDriversTable)
+      .where(eq(taxiDriversTable.id, request.assignedDriverId));
 
-    if (driverProvider?.linkedUserId) {
-      emitTaxiDriverUpdate(driverProvider.linkedUserId, {
+    if (driverUser) {
+      emitTaxiDriverUpdate(driverUser.userId, {
         status:    "declined",
         requestId: id,
       });
@@ -338,8 +359,8 @@ router.post("/taxi/request/:id/reject", requireAuth, async (req, res) => {
 
   const [taxiDriver] = await db
     .select()
-    .from(serviceProvidersTable)
-    .where(and(eq(serviceProvidersTable.category, "taxi"), eq(serviceProvidersTable.linkedUserId, driverUserId)));
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
 
   if (!taxiDriver) {
     res.status(403).json({ message: "غير مرخص · Non autorisé" });
@@ -356,13 +377,16 @@ router.post("/taxi/request/:id/reject", requireAuth, async (req, res) => {
     return;
   }
 
+  // Add this driver to rejected list
   const rejectedIds = parseRejected(request.rejectedDriverIds);
   rejectedIds.push(taxiDriver.id);
   const rejectedStr = rejectedIds.join(",");
 
+  // Find next driver
   const nextDriver = await findNextDriver(rejectedIds);
 
   if (nextDriver) {
+    // Assign to next driver
     await db
       .update(taxiRequestsTable)
       .set({
@@ -373,8 +397,14 @@ router.post("/taxi/request/:id/reject", requireAuth, async (req, res) => {
       })
       .where(eq(taxiRequestsTable.id, id));
 
-    if (nextDriver.linkedUserId) {
-      emitTaxiRequest(nextDriver.linkedUserId, {
+    // Notify next driver
+    const [nextDriverUser] = await db
+      .select({ userId: taxiDriversTable.userId })
+      .from(taxiDriversTable)
+      .where(eq(taxiDriversTable.id, nextDriver.id));
+
+    if (nextDriverUser) {
+      emitTaxiRequest(nextDriverUser.userId, {
         requestId:     request.id,
         customerName:  request.customerName,
         customerPhone: request.customerPhone,
@@ -388,6 +418,7 @@ router.post("/taxi/request/:id/reject", requireAuth, async (req, res) => {
 
     res.json({ status: "searching", message: "تم إرسال الطلب لسائق آخر" });
   } else {
+    // No driver available — inform customer
     await db
       .update(taxiRequestsTable)
       .set({
@@ -398,6 +429,7 @@ router.post("/taxi/request/:id/reject", requireAuth, async (req, res) => {
       })
       .where(eq(taxiRequestsTable.id, id));
 
+    // Notify customer: no driver found
     if (request.customerId) {
       emitTaxiResponse(request.customerId, {
         requestId: id,
@@ -411,35 +443,35 @@ router.post("/taxi/request/:id/reject", requireAuth, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DRIVER — GET /api/taxi/driver/current
+// DRIVER — GET /api/taxi/driver/current  (driver full state: pending / awaiting / active)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/taxi/driver/current", requireAuth, async (req, res) => {
   const driverUserId = (req as any).authSession?.userId;
 
   const [taxiDriver] = await db
     .select()
-    .from(serviceProvidersTable)
-    .where(and(eq(serviceProvidersTable.category, "taxi"), eq(serviceProvidersTable.linkedUserId, driverUserId)));
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
 
   if (!taxiDriver) { res.status(403).json({ message: "غير مرخص" }); return; }
 
   const [pendingReq, awaitingReq, activeReq] = await Promise.all([
+    // Driver received request, waiting for their accept/reject
     db.select().from(taxiRequestsTable)
       .where(and(eq(taxiRequestsTable.assignedDriverId, taxiDriver.id), eq(taxiRequestsTable.status, "pending")))
       .orderBy(taxiRequestsTable.createdAt).limit(1).then(r => r[0] ?? null),
+    // Driver accepted + set ETA, waiting for customer confirmation
     db.select().from(taxiRequestsTable)
       .where(and(eq(taxiRequestsTable.assignedDriverId, taxiDriver.id), eq(taxiRequestsTable.status, "accepted")))
       .limit(1).then(r => r[0] ?? null),
+    // Customer confirmed → driver en route
     db.select().from(taxiRequestsTable)
       .where(and(eq(taxiRequestsTable.assignedDriverId, taxiDriver.id), eq(taxiRequestsTable.status, "in_progress")))
       .limit(1).then(r => r[0] ?? null),
   ]);
 
-  // Return with same field names as old taxiDriversTable for frontend compatibility
-  const driver = { ...taxiDriver, name: taxiDriver.nameAr, userId: taxiDriver.linkedUserId };
-
   res.json({
-    driver,
+    driver:          taxiDriver,
     pendingRequest:  pendingReq,
     awaitingRequest: awaitingReq,
     activeRequest:   activeReq,
@@ -447,15 +479,15 @@ router.get("/taxi/driver/current", requireAuth, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DRIVER — GET /api/taxi/driver/accepted  (backward compat)
+// DRIVER — GET /api/taxi/driver/accepted  (kept for backward compat — returns in_progress)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/taxi/driver/accepted", requireAuth, async (req, res) => {
   const driverUserId = (req as any).authSession?.userId;
 
   const [taxiDriver] = await db
     .select()
-    .from(serviceProvidersTable)
-    .where(and(eq(serviceProvidersTable.category, "taxi"), eq(serviceProvidersTable.linkedUserId, driverUserId)));
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
 
   if (!taxiDriver) { res.status(403).json({ message: "غير مرخص" }); return; }
 
@@ -470,12 +502,11 @@ router.get("/taxi/driver/accepted", requireAuth, async (req, res) => {
     )
     .limit(1);
 
-  const driver = { ...taxiDriver, name: taxiDriver.nameAr, userId: taxiDriver.linkedUserId };
-  res.json({ driver, activeRequest: request ?? null });
+  res.json({ driver: taxiDriver, activeRequest: request ?? null });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DRIVER — POST /api/taxi/driver/complete/:id
+// DRIVER — POST /api/taxi/driver/complete/:id  (complete the ride)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/taxi/driver/complete/:id", requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
@@ -483,8 +514,8 @@ router.post("/taxi/driver/complete/:id", requireAuth, async (req, res) => {
 
   const [taxiDriver] = await db
     .select()
-    .from(serviceProvidersTable)
-    .where(and(eq(serviceProvidersTable.category, "taxi"), eq(serviceProvidersTable.linkedUserId, driverUserId)));
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
 
   if (!taxiDriver) { res.status(403).json({ message: "غير مرخص" }); return; }
 
@@ -498,16 +529,18 @@ router.post("/taxi/driver/complete/:id", requireAuth, async (req, res) => {
       )
     );
 
+  // Make driver available again
   await db
-    .update(serviceProvidersTable)
+    .update(taxiDriversTable)
     .set({ isAvailable: true })
-    .where(and(eq(serviceProvidersTable.id, taxiDriver.id), eq(serviceProvidersTable.category, "taxi")));
+    .where(eq(taxiDriversTable.id, taxiDriver.id));
 
   res.json({ success: true });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DRIVER — GET /api/taxi/driver/history
+// DRIVER — GET /api/taxi/driver/history  (completed rides + commission totals)
+// Query params: from=YYYY-MM-DD  to=YYYY-MM-DD
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/taxi/driver/history", requireAuth, async (req, res) => {
   const driverUserId = (req as any).authSession?.userId;
@@ -515,8 +548,8 @@ router.get("/taxi/driver/history", requireAuth, async (req, res) => {
 
   const [taxiDriver] = await db
     .select()
-    .from(serviceProvidersTable)
-    .where(and(eq(serviceProvidersTable.category, "taxi"), eq(serviceProvidersTable.linkedUserId, driverUserId)));
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, driverUserId));
 
   if (!taxiDriver) { res.status(403).json({ message: "غير مرخص" }); return; }
 
@@ -556,7 +589,7 @@ router.get("/taxi/driver/history", requireAuth, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER — GET /api/taxi/customer/history
+// CUSTOMER — GET /api/taxi/customer/history  (all rides for a logged-in customer)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/taxi/customer/history", requireAuth, async (req, res) => {
   const customerUserId = (req as any).authSession?.userId;
@@ -581,11 +614,12 @@ router.get("/taxi/customer/history", requireAuth, async (req, res) => {
     .where(and(...conditions))
     .orderBy(desc(taxiRequestsTable.createdAt));
 
+  // Attach driver info for each ride that had a driver
   const driverIds = [...new Set(rides.map(r => r.assignedDriverId).filter(Boolean))] as number[];
   const drivers = driverIds.length > 0
-    ? await db.select().from(serviceProvidersTable).where(and(eq(serviceProvidersTable.category, "taxi"), inArray(serviceProvidersTable.id, driverIds)))
+    ? await db.select().from(taxiDriversTable).where(inArray(taxiDriversTable.id, driverIds))
     : [];
-  const driverMap = Object.fromEntries(drivers.map(d => [d.id, { ...d, name: d.nameAr, userId: d.linkedUserId }]));
+  const driverMap = Object.fromEntries(drivers.map(d => [d.id, d]));
 
   const enriched = rides.map(r => ({
     ...r,
@@ -596,25 +630,15 @@ router.get("/taxi/customer/history", requireAuth, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADMIN — GET /api/admin/taxi/drivers  (now returns from service_providers)
+// ADMIN — GET /api/admin/taxi/drivers
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/admin/taxi/drivers", requireAdmin, async (req, res) => {
-  const drivers = await db
-    .select()
-    .from(serviceProvidersTable)
-    .where(eq(serviceProvidersTable.category, "taxi"))
-    .orderBy(serviceProvidersTable.id);
-  // Map to old shape for admin UI compatibility
-  res.json(drivers.map(d => ({
-    id: d.id, userId: d.linkedUserId, name: d.nameAr, phone: d.phone,
-    carModel: d.carModel, carColor: d.carColor, carPlate: d.carPlate,
-    isAvailable: d.isAvailable, isActive: d.isActive,
-    lat: d.latitude, lng: d.longitude, createdAt: d.createdAt,
-  })));
+  const drivers = await db.select().from(taxiDriversTable).orderBy(taxiDriversTable.id);
+  res.json(drivers);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADMIN — POST /api/admin/taxi/drivers
+// ADMIN — POST /api/admin/taxi/drivers  (register new taxi driver)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/admin/taxi/drivers", requireAdmin, async (req, res) => {
   const { name, phone, password, carModel, carColor, carPlate } = req.body as {
@@ -627,6 +651,7 @@ router.post("/admin/taxi/drivers", requireAdmin, async (req, res) => {
     return;
   }
 
+  // Create user with taxi_driver role
   const baseUsername = `taxi_${phone.trim().replace(/\D/g, "")}`;
 
   const [user] = await db
@@ -641,39 +666,29 @@ router.post("/admin/taxi/drivers", requireAdmin, async (req, res) => {
     })
     .returning();
 
-  const [provider] = await db
-    .insert(serviceProvidersTable)
+  const [driver] = await db
+    .insert(taxiDriversTable)
     .values({
-      name:         name.trim(),
-      nameAr:       name.trim(),
-      category:     "taxi",
-      phone:        phone.trim(),
-      linkedUserId: user.id,
-      carModel:     carModel?.trim() ?? null,
-      carColor:     carColor?.trim() ?? null,
-      carPlate:     carPlate?.trim() ?? null,
-      isAvailable:  true,
-      isActive:     true,
-      description:  "",
-      descriptionAr: "",
-      address:      "",
+      userId:   user.id,
+      name:     name.trim(),
+      phone:    phone.trim(),
+      carModel: carModel?.trim() ?? null,
+      carColor: carColor?.trim() ?? null,
+      carPlate: carPlate?.trim() ?? null,
     })
     .returning();
 
-  res.status(201).json({
-    user,
-    driver: { id: provider.id, userId: provider.linkedUserId, name: provider.nameAr, phone: provider.phone, carModel: provider.carModel, carColor: provider.carColor, carPlate: provider.carPlate, isAvailable: provider.isAvailable, isActive: provider.isActive },
-  });
+  res.status(201).json({ user, driver });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADMIN — PATCH /api/admin/taxi/drivers/:id
+// ADMIN — PATCH /api/admin/taxi/drivers/:id  (toggle availability / edit)
 // ─────────────────────────────────────────────────────────────────────────────
 router.patch("/admin/taxi/drivers/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   const { isAvailable, isActive, carModel, carColor, carPlate } = req.body;
 
-  const updates: Partial<typeof serviceProvidersTable.$inferInsert> = {};
+  const updates: Partial<typeof taxiDriversTable.$inferInsert> = {};
   if (isAvailable !== undefined) updates.isAvailable = isAvailable;
   if (isActive    !== undefined) updates.isActive    = isActive;
   if (carModel    !== undefined) updates.carModel    = carModel;
@@ -681,9 +696,9 @@ router.patch("/admin/taxi/drivers/:id", requireAdmin, async (req, res) => {
   if (carPlate    !== undefined) updates.carPlate    = carPlate;
 
   const [updated] = await db
-    .update(serviceProvidersTable)
+    .update(taxiDriversTable)
     .set(updates)
-    .where(and(eq(serviceProvidersTable.id, id), eq(serviceProvidersTable.category, "taxi")))
+    .where(eq(taxiDriversTable.id, id))
     .returning();
 
   res.json(updated);
@@ -696,22 +711,17 @@ router.delete("/admin/taxi/drivers/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid ID" }); return; }
   try {
-    const [provider] = await db
-      .select({ linkedUserId: serviceProvidersTable.linkedUserId })
-      .from(serviceProvidersTable)
-      .where(and(eq(serviceProvidersTable.id, id), eq(serviceProvidersTable.category, "taxi")));
-
-    await db.delete(serviceProvidersTable).where(and(eq(serviceProvidersTable.id, id), eq(serviceProvidersTable.category, "taxi")));
-
-    if (provider?.linkedUserId) {
-      await db.delete(usersTable).where(eq(usersTable.id, provider.linkedUserId));
+    const [driver] = await db.select({ userId: taxiDriversTable.userId }).from(taxiDriversTable).where(eq(taxiDriversTable.id, id));
+    await db.delete(taxiDriversTable).where(eq(taxiDriversTable.id, id));
+    if (driver?.userId) {
+      await db.delete(usersTable).where(eq(usersTable.id, driver.userId));
     }
     res.json({ success: true });
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DRIVER — PATCH /api/taxi/driver/status
+// DRIVER — PATCH /api/taxi/driver/status  (toggle isAvailable)
 // ─────────────────────────────────────────────────────────────────────────────
 router.patch("/taxi/driver/status", requireAuth, async (req, res) => {
   const session = (req as any).authSession;
@@ -724,8 +734,8 @@ router.patch("/taxi/driver/status", requireAuth, async (req, res) => {
 
   const [driver] = await db
     .select()
-    .from(serviceProvidersTable)
-    .where(and(eq(serviceProvidersTable.category, "taxi"), eq(serviceProvidersTable.linkedUserId, session.userId)));
+    .from(taxiDriversTable)
+    .where(eq(taxiDriversTable.userId, session.userId));
 
   if (!driver) {
     res.status(404).json({ message: "Chauffeur non trouvé" });
@@ -733,17 +743,15 @@ router.patch("/taxi/driver/status", requireAuth, async (req, res) => {
   }
 
   const [updated] = await db
-    .update(serviceProvidersTable)
+    .update(taxiDriversTable)
     .set({ isAvailable })
-    .where(and(eq(serviceProvidersTable.id, driver.id), eq(serviceProvidersTable.category, "taxi")))
+    .where(eq(taxiDriversTable.id, driver.id))
     .returning();
 
-  res.json({ ...updated, name: updated.nameAr, userId: updated.linkedUserId });
+  res.json(updated);
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — GET /api/admin/taxi/requests
-// ─────────────────────────────────────────────────────────────────────────────
 router.get("/admin/taxi/requests", requireAdmin, async (req, res) => {
   const requests = await db
     .select()

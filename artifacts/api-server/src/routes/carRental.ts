@@ -10,7 +10,7 @@ const router = Router();
 router.get("/car-rental/agencies", async (_req, res) => {
   try {
     const agencies = await db.select().from(serviceProvidersTable)
-      .where(eq(serviceProvidersTable.category, "car_rental"));
+      .where(eq(serviceProvidersTable.category, "car" as any));
     res.json(agencies);
   } catch (e) {
     res.status(500).json({ error: "server_error" });

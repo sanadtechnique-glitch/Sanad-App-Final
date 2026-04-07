@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import {
   usersTable, serviceProvidersTable, deliveryStaffTable,
   ordersTable, ratingsTable, hotelBookingsTable,
-  passwordResetTokensTable,
+  taxiDriversTable, passwordResetTokensTable,
 } from "@workspace/db/schema";
 import { eq, ne, and, gt } from "drizzle-orm";
 import { createSession } from "../lib/sessionStore";
@@ -461,21 +461,14 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
       })
       .returning();
 
-    // Auto-create service_providers record when role is taxi_driver
+    // Auto-create taxi_drivers record when role is taxi_driver
     if (role === "taxi_driver") {
-      const nm = user.name ?? name?.trim() ?? "";
-      const ph = user.phone ?? phone?.trim() ?? "";
-      await db.insert(serviceProvidersTable).values({
-        name:         nm,
-        nameAr:       nm,
-        category:     "taxi",
-        phone:        ph,
-        linkedUserId: user.id,
-        isAvailable:  true,
-        isActive:     user.isActive,
-        description:  "",
-        descriptionAr: "",
-        address:      "",
+      await db.insert(taxiDriversTable).values({
+        userId:   user.id,
+        name:     user.name,
+        phone:    user.phone ?? phone?.trim() ?? "",
+        isAvailable: true,
+        isActive: user.isActive,
       }).onConflictDoNothing();
     }
 

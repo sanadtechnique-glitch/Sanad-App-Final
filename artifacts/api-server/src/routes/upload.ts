@@ -42,21 +42,21 @@ const router = Router();
 // POST /admin/upload/ad — upload a single ad image (admin only)
 router.post("/admin/upload/ad", requireAdmin, uploadAd.single("image"), (req, res) => {
   if (!req.file) { res.status(400).json({ message: "No file uploaded" }); return; }
-  const url = `/api/uploads/ads/${req.file.filename}`;
+  const url = `/uploads/ads/${req.file.filename}`;
   res.json({ url, filename: req.file.filename });
 });
 
 // POST /admin/upload/logo — upload the app logo (admin only)
 router.post("/admin/upload/logo", requireAdmin, uploadLogo.single("image"), (req, res) => {
   if (!req.file) { res.status(400).json({ message: "No file uploaded" }); return; }
-  const url = `/api/uploads/logos/${req.file.filename}`;
+  const url = `/uploads/logos/${req.file.filename}`;
   res.json({ url, filename: req.file.filename });
 });
 
 // POST /upload/image — general image upload for providers & admins
 router.post("/upload/image", requireAuth, uploadImage.single("image"), (req, res) => {
   if (!req.file) { res.status(400).json({ message: "No file uploaded" }); return; }
-  const url = `/api/uploads/images/${req.file.filename}`;
+  const url = `/uploads/images/${req.file.filename}`;
   res.json({ url, filename: req.file.filename });
 });
 

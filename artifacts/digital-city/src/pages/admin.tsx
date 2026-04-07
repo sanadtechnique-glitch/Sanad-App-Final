@@ -61,25 +61,22 @@ const STATUS: Record<string, { ar: string; fr: string; color: string; icon: Reac
 
 const CATEGORY_LABELS: Record<string, { ar: string; fr: string }> = {
   // ── مزودو المنتجات (توصيل) ──
-  restaurant: { ar: "مطعم",        fr: "Restaurant"      },
-  grocery:    { ar: "بقالة",       fr: "Épicerie"        },
-  pharmacy:   { ar: "صيدلية",      fr: "Pharmacie"       },
-  bakery:     { ar: "مخبزة",       fr: "Boulangerie"     },
-  butcher:    { ar: "ملّاح",       fr: "Boucherie"       },
-  cafe:       { ar: "مقهى",        fr: "Café"            },
-  sweets:     { ar: "حلويات",      fr: "Pâtisserie"      },
+  restaurant: { ar: "مطعم",    fr: "Restaurant" },
+  grocery:    { ar: "بقالة",   fr: "Épicerie"   },
+  pharmacy:   { ar: "صيدلية",  fr: "Pharmacie"  },
+  bakery:     { ar: "مخبزة",   fr: "Boulangerie"},
+  butcher:    { ar: "ملّاح",   fr: "Boucherie"  },
+  cafe:       { ar: "مقهى",    fr: "Café"       },
+  sweets:     { ar: "حلويات",  fr: "Pâtisserie" },
   // ── مزودو الخدمات ──
-  hotel:      { ar: "فندق",        fr: "Hôtel"           },
-  car_rental: { ar: "كراء سيارات", fr: "Location auto"   },
+  hotel:      { ar: "فندق",    fr: "Hôtel"      },
+  car_rental: { ar: "كراء سيارات", fr: "Location auto" },
   sos:        { ar: "SOS · إنقاذ", fr: "SOS · Dépannage" },
-  lawyer:     { ar: "محامي",       fr: "Avocat"          },
-  taxi:       { ar: "تاكسي",       fr: "Taxi"            },
-  doctor:     { ar: "طبيب / عيادة",fr: "Médecin / Clinique" },
-  mechanic:   { ar: "ميكانيكي",    fr: "Mécanicien"      },
+  lawyer:     { ar: "محامي",   fr: "Avocat"     },
 };
 
 const PRODUCT_CATS = ["restaurant","grocery","pharmacy","bakery","butcher","cafe","sweets"] as const;
-const SERVICE_CATS = ["hotel","car_rental","sos","lawyer","taxi","doctor","mechanic"] as const;
+const SERVICE_CATS = ["hotel","car_rental","sos","lawyer"] as const;
 
 function supplierType(cat: string): "product" | "service" {
   return (PRODUCT_CATS as readonly string[]).includes(cat) ? "product" : "service";
@@ -520,18 +517,13 @@ function AdminImagePicker({ value, onChange, label, guideAr, guideFr, aspect = "
             )}
           </>
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center border-2 border-dashed" style={{ borderColor: accent + "50", background: accent + "12" }}>
-              <Camera size={26} style={{ color: accent, opacity: 0.7 }} />
-            </div>
-            <div className="text-center space-y-1">
-              <p className="text-sm font-black" style={{ color: accent, opacity: 0.8 }}>
-                {t("اضغط هنا لرفع الصورة", "Appuyer pour uploader")}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <Camera size={32} style={{ color: accent, opacity: 0.4 }} />
+            <div className="text-center px-3 space-y-0.5">
+              <p className="text-xs font-black opacity-50" style={{ color: accent }}>
+                {t("اضغط لاختيار صورة", "Appuyer pour choisir")}
               </p>
-              <p className="text-[11px] font-bold" style={{ color: accent, opacity: 0.45 }}>{t(guideAr, guideFr)}</p>
-            </div>
-            <div className="px-4 py-2 rounded-xl text-xs font-black border-2" style={{ color: "white", borderColor: accent, background: accent }}>
-              {t("+ اختر صورة", "+ Choisir une image")}
+              <p className="text-[10px] opacity-30 font-bold" style={{ color: accent }}>{t(guideAr, guideFr)}</p>
             </div>
           </div>
         )}
@@ -1169,28 +1161,18 @@ function SupplierCard({ s, t, lang, type, typeConfig, onManage, onToggle, onEdit
 // Section: Suppliers
 // ──────────────────────────────────────────────────────────────────────────────
 function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
-  const [items, setItems]         = useState<Supplier[]>([]);
-  const [taxiItems, setTaxiItems] = useState<TaxiDriver[]>([]);
-  const [modal, setModal]         = useState<null | "add" | Supplier>(null);
-  const [managing, setManaging]   = useState<Supplier | null>(null);
-  const [filter, setFilter]       = useState<"all" | "products" | "services">("all");
-  const [formType, setFormType]   = useState<"product" | "service">("product");
+  const [items, setItems]       = useState<Supplier[]>([]);
+  const [modal, setModal]       = useState<null | "add" | Supplier>(null);
+  const [managing, setManaging] = useState<Supplier | null>(null);
+  const [filter, setFilter]     = useState<"all" | "products" | "services">("all");
+  const [formType, setFormType] = useState<"product" | "service">("product");
   const [createdCreds, setCreatedCreds] = useState<{ phone: string; password: string } | null>(null);
-  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", photoUrl:"", shift:"all", isAvailable: true, latitude:"", longitude:"", providerPhone:"", providerPassword:"", carModel:"", carColor:"", carPlate:"" });
+  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", photoUrl:"", shift:"all", isAvailable: true, latitude:"", longitude:"", providerPhone:"", providerPassword:"" });
 
-  const isTaxiForm = form.category === "taxi";
-
-  const load = async () => {
-    const [sups, taxis] = await Promise.all([
-      get<Supplier[]>("/admin/suppliers").catch(() => [] as Supplier[]),
-      get<TaxiDriver[]>("/admin/taxi/drivers").catch(() => [] as TaxiDriver[]),
-    ]);
-    setItems(sups.filter((s: Supplier) => s.category !== "taxi"));
-    setTaxiItems(taxis);
-  };
+  const load = () => get<Supplier[]>("/admin/suppliers").then(setItems).catch(() => {});
   useEffect(() => { load(); }, []);
 
-  const EMPTY_FORM = { name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",photoUrl:"",shift:"all",isAvailable:true,latitude:"",longitude:"",providerPhone:"",providerPassword:"",carModel:"",carColor:"",carPlate:"" };
+  const EMPTY_FORM = { name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",photoUrl:"",shift:"all",isAvailable:true,latitude:"",longitude:"",providerPhone:"",providerPassword:"" };
 
   const openAdd = () => {
     setFormType("product");
@@ -1201,24 +1183,16 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   const openEdit = (s: Supplier) => {
     setFormType(supplierType(s.category));
     setCreatedCreds(null);
-    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", photoUrl:(s as any).photoUrl||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"", providerPhone:"", providerPassword:"", carModel:(s as any).carModel||"", carColor:(s as any).carColor||"", carPlate:(s as any).carPlate||"" });
+    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", photoUrl:(s as any).photoUrl||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"", providerPhone:"", providerPassword:"" });
     setModal(s);
   };
 
   const save = async () => {
     if (modal === "add") {
-      if (isTaxiForm) {
-        // Create taxi driver via taxi endpoint
-        const name = form.nameAr.trim() || form.name.trim();
-        const phone = form.providerPhone.trim();
-        const password = form.providerPassword.trim();
-        if (!name || !phone || !password) return;
-        await post("/admin/taxi/drivers", { name, phone, password, carModel: form.carModel, carColor: form.carColor, carPlate: form.carPlate, isAvailable: true, isActive: true });
-        setModal(null); load(); return;
-      }
       const res = await post<{ supplier: Supplier; providerUser: { phone: string } | null }>("/admin/suppliers", form);
       if (form.providerPhone && res?.providerUser) {
         setCreatedCreds({ phone: form.providerPhone, password: form.providerPassword });
+        // Keep modal open to show credentials
         load(); setModal(null);
         return;
       }
@@ -1251,7 +1225,7 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
 
   // Filtered list
   const productCount = items.filter(s => supplierType(s.category) === "product").length;
-  const serviceCount = items.filter(s => supplierType(s.category) === "service").length + taxiItems.length;
+  const serviceCount = items.filter(s => supplierType(s.category) === "service").length;
   const visible = filter === "all" ? items
     : items.filter(s => supplierType(s.category) === (filter === "products" ? "product" : "service"));
 
@@ -1262,7 +1236,7 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   };
 
   const tabBtns: { key: "all" | "products" | "services"; arLabel: string; frLabel: string; count: number }[] = [
-    { key: "all",      arLabel: "الكل",          frLabel: "Tous",      count: items.length + taxiItems.length },
+    { key: "all",      arLabel: "الكل",          frLabel: "Tous",      count: items.length    },
     { key: "products", arLabel: "مزودو المنتجات", frLabel: "Produits",  count: productCount    },
     { key: "services", arLabel: "مزودو الخدمات",  frLabel: "Services",  count: serviceCount    },
   ];
@@ -1338,37 +1312,7 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
               onEdit={() => openEdit(s)}
               onDelete={() => remove(s.id)} />
           ))}
-          {/* Taxi drivers merged into services */}
-          {(filter === "all" || filter === "services") && taxiItems.map(d => (
-            <div key={`taxi-${d.id}`} className="glass-panel rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: "#FFA50020" }}>🚕</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-[#1A4D1F]">{d.name}</span>
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "#FFA50020", color: "#FFA500" }}>
-                    {t("تاكسي","Taxi")}
-                  </span>
-                  {d.carPlate && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#1A4D1F]/10 text-[#1A4D1F]/60">{d.carPlate}</span>}
-                </div>
-                <p className="text-xs text-[#1A4D1F]/40 mt-0.5">{d.phone}{d.carModel ? ` · ${d.carModel}` : ""}{d.carColor ? ` · ${d.carColor}` : ""}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={`w-2 h-2 rounded-full ${d.isAvailable ? "bg-emerald-400" : "bg-red-400"}`} />
-                <button
-                  onClick={async () => { await patch(`/admin/taxi/drivers/${d.id}`, { isAvailable: !d.isAvailable }); load(); }}
-                  className={`p-1.5 rounded-lg border text-xs transition-all ${d.isAvailable ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20" : "bg-red-400/10 text-red-400 border-red-400/20"}`}
-                  title={d.isAvailable ? t("إيقاف","Désactiver") : t("تفعيل","Activer")}>
-                  <Power size={12} />
-                </button>
-                <button
-                  onClick={async () => { if (confirm(t("حذف هذا السائق؟","Supprimer ce chauffeur ?"))) { await del(`/admin/taxi/drivers/${d.id}`); load(); } }}
-                  className="p-1.5 rounded-lg bg-[#1A4D1F]/5 text-[#1A4D1F]/40 hover:text-red-400 transition-colors">
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            </div>
-          ))}
-          {visible.filter(s => supplierType(s.category) === "service").length === 0 && taxiItems.length === 0 && filter === "services" && (
+          {visible.filter(s => supplierType(s.category) === "service").length === 0 && filter === "services" && (
             <p className="text-center text-xs opacity-40 py-6 text-[#1565C0]">{t("لا يوجد مزودو خدمات", "Aucun fournisseur de services")}</p>
           )}
         </div>
@@ -1402,8 +1346,8 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
 
         {/* Common fields */}
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("الاسم","Nom")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder={isTaxiForm ? t("اسم السائق","Nom chauffeur") : t("صيدلية الأمل","Pharmacie Amal")} /></Field>
-          {!isTaxiForm && <Field label={t("الاسم فرنسي","Nom français")}><Input value={form.name} onChange={v => setForm(f => ({...f, name: v}))} placeholder="Pharmacie Amal" /></Field>}
+          <Field label={t("الاسم عربي","Nom arabe")}><Input value={form.nameAr} onChange={v => setForm(f => ({...f, nameAr: v}))} placeholder="صيدلية الأمل" /></Field>
+          <Field label={t("الاسم فرنسي","Nom français")}><Input value={form.name} onChange={v => setForm(f => ({...f, name: v}))} placeholder="Pharmacie Amal" /></Field>
         </div>
 
         {/* Category */}
@@ -1420,85 +1364,44 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
           </Field>
         )}
 
-        {/* Taxi-specific fields */}
-        {isTaxiForm && (
-          <div className="rounded-xl p-3 border-2 space-y-3" style={{ borderColor: "#FFA50040", background: "#FFA50008" }}>
-            <div className="flex items-center gap-2">
-              <Car size={13} style={{ color: "#FFA500" }} />
-              <p className="text-xs font-black" style={{ color: "#FFA500" }}>
-                {modal === "add"
-                  ? t("بيانات الحساب (مطلوبة)", "Informations du compte (obligatoires)")
-                  : t("بيانات السيارة", "Informations du véhicule")}
-              </p>
-            </div>
-            {/* Account fields — add mode only */}
-            {modal === "add" && (
-              <div className="grid grid-cols-2 gap-3">
-                <Field label={t("رقم الهاتف *","Tél. *")}>
-                  <Input value={form.providerPhone} onChange={v => setForm(f => ({...f, providerPhone: v}))} placeholder="21698..." />
-                </Field>
-                <Field label={t("كلمة المرور *","Mot de passe *")}>
-                  <Input value={form.providerPassword} onChange={v => setForm(f => ({...f, providerPassword: v}))} placeholder="6+ أحرف" type="password" />
-                </Field>
-              </div>
-            )}
-            {/* Car fields — always shown for taxi */}
-            <div className="grid grid-cols-3 gap-3">
-              <Field label={t("نوع السيارة","Modèle")}>
-                <Input value={form.carModel} onChange={v => setForm(f => ({...f, carModel: v}))} placeholder="Kia Picanto" />
-              </Field>
-              <Field label={t("اللون","Couleur")}>
-                <Input value={form.carColor} onChange={v => setForm(f => ({...f, carColor: v}))} placeholder={t("أبيض","Blanc")} />
-              </Field>
-              <Field label={t("رقم اللوحة","Plaque")}>
-                <Input value={form.carPlate} onChange={v => setForm(f => ({...f, carPlate: v}))} placeholder="123TU456" />
-              </Field>
-            </div>
+        {/* Supplier Logo / Photo */}
+        <AdminImagePicker
+          value={form.photoUrl}
+          onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
+          label={t("شعار / صورة المحل", "Logo / Photo de l'établissement")}
+          guideAr="شعار واضح على خلفية بيضاء أو بيضاوية"
+          guideFr="Logo net sur fond blanc ou neutre"
+          aspect="1:1"
+          accent="#1A4D1F"
+          t={t}
+        />
+
+        <Field label={t("العنوان","Adresse")}><Input value={form.address} onChange={v => setForm(f => ({...f, address: v}))} /></Field>
+        <Field label={t("رقم WhatsApp","Numéro WhatsApp")}><Input value={form.phone} onChange={v => setForm(f => ({...f, phone: v}))} placeholder="21698..." /></Field>
+        <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>
+        <Field label={t("الوصف فرنسي","Description française")}><Input value={form.description} onChange={v => setForm(f => ({...f, description: v}))} /></Field>
+        <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>
+
+        {/* GPS */}
+        <div className="rounded-xl p-3 border border-[#FFA500]/30 bg-[#FFA500]/5">
+          <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-2">
+            {t("إحداثيات GPS (لحساب المسافة)","Coordonnées GPS (calcul distance)")}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={t("خط العرض","Latitude")}>
+              <Input value={form.latitude} onChange={v => setForm(f => ({...f, latitude: v}))} placeholder="33.1167" />
+            </Field>
+            <Field label={t("خط الطول","Longitude")}>
+              <Input value={form.longitude} onChange={v => setForm(f => ({...f, longitude: v}))} placeholder="11.2167" />
+            </Field>
           </div>
-        )}
+          <p className="text-[10px] text-[#1A4D1F]/30 mt-1">
+            {t("اختياري · بن قردان: 33.1167, 11.2167","Optionnel · Ben Guerdane: 33.1167, 11.2167")}
+          </p>
+        </div>
 
-        {/* Supplier Logo / Photo — not for taxi */}
-        {!isTaxiForm && (
-          <AdminImagePicker
-            value={form.photoUrl}
-            onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
-            label={t("شعار / صورة المحل", "Logo / Photo de l'établissement")}
-            guideAr="شعار واضح على خلفية بيضاء أو بيضاوية"
-            guideFr="Logo net sur fond blanc ou neutre"
-            aspect="1:1"
-            accent="#1A4D1F"
-            t={t}
-          />
-        )}
-
-        {!isTaxiForm && <Field label={t("العنوان","Adresse")}><Input value={form.address} onChange={v => setForm(f => ({...f, address: v}))} /></Field>}
-        {!isTaxiForm && <Field label={t("رقم WhatsApp","Numéro WhatsApp")}><Input value={form.phone} onChange={v => setForm(f => ({...f, phone: v}))} placeholder="21698..." /></Field>}
-        {!isTaxiForm && <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>}
-        {!isTaxiForm && <Field label={t("الوصف فرنسي","Description française")}><Input value={form.description} onChange={v => setForm(f => ({...f, description: v}))} /></Field>}
-        {!isTaxiForm && <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>}
-
-        {/* GPS — not for taxi */}
-        {!isTaxiForm && (
-          <div className="rounded-xl p-3 border border-[#FFA500]/30 bg-[#FFA500]/5">
-            <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-2">
-              {t("إحداثيات GPS (لحساب المسافة)","Coordonnées GPS (calcul distance)")}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label={t("خط العرض","Latitude")}>
-                <Input value={form.latitude} onChange={v => setForm(f => ({...f, latitude: v}))} placeholder="33.1167" />
-              </Field>
-              <Field label={t("خط الطول","Longitude")}>
-                <Input value={form.longitude} onChange={v => setForm(f => ({...f, longitude: v}))} placeholder="11.2167" />
-              </Field>
-            </div>
-            <p className="text-[10px] text-[#1A4D1F]/30 mt-1">
-              {t("اختياري · بن قردان: 33.1167, 11.2167","Optionnel · Ben Guerdane: 33.1167, 11.2167")}
-            </p>
-          </div>
-        )}
-
-        {/* Account creation — add mode only, not for taxi (taxi has its own above) */}
-        {modal === "add" && !isTaxiForm && (
+        {/* Account creation — add mode only */}
+        {modal === "add" && (
           <div className="rounded-xl p-3 border-2 space-y-3" style={{ borderColor: "#1565C030", background: "#1565C008" }}>
             <div className="flex items-center gap-2">
               <KeyRound size={13} style={{ color: "#1565C0" }} />
@@ -1788,16 +1691,7 @@ function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
         </div>
         <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>
         <Field label={t("الوصف فرنسي","Description française")}><Input value={form.descriptionFr} onChange={v => setForm(f => ({...f, descriptionFr: v}))} /></Field>
-        <AdminImagePicker
-          value={form.photoUrl}
-          onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
-          label={t("صورة المنتج", "Photo du produit")}
-          guideAr="صورة واضحة على خلفية بيضاء"
-          guideFr="Photo nette sur fond blanc"
-          aspect="1:1"
-          accent="#1A4D1F"
-          t={t}
-        />
+        <Field label={t("رابط الصورة","URL de l'image")}><Input value={form.photoUrl} onChange={v => setForm(f => ({...f, photoUrl: v}))} placeholder="https://..." /></Field>
         <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>
 
         {errMsg && (
@@ -4434,7 +4328,7 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
 
   useEffect(() => {
     Promise.all([
-      get<any[]>("/admin/suppliers").then(d => d.filter((s: any) => s.category === "car_rental")),
+      get<any[]>("/suppliers").then(d => d.filter((s: any) => s.category === "car_rental")),
       fetch("/api/car-rental/cars/all", { headers: { "x-session-token": getSession()?.token || "" } }).then(r => r.json()),
       fetch("/api/car-rental/bookings", { headers: { "x-session-token": getSession()?.token || "" } }).then(r => r.json()),
     ]).then(([ag, ca, bo]) => {
@@ -4541,16 +4435,13 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
               </div>
             ))}
           </div>
-          <AdminImagePicker
-            value={agencyForm.photoUrl}
-            onChange={v => setAgencyForm(p => ({ ...p, photoUrl: v }))}
-            label={t("شعار / صورة الوكالة", "Logo / Photo de l'agence")}
-            guideAr="شعار الوكالة على خلفية بيضاء"
-            guideFr="Logo de l'agence sur fond blanc"
-            aspect="1:1"
-            accent="#1565C0"
-            t={t}
-          />
+          <div>
+            <label className="block text-xs font-black mb-1 opacity-60 text-[#1565C0]">{t("رابط الشعار / الصورة","Logo / Photo URL")}</label>
+            <input value={agencyForm.photoUrl} onChange={e => setAgencyForm(p => ({ ...p, photoUrl: e.target.value }))}
+              placeholder="https://..." dir="ltr"
+              className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
+              style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033" }} />
+          </div>
           <div className="flex gap-2">
             <button onClick={addAgency} disabled={saving || !agencyForm.nameAr || !agencyForm.name}
               className="flex-1 py-2.5 rounded-xl font-black text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2"
