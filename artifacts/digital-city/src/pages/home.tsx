@@ -87,28 +87,28 @@ interface PromoSlide {
 // SERVICE CATEGORIES — with emoji images for circles
 // ─────────────────────────────────────────────────────────────────────────────
 const CATEGORIES = [
-  // ── حلقة داخلية (6) ────────────────────────────────────────────────────────
+  // ── حلقة داخلية — خدمات (6) — كبيرة ──────────────────────────────────────
+  { id: "taxi",        ar: "تاكسي",       fr: "Taxi",          href: "/taxi",         emoji: "🚕",  bg: "radial-gradient(circle at 35% 30%, #FCD34D 0%, #92400E 100%)" },
+  { id: "doctor",      ar: "طبيب",        fr: "Médecin",       href: null,            emoji: "🩺",  bg: "radial-gradient(circle at 35% 30%, #0EA5E9 0%, #0C4A6E 100%)" },
+  { id: "car_rental",  ar: "كراء سيارات", fr: "Location auto", href: "/car-rental",   emoji: "🚗",  bg: "radial-gradient(circle at 35% 30%, #3B82F6 0%, #1E3A8A 100%)" },
+  { id: "sos",         ar: "SOS",         fr: "SOS",           href: "/sos",          emoji: "🚨",  bg: "radial-gradient(circle at 35% 30%, #EF4444 0%, #7F1D1D 100%)" },
+  { id: "lawyer",      ar: "محامي",       fr: "Avocat",        href: "/lawyer",       emoji: "⚖️",  bg: "radial-gradient(circle at 35% 30%, #1A4D1F 0%, #0D2B0F 100%)" },
+  { id: "hotel",       ar: "فنادق",       fr: "Hôtels",        href: null,            emoji: "🏨",  bg: "radial-gradient(circle at 35% 30%, #8B5CF6 0%, #4C1D95 100%)" },
+  // ── حلقة خارجية — منتجات (7) — صغيرة ─────────────────────────────────────
   { id: "restaurant",  ar: "مطاعم",       fr: "Restaurants",   href: null,            emoji: "🍽️",  bg: "radial-gradient(circle at 35% 30%, #FF8C00 0%, #C84B00 100%)" },
   { id: "grocery",     ar: "بقالة",       fr: "Épicerie",      href: null,            emoji: "🛒",  bg: "radial-gradient(circle at 35% 30%, #F59E0B 0%, #92400E 100%)" },
   { id: "pharmacy",    ar: "صيدلية",      fr: "Pharmacie",     href: null,            emoji: "💊",  bg: "radial-gradient(circle at 35% 30%, #10B981 0%, #065F46 100%)" },
   { id: "bakery",      ar: "مخبز",        fr: "Boulangerie",   href: null,            emoji: "🥖",  bg: "radial-gradient(circle at 35% 30%, #D97706 0%, #78350F 100%)" },
   { id: "butcher",     ar: "جزار",        fr: "Boucherie",     href: null,            emoji: "🥩",  bg: "radial-gradient(circle at 35% 30%, #DC2626 0%, #7F1D1D 100%)" },
   { id: "sweets",      ar: "مرطبات",      fr: "Pâtisserie",    href: null,            emoji: "🍬",  bg: "radial-gradient(circle at 35% 30%, #EC4899 0%, #831843 100%)" },
-  // ── حلقة خارجية (7) ────────────────────────────────────────────────────────
   { id: "cafe",        ar: "مقهى",        fr: "Café",          href: null,            emoji: "☕",  bg: "radial-gradient(circle at 35% 30%, #92400E 0%, #3B1A08 100%)" },
-  { id: "doctor",      ar: "طبيب",        fr: "Médecin",       href: null,            emoji: "🩺",  bg: "radial-gradient(circle at 35% 30%, #0EA5E9 0%, #0C4A6E 100%)" },
-  { id: "taxi",        ar: "تاكسي",       fr: "Taxi",          href: "/taxi",         emoji: "🚕",  bg: "radial-gradient(circle at 35% 30%, #FCD34D 0%, #92400E 100%)" },
-  { id: "car_rental",  ar: "كراء سيارات", fr: "Location auto", href: "/car-rental",   emoji: "🚗",  bg: "radial-gradient(circle at 35% 30%, #3B82F6 0%, #1E3A8A 100%)" },
-  { id: "sos",         ar: "SOS",         fr: "SOS",           href: "/sos",          emoji: "🚨",  bg: "radial-gradient(circle at 35% 30%, #EF4444 0%, #7F1D1D 100%)" },
-  { id: "lawyer",      ar: "محامي",       fr: "Avocat",        href: "/lawyer",       emoji: "⚖️",  bg: "radial-gradient(circle at 35% 30%, #1A4D1F 0%, #0D2B0F 100%)" },
-  { id: "hotel",       ar: "فنادق",       fr: "Hôtels",        href: null,            emoji: "🏨",  bg: "radial-gradient(circle at 35% 30%, #8B5CF6 0%, #4C1D95 100%)" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DUAL-RING ORBITAL SYSTEM
 // ─────────────────────────────────────────────────────────────────────────────
-const INNER_CATS = CATEGORIES.slice(0, 6);   // مطاعم، بقالة، صيدلية، مخبز، جزار، مرطبات
-const OUTER_CATS = CATEGORIES.slice(6);      // مقهى، طبيب، تاكسي، كراء، SOS، محامي، فنادق
+const INNER_CATS = CATEGORIES.slice(0, 6);   // خدمات: تاكسي، طبيب، كراء، SOS، محامي، فنادق
+const OUTER_CATS = CATEGORIES.slice(6);      // منتجات: مطاعم، بقالة، صيدلية، مخبز، جزار، مرطبات، مقهى
 
 function OrbitRing({
   cats, radius, size, duration, clockwise, lang, cx, cy,
@@ -1075,14 +1075,16 @@ function PromoMarquee({ lang }: { lang: string }) {
       >
         {items.map((s, i) => (
           <div key={i} className="flex items-center gap-3 flex-shrink-0">
-            <span style={{ color: "#FFA500", fontSize: 10, lineHeight: 1 }}>◆</span>
+            <span style={{ color: "#FFA500", fontSize: 11, lineHeight: 1 }}>❖</span>
             <span
               style={{
                 fontFamily: "'Cairo','Tajawal',sans-serif",
-                fontWeight: 800,
-                fontSize: 13,
-                color: "rgba(26,77,31,0.75)",
+                fontWeight: 900,
+                fontStyle: "italic",
+                fontSize: 14,
+                color: "#1A4D1F",
                 whiteSpace: "nowrap",
+                letterSpacing: "0.01em",
               }}
             >
               {lang === "ar" ? s.titleAr : s.titleFr}
@@ -1091,9 +1093,10 @@ function PromoMarquee({ lang }: { lang: string }) {
               <span
                 style={{
                   fontFamily: "'Cairo','Tajawal',sans-serif",
-                  fontWeight: 600,
-                  fontSize: 11,
-                  color: "rgba(26,77,31,0.40)",
+                  fontWeight: 700,
+                  fontStyle: "italic",
+                  fontSize: 12,
+                  color: "rgba(26,77,31,0.50)",
                   whiteSpace: "nowrap",
                 }}
               >
