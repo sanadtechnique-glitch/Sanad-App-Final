@@ -240,8 +240,8 @@ function OrbitSystem({ lang }: { lang: string }) {
 
   // Responsive sizing — fills the full available width
   const CX     = cw / 2;                        // center X
-  const R_IN   = Math.round(cw * 0.295);        // inner orbit radius  ≈ 115px @ 390 (أقرب للمركز)
-  const R_OUT  = Math.round(cw * 0.625);        // outer orbit radius  ≈ 244px @ 390 (أبعد عن المركز)
+  const R_IN   = Math.round(cw * 0.355);        // inner orbit radius  ≈ 138px @ 390
+  const R_OUT  = Math.round(cw * 0.710);        // outer orbit radius  ≈ 277px @ 390
   const S_IN   = Math.round(cw * 0.285);        // inner circle px     ≈ 111px @ 390 (أكبر)
   const S_OUT  = Math.round(cw * 0.200);        // outer circle px     ≈ 78px  @ 390 (أصغر)
   const BADGE  = Math.round(cw * 0.295);        // center badge px     ≈ 115px @ 390
