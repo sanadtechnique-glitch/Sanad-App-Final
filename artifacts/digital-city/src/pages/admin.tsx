@@ -517,18 +517,13 @@ function AdminImagePicker({ value, onChange, label, guideAr, guideFr, aspect = "
             )}
           </>
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center border-2 border-dashed" style={{ borderColor: accent + "50", background: accent + "12" }}>
-              <Camera size={26} style={{ color: accent, opacity: 0.7 }} />
-            </div>
-            <div className="text-center space-y-1">
-              <p className="text-sm font-black" style={{ color: accent, opacity: 0.8 }}>
-                {t("اضغط هنا لرفع الصورة", "Appuyer pour uploader")}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <Camera size={32} style={{ color: accent, opacity: 0.4 }} />
+            <div className="text-center px-3 space-y-0.5">
+              <p className="text-xs font-black opacity-50" style={{ color: accent }}>
+                {t("اضغط لاختيار صورة", "Appuyer pour choisir")}
               </p>
-              <p className="text-[11px] font-bold" style={{ color: accent, opacity: 0.45 }}>{t(guideAr, guideFr)}</p>
-            </div>
-            <div className="px-4 py-2 rounded-xl text-xs font-black border-2" style={{ color: "white", borderColor: accent, background: accent }}>
-              {t("+ اختر صورة", "+ Choisir une image")}
+              <p className="text-[10px] opacity-30 font-bold" style={{ color: accent }}>{t(guideAr, guideFr)}</p>
             </div>
           </div>
         )}
@@ -1696,16 +1691,7 @@ function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
         </div>
         <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>
         <Field label={t("الوصف فرنسي","Description française")}><Input value={form.descriptionFr} onChange={v => setForm(f => ({...f, descriptionFr: v}))} /></Field>
-        <AdminImagePicker
-          value={form.photoUrl}
-          onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
-          label={t("صورة المنتج", "Photo du produit")}
-          guideAr="صورة واضحة على خلفية بيضاء"
-          guideFr="Photo nette sur fond blanc"
-          aspect="1:1"
-          accent="#1A4D1F"
-          t={t}
-        />
+        <Field label={t("رابط الصورة","URL de l'image")}><Input value={form.photoUrl} onChange={v => setForm(f => ({...f, photoUrl: v}))} placeholder="https://..." /></Field>
         <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>
 
         {errMsg && (
