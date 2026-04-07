@@ -67,40 +67,23 @@ function isPharmacyShiftActive(shift?: string): boolean {
 }
 
 // Special card shown in "all" and "taxi" tabs that redirects to /taxi page
-function TaxiShortcutCard({ t, isRTL }: { t: (ar: string, fr: string) => string; isRTL: boolean }) {
+function TaxiShortcutCard({ t }: { t: (ar: string, fr: string) => string; isRTL: boolean }) {
   const [, navigate] = useLocation();
   const taxi = CATS.find(c => c.id === "taxi")!;
   const Icon = taxi.icon!;
   return (
     <motion.div variants={cardAnim}>
       <div
-        className="relative rounded-[15px] p-5 flex flex-col h-full group border border-[#FFA500]/30 cursor-pointer card-hover"
-        style={{ background: "#FFFDE7" }}
+        className="flex flex-col items-center gap-2 p-2 cursor-pointer group"
         onClick={() => navigate("/taxi")}
       >
-        <div className="flex justify-between items-start mb-4">
-          <div className={cn("w-12 h-12 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br border-2 border-white shadow-md", taxi.gradient)}>
-            <Icon size={18} className={taxi.iconColor} />
-          </div>
-          <span className="text-xs font-black px-2.5 py-1 rounded-full border bg-[#FFA500]/10 text-[#FFA500] border-[#FFA500]/20 flex items-center gap-1">
-            <ExternalLink size={9} />
-            {t("متاح", "Disponible")}
-          </span>
+        <div className="relative w-20 h-20 rounded-full overflow-hidden border-[3px] border-[#FFA500]/60 shadow-md bg-gradient-to-br from-[#FFA500]/20 to-yellow-500/10 flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+          <Icon size={28} className="text-[#FFA500]" />
+          <div className="absolute bottom-1 end-1 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-white shadow-sm" />
         </div>
-        <h3 className="text-lg font-black text-[#1A4D1F] mb-0.5 leading-snug">
+        <span className="text-xs font-black text-center text-[#1A4D1F] leading-tight line-clamp-2 max-w-[72px]">
           {t("تاكسي", "Taxi")}
-        </h3>
-        <p className="text-sm text-[#1A4D1F]/40 line-clamp-2 mb-3 flex-1 leading-relaxed">
-          {t("طلب تاكسي أينما كنت في المدينة", "Commandez un taxi où vous êtes en ville")}
-        </p>
-        <div className="mt-4 pt-3.5 border-t border-[#1A4D1F]/5 flex items-center justify-between">
-          <span className="text-xs font-black text-[#1A4D1F]/60 tracking-wide">
-            {t("اطلب تاكسي", "Appeler un taxi")}
-          </span>
-          <div className="w-8 h-8 rounded-full border border-[#FFA500]/30 bg-[#FFA500]/10 flex items-center justify-center group-hover:bg-[#FFA500] group-hover:border-[#FFA500] transition-all duration-300">
-            <ChevronRight size={14} className={cn("text-[#FFA500] group-hover:text-white transition-colors", isRTL && "rotate-180")} />
-          </div>
-        </div>
+        </span>
       </div>
     </motion.div>
   );
