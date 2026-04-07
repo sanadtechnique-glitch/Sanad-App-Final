@@ -120,13 +120,6 @@ export default function ProviderStore() {
               {lang === "ar" ? supplier.descriptionAr : supplier.description}
             </p>
           </div>
-          {articles.length === 0 && (
-            <Link href={`/order/${supplier.id}`}>
-              <button className="px-4 py-2 rounded-xl bg-[#1A4D1F] text-black font-black text-sm hover:bg-[#1A4D1F] transition-all flex-shrink-0">
-                {t("اطلب", "Commander")}
-              </button>
-            </Link>
-          )}
         </motion.div>
 
         {/* Ad Carousel for this supplier */}
@@ -147,12 +140,7 @@ export default function ProviderStore() {
         {articles.length === 0 ? (
           <div className="text-center py-20">
             <Package size={48} className="text-[#1A4D1F]/10 mx-auto mb-4" />
-            <p className="text-[#1A4D1F]/30 mb-6">{t("لا توجد منتجات متاحة", "Aucun produit disponible")}</p>
-            <Link href={`/order/${supplier.id}`}>
-              <button className="px-6 py-3 rounded-xl bg-[#1A4D1F] text-black font-black hover:bg-[#1A4D1F] transition-all">
-                {t("اطلب مباشرة", "Commander directement")}
-              </button>
-            </Link>
+            <p className="text-[#1A4D1F]/40 font-bold">{t("لا توجد منتجات متاحة حالياً", "Aucun produit disponible")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5">
