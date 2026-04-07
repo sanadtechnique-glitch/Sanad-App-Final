@@ -7,9 +7,9 @@ import fs from "node:fs";
 import { requireAdmin, requireAuth } from "../lib/authMiddleware";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadsDir  = path.resolve(__dirname, "../../uploads/ads");
-const logosDir    = path.resolve(__dirname, "../../uploads/logos");
-const imagesDir   = path.resolve(__dirname, "../../uploads/images");
+const uploadsDir  = path.resolve(__dirname, "../uploads/ads");
+const logosDir    = path.resolve(__dirname, "../uploads/logos");
+const imagesDir   = path.resolve(__dirname, "../uploads/images");
 
 fs.mkdirSync(uploadsDir,  { recursive: true });
 fs.mkdirSync(logosDir,    { recursive: true });
