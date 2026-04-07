@@ -133,6 +133,9 @@ function OrbitRing({
               animationIterationCount: "infinite",
               animationDelay: `${delay}s`,
               animationFillMode: "both",
+              willChange: "transform",
+              WebkitTransform: "translateZ(0)",
+              transform: "translateZ(0)",
             }}
           >
             {/* Offset to orbit radius */}
@@ -145,6 +148,9 @@ function OrbitRing({
                   animationTimingFunction: "linear",
                   animationIterationCount: "infinite",
                   animationDelay: `${delay}s`,
+                  willChange: "transform",
+                  WebkitTransform: "translateZ(0)",
+                  transform: "translateZ(0)",
                 }}
               >
                 <Link href={cat.href ?? `/services?category=${cat.id}`}>
