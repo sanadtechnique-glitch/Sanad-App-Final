@@ -798,7 +798,7 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen flex flex-col"
       style={{ background: "#FFF3E0", fontFamily: "'Cairo','Tajawal',sans-serif" }}
       dir="rtl"
     >
