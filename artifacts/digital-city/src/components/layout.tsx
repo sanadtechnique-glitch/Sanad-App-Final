@@ -635,10 +635,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 w-full max-w-7xl mx-auto pb-20 md:pb-4">
         {children}
 
-        {/* ── شركاؤنا — Partners Section (all pages) ── */}
-        <div className="px-4 sm:px-6 lg:px-10 mt-10">
-          <PhotoAdGallery />
-        </div>
+        {/* ── شركاؤنا — Partners Section (all pages except home, which has its own) ── */}
+        {location !== "/home" && location !== "/" && (
+          <div className="px-4 sm:px-6 lg:px-10 mt-10">
+            <PhotoAdGallery />
+          </div>
+        )}
 
         {/* ── Global Ad Banner — above footer, non-intrusive ── */}
         <div className="px-4 sm:px-6 mt-6 mb-4">

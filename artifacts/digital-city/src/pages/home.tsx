@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { AdBanner } from "@/components/ad-banner";
+import { PhotoAdGallery } from "@/components/PhotoAdGallery";
 import { useLang } from "@/lib/language";
 import { getSession, clearSession } from "@/lib/auth";
 import { get } from "@/lib/admin-api";
@@ -1557,51 +1558,19 @@ export default function Home() {
       <WhySanadSection lang={lang} t={t} />
 
       {/* ══════════════════════════════════════════════════════════════════════
-          4. MY ORDERS — shown only for logged-in clients
+          4. PARTNERS — شركاؤنا
       ══════════════════════════════════════════════════════════════════════ */}
-      {session?.role === "client" && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.25 }}
-          className="px-4 sm:px-6 lg:px-10 mt-8"
-        >
-          {/* Section header */}
-          <div className="flex items-center justify-between mb-4" dir="rtl">
-            <div>
-              <h2 className="text-lg font-black text-[#1A4D1F]">
-                {t("طلباتي", "Mes commandes")}
-              </h2>
-              <p className="text-xs font-bold text-[#1A4D1F]/40">
-                {t("جميع طلباتك من كل المزودين", "Toutes vos commandes")}
-              </p>
-            </div>
-            <Link href="/services">
-              <button
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white transition-all hover:opacity-90"
-                style={{ background: "#1A4D1F" }}
-              >
-                <ShoppingCart size={13} />
-                {t("طلب جديد", "Nouvelle commande")}
-              </button>
-            </Link>
-          </div>
-
-          {/* Card container */}
-          <div
-            className="rounded-2xl p-4"
-            style={{
-              background: "rgba(46,125,50,0.04)",
-              border: "1.5px solid rgba(46,125,50,0.12)",
-            }}
-          >
-            <MyOrdersSection name={session.name} t={t} />
-          </div>
-        </motion.section>
-      )}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.25 }}
+        className="px-4 sm:px-6 lg:px-10 mt-10"
+      >
+        <PhotoAdGallery />
+      </motion.section>
 
       {/* bottom spacing */}
-      <div className="mt-4" />
+      <div className="mt-6" />
 
     </div>
   );
