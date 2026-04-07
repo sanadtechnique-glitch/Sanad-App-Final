@@ -1,25 +1,21 @@
 import { useState, useEffect } from "react";
 import { get } from "@/lib/admin-api";
 
-interface Partner {
+interface PartnerLogo {
   id: number;
-  textAr: string;
-  textFr: string | null;
-  imageUrl: string | null;
-  linkUrl: string | null;
+  name: string;
+  imageUrl: string;
+  isActive: boolean;
+  sortOrder: number;
 }
 
 export function PhotoAdGallery() {
-  const [partners, setPartners] = useState<Partner[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [partners, setPartners] = useState<PartnerLogo[]>([]);
+  const [loaded, setLoaded]     = useState(false);
 
   useEffect(() => {
-    get<Partner[]>("/ticker")
-      .then(data => {
-        const withImages = data.filter(d => d.imageUrl && d.imageUrl.trim() !== "");
-        setPartners(withImages.slice(0, 8));
-        setLoaded(true);
-      })
+    get<PartnerLogo[]>("/partners")
+      .then(data => { setPartners(data); setLoaded(true); })
       .catch(() => setLoaded(true));
   }, []);
 
@@ -31,58 +27,48 @@ export function PhotoAdGallery() {
         className="text-xs font-black mb-4 tracking-widest uppercase text-right"
         style={{ color: "rgba(26,77,31,0.35)", fontFamily: "'Outfit',sans-serif", letterSpacing: "0.18em" }}
       >
-        Partenaires
+        Partenaires · شركاؤنا
       </p>
 
       <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-        {partners.map(p => {
-          const card = (
-            <div key={p.id} className="flex flex-col items-center gap-1.5 flex-shrink-0" style={{ width: 64 }}>
-              {/* Name above photo */}
-              <span
-                className="text-center leading-tight w-full"
-                style={{
-                  fontSize: 9,
-                  fontWeight: 700,
-                  color: "rgba(26,77,31,0.65)",
-                  fontFamily: "'Cairo',sans-serif",
-                  wordBreak: "break-word",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
+        {partners.map(p => (
+          <div
+            key={p.id}
+            className="flex flex-col items-center gap-1.5 flex-shrink-0"
+            style={{ width: 64 }}
+          >
+            <span
+              className="text-center leading-tight w-full"
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                color: "rgba(26,77,31,0.65)",
+                fontFamily: "'Cairo',sans-serif",
+                wordBreak: "break-word",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {p.name}
+            </span>
+            <div
+              className="rounded-full overflow-hidden flex items-center justify-center"
+              style={{ width: 52, height: 52, background: "rgba(26,77,31,0.06)" }}
+            >
+              <img
+                src={p.imageUrl}
+                alt={p.name}
+                className="w-full h-full object-cover"
+                draggable={false}
+                onError={e => {
+                  (e.currentTarget.parentElement!.parentElement!).style.display = "none";
                 }}
-              >
-                {p.textAr}
-              </span>
-              {/* Transparent photo */}
-              <div className="w-14 h-14 flex items-center justify-center" style={{ background: "transparent" }}>
-                <img
-                  src={p.imageUrl!}
-                  alt={p.textAr}
-                  className="w-full h-full object-contain"
-                  draggable={false}
-                  onError={e => { (e.currentTarget.parentElement!.parentElement!).style.display = "none"; }}
-                />
-              </div>
+              />
             </div>
-          );
-
-          if (p.linkUrl) {
-            return (
-              <a
-                key={p.id}
-                href={p.linkUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition-transform hover:scale-110 active:scale-95"
-              >
-                {card}
-              </a>
-            );
-          }
-          return card;
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );
