@@ -2546,6 +2546,16 @@ function BannersSection({ t }: { t: (ar: string, fr: string) => string }) {
           </Field>
         </div>
 
+        <AdminImagePicker
+          value={form.imageUrl}
+          onChange={v => setForm(f => ({...f, imageUrl: v}))}
+          label={t("صورة الشريحة (اختياري)","Image de la diapositive (optionnel)")}
+          guideAr="صورة خلفية للشريحة — ستُغطى بتأثير التدرج"
+          guideFr="Image de fond — couverte par le dégradé"
+          aspect="16:9"
+          accent="#1A4D1F"
+          t={t}
+        />
         <div className="grid grid-cols-2 gap-3">
           <Field label={t("تاريخ البداية (اختياري)","Date début (optionnel)")}>
             <Input type="date" value={form.startsAt} onChange={v => setForm(f => ({...f, startsAt: v}))} />
@@ -3398,10 +3408,8 @@ function TickerSection({ t }: { t: (ar: string, fr: string) => string }) {
                     <div className="flex-1 flex flex-col gap-1.5">
                       <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
                         className="flex items-center justify-center gap-2 w-full py-2 rounded-xl text-xs font-black border-2 border-dashed border-[#1A4D1F]/30 text-[#1A4D1F]/60 hover:bg-[#1A4D1F]/5 transition-all disabled:opacity-50">
-                        {uploading ? <><RefreshCw size={12} className="animate-spin" /> {t("جاري الرفع...","Envoi...")}</> : <><Upload size={12} /> {t("رفع صورة","Télécharger")}</>}
+                        {uploading ? <><RefreshCw size={12} className="animate-spin" /> {t("جاري الرفع...","Envoi...")}</> : <><Upload size={12} /> {t("رفع صورة من الجهاز","Importer depuis l'appareil")}</>}
                       </button>
-                      <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("أو الصق رابط الصورة","Ou coller l'URL de l'image")}
-                        className="w-full rounded-lg px-2.5 py-1.5 text-xs font-bold border border-[#1A4D1F]/20 outline-none focus:border-[#1A4D1F]" style={{ background: "#fff", color: "#1A4D1F" }} dir="ltr" />
                     </div>
                   </div>
                 </div>
@@ -4721,7 +4729,7 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [activeAgency, setActiveAgency] = useState<any | null>(null);
   const [showCarForm, setShowCarForm]   = useState(false);
   const [showAgencyForm, setShowAgencyForm] = useState(false);
-  const [carForm, setCarForm] = useState({ make: "", model: "", year: "", color: "", plateNumber: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "", description: "" });
+  const [carForm, setCarForm] = useState({ make: "", model: "", year: "", color: "", plateNumber: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", images: [] as string[], descriptionAr: "", description: "" });
   const [agencyForm, setAgencyForm] = useState({ nameAr: "", name: "", phone: "", address: "", photoUrl: "" });
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<"cars" | "bookings">("cars");
@@ -4781,11 +4789,11 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
       const res = await fetch("/api/admin/car-rental/cars", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-session-token": getSession()?.token || "" },
-        body: JSON.stringify({ ...carForm, agencyId: activeAgency.id, pricePerDay: Number(carForm.pricePerDay), seats: Number(carForm.seats) }),
+        body: JSON.stringify({ ...carForm, agencyId: activeAgency.id, pricePerDay: Number(carForm.pricePerDay), seats: Number(carForm.seats), images: carForm.images }),
       });
       const car = await res.json();
       setCars(prev => [...prev, car]);
-      setCarForm({ make: "", model: "", year: "", color: "", plateNumber: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "", description: "" });
+      setCarForm({ make: "", model: "", year: "", color: "", plateNumber: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", images: [], descriptionAr: "", description: "" });
       setShowCarForm(false);
     } finally { setSaving(false); }
   };
@@ -4844,13 +4852,16 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
               </div>
             ))}
           </div>
-          <div>
-            <label className="block text-xs font-black mb-1 opacity-60 text-[#1565C0]">{t("رابط الشعار / الصورة","Logo / Photo URL")}</label>
-            <input value={agencyForm.photoUrl} onChange={e => setAgencyForm(p => ({ ...p, photoUrl: e.target.value }))}
-              placeholder="https://..." dir="ltr"
-              className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
-              style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033" }} />
-          </div>
+          <AdminImagePicker
+            value={agencyForm.photoUrl}
+            onChange={v => setAgencyForm(p => ({ ...p, photoUrl: v }))}
+            label={t("شعار الوكالة (اختياري)","Logo de l'agence (optionnel)")}
+            guideAr="صورة أو شعار الوكالة"
+            guideFr="Photo ou logo de l'agence"
+            aspect="1:1"
+            accent="#1565C0"
+            t={t}
+          />
           <div className="flex gap-2">
             <button onClick={addAgency} disabled={saving || !agencyForm.nameAr || !agencyForm.name}
               className="flex-1 py-2.5 rounded-xl font-black text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2"
@@ -4957,13 +4968,11 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
                           </select>
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-black mb-1 opacity-50" style={{ color: "#1A4D1F" }}>{t("رابط الصورة","URL image")}</label>
-                        <input value={carForm.imageUrl} onChange={e => setCarForm(p => ({ ...p, imageUrl: e.target.value }))}
-                          placeholder="https://..." dir="ltr"
-                          className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
-                          style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1A4D1F22" }} />
-                      </div>
+                      <MultiImagePickerAdmin
+                        images={carForm.images}
+                        onChange={imgs => setCarForm(p => ({ ...p, images: imgs }))}
+                        t={t}
+                      />
                       <button onClick={addCar} disabled={saving || !carForm.make || !carForm.model || !carForm.pricePerDay}
                         className="w-full py-2.5 rounded-xl font-black text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2"
                         style={{ background: "#1A4D1F" }}>
@@ -4980,10 +4989,7 @@ function CarRentalSection({ t }: { t: (ar: string, fr: string) => string }) {
                   {cars.filter(c => c.agencyId === activeAgency.id).map(car => (
                     <div key={car.id} className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #1A4D1F11" }}>
                       <div className="flex items-center gap-3 p-3">
-                        {car.imageUrl
-                          ? <img src={car.imageUrl} alt="" className="w-16 h-12 rounded-lg object-cover flex-shrink-0" />
-                          : <div className="w-16 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#FFF3E0" }}><Car size={20} style={{ color: "#1A4D1F40" }} /></div>
-                        }
+                        {(() => { let imgs: string[] = []; try { imgs = car.images ? JSON.parse(car.images) : []; } catch {} const thumb = imgs[0] || car.imageUrl || ""; return thumb ? <img src={thumb} alt="" className="w-16 h-12 rounded-lg object-cover flex-shrink-0" /> : <div className="w-16 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#FFF3E0" }}><Car size={20} style={{ color: "#1A4D1F40" }} /></div>; })()}
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-sm truncate" style={{ color: "#1A4D1F" }}>{car.make} {car.model} {car.year && `(${car.year})`}</p>
                           <p className="text-xs opacity-50" style={{ color: "#1A4D1F" }}>{car.color && `${car.color} · `}{car.transmission === "automatic" ? t("أوتوماتيك","Auto") : t("يدوي","Manuel")} · {car.fuelType}</p>
@@ -5459,20 +5465,8 @@ function AppearanceSection({ t }: { t: (ar: string, fr: string) => string }) {
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm border-2 border-dashed border-[#1A4D1F]/30 text-[#1A4D1F]/70 hover:bg-[#1A4D1F]/5 transition-all disabled:opacity-50">
                 {uploading
                   ? <><RefreshCw size={15} className="animate-spin" /> {t("جاري الرفع...","Envoi en cours...")}</>
-                  : <><Upload size={15} /> {t("اختر ملف","Choisir un fichier")}</>}
+                  : <><Upload size={15} /> {t("رفع شعار من الجهاز","Importer depuis l'appareil")}</>}
               </button>
-            </div>
-
-            <div>
-              <label className="block text-xs font-black text-[#1A4D1F]/50 mb-1.5">{t("أو الصق رابط الشعار","Ou coller l'URL du logo")}</label>
-              <input
-                value={logoUrl}
-                onChange={e => setLogoUrl(e.target.value)}
-                placeholder="https://example.com/logo.png"
-                dir="ltr"
-                className="w-full rounded-xl px-3 py-2.5 text-sm font-bold border border-[#1A4D1F]/20 outline-none focus:border-[#1A4D1F]"
-                style={{ background: "#fff", color: "#1A4D1F" }}
-              />
             </div>
 
             <div className="flex gap-3">
