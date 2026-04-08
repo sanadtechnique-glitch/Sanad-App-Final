@@ -13,12 +13,13 @@ export const carsTable = pgTable("cars", {
   model:        text("model").notNull(),
   year:         integer("year"),
   color:        text("color").default(""),
-  plateNumber:  text("plate_number").default(""),        // رقم اللوحة المنجمية مثال: 123 TU 4567
+  plateNumber:  text("plate_number").notNull(),           // رقم اللوحة المنجمية — إجباري وفريد مثال: 123 TU 4567
   pricePerDay:  real("price_per_day").notNull(),
   seats:        integer("seats").default(5),
   transmission: text("transmission").default("manual"),
   fuelType:     text("fuel_type").default("essence"),
-  imageUrl:     text("image_url"),
+  imageUrl:     text("image_url"),                        // الصورة الرئيسية (أول صورة)
+  images:       text("images"),                           // JSON array of image URLs (صور متعددة)
   isAvailable:  boolean("is_available").default(true).notNull(),
   description:  text("description").default(""),
   descriptionAr: text("description_ar").default(""),
@@ -26,6 +27,7 @@ export const carsTable = pgTable("cars", {
 }, (t) => [
   index("idx_cars_agency_id").on(t.agencyId),
   index("idx_cars_is_available").on(t.isAvailable),
+  index("idx_cars_plate_number").on(t.plateNumber),
 ]);
 
 export const carRentalBookingsTable = pgTable("car_rental_bookings", {

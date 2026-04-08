@@ -440,7 +440,6 @@ function OrdersSection({ t, lang }: { t: (ar: string, fr: string) => string; lan
 // Admin Provider Management — Drawer + sub-components
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** Reusable image picker — visual preview + URL input */
 async function uploadImageFileAdmin(file: File, token: string): Promise<string> {
   const compressed = await compressImage(file).catch(() => file);
   const fd = new FormData();
@@ -618,6 +617,86 @@ function AdminImagePicker({ value, onChange, label, guideAr, guideFr, aspect = "
       <p className="text-[10px] font-bold opacity-30 flex items-center gap-1" style={{ color: accent }}>
         <ImageIcon size={9} />{t(`من المعرض أو الكاميرا · نسبة ${aspect}`, `Galerie ou caméra · Ratio ${aspect}`)}
       </p>
+    </div>
+  );
+}
+
+function MultiImagePickerAdmin({
+  images, onChange, accent = "#1565C0", t,
+}: {
+  images: string[];
+  onChange: (imgs: string[]) => void;
+  accent?: string;
+  t: (ar: string, fr: string) => string;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState("");
+
+  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    e.target.value = "";
+    setUploading(true);
+    setUploadErr("");
+    try {
+      const token = getSessionToken() || "";
+      const uploaded = await Promise.all(files.map(f => uploadImageFileAdmin(f, token)));
+      onChange([...images, ...uploaded]);
+    } catch {
+      setUploadErr(t("فشل رفع بعض الصور", "Échec du chargement"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const remove = (idx: number) => onChange(images.filter((_, i) => i !== idx));
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs font-black opacity-60" style={{ color: accent }}>
+        {t("صور السيارة", "Photos de la voiture")}
+        <span className="ms-1 opacity-50 font-bold">({images.length} {t("صورة", "photo(s)")})</span>
+      </label>
+      {images.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {images.map((url, idx) => (
+            <div key={idx} className="relative aspect-video rounded-xl overflow-hidden group"
+              style={{ border: `1.5px solid ${accent}22` }}>
+              <img src={url} alt="" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-all flex items-center justify-center">
+                <button type="button" onClick={() => remove(idx)}
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded-full bg-red-500/90">
+                  <X size={12} className="text-white" />
+                </button>
+              </div>
+              {idx === 0 && (
+                <div className="absolute top-1 start-1 text-[9px] font-black px-1.5 py-0.5 rounded-full"
+                  style={{ background: accent, color: "#fff" }}>
+                  {t("رئيسية", "Principale")}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFiles} />
+      <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+        className="w-full py-3 rounded-2xl border-2 border-dashed flex flex-col items-center gap-1.5 disabled:opacity-50"
+        style={{ borderColor: accent + "30", background: accent + "06" }}>
+        {uploading
+          ? <RefreshCw size={18} className="animate-spin" style={{ color: accent }} />
+          : <Camera size={18} style={{ color: accent, opacity: 0.5 }} />}
+        <span className="text-xs font-black" style={{ color: accent, opacity: 0.6 }}>
+          {uploading ? t("جارٍ الرفع...", "Chargement...") : images.length === 0
+            ? t("اضغط لاختيار صورة أو أكثر", "Choisir une ou plusieurs photos")
+            : t("إضافة صور أخرى", "Ajouter d'autres photos")}
+        </span>
+        <span className="text-[10px] font-bold opacity-30" style={{ color: accent }}>
+          {t("من المعرض أو الكاميرا", "Depuis la galerie ou l'appareil photo")}
+        </span>
+      </button>
+      {uploadErr && <p className="text-xs font-bold text-red-500">{uploadErr}</p>}
     </div>
   );
 }
@@ -858,13 +937,14 @@ function AdminArticlesManager({ supplierId, mode, t, lang }: {
 
 /** Admin manages cars for any car rental agency */
 function AdminCarsManager({ agencyId, t, lang }: { agencyId: number; t: (ar: string, fr: string) => string; lang: string }) {
-  type Car = { id: number; agencyId: number; make: string; model: string; year?: number; color: string; plateNumber: string; pricePerDay: number; seats: number; transmission: string; fuelType: string; imageUrl?: string | null; isAvailable: boolean; };
-  const EMPTY_CAR = { make:"", model:"", year:"", color:"", plateNumber:"", pricePerDay:"", seats:"5", transmission:"manual", fuelType:"essence", imageUrl:"", descriptionAr:"" };
+  type Car = { id: number; agencyId: number; make: string; model: string; year?: number; color: string; plateNumber: string; pricePerDay: number; seats: number; transmission: string; fuelType: string; imageUrl?: string | null; images?: string | null; isAvailable: boolean; };
+  const EMPTY_CAR = { make:"", model:"", year:"", color:"", plateNumber:"", pricePerDay:"", seats:"5", transmission:"manual", fuelType:"essence", images:[] as string[], descriptionAr:"" };
   const [cars,   setCars]   = useState<Car[]>([]);
   const [loading,setLoading]= useState(true);
   const [form,   setForm]   = useState(EMPTY_CAR);
   const [editId, setEditId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveErr,setSaveErr]= useState("");
   const [showF,  setShowF]  = useState(false);
 
   const load = async () => {
@@ -874,16 +954,31 @@ function AdminCarsManager({ agencyId, t, lang }: { agencyId: number; t: (ar: str
   };
   useEffect(() => { load(); }, [agencyId]);
 
-  const openAdd  = () => { setEditId(null); setForm(EMPTY_CAR); setShowF(true); };
-  const openEdit = (c: Car) => { setEditId(c.id); setForm({ make:c.make, model:c.model, year:c.year?.toString()||"", color:c.color, plateNumber:c.plateNumber, pricePerDay:c.pricePerDay.toString(), seats:c.seats.toString(), transmission:c.transmission, fuelType:c.fuelType, imageUrl:c.imageUrl||"", descriptionAr:"" }); setShowF(true); };
+  const openAdd  = () => { setEditId(null); setForm(EMPTY_CAR); setSaveErr(""); setShowF(true); };
+  const openEdit = (c: Car) => {
+    let imgs: string[] = [];
+    try { imgs = c.images ? JSON.parse(c.images) : []; } catch {}
+    setEditId(c.id);
+    setForm({ make:c.make, model:c.model, year:c.year?.toString()||"", color:c.color, plateNumber:c.plateNumber, pricePerDay:c.pricePerDay.toString(), seats:c.seats.toString(), transmission:c.transmission, fuelType:c.fuelType, images:imgs, descriptionAr:"" });
+    setSaveErr("");
+    setShowF(true);
+  };
 
   const saveCar = async () => {
+    setSaveErr("");
     if (!form.make || !form.model || !form.pricePerDay) return;
+    if (!form.plateNumber.trim()) { setSaveErr(t("رقم الترقيم المنجمي إجباري", "Le numéro d'immatriculation est obligatoire")); return; }
     setSaving(true);
     try {
-      const payload = { ...form, agencyId, year: form.year ? Number(form.year) : null, pricePerDay: Number(form.pricePerDay), seats: Number(form.seats) };
-      if (editId) await patch(`/admin/car-rental/cars/${editId}`, payload);
-      else await post("/admin/car-rental/cars", payload);
+      const payload = { ...form, agencyId, year: form.year ? Number(form.year) : null, pricePerDay: Number(form.pricePerDay), seats: Number(form.seats), images: form.images };
+      let res: Response;
+      if (editId) {
+        res = await fetch(`/api/admin/car-rental/cars/${editId}`, { method:"PATCH", headers:{"Content-Type":"application/json","x-session-token":getSessionToken()||""}, body:JSON.stringify(payload) });
+      } else {
+        res = await fetch("/api/admin/car-rental/cars", { method:"POST", headers:{"Content-Type":"application/json","x-session-token":getSessionToken()||""}, body:JSON.stringify(payload) });
+      }
+      const data = await res.json();
+      if (!res.ok) { setSaveErr(data.message || t("حدث خطأ", "Erreur")); return; }
       setShowF(false); await load();
     } finally { setSaving(false); }
   };
@@ -911,8 +1006,14 @@ function AdminCarsManager({ agencyId, t, lang }: { agencyId: number; t: (ar: str
           {cars.map(c => (
             <div key={c.id} className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1.5px solid #1565C011" }}>
               <div className="flex items-center gap-3 p-3">
-                {c.imageUrl ? <img src={c.imageUrl} alt="" className="w-16 h-12 rounded-xl object-cover flex-shrink-0" />
-                  : <div className="w-16 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#1565C008" }}><Car size={20} style={{ color: "#1565C0" }} className="opacity-30" /></div>}
+                {(() => {
+                  let imgs: string[] = [];
+                  try { imgs = c.images ? JSON.parse(c.images) : []; } catch {}
+                  const src = imgs[0] || c.imageUrl;
+                  return src
+                    ? <img src={src} alt="" className="w-16 h-12 rounded-xl object-cover flex-shrink-0" />
+                    : <div className="w-16 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#1565C008" }}><Car size={20} style={{ color: "#1565C0" }} className="opacity-30" /></div>;
+                })()}
                 <div className="flex-1 min-w-0">
                   <p className="font-black text-sm" style={{ color: "#1565C0" }}>{c.make} {c.model} {c.year || ""}</p>
                   <p className="text-xs opacity-50" style={{ color: "#1565C0" }}>{c.plateNumber} • {c.color} • {c.seats} {t("مقاعد","places")}</p>
@@ -966,7 +1067,7 @@ function AdminCarsManager({ agencyId, t, lang }: { agencyId: number; t: (ar: str
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1565C0" }}>{t("رقم اللوحة","Plaque d'immatriculation")}</label>
+                  <label className="text-xs font-black opacity-60 block mb-1" style={{ color: "#1565C0" }}>{t("رقم الترقيم المنجمي *","Immatriculation *")}</label>
                   <input value={form.plateNumber} onChange={e => setForm(p => ({...p, plateNumber:e.target.value}))} placeholder="123 TU 4567"
                     className="w-full rounded-xl px-3 py-2 text-sm font-bold border outline-none" dir="ltr" style={{ background: "#fff", borderColor: "#1565C033", color: "#1565C0" }} />
                 </div>
@@ -1004,17 +1105,26 @@ function AdminCarsManager({ agencyId, t, lang }: { agencyId: number; t: (ar: str
                     </select>
                   </div>
                 </div>
-                <AdminImagePicker value={form.imageUrl} onChange={v => setForm(p => ({...p, imageUrl:v}))}
-                  label={t("صورة السيارة","Photo voiture")} guideAr="صورة خارجية من الواجهة" guideFr="Photo extérieure de face"
-                  aspect="16:9" accent="#1565C0" t={t} />
+                <MultiImagePickerAdmin
+                  images={form.images}
+                  onChange={imgs => setForm(p => ({ ...p, images: imgs }))}
+                  accent="#1565C0"
+                  t={t}
+                />
+                {saveErr && (
+                  <div className="rounded-xl px-3 py-2.5 flex items-center gap-2" style={{ background: "#FEE2E2", border: "1px solid #FECACA" }}>
+                    <AlertTriangle size={14} className="text-red-500 flex-shrink-0" />
+                    <p className="text-xs font-bold text-red-600">{saveErr}</p>
+                  </div>
+                )}
                 <div className="flex gap-2">
-                  <button onClick={saveCar} disabled={saving || !form.make || !form.model || !form.pricePerDay}
+                  <button onClick={saveCar} disabled={saving || !form.make || !form.model || !form.pricePerDay || !form.plateNumber.trim()}
                     className="flex-1 py-2.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 disabled:opacity-40"
                     style={{ background: "#1565C0" }}>
                     {saving ? <RefreshCw size={13} className="animate-spin" /> : <Check size={13} />}
                     {editId ? t("حفظ","Enregistrer") : t("إضافة","Ajouter")}
                   </button>
-                  <button onClick={() => setShowF(false)} className="px-4 py-2.5 rounded-xl font-black text-sm border" style={{ color: "#1565C0", borderColor: "#1565C033" }}>{t("إلغاء","Annuler")}</button>
+                  <button onClick={() => { setShowF(false); setSaveErr(""); }} className="px-4 py-2.5 rounded-xl font-black text-sm border" style={{ color: "#1565C0", borderColor: "#1565C033" }}>{t("إلغاء","Annuler")}</button>
                 </div>
               </div>
             </motion.div>

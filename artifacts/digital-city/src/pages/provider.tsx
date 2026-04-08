@@ -247,6 +247,111 @@ function ImagePickerField({
   );
 }
 
+// ── Multi-Image Picker (للسيارات وغيرها — يدعم أكثر من صورة) ─────────────────
+function MultiImagePicker({
+  images, onChange, accentColor = "#1565C0", t,
+}: {
+  images: string[];
+  onChange: (imgs: string[]) => void;
+  accentColor?: string;
+  t: (ar: string, fr: string) => string;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState("");
+
+  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    e.target.value = "";
+    setUploading(true);
+    setUploadErr("");
+    try {
+      const uploaded = await Promise.all(files.map(f => uploadImageFile(f)));
+      onChange([...images, ...uploaded]);
+    } catch {
+      setUploadErr(t("فشل رفع بعض الصور، حاول مجدداً", "Échec du chargement, réessayez"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const remove = (idx: number) => onChange(images.filter((_, i) => i !== idx));
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs font-black opacity-60" style={{ color: accentColor }}>
+        {t("صور السيارة", "Photos de la voiture")}
+        <span className="ms-1 opacity-50 font-bold">
+          ({images.length} {t("صورة", "photo(s)")})
+        </span>
+      </label>
+
+      {/* Grid of uploaded images */}
+      {images.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {images.map((url, idx) => (
+            <div key={idx} className="relative aspect-video rounded-xl overflow-hidden group"
+              style={{ border: `1.5px solid ${accentColor}22` }}>
+              <img src={url} alt="" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-all flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => remove(idx)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full bg-red-500/90"
+                >
+                  <X size={12} className="text-white" />
+                </button>
+              </div>
+              {idx === 0 && (
+                <div className="absolute top-1 start-1 text-[9px] font-black px-1.5 py-0.5 rounded-full"
+                  style={{ background: accentColor, color: "#fff" }}>
+                  {t("رئيسية", "Principale")}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Upload button */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleFiles}
+      />
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+        className="w-full py-3 rounded-2xl border-2 border-dashed flex flex-col items-center gap-1.5 transition-all disabled:opacity-50"
+        style={{ borderColor: accentColor + "30", background: accentColor + "06" }}
+      >
+        {uploading ? (
+          <RefreshCw size={20} className="animate-spin" style={{ color: accentColor }} />
+        ) : (
+          <Camera size={20} style={{ color: accentColor, opacity: 0.5 }} />
+        )}
+        <span className="text-xs font-black" style={{ color: accentColor, opacity: 0.6 }}>
+          {uploading
+            ? t("جارٍ الرفع...", "Chargement...")
+            : images.length === 0
+              ? t("اضغط لاختيار صورة أو أكثر", "Appuyer pour choisir une ou plusieurs photos")
+              : t("إضافة صور أخرى", "Ajouter d'autres photos")}
+        </span>
+        <span className="text-[10px] font-bold opacity-30" style={{ color: accentColor }}>
+          {t("من المعرض أو الكاميرا", "Depuis la galerie ou l'appareil photo")}
+        </span>
+      </button>
+
+      {uploadErr && <p className="text-xs font-bold text-red-500">{uploadErr}</p>}
+    </div>
+  );
+}
+
 // ── SOS Vehicle Photo Card ────────────────────────────────────────────────────
 function SosVehiclePhotoCard({
   provider, t, onUpdated,
@@ -558,11 +663,12 @@ function ProductsManager({ providerId, t, lang, isService = false, overrideLabel
 
 // ── Car Manager (for car_rental providers) ────────────────────────────────────
 function CarManager({ agencyId, t }: { agencyId: number; t: (ar: string, fr: string) => string }) {
-  const EMPTY_CAR = { make: "", model: "", year: "", color: "", plateNumber: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", imageUrl: "", descriptionAr: "" };
+  const EMPTY_CAR = { make: "", model: "", year: "", color: "", plateNumber: "", pricePerDay: "", seats: "5", transmission: "manual", fuelType: "essence", images: [] as string[], descriptionAr: "" };
   const [cars, setCars]           = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm]   = useState(false);
   const [saving, setSaving]       = useState(false);
+  const [saveErr, setSaveErr]     = useState("");
   const [form, setForm]           = useState(EMPTY_CAR);
 
   const loadCars = async () => {
@@ -578,16 +684,28 @@ function CarManager({ agencyId, t }: { agencyId: number; t: (ar: string, fr: str
   useEffect(() => { loadCars(); }, [agencyId]);
 
   const addCar = async () => {
+    setSaveErr("");
     if (!form.make || !form.model || !form.pricePerDay) return;
+    if (!form.plateNumber.trim()) { setSaveErr(t("رقم الترقيم المنجمي إجباري", "Le numéro d'immatriculation est obligatoire")); return; }
     setSaving(true);
     try {
       const res = await fetch("/api/provider/car-rental/cars", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-session-token": getSession()?.token || "" },
-        body: JSON.stringify({ ...form, agencyId, pricePerDay: Number(form.pricePerDay), seats: Number(form.seats), year: form.year ? Number(form.year) : null }),
+        body: JSON.stringify({
+          ...form, agencyId,
+          pricePerDay: Number(form.pricePerDay),
+          seats: Number(form.seats),
+          year: form.year ? Number(form.year) : null,
+          images: form.images,
+        }),
       });
-      const car = await res.json();
-      setCars(prev => [...prev, car]);
+      const data = await res.json();
+      if (!res.ok) {
+        setSaveErr(data.message || t("حدث خطأ", "Erreur"));
+        return;
+      }
+      setCars(prev => [...prev, data]);
       setForm(EMPTY_CAR);
       setShowForm(false);
     } finally { setSaving(false); }
@@ -636,7 +754,7 @@ function CarManager({ agencyId, t }: { agencyId: number; t: (ar: string, fr: str
               { key: "model",       label: t("الموديل","Modèle"),            placeholder: "Yaris" },
               { key: "year",        label: t("السنة","Année"),               placeholder: "2022" },
               { key: "color",       label: t("اللون","Couleur"),             placeholder: t("أبيض","Blanc") },
-              { key: "plateNumber", label: t("رقم اللوحة المنجمية","Immatriculation"), placeholder: "123 TU 4567" },
+              { key: "plateNumber", label: t("رقم الترقيم المنجمي *","Immatriculation *"), placeholder: "123 TU 4567" },
               { key: "pricePerDay", label: t("السعر/يوم (د.ت)","Prix/j (DT)"),         placeholder: "50" },
               { key: "seats",       label: t("المقاعد","Places"),            placeholder: "5" },
             ].map(f => (
@@ -673,13 +791,9 @@ function CarManager({ agencyId, t }: { agencyId: number; t: (ar: string, fr: str
               </select>
             </div>
           </div>
-          <ImagePickerField
-            value={form.imageUrl}
-            onChange={v => setForm(p => ({ ...p, imageUrl: v }))}
-            label={t("صورة السيارة", "Photo de la voiture")}
-            guideAr="صورة خارجية للسيارة من الواجهة"
-            guideFr="Photo extérieure de face"
-            aspect="16:9"
+          <MultiImagePicker
+            images={form.images}
+            onChange={imgs => setForm(p => ({ ...p, images: imgs }))}
             accentColor="#1565C0"
             t={t}
           />
@@ -690,14 +804,20 @@ function CarManager({ agencyId, t }: { agencyId: number; t: (ar: string, fr: str
               className="w-full rounded-lg px-3 py-2 text-sm font-bold border outline-none"
               style={{ background: "#fff", color: "#1A4D1F", borderColor: "#1565C033" }} />
           </div>
+          {saveErr && (
+            <div className="rounded-xl px-3 py-2.5 flex items-center gap-2" style={{ background: "#FEE2E2", border: "1px solid #FECACA" }}>
+              <AlertTriangle size={14} className="text-red-500 flex-shrink-0" />
+              <p className="text-xs font-bold text-red-600">{saveErr}</p>
+            </div>
+          )}
           <div className="flex gap-2">
-            <button onClick={addCar} disabled={saving || !form.make || !form.model || !form.pricePerDay}
+            <button onClick={addCar} disabled={saving || !form.make || !form.model || !form.pricePerDay || !form.plateNumber.trim()}
               className="flex-1 py-2.5 rounded-xl font-black text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2"
               style={{ background: "#1565C0" }}>
               {saving ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
               {t("إضافة السيارة","Ajouter la voiture")}
             </button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2.5 rounded-xl font-black text-sm"
+            <button onClick={() => { setShowForm(false); setSaveErr(""); }} className="px-4 py-2.5 rounded-xl font-black text-sm"
               style={{ background: "#1565C022", color: "#1565C0" }}>
               {t("إلغاء","Annuler")}
             </button>
@@ -716,12 +836,13 @@ function CarManager({ agencyId, t }: { agencyId: number; t: (ar: string, fr: str
       {cars.map(car => (
         <div key={car.id} className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #1A4D1F11" }}>
           <div className="flex items-center gap-3 p-3">
-            {car.imageUrl
-              ? <img src={car.imageUrl} alt="" className="w-16 h-12 rounded-lg object-cover flex-shrink-0" />
-              : <div className="w-16 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#EFF6FF" }}>
-                  <span className="text-2xl">🚗</span>
-                </div>
-            }
+            {(() => {
+              const imgs = car.images ? (() => { try { return JSON.parse(car.images); } catch { return []; } })() : [];
+              const src = imgs[0] || car.imageUrl;
+              return src
+                ? <img src={src} alt="" className="w-16 h-12 rounded-lg object-cover flex-shrink-0" />
+                : <div className="w-16 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#EFF6FF" }}><span className="text-2xl">🚗</span></div>;
+            })()}
             <div className="flex-1 min-w-0">
               <p className="font-black text-sm" style={{ color: "#1A4D1F" }}>{car.make} {car.model} {car.year && `(${car.year})`}</p>
               <p className="text-xs opacity-50 truncate" style={{ color: "#1A4D1F" }}>{car.color && `${car.color} · `}{car.transmission === "automatic" ? t("أوتوماتيك","Auto") : t("يدوي","Manuel")} · {car.fuelType}</p>

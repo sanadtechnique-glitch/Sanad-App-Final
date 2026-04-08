@@ -12,9 +12,13 @@ const token = () => getSession()?.token || "";
 interface CarItem {
   id: number; agencyId: number; make: string; model: string; year?: number;
   color?: string; pricePerDay: number; seats?: number; transmission?: string;
-  fuelType?: string; imageUrl?: string; description?: string; descriptionAr?: string;
+  fuelType?: string; imageUrl?: string; images?: string; description?: string; descriptionAr?: string;
   isAvailable: boolean;
 }
+const getCarImages = (car: CarItem): string[] => {
+  try { return car.images ? JSON.parse(car.images) : []; } catch { return []; }
+};
+const getCarThumb = (car: CarItem): string | null => getCarImages(car)[0] || car.imageUrl || null;
 
 interface Agency {
   id: number; name: string; nameAr: string; phone?: string; address?: string; photoUrl?: string;
@@ -174,8 +178,8 @@ export default function CarRentalPage() {
                 style={{ background: "#fff", border: "1px solid #1A4D1F11" }}>
                 {/* Car image */}
                 <div className="relative h-44 overflow-hidden" style={{ background: "#FFF3E0" }}>
-                  {car.imageUrl ? (
-                    <img src={car.imageUrl} alt={`${car.make} ${car.model}`} className="w-full h-full object-cover" />
+                  {getCarThumb(car) ? (
+                    <img src={getCarThumb(car)!} alt={`${car.make} ${car.model}`} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Car size={64} style={{ color: "#1A4D1F", opacity: 0.2 }} />
