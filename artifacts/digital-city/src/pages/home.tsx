@@ -101,13 +101,14 @@ const CATEGORIES = [
   { id: "butcher",     ar: "جزار",        fr: "Boucherie",     href: null,            emoji: "🥩",  bg: "radial-gradient(circle at 35% 30%, #DC2626 0%, #7F1D1D 100%)" },
   { id: "sweets",      ar: "مرطبات",      fr: "Pâtisserie",    href: null,            emoji: "🍬",  bg: "radial-gradient(circle at 35% 30%, #EC4899 0%, #831843 100%)" },
   { id: "cafe",        ar: "مقهى",        fr: "Café",          href: null,            emoji: "☕",  bg: "radial-gradient(circle at 35% 30%, #92400E 0%, #3B1A08 100%)" },
+  { id: "clothing",    ar: "ملابس",       fr: "Vêtements",     href: null,            emoji: "👔",  bg: "radial-gradient(circle at 35% 30%, #7C3AED 0%, #3B1A8B 100%)" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DUAL-RING ORBITAL SYSTEM
 // ─────────────────────────────────────────────────────────────────────────────
 const INNER_CATS = CATEGORIES.slice(0, 6);   // خدمات: تاكسي، طبيب، كراء، SOS، محامي، فنادق
-const OUTER_CATS = CATEGORIES.slice(6);      // منتجات: مطاعم، بقالة، صيدلية، مخبز، جزار، مرطبات، مقهى
+const OUTER_CATS = CATEGORIES.slice(6);      // منتجات: مطاعم، بقالة، صيدلية، مخبز، جزار، مرطبات، مقهى، ملابس
 
 function OrbitRing({
   cats, radius, size, duration, clockwise, lang, cx, cy,
@@ -743,6 +744,7 @@ const CAT_LABELS: Record<string, { ar: string; emoji: string }> = {
   car_rental: { ar: "سيارات",  emoji: "🚗" }, sos:        { ar: "إنقاذ",   emoji: "🚨" },
   lawyer:     { ar: "محامي",   emoji: "⚖️" }, doctor:     { ar: "طبيب",    emoji: "🩺" },
   taxi:       { ar: "تاكسي",   emoji: "🚕" },
+  clothing:   { ar: "ملابس",   emoji: "👔" },
 };
 
 function HomeSearchBar({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {

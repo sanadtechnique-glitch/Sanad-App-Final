@@ -8,7 +8,7 @@ import {
   Star, ChevronRight, Utensils, Pill, Scale,
   ShoppingCart, Wrench, Stethoscope, Car, Hotel,
   Moon, Sun, AlertTriangle, KeyRound, Cake, Coffee,
-  Beef, Scissors,
+  Beef, Scissors, ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,7 @@ const CATS = [
   { id: "butcher",    ar: "ملحمة",        fr: "Boucherie",     icon: Beef,         gradient: "from-red-500/20 to-rose-500/10",     iconColor: "text-red-400",     border: "hover:border-red-500/30",    href: null },
   { id: "cafe",       ar: "مقهى",         fr: "Café",          icon: Coffee,       gradient: "from-amber-800/20 to-amber-500/10",  iconColor: "text-amber-700",   border: "hover:border-amber-500/30",  href: null },
   { id: "sweets",     ar: "حلويات",       fr: "Pâtisserie",    icon: Scissors,     gradient: "from-pink-500/20 to-rose-500/10",    iconColor: "text-pink-400",    border: "hover:border-pink-500/30",   href: null },
+  { id: "clothing",   ar: "ملابس",        fr: "Vêtements",     icon: ShoppingBag,  gradient: "from-purple-500/20 to-violet-500/10", iconColor: "text-purple-400",  border: "hover:border-purple-500/30", href: null },
   { id: "pharmacy",   ar: "صيدلية",       fr: "Pharmacie",     icon: Pill,         gradient: "from-emerald-500/20 to-teal-500/10", iconColor: "text-emerald-400", border: "hover:border-emerald-500/30",href: null },
   { id: "hotel",      ar: "فنادق",        fr: "Hôtels",        icon: Hotel,        gradient: "from-violet-500/20 to-purple-500/10",iconColor: "text-violet-400",  border: "hover:border-violet-500/30", href: null },
   { id: "car_rental", ar: "كراء سيارات", fr: "Location auto", icon: KeyRound,     gradient: "from-sky-500/20 to-blue-500/10",     iconColor: "text-sky-400",     border: "hover:border-sky-500/30",    href: null },

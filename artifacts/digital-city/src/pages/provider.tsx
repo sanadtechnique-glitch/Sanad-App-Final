@@ -39,7 +39,7 @@ function timeAgo(dateStr: string, lang: string) {
 }
 
 // ── فئات مزودي المنتجات (يبيعون أصنافاً من كتالوج)
-const PRODUCT_CATS = ["restaurant", "grocery", "pharmacy", "bakery", "butcher", "cafe", "sweets"];
+const PRODUCT_CATS = ["restaurant", "grocery", "pharmacy", "bakery", "butcher", "cafe", "sweets", "clothing"];
 // ── فئات المزودين القادرين على الاستجابة لطلبات SOS (شاحنات SOS فقط)
 const SOS_CATS     = ["sos"];
 

@@ -68,6 +68,7 @@ const CATEGORY_LABELS: Record<string, { ar: string; fr: string }> = {
   butcher:    { ar: "ملّاح",   fr: "Boucherie"  },
   cafe:       { ar: "مقهى",    fr: "Café"       },
   sweets:     { ar: "حلويات",  fr: "Pâtisserie" },
+  clothing:   { ar: "ملابس",   fr: "Vêtements"  },
   // ── مزودو الخدمات ──
   hotel:      { ar: "فندق",    fr: "Hôtel"      },
   car_rental: { ar: "كراء سيارات", fr: "Location auto" },
@@ -75,7 +76,7 @@ const CATEGORY_LABELS: Record<string, { ar: string; fr: string }> = {
   lawyer:     { ar: "محامي",   fr: "Avocat"     },
 };
 
-const PRODUCT_CATS = ["restaurant","grocery","pharmacy","bakery","butcher","cafe","sweets"] as const;
+const PRODUCT_CATS = ["restaurant","grocery","pharmacy","bakery","butcher","cafe","sweets","clothing"] as const;
 const SERVICE_CATS = ["hotel","car_rental","sos","lawyer"] as const;
 
 function supplierType(cat: string): "product" | "service" {
@@ -1138,7 +1139,7 @@ function AdminCarsManager({ agencyId, t, lang }: { agencyId: number; t: (ar: str
 /** Admin Provider Drawer — slides up and shows full provider management */
 function AdminProviderDrawer({ supplier, t, lang, onClose }: { supplier: Supplier; t: (ar: string, fr: string) => string; lang: string; onClose: () => void; }) {
   const CAT = supplier.category;
-  const isProductCat = ["restaurant","grocery","pharmacy","bakery","butcher","cafe","sweets"].includes(CAT);
+  const isProductCat = ["restaurant","grocery","pharmacy","bakery","butcher","cafe","sweets","clothing"].includes(CAT);
   const isHotel     = CAT === "hotel";
   const isCarRental = CAT === "car_rental";
   const isSos       = CAT === "sos";
