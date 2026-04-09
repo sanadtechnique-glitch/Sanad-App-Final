@@ -12,7 +12,7 @@ import {
   UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
   Image, ImageIcon, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
   Settings, Sliders, DollarSign, Zap, TrendingUp, Upload, AlertTriangle, KeyRound, Stethoscope, Scale, FileText, Phone,
-  Camera, Bed, Wrench,
+  Camera, Bed, Wrench, Menu,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
@@ -5873,21 +5873,33 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background flex" dir={isRTL ? "rtl" : "ltr"}>
+      {/* ── Mobile backdrop ── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 md:hidden"
+          style={{ background: "rgba(0,0,0,0.55)" }}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ── */}
       <aside className={cn(
         "fixed top-0 h-screen z-40 flex flex-col border-[#1A4D1F]/20",
         "transition-all duration-300",
         isRTL ? "right-0 border-l" : "left-0 border-r",
-        sidebarOpen ? "w-64" : "w-16 md:w-64"
+        // Mobile: hidden off-screen by default, slides in as full overlay when open
+        // Desktop: always visible at w-64
+        sidebarOpen ? "w-72 translate-x-0" : (isRTL ? "translate-x-full md:translate-x-0" : "-translate-x-full md:translate-x-0"),
+        "md:w-64"
       )} style={{ background: "#1A4D1F" }}>
 
-        {/* Logo */}
+        {/* Logo + Close btn on mobile */}
         <div className="flex items-center gap-3 px-4 py-4 border-b border-white/10">
           <div className="w-9 h-9 flex items-center justify-center flex-shrink-0 rounded-xl"
             style={{ background: "rgba(255,163,0,0.15)" }}>
             <img src="/sanad-logo.svg?v=5" alt="سند" style={{ height: 36, width: "auto", filter: "brightness(10)" }} draggable={false} />
           </div>
-          <div className="hidden md:block overflow-hidden flex-1 min-w-0">
+          <div className="overflow-hidden flex-1 min-w-0">
             <p className="text-xs font-black text-white/90 leading-tight">{t("لوحة التحكم","Admin Panel")}</p>
             <p className="text-[10px] text-white/50 font-bold truncate">{session?.name ?? "Admin"}</p>
             {session?.role && (
@@ -5897,6 +5909,10 @@ export default function Admin() {
               </span>
             )}
           </div>
+          <button onClick={() => setSidebarOpen(false)}
+            className="md:hidden p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all flex-shrink-0">
+            <X size={16} />
+          </button>
         </div>
 
         {/* ── Nav Groups ── */}
@@ -5922,12 +5938,12 @@ export default function Admin() {
                     style={{ background: groupHasActive ? group.color + "40" : "rgba(255,255,255,0.10)" }}>
                     <GroupIcon size={13} style={{ color: groupHasActive ? (group.color === "#1A4D1F" ? "#FFA500" : group.color) : "rgba(255,255,255,0.6)" }} />
                   </div>
-                  <span className="hidden md:block flex-1 text-xs font-black truncate text-start">
+                  <span className="flex-1 text-xs font-black truncate text-start">
                     {lang === "ar" ? group.ar : group.fr}
                   </span>
                   <ChevronDown
                     size={12}
-                    className="hidden md:block flex-shrink-0 transition-transform duration-200"
+                    className="flex-shrink-0 transition-transform duration-200"
                     style={{
                       transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
                       color: "rgba(255,255,255,0.35)",
@@ -5952,7 +5968,7 @@ export default function Admin() {
                           }}
                         >
                           <Icon size={14} className="flex-shrink-0" />
-                          <span className="hidden md:block truncate text-xs font-bold">
+                          <span className="truncate text-xs font-bold">
                             {lang === "ar" ? item.ar : item.fr}
                           </span>
                         </button>
@@ -5969,23 +5985,23 @@ export default function Admin() {
         <div className="px-2 py-3 border-t border-white/10 space-y-1">
           <a href="/" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/30 hover:text-white hover:bg-white/5 transition-all text-sm font-bold">
             <ChevronRight size={17} className={cn("flex-shrink-0", isRTL ? "rotate-0" : "rotate-180")} />
-            <span className="hidden md:block text-xs">{t("العودة للتطبيق","Retour à l'app")}</span>
+            <span className="text-xs">{t("العودة للتطبيق","Retour à l'app")}</span>
           </a>
           <button onClick={adminLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-black transition-all"
             style={{ background: "#FFA500", color: "#1A4D1F" }}>
             <Power size={15} className="flex-shrink-0" />
-            <span className="hidden md:block">{t("تسجيل الخروج","Déconnexion")}</span>
+            <span>{t("تسجيل الخروج","Déconnexion")}</span>
           </button>
         </div>
       </aside>
 
       {/* ── Main content ── */}
-      <main className={cn("flex-1 min-w-0 p-4 md:p-8 pb-24", isRTL ? "mr-16 md:mr-64" : "ml-16 md:ml-64")}>
+      <main className={cn("flex-1 min-w-0 p-4 md:p-8 pb-24", isRTL ? "md:mr-64" : "md:ml-64")}>
         {/* Mobile header */}
         <div className="flex items-center justify-between mb-6 md:hidden">
-          <button onClick={() => setSidebarOpen(o => !o)} className="p-2 rounded-xl bg-[#1A4D1F]/5 text-[#1A4D1F]/40">
-            <LayoutDashboard size={18} />
+          <button onClick={() => setSidebarOpen(o => !o)} className="p-2.5 rounded-xl bg-[#1A4D1F] text-white shadow-sm">
+            <Menu size={18} />
           </button>
           <p className="text-sm font-black text-[#1A4D1F]">{(() => { const item = NAV_GROUPS.flatMap(g => g.items).find(n => n.id === active); return lang === "ar" ? item?.ar : item?.fr; })()}</p>
           <NotificationBell lang={lang} role={session?.role as any || "admin"} />
