@@ -707,8 +707,8 @@ function AdminArticlesManager({ supplierId, mode, t, lang }: {
   supplierId: number; mode: "product" | "room" | "specialty";
   t: (ar: string, fr: string) => string; lang: string;
 }) {
-  type Art = { id: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; photoUrl?: string | null; isAvailable: boolean; };
-  const EMPTY = { nameAr: "", nameFr: "", descriptionAr: "", descriptionFr: "", price: "", photoUrl: "", isAvailable: true };
+  type Art = { id: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; photoUrl?: string | null; images?: string | null; isAvailable: boolean; };
+  const EMPTY = { nameAr: "", nameFr: "", descriptionAr: "", descriptionFr: "", price: "", images: [] as string[], isAvailable: true };
   const [items,   setItems]   = useState<Art[]>([]);
   const [loading, setLoading] = useState(true);
   const [form,    setForm]    = useState(EMPTY);
@@ -742,6 +742,14 @@ function AdminArticlesManager({ supplierId, mode, t, lang }: {
     return { floor: floorM?.[1] ?? "0", type: typeM?.[1] ?? "single", roomNumber: numM?.[1]?.trim() ?? a.nameAr };
   };
 
+  const parseArtImages = (a: Art): string[] => {
+    try { return a.images ? JSON.parse(a.images) : []; } catch { return []; }
+  };
+  const artThumb = (a: Art) => {
+    const imgs = parseArtImages(a);
+    return imgs[0] || a.photoUrl || "";
+  };
+
   const openAdd = () => {
     setEditing(null); setForm(EMPTY); setRoomNum(""); setRoomFloor("0"); setRoomType("single"); setShowF(true);
   };
@@ -749,9 +757,9 @@ function AdminArticlesManager({ supplierId, mode, t, lang }: {
     if (mode === "room") {
       const r = parseRoom(a);
       setRoomNum(r.roomNumber); setRoomFloor(r.floor); setRoomType(r.type);
-      setForm({ ...EMPTY, price: String(a.price), photoUrl: a.photoUrl || "", isAvailable: a.isAvailable, nameAr: a.nameAr, nameFr: a.nameFr, descriptionAr: a.descriptionAr, descriptionFr: a.descriptionFr });
+      setForm({ ...EMPTY, price: String(a.price), images: parseArtImages(a), isAvailable: a.isAvailable, nameAr: a.nameAr, nameFr: a.nameFr, descriptionAr: a.descriptionAr, descriptionFr: a.descriptionFr });
     } else {
-      setForm({ nameAr: a.nameAr, nameFr: a.nameFr, descriptionAr: a.descriptionAr, descriptionFr: a.descriptionFr, price: String(a.price), photoUrl: a.photoUrl || "", isAvailable: a.isAvailable });
+      setForm({ nameAr: a.nameAr, nameFr: a.nameFr, descriptionAr: a.descriptionAr, descriptionFr: a.descriptionFr, price: String(a.price), images: parseArtImages(a), isAvailable: a.isAvailable });
     }
     setEditing(a); setShowF(true);
   };
@@ -760,9 +768,9 @@ function AdminArticlesManager({ supplierId, mode, t, lang }: {
     if (mode === "room") {
       const typeObj = ROOM_TYPES.find(r => r.value === roomType) || ROOM_TYPES[0];
       const flLabelFr = roomFloor === "0" ? "Rez-de-chaussée" : `Étage ${roomFloor}`;
-      return { supplierId, nameAr: `غرفة ${roomNum}`, nameFr: `Chambre ${roomNum}`, descriptionAr: `floor:${roomFloor}|type:${roomType}`, descriptionFr: `${flLabelFr} • ${typeObj.frLabel}`, price: Number(form.price) || 0, photoUrl: form.photoUrl || null, isAvailable: form.isAvailable };
+      return { supplierId, nameAr: `غرفة ${roomNum}`, nameFr: `Chambre ${roomNum}`, descriptionAr: `floor:${roomFloor}|type:${roomType}`, descriptionFr: `${flLabelFr} • ${typeObj.frLabel}`, price: Number(form.price) || 0, images: form.images, isAvailable: form.isAvailable };
     }
-    return { supplierId, nameAr: form.nameAr, nameFr: form.nameFr || form.nameAr, descriptionAr: form.descriptionAr, descriptionFr: form.descriptionFr || form.descriptionAr, price: Number(form.price) || 0, photoUrl: form.photoUrl || null, isAvailable: form.isAvailable };
+    return { supplierId, nameAr: form.nameAr, nameFr: form.nameFr || form.nameAr, descriptionAr: form.descriptionAr, descriptionFr: form.descriptionFr || form.descriptionAr, price: Number(form.price) || 0, images: form.images, isAvailable: form.isAvailable };
   };
 
   const save = async () => {
@@ -809,8 +817,15 @@ function AdminArticlesManager({ supplierId, mode, t, lang }: {
             return (
               <div key={a.id} className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1.5px solid #1A4D1F11" }}>
                 <div className="flex items-center gap-3 p-3">
-                  {a.photoUrl
-                    ? <img src={a.photoUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                  {artThumb(a)
+                    ? <div className="relative w-14 h-14 flex-shrink-0">
+                        <img src={artThumb(a)} alt="" className="w-14 h-14 rounded-xl object-cover" />
+                        {parseArtImages(a).length > 1 && (
+                          <div className="absolute bottom-0.5 right-0.5 bg-black/60 rounded-full px-1 text-white text-[8px] font-black">
+                            {parseArtImages(a).length}
+                          </div>
+                        )}
+                      </div>
                     : <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#1A4D1F08" }}>
                         {mode === "room" ? <Bed size={20} style={{ color: "#1A4D1F" }} className="opacity-30" /> : <Package size={20} style={{ color: "#1A4D1F" }} className="opacity-30" />}
                       </div>}
@@ -906,13 +921,9 @@ function AdminArticlesManager({ supplierId, mode, t, lang }: {
                     </div>
                   </>
                 )}
-                <AdminImagePicker
-                  value={form.photoUrl}
-                  onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
-                  label={mode === "room" ? t("صورة الغرفة","Photo chambre") : t("صورة المنتج","Photo produit")}
-                  guideAr={mode === "room" ? "صورة داخلية للغرفة" : "صورة المنتج"}
-                  guideFr={mode === "room" ? "Photo intérieure" : "Photo produit"}
-                  aspect={mode === "room" ? "4:3" : "1:1"}
+                <MultiImagePickerAdmin
+                  images={form.images}
+                  onChange={imgs => setForm(f => ({ ...f, images: imgs }))}
                   accent="#1A4D1F"
                   t={t}
                 />

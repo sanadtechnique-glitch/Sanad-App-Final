@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout";
 import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
 import { get } from "@/lib/admin-api";
-import { Plus, Minus, Package, Star, ArrowRight, ChevronLeft } from "lucide-react";
+import { Plus, Minus, Package, Star, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { AdCarousel } from "@/components/AdCarousel";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +25,62 @@ interface Supplier {
 interface Article {
   id: number; supplierId: number; nameAr: string; nameFr: string;
   descriptionAr: string; descriptionFr: string; price: number;
-  originalPrice?: number; photoUrl?: string; isAvailable: boolean;
+  originalPrice?: number; photoUrl?: string; images?: string | null; isAvailable: boolean;
+}
+
+function parseImages(a: Article): string[] {
+  try { return a.images ? JSON.parse(a.images) : []; } catch { return []; }
+}
+function getImages(a: Article): string[] {
+  const imgs = parseImages(a);
+  return imgs.length > 0 ? imgs : (a.photoUrl ? [a.photoUrl] : []);
+}
+
+/** Swipeable image mini-slider for product cards */
+function ProductImageSlider({ images, nameAr }: { images: string[]; nameAr: string }) {
+  const [idx, setIdx] = useState(0);
+  if (images.length === 0) return (
+    <div className="w-full aspect-[4/3] bg-[#FFF8E7] flex items-center justify-center">
+      <Package size={26} className="text-[#1A4D1F]/15" />
+    </div>
+  );
+  return (
+    <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#FFF8E7] group">
+      <AnimatePresence initial={false} mode="wait">
+        <motion.img
+          key={idx}
+          src={images[idx]}
+          alt={nameAr}
+          className="absolute inset-0 w-full h-full object-cover"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        />
+      </AnimatePresence>
+      {images.length > 1 && (
+        <>
+          <button
+            onClick={e => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); }}
+            className="absolute left-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black/30 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            <ChevronLeft size={12} />
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); }}
+            className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black/30 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            <ChevronRight size={12} />
+          </button>
+          {/* Dots */}
+          <div className="absolute bottom-1.5 left-0 right-0 flex justify-center gap-1">
+            {images.map((_, i) => (
+              <button key={i} onClick={e => { e.stopPropagation(); setIdx(i); }}
+                className={cn("rounded-full transition-all", i === idx ? "w-3 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/50")} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function ProviderStore() {
@@ -156,9 +211,12 @@ export default function ProviderStore() {
             <p className="text-[#1A4D1F]/40 font-bold">{t("لا توجد منتجات متاحة حالياً", "Aucun produit disponible")}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {articles.map((article, i) => {
               const qty = getQty(article.id);
+              const imgs = getImages(article);
+              const hasSale = !!(article.originalPrice && article.originalPrice > article.price);
+              const discountPct = hasSale ? Math.round(((article.originalPrice! - article.price) / article.originalPrice!) * 100) : 0;
               return (
                 <motion.div
                   key={article.id}
@@ -166,64 +224,68 @@ export default function ProviderStore() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
                   className={cn(
-                    "rounded-[15px] border overflow-hidden flex flex-col transition-all duration-300",
+                    "rounded-2xl border overflow-hidden flex flex-col transition-all duration-300",
                     qty > 0
-                      ? "border-[#1A4D1F]/60 shadow-[0_0_20px_rgba(46,125,50,0.12)]"
-                      : "border-[#1A4D1F]/20 hover:border-[#1A4D1F]/45"
+                      ? "border-[#1A4D1F]/50 shadow-[0_2px_16px_rgba(26,77,31,0.10)]"
+                      : "border-[#1A4D1F]/12 hover:border-[#1A4D1F]/35"
                   )}
                   style={{ background: "#FFFFFF" }}>
 
-                  {/* Circular product image */}
-                  <div className="flex flex-col items-center pt-3 pb-1 px-2 relative"
-                    style={{ background: "linear-gradient(to bottom, #FFF8E7, #FFFFFF)" }}>
-                    <div className="relative">
-                      <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-[#FFA500]/10 flex items-center justify-center">
-                        {article.photoUrl ? (
-                          <img src={article.photoUrl} alt={article.nameAr} className="w-full h-full object-cover" />
-                        ) : (
-                          <Package size={22} className="text-[#1A4D1F]/20" />
-                        )}
+                  {/* Rectangular image with slider */}
+                  <div className="relative">
+                    <ProductImageSlider images={imgs} nameAr={article.nameAr} />
+                    {/* Sale badge */}
+                    {hasSale && (
+                      <div className="absolute top-2 start-2 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-lg">
+                        -{discountPct}%
                       </div>
-                      {qty > 0 && (
-                        <div className="absolute -top-0.5 -end-0.5 w-5 h-5 rounded-full bg-[#1A4D1F] flex items-center justify-center shadow-sm">
-                          <span className="text-black text-[9px] font-black">{qty}</span>
-                        </div>
-                      )}
-                    </div>
+                    )}
+                    {/* Cart quantity badge */}
+                    {qty > 0 && (
+                      <div className="absolute top-2 end-2 w-6 h-6 rounded-full bg-[#1A4D1F] flex items-center justify-center shadow">
+                        <span className="text-white text-[10px] font-black">{qty}</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Info */}
-                  <div className="p-2 flex flex-col flex-1">
-                    <p className="text-xs font-black text-[#1A4D1F] leading-tight mb-1 line-clamp-2">
+                  {/* Info + actions */}
+                  <div className="p-2.5 flex flex-col flex-1 gap-1.5" dir="rtl">
+                    <p className="text-xs font-black text-[#1A4D1F] leading-snug line-clamp-2">
                       {lang === "ar" ? article.nameAr : article.nameFr}
                     </p>
-                    <div className="mt-auto space-y-1.5">
-                      <div className="flex items-baseline gap-1 flex-wrap">
-                        <p className="text-[#1A4D1F] font-black text-sm">{article.price.toFixed(2)} DT</p>
-                        {article.originalPrice && article.originalPrice > article.price && (
-                          <p className="text-[#1A4D1F]/25 text-[10px] line-through">{article.originalPrice.toFixed(2)}</p>
+                    {article.descriptionAr && (
+                      <p className="text-[10px] text-[#1A4D1F]/40 font-bold leading-tight line-clamp-1">
+                        {lang === "ar" ? article.descriptionAr : article.descriptionFr}
+                      </p>
+                    )}
+                    <div className="mt-auto space-y-2">
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-[#1A4D1F] font-black text-sm">{article.price.toFixed(2)} DT</span>
+                        {hasSale && (
+                          <span className="text-[#1A4D1F]/25 text-[10px] font-bold line-through">{article.originalPrice!.toFixed(2)}</span>
                         )}
                       </div>
                       {qty > 0 ? (
-                        <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center justify-between gap-1.5">
                           <button
                             onClick={() => updateQty(article.id, qty - 1)}
-                            className="w-6 h-6 rounded-lg bg-[#1A4D1F]/5 border border-[#1A4D1F]/10 flex items-center justify-center hover:border-red-400/30 hover:text-red-400 transition-all text-[#1A4D1F]/60">
-                            <Minus size={10} />
+                            className="flex-1 h-7 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center text-red-400 hover:bg-red-100 transition-all">
+                            <Minus size={11} />
                           </button>
-                          <span className="text-[#1A4D1F] font-black text-xs flex-1 text-center">{qty}</span>
+                          <span className="text-[#1A4D1F] font-black text-sm w-6 text-center">{qty}</span>
                           <button
                             onClick={() => updateQty(article.id, qty + 1)}
-                            className="w-6 h-6 rounded-lg bg-[#1A4D1F]/20 border border-[#1A4D1F]/40 flex items-center justify-center hover:bg-[#1A4D1F]/30 transition-all text-[#1A4D1F]">
-                            <Plus size={10} />
+                            className="flex-1 h-7 rounded-lg bg-[#1A4D1F]/10 border border-[#1A4D1F]/25 flex items-center justify-center text-[#1A4D1F] hover:bg-[#1A4D1F]/20 transition-all">
+                            <Plus size={11} />
                           </button>
                         </div>
                       ) : (
                         <button
                           onClick={() => handleAdd(article)}
-                          className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-[#1A4D1F]/15 border border-[#1A4D1F]/30 text-[#1A4D1F] text-[10px] font-black hover:bg-[#1A4D1F]/25 transition-all">
-                          <Plus size={10} />
-                          {t("+", "+")}
+                          className="w-full flex items-center justify-center gap-1 py-1.5 rounded-xl font-black text-[10px] transition-all"
+                          style={{ background: "#1A4D1F", color: "#fff" }}>
+                          <Plus size={11} />
+                          {t("أضف للسلة", "Ajouter")}
                         </button>
                       )}
                     </div>
