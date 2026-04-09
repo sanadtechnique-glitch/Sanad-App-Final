@@ -239,16 +239,16 @@ function OrbitSystem({ lang }: { lang: string }) {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // Responsive sizing — fills the full available width
+  // Responsive sizing — all icons stay within viewport width
   const CX     = cw / 2;                        // center X
-  const R_IN   = Math.round(cw * 0.355);        // inner orbit radius  ≈ 138px @ 390
-  const R_OUT  = Math.round(cw * 0.710);        // outer orbit radius  ≈ 277px @ 390
-  const S_IN   = Math.round(cw * 0.285);        // inner circle px     ≈ 111px @ 390 (أكبر)
-  const S_OUT  = Math.round(cw * 0.200);        // outer circle px     ≈ 78px  @ 390 (أصغر)
-  const BADGE  = Math.round(cw * 0.295);        // center badge px     ≈ 115px @ 390
-  // CY = space needed from center to outermost card edge (including label)
-  const CY     = R_OUT + Math.round(S_OUT / 2) + 38; // ≈ 244+39+38 = 321px @ 390
-  const HEIGHT = CY * 2;                        // total height  ≈ 642px
+  const R_IN   = Math.round(cw * 0.210);        // inner orbit radius  ≈ 82px  @ 390
+  const R_OUT  = Math.round(cw * 0.415);        // outer orbit radius  ≈ 162px @ 390 (fits: 195+162+31=388)
+  const S_IN   = Math.round(cw * 0.200);        // inner circle px     ≈ 78px  @ 390
+  const S_OUT  = Math.round(cw * 0.155);        // outer circle px     ≈ 60px  @ 390
+  const BADGE  = Math.round(cw * 0.210);        // center badge px     ≈ 82px  @ 390
+  // CY = center Y (space from top to orbit center, including label clearance)
+  const CY     = R_OUT + Math.round(S_OUT / 2) + 32; // ≈ 162+30+32 = 224px @ 390
+  const HEIGHT = CY * 2;                        // total height  ≈ 448px
 
   return (
     <div className="w-full overflow-hidden orbit-running" style={{ height: HEIGHT }}>

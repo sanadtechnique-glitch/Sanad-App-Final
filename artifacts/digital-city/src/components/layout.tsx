@@ -425,7 +425,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div
       className={cn(
-        "min-h-screen bg-background flex flex-col relative",
+        "min-h-screen bg-background flex flex-col relative overflow-x-hidden",
         isRTL ? "md:pr-20" : "md:pl-20"
       )}
     >
