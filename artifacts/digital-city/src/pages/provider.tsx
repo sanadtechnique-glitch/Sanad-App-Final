@@ -52,7 +52,9 @@ interface Article {
   nameAr: string; nameFr: string;
   descriptionAr: string; descriptionFr: string;
   price: number; originalPrice?: number | null;
-  photoUrl?: string | null; isAvailable: boolean; createdAt: string;
+  photoUrl?: string | null;
+  images?: string | null;
+  isAvailable: boolean; createdAt: string;
 }
 
 // ── Reusable Image Picker Field ───────────────────────────────────────────────
@@ -410,8 +412,16 @@ function ProductsManager({ providerId, t, lang, isService = false, overrideLabel
   const [showForm, setShowForm]   = useState(false);
   const [editing, setEditing]     = useState<Article | null>(null);
   const [saving, setSaving]       = useState(false);
-  const EMPTY = { nameAr: "", nameFr: "", descriptionAr: "", photoUrl: "", price: "", originalPrice: "", isAvailable: true };
+  const EMPTY = { nameAr: "", nameFr: "", descriptionAr: "", images: [] as string[], price: "", originalPrice: "", isAvailable: true };
   const [form, setForm]           = useState(EMPTY);
+
+  const getArticleImages = (p: Article): string[] => {
+    try { return p.images ? JSON.parse(p.images) : []; } catch { return []; }
+  };
+  const getArticleThumb = (p: Article): string => {
+    const imgs = getArticleImages(p);
+    return imgs[0] || p.photoUrl || "";
+  };
 
   const load = async () => {
     setLoading(true);
@@ -424,7 +434,8 @@ function ProductsManager({ providerId, t, lang, isService = false, overrideLabel
     setEditing(p);
     setForm({
       nameAr: p.nameAr, nameFr: p.nameFr || "",
-      descriptionAr: p.descriptionAr || "", photoUrl: p.photoUrl || "",
+      descriptionAr: p.descriptionAr || "",
+      images: getArticleImages(p),
       price: p.price ? String(p.price) : "",
       originalPrice: p.originalPrice ? String(p.originalPrice) : "",
       isAvailable: p.isAvailable,
@@ -440,7 +451,7 @@ function ProductsManager({ providerId, t, lang, isService = false, overrideLabel
         nameFr: form.nameFr || form.nameAr,
         descriptionAr: form.descriptionAr,
         descriptionFr: form.descriptionAr,
-        photoUrl: form.photoUrl || null,
+        images: form.images,
         price: form.price ? Number(form.price) : 0,
         originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
         isAvailable: form.isAvailable,
@@ -504,11 +515,16 @@ function ProductsManager({ providerId, t, lang, isService = false, overrideLabel
             <motion.div key={p.id} layout className="rounded-2xl border overflow-hidden" style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.15)" }}>
               <div className="flex gap-3 p-3" dir="rtl">
                 {/* Image */}
-                <div className="w-14 h-14 rounded-xl flex-shrink-0 border border-[#1A4D1F]/10 bg-[#1A4D1F]/5 flex items-center justify-center overflow-hidden relative">
-                  {p.photoUrl
-                    ? <img src={p.photoUrl} alt={p.nameAr} className="w-full h-full object-cover" />
+                <div className="w-16 h-16 rounded-xl flex-shrink-0 border border-[#1A4D1F]/10 bg-[#1A4D1F]/5 flex items-center justify-center overflow-hidden relative">
+                  {getArticleThumb(p)
+                    ? <img src={getArticleThumb(p)} alt={p.nameAr} className="w-full h-full object-cover" />
                     : <ImageIcon size={18} className="text-[#1A4D1F]/20" />
                   }
+                  {getArticleImages(p).length > 1 && (
+                    <div className="absolute bottom-0.5 right-0.5 bg-black/60 rounded-full px-1 py-0 text-white text-[8px] font-black">
+                      {getArticleImages(p).length}
+                    </div>
+                  )}
                   {hasSale(p) && (
                     <span className="absolute top-0 right-0 bg-red-500 text-white text-[8px] font-black px-1 py-0.5 rounded-bl-lg rounded-tr-lg">
                       -{pct(p)}%
@@ -599,14 +615,10 @@ function ProductsManager({ providerId, t, lang, isService = false, overrideLabel
                     placeholder={t("وصف مختصر...", "Description courte...")}
                     className="w-full px-3 py-2.5 rounded-xl border border-[#1A4D1F]/20 bg-white text-sm font-bold text-[#1A4D1F] outline-none focus:border-[#1A4D1F]/50" />
                 </div>
-                {/* Photo */}
-                <ImagePickerField
-                  value={form.photoUrl}
-                  onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
-                  label={t("صورة المنتج / الخدمة", "Photo du produit / service")}
-                  guideAr="صورة واضحة على خلفية بيضاء"
-                  guideFr="Photo nette sur fond blanc"
-                  aspect="1:1"
+                {/* Photos — multi-image */}
+                <MultiImagePicker
+                  images={form.images}
+                  onChange={imgs => setForm(f => ({ ...f, images: imgs }))}
                   accentColor="#1A4D1F"
                   t={t}
                 />

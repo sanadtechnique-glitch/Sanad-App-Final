@@ -42,8 +42,12 @@ router.get("/provider/:providerId/articles", async (req, res) => {
 router.post("/provider/:providerId/articles", async (req, res) => {
   const supplierId = parseInt(req.params.providerId);
   if (isNaN(supplierId)) { res.status(400).json({ message: "Invalid providerId" }); return; }
-  const { nameAr, nameFr, descriptionAr, descriptionFr, price, originalPrice, photoUrl, isAvailable } = req.body;
+  const { nameAr, nameFr, descriptionAr, descriptionFr, price, originalPrice, photoUrl, images, isAvailable } = req.body;
   if (!nameAr) { res.status(400).json({ message: "nameAr required" }); return; }
+  // Derive photoUrl from first image if not provided
+  const imagesJson = Array.isArray(images) ? JSON.stringify(images) : (images || null);
+  const parsedImages: string[] = (() => { try { return JSON.parse(imagesJson || "[]"); } catch { return []; } })();
+  const firstImage = parsedImages[0] || photoUrl || null;
   try {
     const [article] = await db.insert(articlesTable).values({
       supplierId,
@@ -53,7 +57,8 @@ router.post("/provider/:providerId/articles", async (req, res) => {
       descriptionFr: descriptionFr || descriptionAr || "",
       price: price != null ? Number(price) : 0,
       originalPrice: originalPrice != null ? Number(originalPrice) : null,
-      photoUrl: photoUrl || null,
+      photoUrl: firstImage,
+      images: imagesJson,
       isAvailable: isAvailable !== false,
     }).returning();
     res.status(201).json(article);
@@ -67,7 +72,7 @@ router.patch("/provider/:providerId/articles/:id", async (req, res) => {
   const supplierId = parseInt(req.params.providerId);
   const id = parseInt(req.params.id);
   if (isNaN(supplierId) || isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
-  const { nameAr, nameFr, descriptionAr, descriptionFr, price, originalPrice, photoUrl, isAvailable } = req.body;
+  const { nameAr, nameFr, descriptionAr, descriptionFr, price, originalPrice, photoUrl, images, isAvailable } = req.body;
   const updates: Record<string, unknown> = {};
   if (nameAr !== undefined)        updates.nameAr        = nameAr;
   if (nameFr !== undefined)        updates.nameFr        = nameFr;
@@ -75,7 +80,15 @@ router.patch("/provider/:providerId/articles/:id", async (req, res) => {
   if (descriptionFr !== undefined) updates.descriptionFr = descriptionFr;
   if (price !== undefined)         updates.price         = price != null ? Number(price) : 0;
   if (originalPrice !== undefined) updates.originalPrice = originalPrice != null ? Number(originalPrice) : null;
-  if (photoUrl !== undefined)      updates.photoUrl      = photoUrl || null;
+  if (images !== undefined) {
+    const imagesJson = Array.isArray(images) ? JSON.stringify(images) : (images || null);
+    updates.images = imagesJson;
+    // Keep photoUrl in sync with first image
+    const parsedImages: string[] = (() => { try { return JSON.parse(imagesJson || "[]"); } catch { return []; } })();
+    updates.photoUrl = parsedImages[0] || photoUrl || null;
+  } else if (photoUrl !== undefined) {
+    updates.photoUrl = photoUrl || null;
+  }
   if (isAvailable !== undefined)   updates.isAvailable   = isAvailable;
   try {
     const [article] = await db.update(articlesTable).set(updates)
@@ -124,6 +137,7 @@ router.get("/admin/articles", requireAdmin, async (req, res) => {
         originalPrice: articlesTable.originalPrice,
         discountedPrice: articlesTable.discountedPrice,
         photoUrl: articlesTable.photoUrl,
+        images: articlesTable.images,
         isAvailable: articlesTable.isAvailable,
         createdAt: articlesTable.createdAt,
         supplierName: serviceProvidersTable.name,
@@ -143,23 +157,27 @@ router.get("/admin/articles", requireAdmin, async (req, res) => {
 router.post("/admin/articles", requireAdmin, async (req, res) => {
   const {
     supplierId, nameAr, nameFr, descriptionAr, descriptionFr,
-    price, originalPrice, discountedPrice, photoUrl, isAvailable,
+    price, originalPrice, discountedPrice, photoUrl, images, isAvailable,
   } = req.body;
   const sid = safeParseInt(supplierId);
   if (!sid || !nameAr) {
     res.status(400).json({ message: "supplierId et nameAr sont requis · supplierId و nameAr مطلوبان" }); return;
   }
+  const imagesJson = Array.isArray(images) ? JSON.stringify(images) : (images || null);
+  const parsedImages: string[] = (() => { try { return JSON.parse(imagesJson || "[]"); } catch { return []; } })();
+  const firstImage = parsedImages[0] || photoUrl || null;
   try {
     const [article] = await db.insert(articlesTable).values({
       supplierId: sid,
       nameAr: nameAr.trim(),
-      nameFr: (nameFr || nameAr).trim(),          // default to Arabic if French is empty
+      nameFr: (nameFr || nameAr).trim(),
       descriptionAr: descriptionAr || "",
       descriptionFr: descriptionFr || descriptionAr || "",
       price: safeParseFloat(price) ?? 0,
       originalPrice: originalPrice != null ? (safeParseFloat(originalPrice) ?? null) : null,
       discountedPrice: discountedPrice != null ? (safeParseFloat(discountedPrice) ?? null) : null,
-      photoUrl: photoUrl || null,
+      photoUrl: firstImage,
+      images: imagesJson,
       isAvailable: isAvailable ?? true,
     }).returning();
     res.status(201).json(article);
@@ -174,18 +192,25 @@ router.patch("/admin/articles/:id", requireAdmin, async (req, res) => {
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   const {
     nameAr, nameFr, descriptionAr, descriptionFr,
-    price, originalPrice, discountedPrice, photoUrl, isAvailable, supplierId,
+    price, originalPrice, discountedPrice, photoUrl, images, isAvailable, supplierId,
   } = req.body;
   const sid = supplierId ? safeParseInt(supplierId) : undefined;
   const updates: Record<string, unknown> = {};
   if (nameAr !== undefined)           updates.nameAr           = nameAr;
-  if (nameFr !== undefined)           updates.nameFr           = nameFr || nameAr; // fallback to Arabic
+  if (nameFr !== undefined)           updates.nameFr           = nameFr || nameAr;
   if (descriptionAr !== undefined)    updates.descriptionAr    = descriptionAr;
   if (descriptionFr !== undefined)    updates.descriptionFr    = descriptionFr;
   if (price !== undefined)            updates.price            = safeParseFloat(price) ?? 0;
   if (originalPrice !== undefined)    updates.originalPrice    = originalPrice != null ? (safeParseFloat(originalPrice) ?? null) : null;
   if (discountedPrice !== undefined)  updates.discountedPrice  = discountedPrice != null ? (safeParseFloat(discountedPrice) ?? null) : null;
-  if (photoUrl !== undefined)         updates.photoUrl         = photoUrl || null;
+  if (images !== undefined) {
+    const imagesJson = Array.isArray(images) ? JSON.stringify(images) : (images || null);
+    updates.images = imagesJson;
+    const parsedImages: string[] = (() => { try { return JSON.parse(imagesJson || "[]"); } catch { return []; } })();
+    updates.photoUrl = parsedImages[0] || photoUrl || null;
+  } else if (photoUrl !== undefined) {
+    updates.photoUrl = photoUrl || null;
+  }
   if (isAvailable !== undefined)      updates.isAvailable      = isAvailable;
   if (sid)                            updates.supplierId       = sid;
   try {
