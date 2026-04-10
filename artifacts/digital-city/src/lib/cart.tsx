@@ -22,6 +22,7 @@ interface CartContextType {
   removeItem: (itemId: number) => void;
   updateQty: (itemId: number, qty: number) => void;
   clearCart: () => void;
+  setDeliveryFee: (fee: number) => void;
   total: number;
   itemCount: number;
 }
@@ -69,11 +70,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => setCart(EMPTY);
 
-  const total = cart.items.reduce((s, i) => s + i.price * i.qty, 0) + cart.deliveryFee;
+  // Called from order page after GPS+distance calculation to push the real fee into the cart
+  const setDeliveryFee = (fee: number) => {
+    setCart(prev => ({ ...prev, deliveryFee: fee }));
+  };
+
+  const subtotal  = cart.items.reduce((s, i) => s + i.price * i.qty, 0);
+  const total     = subtotal + cart.deliveryFee;
   const itemCount = cart.items.reduce((s, i) => s + i.qty, 0);
 
   return (
-    <CartContext.Provider value={{ cart, addItem, removeItem, updateQty, clearCart, total, itemCount }}>
+    <CartContext.Provider value={{ cart, addItem, removeItem, updateQty, clearCart, setDeliveryFee, total, itemCount }}>
       {children}
     </CartContext.Provider>
   );

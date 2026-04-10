@@ -50,7 +50,7 @@ export default function Order() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { lang, t, isRTL } = useLang();
-  const { cart, clearCart } = useCart();
+  const { cart, clearCart, setDeliveryFee: setCartDeliveryFee } = useCart();
   const session = getSession();
 
   const [supplier, setSupplier] = useState<Supplier | null>(null);
@@ -135,6 +135,9 @@ export default function Order() {
           });
           const res = await get<DistanceResult>(`/distance?${params}`);
           setDistInfo(res);
+          // Push the dynamically-calculated fee into the cart so the cart drawer
+          // immediately reflects the real Haversine + day/night pricing
+          setCartDeliveryFee(res.deliveryFee);
         } catch { /* silent */ } finally { setDistLoading(false); }
       },
       () => { setGpsLoading(false); },
