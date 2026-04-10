@@ -23,13 +23,11 @@ interface Supplier {
   latitude?: number | null; longitude?: number | null;
 }
 interface DistanceResult { distanceKm: number; etaMinutes: number; deliveryFee: number; source: string; }
-interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
 
 const schema = z.object({
   customerName:    z.string().min(2),
   customerPhone:   z.string().min(8),
   customerAddress: z.string().min(5),
-  delegationId:    z.string().optional(),
   notes:           z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -55,7 +53,6 @@ export default function Order() {
   const session = getSession();
 
   const [supplier, setSupplier] = useState<Supplier | null>(null);
-  const [delegations, setDelegations] = useState<Delegation[]>([]);
   const [loadingProvider, setLoadingProvider] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -64,6 +61,7 @@ export default function Order() {
   const [prescriptionPhoto, setPrescriptionPhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [addressMode, setAddressMode] = useState<"gps" | "manual">("gps");
   const [gpsLoading, setGpsLoading] = useState(false);
   const [customerLat, setCustomerLat] = useState<number | null>(null);
   const [customerLng, setCustomerLng] = useState<number | null>(null);
@@ -71,7 +69,7 @@ export default function Order() {
   const [distLoading, setDistLoading] = useState(false);
 
   const prefilledNotes = decodeURIComponent(new URLSearchParams(window.location.search).get("notes") || "");
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       notes: prefilledNotes || undefined,
@@ -80,33 +78,13 @@ export default function Order() {
   });
 
   useEffect(() => {
-    Promise.all([
-      get<Supplier[]>("/services"),
-      get<Delegation[]>("/delegations"),
-    ]).then(([providers, dels]) => {
+    get<Supplier[]>("/services").then(providers => {
       const found = providers.find(p => p.id === parseInt(id || "0"));
       if (!found) { setNotFound(true); setLoadingProvider(false); return; }
       setSupplier(found);
-      setDelegations(dels);
-      // Pre-fill delegation from session or default to Ben Gardane
-      const sessionDelId = session?.delegationId;
-      if (sessionDelId) {
-        const match = dels.find(d => d.id === sessionDelId);
-        if (match) setValue("delegationId", match.id.toString());
-      } else {
-        const benGardane = dels.find(d =>
-          d.nameAr?.includes("بنقردان") || d.nameAr?.includes("بن قردان") ||
-          d.name?.toLowerCase().includes("ben gard")
-        );
-        if (benGardane) setValue("delegationId", benGardane.id.toString());
-        else if (dels.length > 0) setValue("delegationId", dels[0].id.toString());
-      }
       setLoadingProvider(false);
     }).catch(() => { setNotFound(true); setLoadingProvider(false); });
   }, [id]);
-
-  const selectedDelegationId = watch("delegationId");
-  const selectedDelegation = delegations.find(d => d.id.toString() === selectedDelegationId);
 
   const getGPSAndCalculate = () => {
     if (!navigator.geolocation) return;
@@ -117,6 +95,18 @@ export default function Order() {
         const lng = pos.coords.longitude;
         setCustomerLat(lat);
         setCustomerLng(lng);
+        // Auto-fill address via reverse geocoding
+        try {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=${lang}`,
+            { headers: { "Accept-Language": lang } }
+          );
+          if (r.ok) {
+            const geo = await r.json();
+            const addr = geo.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            setValue("customerAddress", addr, { shouldValidate: true });
+          }
+        } catch { /* fallback — leave address field empty */ }
         setGpsLoading(false);
         if (!supplier) return;
         setDistLoading(true);
@@ -175,12 +165,13 @@ export default function Order() {
           }))
         : [];
 
+      const subtotal = cartItems.reduce((s, i) => s + (parseFloat(String(i.price)) || 0) * (parseInt(String(i.qty)) || 1), 0);
+      const deliveryFee = distInfo?.deliveryFee ?? 0;
       const payload = {
         customerName:    data.customerName,
         customerPhone:   data.customerPhone,
         customerAddress: data.customerAddress,
-        delegationId:    data.delegationId ? parseInt(data.delegationId) : null,
-        deliveryFee:     distInfo?.deliveryFee ?? selectedDelegation?.deliveryFee ?? 0,
+        deliveryFee,
         notes:           data.notes || null,
         serviceProviderId: supplier.id,
         serviceType: supplier.category,
@@ -189,6 +180,7 @@ export default function Order() {
         customerLat:     customerLat ?? undefined,
         customerLng:     customerLng ?? undefined,
         items:           cartItems,
+        totalAmount:     subtotal + deliveryFee,
       };
       const res = await post<{ id: number }>("/orders", payload);
       setOrderId(res.id);
@@ -346,41 +338,83 @@ export default function Order() {
                   </div>
                 </InputBase>
 
-                {/* Delegation */}
-                {delegations.length > 0 && (
-                  <div className="space-y-1.5">
-                    <FieldLabel>{t("المعتمدية (المنطقة)", "Délégation (Zone)")}</FieldLabel>
-                    <select {...register("delegationId")}
-                      className="w-full bg-[#FFFDE7] border border-[#1A4D1F]/40 rounded-xl px-4 py-3.5 text-sm text-[#1A4D1F] focus:outline-none focus:border-[#1A4D1F] transition-colors">
-                      <option value="" className="bg-zinc-900">{t("اختر منطقتك","Choisissez votre zone")}</option>
-                      {delegations.map(d => (
-                        <option key={d.id} value={d.id.toString()} className="bg-zinc-900">
-                          {lang === "ar" ? d.nameAr : d.name} — {d.deliveryFee} TND
-                        </option>
-                      ))}
-                    </select>
-                    {selectedDelegation && (
-                      <p className="text-xs text-[#1A4D1F]/70 font-bold">
-                        {t("رسوم التوصيل","Frais de livraison")}: {selectedDelegation.deliveryFee} TND
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Address */}
-                <InputBase error={errors.customerAddress && t("العنوان مطلوب","Adresse requise")}>
+                {/* Address — GPS or Manual toggle */}
+                <div className="space-y-2">
                   <FieldLabel>{t("عنوان التوصيل", "Adresse de livraison")}</FieldLabel>
-                  <div className="relative">
-                    <MapPin size={15} className={cn("absolute top-4 text-[#1A4D1F]/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
-                    <textarea {...register("customerAddress")} rows={2}
-                      placeholder={t("الشارع، الحي، المعلم القريب...","Rue, quartier, repère...")}
-                      className={cn(
-                        "w-full bg-[#FFFDE7] border-[#1A4D1F]/40 rounded-xl py-3.5 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/30 focus:outline-none focus:border-[#1A4D1F] transition-colors resize-none",
-                        isRTL ? "pr-10 pl-4" : "pl-10 pr-4",
-                        errors.customerAddress ? "border-red-500" : "border-[#1A4D1F]/40"
-                      )} />
+
+                  {/* Toggle buttons */}
+                  <div className="flex gap-2">
+                    <button type="button"
+                      onClick={() => setAddressMode("gps")}
+                      className={cn("flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border transition-all",
+                        addressMode === "gps"
+                          ? "border-[#FFA500] text-[#1A4D1F]"
+                          : "border-[#1A4D1F]/20 text-[#1A4D1F]/40"
+                      )}
+                      style={addressMode === "gps" ? { background: "rgba(255,165,0,0.12)" } : { background: "transparent" }}
+                    >
+                      <Navigation size={12} className={addressMode === "gps" ? "text-[#FFA500]" : ""} />
+                      {t("موقع GPS", "GPS actuel")}
+                    </button>
+                    <button type="button"
+                      onClick={() => setAddressMode("manual")}
+                      className={cn("flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border transition-all",
+                        addressMode === "manual"
+                          ? "border-[#1A4D1F] text-[#1A4D1F]"
+                          : "border-[#1A4D1F]/20 text-[#1A4D1F]/40"
+                      )}
+                      style={addressMode === "manual" ? { background: "rgba(26,77,31,0.08)" } : { background: "transparent" }}
+                    >
+                      <MapPin size={12} className={addressMode === "manual" ? "text-[#1A4D1F]" : ""} />
+                      {t("إدخال يدوي", "Saisie manuelle")}
+                    </button>
                   </div>
-                </InputBase>
+
+                  {/* GPS mode */}
+                  {addressMode === "gps" && !customerLat && (
+                    <button type="button" onClick={getGPSAndCalculate} disabled={gpsLoading}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm border border-[#FFA500]/40 transition-all disabled:opacity-50"
+                      style={{ background: "rgba(255,165,0,0.08)", color: "#1A4D1F" }}>
+                      {gpsLoading
+                        ? <><Loader2 size={14} className="animate-spin" />{t("جاري تحديد موقعك...","Localisation en cours...")}</>
+                        : <><Navigation size={14} className="text-[#FFA500]" />{t("تحديد موقعي الحالي","Utiliser ma position GPS")}</>
+                      }
+                    </button>
+                  )}
+
+                  {/* GPS confirmed → show address + re-detect button */}
+                  {addressMode === "gps" && customerLat && (
+                    <div className="flex items-start gap-2 p-3 rounded-xl border border-emerald-400/30" style={{ background: "rgba(52,211,153,0.06)" }}>
+                      <Navigation size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black text-emerald-600">{t("تم تحديد موقعك ✓","Position GPS confirmée ✓")}</p>
+                        <p className="text-[10px] text-[#1A4D1F]/40 mt-0.5">{customerLat.toFixed(5)}, {customerLng?.toFixed(5)}</p>
+                      </div>
+                      <button type="button" onClick={getGPSAndCalculate} disabled={gpsLoading}
+                        className="text-[10px] text-[#1A4D1F]/40 underline flex-shrink-0">
+                        {gpsLoading ? <Loader2 size={10} className="animate-spin" /> : t("إعادة","Actualiser")}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Address textarea (always shown) */}
+                  <InputBase error={errors.customerAddress && t("العنوان مطلوب","Adresse requise")}>
+                    <div className="relative">
+                      <MapPin size={15} className={cn("absolute top-4 text-[#1A4D1F]/20 pointer-events-none", isRTL ? "right-3.5" : "left-3.5")} />
+                      <textarea {...register("customerAddress")} rows={2}
+                        readOnly={addressMode === "gps" && !!customerLat}
+                        placeholder={addressMode === "gps"
+                          ? t("سيتم تعبئته تلقائياً عند تحديد الموقع...","Se remplira automatiquement...")
+                          : t("الشارع، الحي، المعلم القريب...","Rue, quartier, repère...")}
+                        className={cn(
+                          "w-full border-[#1A4D1F]/40 rounded-xl py-3.5 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/30 focus:outline-none focus:border-[#1A4D1F] transition-colors resize-none",
+                          isRTL ? "pr-10 pl-4" : "pl-10 pr-4",
+                          errors.customerAddress ? "border-red-500" : "border-[#1A4D1F]/40",
+                          addressMode === "gps" && customerLat ? "bg-emerald-50/60" : "bg-[#FFFDE7]"
+                        )} />
+                    </div>
+                  </InputBase>
+                </div>
 
                 {/* Notes */}
                 <div className="space-y-1.5">
@@ -446,70 +480,69 @@ export default function Order() {
                   </div>
                 )}
 
-                {/* GPS Delivery Fee Calculator */}
-                <div className="rounded-2xl border border-[#FFA500]/40 overflow-hidden" style={{ background: "rgba(255,165,0,0.04)" }}>
-                  <div className="px-4 py-3 border-b border-[#FFA500]/15 flex items-center justify-between" style={{ background: "rgba(255,165,0,0.08)" }}>
-                    <div className="flex items-center gap-2">
-                      <Zap size={13} className="text-[#FFA500]" />
-                      <p className="text-xs font-black text-[#1A4D1F] uppercase tracking-widest">
-                        {t("احسب رسوم التوصيل", "Calculer les frais")}
-                      </p>
+                {/* Order Summary — subtotal + delivery fee + total */}
+                {(() => {
+                  const cartItems = cart.supplierId === supplier?.id ? cart.items : [];
+                  const subtotal = cartItems.reduce((s, i) => s + (parseFloat(String(i.price)) || 0) * (parseInt(String(i.qty)) || 1), 0);
+                  const fee = distInfo?.deliveryFee ?? 0;
+                  const total = subtotal + fee;
+                  return (
+                    <div className="rounded-2xl border border-[#1A4D1F]/15 overflow-hidden" style={{ background: "rgba(26,77,31,0.03)" }}>
+                      <div className="px-4 py-3 border-b border-[#1A4D1F]/10 flex items-center gap-2" style={{ background: "rgba(26,77,31,0.05)" }}>
+                        <Zap size={13} className="text-[#FFA500]" />
+                        <p className="text-xs font-black text-[#1A4D1F] uppercase tracking-widest">{t("ملخص الطلب","Récapitulatif")}</p>
+                        {distInfo && (
+                          <span className="mr-auto text-[10px] text-[#1A4D1F]/30">
+                            {distInfo.source === "google" ? "Google Maps" : t("تقريبي","Estimé")}
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-4 space-y-2.5">
+                        {/* Distance / ETA row (only when GPS used) */}
+                        {distLoading && (
+                          <div className="flex items-center justify-center gap-2 py-2 text-[#1A4D1F]/40 text-xs">
+                            <Loader2 size={13} className="animate-spin" />
+                            {t("جاري احتساب رسوم التوصيل...","Calcul des frais en cours...")}
+                          </div>
+                        )}
+                        {distInfo && !distLoading && (
+                          <div className="flex gap-2">
+                            <div className="flex-1 text-center p-2 rounded-xl border border-[#1A4D1F]/10 bg-white/50">
+                              <p className="text-sm font-black text-[#FFA500]">{distInfo.distanceKm.toFixed(1)}<span className="text-[9px] font-bold"> km</span></p>
+                              <p className="text-[9px] text-[#1A4D1F]/35 font-bold">{t("المسافة","Distance")}</p>
+                            </div>
+                            <div className="flex-1 text-center p-2 rounded-xl border border-[#1A4D1F]/10 bg-white/50">
+                              <p className="text-sm font-black text-emerald-500">{distInfo.etaMinutes}<span className="text-[9px] font-bold"> {t("د","min")}</span></p>
+                              <p className="text-[9px] text-[#1A4D1F]/35 font-bold">{t("الوقت المتوقع","ETA")}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Price breakdown */}
+                        <div className="space-y-1.5 pt-1">
+                          {cartItems.length > 0 && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-[#1A4D1F]/50">{t("مجموع المنتجات","Sous-total produits")}</span>
+                              <span className="text-xs font-black text-[#1A4D1F]">{subtotal.toFixed(3)} TND</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-[#1A4D1F]/50 flex items-center gap-1">
+                              <Navigation size={10} />
+                              {t("رسوم التوصيل","Frais de livraison")}
+                              {!distInfo && <span className="text-[9px] opacity-60">({t("يُحدَّد بعد تحديد الموقع","calculé après GPS")})</span>}
+                            </span>
+                            <span className="text-xs font-black text-[#FFA500]">{fee.toFixed(3)} TND</span>
+                          </div>
+                          <div className="border-t border-[#1A4D1F]/10 pt-1.5 flex items-center justify-between">
+                            <span className="text-sm font-black text-[#1A4D1F]">{t("الإجمالي","Total")}</span>
+                            <span className="text-base font-black" style={{ color: "#1A4D1F" }}>{total.toFixed(3)} <span className="text-xs">TND</span></span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    {distInfo && (
-                      <span className="text-[10px] text-[#1A4D1F]/40">
-                        {distInfo.source === "google" ? "Google Maps" : t("تقريبي","Estimé")}
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    {!customerLat ? (
-                      <button
-                        type="button"
-                        onClick={getGPSAndCalculate}
-                        disabled={gpsLoading}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm transition-all disabled:opacity-50 border border-[#FFA500]/40"
-                        style={{ background: gpsLoading ? "rgba(255,165,0,0.05)" : "rgba(255,165,0,0.12)", color: "#1A4D1F" }}
-                      >
-                        {gpsLoading
-                          ? <><Loader2 size={14} className="animate-spin" />{t("جاري تحديد موقعك...","Localisation en cours...")}</>
-                          : <><Navigation size={14} className="text-[#FFA500]" />{t("استخدم موقعي الحالي لحساب الرسوم","Utiliser ma position pour calculer les frais")}</>
-                        }
-                      </button>
-                    ) : distLoading ? (
-                      <div className="flex items-center justify-center gap-2 py-3 text-[#1A4D1F]/50 text-sm">
-                        <Loader2 size={14} className="animate-spin" />
-                        {t("جاري الحساب...","Calcul en cours...")}
-                      </div>
-                    ) : distInfo ? (
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="text-center p-2.5 rounded-xl bg-white/60 border border-[#1A4D1F]/10">
-                          <p className="text-lg font-black text-[#FFA500]">{distInfo.distanceKm.toFixed(1)}</p>
-                          <p className="text-[10px] text-[#1A4D1F]/40 font-bold">KM</p>
-                        </div>
-                        <div className="text-center p-2.5 rounded-xl bg-white/60 border border-[#1A4D1F]/10">
-                          <p className="text-lg font-black text-[#1A4D1F]">{distInfo.deliveryFee.toFixed(2)}</p>
-                          <p className="text-[10px] text-[#1A4D1F]/40 font-bold">TND</p>
-                        </div>
-                        <div className="text-center p-2.5 rounded-xl bg-white/60 border border-[#1A4D1F]/10">
-                          <p className="text-lg font-black text-emerald-500">{distInfo.etaMinutes}</p>
-                          <p className="text-[10px] text-[#1A4D1F]/40 font-bold">{t("دقيقة","min")}</p>
-                        </div>
-                        <div className="col-span-3 flex items-center gap-1.5 text-xs text-[#1A4D1F]/40 mt-1">
-                          <Clock size={10} />
-                          <span>{t(`يُتوقع وصول طلبك خلال ${distInfo.etaMinutes} دقيقة`, `Livraison estimée dans ${distInfo.etaMinutes} min`)}</span>
-                        </div>
-                        <button type="button" onClick={getGPSAndCalculate}
-                          className="col-span-3 text-[10px] text-[#1A4D1F]/30 underline text-center" disabled={gpsLoading}>
-                          {t("إعادة حساب","Recalculer")}
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-center text-[#1A4D1F]/30 py-1">
-                        {t("اضغط للحصول على موقعك وحساب الرسوم","Cliquez pour obtenir votre position")}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Privacy note */}
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-[#1A4D1F]/3 border border-[#1A4D1F]/5">
