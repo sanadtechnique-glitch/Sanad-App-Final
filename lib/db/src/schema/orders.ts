@@ -22,6 +22,7 @@ export const ordersTable = pgTable("orders", {
   deliveryStaffId: integer("delivery_staff_id"),
   customerId: integer("customer_id"),
   deliveryFee: real("delivery_fee").default(0),
+  totalAmount: real("total_amount").default(0),
   distanceKm: real("distance_km"),
   etaMinutes: integer("eta_minutes"),
   photoUrl: text("photo_url"),

@@ -87,7 +87,7 @@ router.get("/distance", async (req, res) => {
 router.post("/orders", async (req, res) => {
   const { customerName, customerPhone, customerAddress, delegationId, notes,
     serviceProviderId, serviceType, photoUrl, customerId,
-    customerLat, customerLng, items } = req.body;
+    customerLat, customerLng, items, totalAmount } = req.body;
 
   if (!customerName || !customerAddress || !serviceProviderId || !serviceType) {
     res.status(400).json({ message: "customerName, customerAddress, serviceProviderId, serviceType are required" });
@@ -128,6 +128,7 @@ router.post("/orders", async (req, res) => {
       status: "searching_for_driver",
       customerId: isNaN(cid as number) ? null : cid,
       deliveryFee: computedFee ?? (req.body.deliveryFee ? parseFloat(String(req.body.deliveryFee)) : 0),
+      totalAmount: totalAmount ? parseFloat(String(totalAmount)) : 0,
       distanceKm,
       etaMinutes,
     }).returning();

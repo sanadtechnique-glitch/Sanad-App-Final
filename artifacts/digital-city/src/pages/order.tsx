@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -67,6 +67,18 @@ export default function Order() {
   const [customerLng, setCustomerLng] = useState<number | null>(null);
   const [distInfo, setDistInfo] = useState<DistanceResult | null>(null);
   const [distLoading, setDistLoading] = useState(false);
+
+  // ── Reactive total calculation (useMemo — re-runs whenever cart or distInfo changes) ──
+  const cartItems = useMemo(
+    () => (cart.supplierId === parseInt(id || "0") ? cart.items : []),
+    [cart, id]
+  );
+  const subtotal = useMemo(
+    () => cartItems.reduce((sum, item) => sum + (parseFloat(String(item.price)) || 0) * (parseInt(String(item.qty)) || 1), 0),
+    [cartItems]
+  );
+  const deliveryFee = useMemo(() => distInfo?.deliveryFee ?? 0, [distInfo]);
+  const finalTotal  = useMemo(() => subtotal + deliveryFee, [subtotal, deliveryFee]);
 
   const prefilledNotes = decodeURIComponent(new URLSearchParams(window.location.search).get("notes") || "");
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormValues>({
@@ -154,33 +166,30 @@ export default function Order() {
     if (!supplier) return;
     setSubmitting(true);
     try {
-      // Build cart items payload — maps cart.items → orderItems stored in DB
-      const cartItems = cart.supplierId === supplier.id && cart.items.length > 0
-        ? cart.items.map(i => ({
-            articleId: i.id,
-            nameAr: i.nameAr,
-            nameFr: i.name,
-            price: i.price,
-            qty: i.qty,
-          }))
-        : [];
+      // Map cart items to DB payload format
+      const orderItems = cartItems.map(i => ({
+        articleId: i.id,
+        nameAr:    i.nameAr,
+        nameFr:    i.name,
+        price:     i.price,
+        qty:       i.qty,
+      }));
 
-      const subtotal = cartItems.reduce((s, i) => s + (parseFloat(String(i.price)) || 0) * (parseInt(String(i.qty)) || 1), 0);
-      const deliveryFee = distInfo?.deliveryFee ?? 0;
+      // Use memoized values — subtotal, deliveryFee, finalTotal are already computed
       const payload = {
-        customerName:    data.customerName,
-        customerPhone:   data.customerPhone,
-        customerAddress: data.customerAddress,
-        deliveryFee,
-        notes:           data.notes || null,
+        customerName:      data.customerName,
+        customerPhone:     data.customerPhone,
+        customerAddress:   data.customerAddress,
+        notes:             data.notes || null,
         serviceProviderId: supplier.id,
-        serviceType: supplier.category,
-        photoUrl: prescriptionPhoto || null,
-        customerId:      session?.userId ?? null,
-        customerLat:     customerLat ?? undefined,
-        customerLng:     customerLng ?? undefined,
-        items:           cartItems,
-        totalAmount:     subtotal + deliveryFee,
+        serviceType:       supplier.category,
+        photoUrl:          prescriptionPhoto || null,
+        customerId:        session?.userId ?? null,
+        customerLat:       customerLat !== null ? customerLat : undefined,
+        customerLng:       customerLng !== null ? customerLng : undefined,
+        deliveryFee,
+        totalAmount:       finalTotal,
+        items:             orderItems,
       };
       const res = await post<{ id: number }>("/orders", payload);
       setOrderId(res.id);
@@ -480,69 +489,73 @@ export default function Order() {
                   </div>
                 )}
 
-                {/* Order Summary — subtotal + delivery fee + total */}
-                {(() => {
-                  const cartItems = cart.supplierId === supplier?.id ? cart.items : [];
-                  const subtotal = cartItems.reduce((s, i) => s + (parseFloat(String(i.price)) || 0) * (parseInt(String(i.qty)) || 1), 0);
-                  const fee = distInfo?.deliveryFee ?? 0;
-                  const total = subtotal + fee;
-                  return (
-                    <div className="rounded-2xl border border-[#1A4D1F]/15 overflow-hidden" style={{ background: "rgba(26,77,31,0.03)" }}>
-                      <div className="px-4 py-3 border-b border-[#1A4D1F]/10 flex items-center gap-2" style={{ background: "rgba(26,77,31,0.05)" }}>
-                        <Zap size={13} className="text-[#FFA500]" />
-                        <p className="text-xs font-black text-[#1A4D1F] uppercase tracking-widest">{t("ملخص الطلب","Récapitulatif")}</p>
-                        {distInfo && (
-                          <span className="mr-auto text-[10px] text-[#1A4D1F]/30">
-                            {distInfo.source === "google" ? "Google Maps" : t("تقريبي","Estimé")}
-                          </span>
-                        )}
-                      </div>
-                      <div className="p-4 space-y-2.5">
-                        {/* Distance / ETA row (only when GPS used) */}
-                        {distLoading && (
-                          <div className="flex items-center justify-center gap-2 py-2 text-[#1A4D1F]/40 text-xs">
-                            <Loader2 size={13} className="animate-spin" />
-                            {t("جاري احتساب رسوم التوصيل...","Calcul des frais en cours...")}
-                          </div>
-                        )}
-                        {distInfo && !distLoading && (
-                          <div className="flex gap-2">
-                            <div className="flex-1 text-center p-2 rounded-xl border border-[#1A4D1F]/10 bg-white/50">
-                              <p className="text-sm font-black text-[#FFA500]">{distInfo.distanceKm.toFixed(1)}<span className="text-[9px] font-bold"> km</span></p>
-                              <p className="text-[9px] text-[#1A4D1F]/35 font-bold">{t("المسافة","Distance")}</p>
-                            </div>
-                            <div className="flex-1 text-center p-2 rounded-xl border border-[#1A4D1F]/10 bg-white/50">
-                              <p className="text-sm font-black text-emerald-500">{distInfo.etaMinutes}<span className="text-[9px] font-bold"> {t("د","min")}</span></p>
-                              <p className="text-[9px] text-[#1A4D1F]/35 font-bold">{t("الوقت المتوقع","ETA")}</p>
-                            </div>
-                          </div>
-                        )}
+                {/* Order Summary — uses useMemo values: subtotal, deliveryFee, finalTotal */}
+                <div className="rounded-2xl border border-[#1A4D1F]/15 overflow-hidden" style={{ background: "rgba(26,77,31,0.03)" }}>
+                  <div className="px-4 py-3 border-b border-[#1A4D1F]/10 flex items-center gap-2" style={{ background: "rgba(26,77,31,0.05)" }}>
+                    <Zap size={13} className="text-[#FFA500]" />
+                    <p className="text-xs font-black text-[#1A4D1F] uppercase tracking-widest">{t("ملخص الطلب","Récapitulatif")}</p>
+                    {distInfo && (
+                      <span className="mr-auto text-[10px] text-[#1A4D1F]/30">
+                        {distInfo.source === "google" ? "Google Maps" : t("تقريبي","Estimé")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-4 space-y-2.5">
 
-                        {/* Price breakdown */}
-                        <div className="space-y-1.5 pt-1">
-                          {cartItems.length > 0 && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-[#1A4D1F]/50">{t("مجموع المنتجات","Sous-total produits")}</span>
-                              <span className="text-xs font-black text-[#1A4D1F]">{subtotal.toFixed(3)} TND</span>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-[#1A4D1F]/50 flex items-center gap-1">
-                              <Navigation size={10} />
-                              {t("رسوم التوصيل","Frais de livraison")}
-                              {!distInfo && <span className="text-[9px] opacity-60">({t("يُحدَّد بعد تحديد الموقع","calculé après GPS")})</span>}
-                            </span>
-                            <span className="text-xs font-black text-[#FFA500]">{fee.toFixed(3)} TND</span>
-                          </div>
-                          <div className="border-t border-[#1A4D1F]/10 pt-1.5 flex items-center justify-between">
-                            <span className="text-sm font-black text-[#1A4D1F]">{t("الإجمالي","Total")}</span>
-                            <span className="text-base font-black" style={{ color: "#1A4D1F" }}>{total.toFixed(3)} <span className="text-xs">TND</span></span>
-                          </div>
+                    {/* Distance + ETA chips — shown only after GPS calculation */}
+                    {distLoading && (
+                      <div className="flex items-center justify-center gap-2 py-2 text-[#1A4D1F]/40 text-xs">
+                        <Loader2 size={13} className="animate-spin" />
+                        {t("جاري احتساب رسوم التوصيل...","Calcul des frais en cours...")}
+                      </div>
+                    )}
+                    {distInfo && !distLoading && (
+                      <div className="flex gap-2">
+                        <div className="flex-1 text-center p-2 rounded-xl border border-[#1A4D1F]/10 bg-white/50">
+                          <p className="text-sm font-black text-[#FFA500]">
+                            {distInfo.distanceKm.toFixed(1)}<span className="text-[9px] font-bold"> km</span>
+                          </p>
+                          <p className="text-[9px] text-[#1A4D1F]/35 font-bold">{t("المسافة","Distance")}</p>
+                        </div>
+                        <div className="flex-1 text-center p-2 rounded-xl border border-[#1A4D1F]/10 bg-white/50">
+                          <p className="text-sm font-black text-emerald-500">
+                            {distInfo.etaMinutes}<span className="text-[9px] font-bold"> {t("د","min")}</span>
+                          </p>
+                          <p className="text-[9px] text-[#1A4D1F]/35 font-bold">{t("الوقت المتوقع","ETA")}</p>
                         </div>
                       </div>
+                    )}
+
+                    {/* Price breakdown — all values from useMemo */}
+                    <div className="space-y-1.5 pt-1">
+                      {cartItems.length > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-[#1A4D1F]/50">{t("مجموع المنتجات","Sous-total produits")}</span>
+                          <span className="text-xs font-black text-[#1A4D1F]">{subtotal.toFixed(3)} TND</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-[#1A4D1F]/50 flex items-center gap-1">
+                          <Navigation size={10} />
+                          {t("رسوم التوصيل","Frais de livraison")}
+                          {!distInfo && !distLoading && (
+                            <span className="text-[9px] opacity-60">
+                              ({t("بعد تحديد GPS","après GPS")})
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-xs font-black text-[#FFA500]">{deliveryFee.toFixed(3)} TND</span>
+                      </div>
+                      <div className="border-t border-[#1A4D1F]/10 pt-1.5 flex items-center justify-between">
+                        <span className="text-sm font-black text-[#1A4D1F]">{t("الإجمالي","Total")}</span>
+                        <span className="text-base font-black" style={{ color: "#1A4D1F" }}>
+                          {finalTotal.toFixed(3)} <span className="text-xs">TND</span>
+                        </span>
+                      </div>
                     </div>
-                  );
-                })()}
+
+                  </div>
+                </div>
 
                 {/* Privacy note */}
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-[#1A4D1F]/3 border border-[#1A4D1F]/5">
