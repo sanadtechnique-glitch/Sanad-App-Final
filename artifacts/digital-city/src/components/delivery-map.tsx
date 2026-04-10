@@ -5,7 +5,6 @@ import "leaflet/dist/leaflet.css";
 import { Navigation, ExternalLink } from "lucide-react";
 import { useLang } from "@/lib/language";
 
-// Fix leaflet default icon in Vite/webpack
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -18,21 +17,30 @@ const BEN_GARDANE: [number, number] = [33.1365, 11.2206];
 interface Props {
   address: string;
   customerName: string;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 interface GeoResult { lat: string; lon: string; display_name: string; }
 
-export default function DeliveryMap({ address, customerName }: Props) {
+export default function DeliveryMap({ address, customerName, lat, lng }: Props) {
   const { t, isRTL } = useLang();
   const [coords, setCoords] = useState<[number, number] | null>(null);
   const [geocoding, setGeocoding] = useState(true);
 
   useEffect(() => {
+    // Use GPS coords directly if available — skip geocoding
+    if (lat && lng) {
+      setCoords([lat, lng]);
+      setGeocoding(false);
+      return;
+    }
     const query = encodeURIComponent(`${address}, Ben Gardane, Tunisia`);
     fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&accept-language=ar,fr`)
       .then(r => r.json())
       .then((results: GeoResult[]) => {
         if (results.length > 0) {
+          // Store as [latitude, longitude] — correct order for Google Maps & Leaflet
           setCoords([parseFloat(results[0].lat), parseFloat(results[0].lon)]);
         } else {
           setCoords(BEN_GARDANE);
@@ -40,11 +48,14 @@ export default function DeliveryMap({ address, customerName }: Props) {
       })
       .catch(() => setCoords(BEN_GARDANE))
       .finally(() => setGeocoding(false));
-  }, [address]);
+  }, [address, lat, lng]);
 
   const openGoogleMaps = () => {
-    const destination = encodeURIComponent(`${address}, Ben Gardane, Tunisia`);
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, "_blank");
+    // Prefer precise GPS coords (latitude,longitude) — correct decimal order
+    const destination = coords
+      ? `${coords[0]},${coords[1]}`
+      : encodeURIComponent(`${address}, Ben Gardane, Tunisia`);
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`, "_blank");
   };
 
   return (

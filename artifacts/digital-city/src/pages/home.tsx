@@ -252,39 +252,32 @@ function ServicesMarquee({ lang }: { lang: string }) {
 
       <div className="marquee-track gap-3 px-3" style={{ gap: 12, paddingLeft: 12, paddingRight: 12 }}>
         {doubled.map((cat, i) => {
-          const content = (
-            <div
-              key={`${cat.id}-${i}`}
-              className="marquee-card flex-shrink-0 flex flex-col items-center justify-center gap-1 rounded-2xl cursor-pointer select-none"
-              style={{
-                width: 78, height: 82,
-                background: cat.bg,
-                boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
-                transition: "transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.25s ease",
-              }}
-            >
-              <span style={{ fontSize: 26, lineHeight: 1 }}>{cat.emoji}</span>
-              <span style={{
-                fontSize: 10, fontWeight: 800, color: "#fff",
-                fontFamily: "'Cairo','Tajawal',sans-serif",
-                textAlign: "center", letterSpacing: 0.2,
-                textShadow: "0 1px 3px rgba(0,0,0,0.4)",
-                paddingLeft: 4, paddingRight: 4,
-                lineHeight: 1.2,
-              }}>
-                {lang === "ar" ? cat.ar : cat.fr}
-              </span>
-            </div>
+          const dest = cat.href ?? `/services?category=${cat.id}`;
+          return (
+            <Link key={`${cat.id}-${i}`} href={dest}>
+              <div
+                className="marquee-card flex-shrink-0 flex flex-col items-center justify-center gap-1 rounded-2xl cursor-pointer select-none"
+                style={{
+                  width: 78, height: 82,
+                  background: cat.bg,
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
+                  transition: "transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.25s ease",
+                }}
+              >
+                <span style={{ fontSize: 26, lineHeight: 1 }}>{cat.emoji}</span>
+                <span style={{
+                  fontSize: 10, fontWeight: 800, color: "#fff",
+                  fontFamily: "'Cairo','Tajawal',sans-serif",
+                  textAlign: "center", letterSpacing: 0.2,
+                  textShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                  paddingLeft: 4, paddingRight: 4,
+                  lineHeight: 1.2,
+                }}>
+                  {lang === "ar" ? cat.ar : cat.fr}
+                </span>
+              </div>
+            </Link>
           );
-
-          if (cat.href) {
-            return (
-              <Link key={`${cat.id}-${i}`} href={cat.href}>
-                {content}
-              </Link>
-            );
-          }
-          return content;
         })}
       </div>
     </div>

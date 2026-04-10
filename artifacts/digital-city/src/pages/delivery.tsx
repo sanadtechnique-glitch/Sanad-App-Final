@@ -733,7 +733,7 @@ export default function DeliveryDashboard() {
                             <Map size={13} />{t("تحميل الخريطة...", "Chargement carte...")}
                           </div>
                         }>
-                          <DeliveryMap address={order.customerAddress} customerName={order.customerName} />
+                          <DeliveryMap address={order.customerAddress} customerName={order.customerName} lat={order.customerLat} lng={order.customerLng} />
                         </Suspense>
 
                         <button onClick={() => confirmDelivery(order)}
