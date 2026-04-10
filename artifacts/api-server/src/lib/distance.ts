@@ -9,7 +9,7 @@ const BEN_GUERDANE_LNG = 11.2167;
 const DEFAULTS = {
   baseFee: 2.5,
   ratePerKm: 0.5,
-  minFee: 2.0,
+  minFee: 2.5,
   maxFee: null as number | null,
   nightSurchargePercent: 0,
   nightStartHour: 22,
@@ -164,13 +164,16 @@ export async function calculateDistance(
   // ── Step 2: AUTO MODE — fully autonomous, zero admin intervention ─────────
   if (cfg.autoModeEnabled) {
     const auto = calcAutoFee(distanceKm);
+    // Enforce minimum fare — auto-pricing must never drop below cfg.minFee
+    const rawFee             = Math.round(auto.deliveryFee * 100) / 100;
+    const deliveryFee        = Math.max(rawFee, cfg.minFee);
     const platformCommission = Math.round(
-      auto.deliveryFee * (cfg.platformCommissionPercent / 100) * 100,
+      deliveryFee * (cfg.platformCommissionPercent / 100) * 100,
     ) / 100;
     return {
       distanceKm,
       etaMinutes:         auto.etaMinutes,
-      deliveryFee:        auto.deliveryFee,
+      deliveryFee,
       baseFee:            auto.baseFee,
       kmFee:              auto.kmFee,
       nightSurcharge:     auto.surchargeAmount,
@@ -185,7 +188,8 @@ export async function calculateDistance(
 
   // ── Step 3: FIXED FEE MODE ────────────────────────────────────────────────
   if (cfg.fixedFeeEnabled) {
-    const deliveryFee        = Math.round(cfg.fixedFeeTnd * 100) / 100;
+    // Enforce minimum fare — fixed fee must never drop below cfg.minFee
+    const deliveryFee        = Math.max(Math.round(cfg.fixedFeeTnd * 100) / 100, cfg.minFee);
     const platformCommission = Math.round(deliveryFee * (cfg.platformCommissionPercent / 100) * 100) / 100;
     const etaMinutes         = cfg.prepTimeMinutes + Math.ceil(distanceKm / cfg.avgSpeedKmPerMin);
     return {
@@ -204,6 +208,7 @@ export async function calculateDistance(
   }
 
   // ── Step 4: MANUAL / DYNAMIC MODE ────────────────────────────────────────
+  // Formula: Math.max(minFee, baseFee + (ratePerKm × distanceKm) + nightSurcharge)
   const etaMinutes = cfg.prepTimeMinutes + Math.ceil(distanceKm / cfg.avgSpeedKmPerMin);
   const baseFee    = cfg.baseFee;
   const kmFee      = Math.round(cfg.ratePerKm * distanceKm * 100) / 100;
@@ -218,7 +223,9 @@ export async function calculateDistance(
     ? Math.round(subtotal * (cfg.nightSurchargePercent / 100) * 100) / 100
     : 0;
   subtotal += nightSurcharge;
-  subtotal  = Math.max(subtotal, cfg.minFee);
+
+  // STRICT minimum enforcement — the fee must NEVER be below minFee
+  subtotal = Math.max(subtotal, cfg.minFee);
   if (cfg.maxFee != null) subtotal = Math.min(subtotal, cfg.maxFee);
 
   const platformCommission = Math.round(subtotal * (cfg.platformCommissionPercent / 100) * 100) / 100;

@@ -5,7 +5,7 @@ import { eq, inArray, and, ilike } from "drizzle-orm";
 import { emitNewOrder, emitOrderTaken, emitOrderStatus } from "../lib/socket";
 import { requireStaff, requireAdmin } from "../lib/authMiddleware";
 import { safeParseFloat, safeParseInt } from "../lib/validate";
-import { calculateDistance, haversineKm } from "../lib/distance";
+import { calculateDistance, haversineKm, getDeliveryConfig } from "../lib/distance";
 import { sendPushToUsers } from "./push";
 
 /* Arabic / French status labels for push notifications */
@@ -102,6 +102,9 @@ router.post("/orders", async (req, res) => {
     const cLat = customerLat ? parseFloat(String(customerLat)) : null;
     const cLng = customerLng ? parseFloat(String(customerLng)) : null;
 
+    // Load config to enforce minimum fee server-side
+    const cfg = await getDeliveryConfig();
+
     let distanceKm: number | null = null;
     let etaMinutes: number | null = null;
     let computedFee: number | null = null;
@@ -111,9 +114,15 @@ router.post("/orders", async (req, res) => {
         const dist = await calculateDistance(provider.latitude, provider.longitude, cLat, cLng);
         distanceKm = dist.distanceKm;
         etaMinutes = dist.etaMinutes;
+        // calculateDistance already applies Math.max(minFee) — use directly
         computedFee = dist.deliveryFee;
       } catch { /* fallback to no calculation */ }
     }
+
+    // Server-side minimum enforcement — NEVER save a fee below minFee regardless of client value
+    const rawFee     = computedFee ?? (req.body.deliveryFee ? parseFloat(String(req.body.deliveryFee)) : 0);
+    const savedFee   = Math.max(rawFee, cfg.minFee);
+    const savedTotal = Math.round((savedFee + (totalAmount ? parseFloat(String(totalAmount)) - rawFee : 0)) * 1000) / 1000;
 
     const [order] = await db.insert(ordersTable).values({
       customerName, customerPhone, customerAddress,
@@ -127,8 +136,8 @@ router.post("/orders", async (req, res) => {
       serviceProviderName: provider.name,
       status: "searching_for_driver",
       customerId: isNaN(cid as number) ? null : cid,
-      deliveryFee: computedFee ?? (req.body.deliveryFee ? parseFloat(String(req.body.deliveryFee)) : 0),
-      totalAmount: totalAmount ? parseFloat(String(totalAmount)) : 0,
+      deliveryFee: savedFee,
+      totalAmount: totalAmount ? savedTotal : savedFee,
       distanceKm,
       etaMinutes,
     }).returning();
