@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { articlesTable, serviceProvidersTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNotNull, sql } from "drizzle-orm";
 import { requireAdmin } from "../lib/authMiddleware";
 import { safeParseFloat, safeParseInt } from "../lib/validate";
 
@@ -19,6 +19,48 @@ router.get("/articles", async (req, res) => {
     res.json(rows.filter(r => r.isAvailable));
   } catch (err) {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Public: deals — articles with originalPrice > price (discounted)
+router.get("/products/deals", async (req, res) => {
+  try {
+    const rows = await db
+      .select({
+        id:           articlesTable.id,
+        providerId:   articlesTable.supplierId,
+        title:        articlesTable.nameAr,
+        titleFr:      articlesTable.nameFr,
+        description:  articlesTable.descriptionAr,
+        imageUrl:     articlesTable.photoUrl,
+        salePrice:    articlesTable.price,
+        originalPrice: articlesTable.originalPrice,
+        category:     serviceProvidersTable.category,
+        supplierName: serviceProvidersTable.nameAr,
+        isAvailable:  articlesTable.isAvailable,
+        createdAt:    articlesTable.createdAt,
+      })
+      .from(articlesTable)
+      .leftJoin(serviceProvidersTable, eq(articlesTable.supplierId, serviceProvidersTable.id))
+      .where(
+        and(
+          isNotNull(articlesTable.originalPrice),
+          sql`${articlesTable.price} < ${articlesTable.originalPrice}`,
+          eq(articlesTable.isAvailable, true),
+        )
+      )
+      .orderBy(articlesTable.createdAt)
+      .limit(60);
+    // Convert numeric prices to strings for frontend compatibility
+    const formatted = rows.map(r => ({
+      ...r,
+      salePrice:     r.salePrice    != null ? String(r.salePrice)    : null,
+      originalPrice: r.originalPrice != null ? String(r.originalPrice) : null,
+    }));
+    res.json(formatted);
+  } catch (err) {
+    req.log.error({ err });
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 

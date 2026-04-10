@@ -229,74 +229,63 @@ function OrbitRing({
   );
 }
 
-function OrbitSystem({ lang }: { lang: string }) {
-  const [cw, setCw] = useState(() => Math.min(typeof window !== "undefined" ? window.innerWidth : 390, 430));
-
-  useEffect(() => {
-    const update = () => setCw(Math.min(window.innerWidth, 430));
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  // Responsive sizing — all icons stay within viewport width
-  const CX     = cw / 2;                        // center X
-  const R_IN   = Math.round(cw * 0.210);        // inner orbit radius  ≈ 82px  @ 390
-  const R_OUT  = Math.round(cw * 0.415);        // outer orbit radius  ≈ 162px @ 390 (fits: 195+162+31=388)
-  const S_IN   = Math.round(cw * 0.200);        // inner circle px     ≈ 78px  @ 390
-  const S_OUT  = Math.round(cw * 0.155);        // outer circle px     ≈ 60px  @ 390
-  const BADGE  = Math.round(cw * 0.210);        // center badge px     ≈ 82px  @ 390
-  // CY = center Y (space from top to orbit center, including label clearance)
-  const CY     = R_OUT + Math.round(S_OUT / 2) + 32; // ≈ 162+30+32 = 224px @ 390
-  const HEIGHT = CY * 2;                        // total height  ≈ 448px
+function ServicesMarquee({ lang }: { lang: string }) {
+  const items = CATEGORIES;
+  const doubled = [...items, ...items];
 
   return (
-    <div className="w-full overflow-hidden orbit-running" style={{ height: HEIGHT }}>
-      <div style={{ position: "relative", width: cw, height: HEIGHT, margin: "0 auto" }}>
+    <div className="w-full py-3 overflow-hidden" dir="ltr">
+      <style>{`
+        @keyframes marquee-ltr {
+          0%   { transform: translateX(-50%); }
+          100% { transform: translateX(0%);   }
+        }
+        .marquee-track {
+          display: flex;
+          width: max-content;
+          animation: marquee-ltr 22s linear infinite;
+          will-change: transform;
+        }
+        .marquee-track:hover { animation-play-state: paused; }
+        .marquee-card:hover  { transform: scale(1.12) translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.22); }
+      `}</style>
 
-        {/* ── Orbit path rings (decorative) ── */}
-        {[R_IN, R_OUT].map(r => (
-          <div
-            key={r}
-            style={{
-              position: "absolute",
-              top: CY - r, left: CX - r,
-              width: r * 2, height: r * 2,
-              borderRadius: "50%",
-              border: "1.5px dashed rgba(26,77,31,0.13)",
-            }}
-          />
-        ))}
+      <div className="marquee-track gap-3 px-3" style={{ gap: 12, paddingLeft: 12, paddingRight: 12 }}>
+        {doubled.map((cat, i) => {
+          const content = (
+            <div
+              key={`${cat.id}-${i}`}
+              className="marquee-card flex-shrink-0 flex flex-col items-center justify-center gap-1 rounded-2xl cursor-pointer select-none"
+              style={{
+                width: 78, height: 82,
+                background: cat.bg,
+                boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
+                transition: "transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.25s ease",
+              }}
+            >
+              <span style={{ fontSize: 26, lineHeight: 1 }}>{cat.emoji}</span>
+              <span style={{
+                fontSize: 10, fontWeight: 800, color: "#fff",
+                fontFamily: "'Cairo','Tajawal',sans-serif",
+                textAlign: "center", letterSpacing: 0.2,
+                textShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                paddingLeft: 4, paddingRight: 4,
+                lineHeight: 1.2,
+              }}>
+                {lang === "ar" ? cat.ar : cat.fr}
+              </span>
+            </div>
+          );
 
-        {/* ── Glow behind center ── */}
-        <div style={{
-          position: "absolute",
-          top: CY - BADGE * 0.75, left: CX - BADGE * 0.75,
-          width: BADGE * 1.5, height: BADGE * 1.5,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(26,77,31,0.10) 0%, transparent 70%)",
-        }} />
-
-        {/* ── Center badge ── */}
-        <div style={{
-          position: "absolute",
-          top: CY - BADGE / 2, left: CX - BADGE / 2,
-          width: BADGE, height: BADGE,
-          borderRadius: "50%",
-          background: "linear-gradient(145deg, #1A4D1F 0%, #0D3311 100%)",
-          boxShadow: "0 8px 30px rgba(26,77,31,0.45), inset 0 1px 0 rgba(255,255,255,0.18)",
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center", gap: 2,
-        }}>
-          <span style={{ color: "#FFA500", fontSize: Math.round(BADGE * 0.20), fontWeight: 900, lineHeight: 1, fontFamily: "'Cairo',sans-serif" }}>سند</span>
-          <span style={{ color: "rgba(255,165,0,0.55)", fontSize: Math.round(BADGE * 0.11), fontWeight: 700, fontFamily: "'Outfit',sans-serif", letterSpacing: 1.5 }}>SANAD</span>
-        </div>
-
-        {/* ── Inner ring — clockwise 20s ── */}
-        <OrbitRing cats={INNER_CATS} radius={R_IN}  size={S_IN}  duration={20} clockwise={true}  lang={lang} cx={CX} cy={CY} />
-
-        {/* ── Outer ring — counter-clockwise 30s ── */}
-        <OrbitRing cats={OUTER_CATS} radius={R_OUT} size={S_OUT} duration={30} clockwise={false} lang={lang} cx={CX} cy={CY} />
+          if (cat.href) {
+            return (
+              <Link key={`${cat.id}-${i}`} href={cat.href}>
+                {content}
+              </Link>
+            );
+          }
+          return content;
+        })}
       </div>
     </div>
   );
@@ -1609,8 +1598,8 @@ export default function Home() {
           </Link>
         </motion.div>
 
-        {/* ── Orbital system ── */}
-        <OrbitSystem lang={lang} />
+        {/* ── Services Marquee ── */}
+        <ServicesMarquee lang={lang} />
       </section>
 
 
@@ -1626,7 +1615,7 @@ export default function Home() {
             className="text-xs font-black"
             style={{ color: "#1A4D1F", opacity: 0.65, fontFamily: "'Cairo','Tajawal',sans-serif" }}
           >
-            {t("ابحث في المدينة الرقمية", "Rechercher dans la ville")}
+            {t("ابحث في سند", "Rechercher dans Sanad")}
           </span>
         </div>
         <HomeSearchBar lang={lang} t={t} />
