@@ -23,6 +23,7 @@ export const serviceProvidersTable = pgTable("service_providers", {
   isAvailable: boolean("is_available").default(true).notNull(),
   latitude: real("latitude"),
   longitude: real("longitude"),
+  deliveryFee: real("delivery_fee").default(3.0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
   index("idx_providers_category").on(t.category),

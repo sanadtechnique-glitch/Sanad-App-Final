@@ -32,7 +32,7 @@ interface Order {
   status: OrderStatus; deliveryFee?: number; deliveryStaffId?: number;
   createdAt: string; notes?: string; delegationId?: number;
 }
-interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; }
+interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; deliveryFee?: number | null; }
 interface Article { id: number; supplierId: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; originalPrice?: number; discountedPrice?: number; photoUrl?: string | null; isAvailable: boolean; supplierName?: string; }
 interface DeliveryStaff { id: number; name: string; nameAr: string; phone: string; zone?: string; isAvailable: boolean; }
 interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
@@ -1366,12 +1366,12 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   const [filter, setFilter]     = useState<"all" | "products" | "services">("all");
   const [formType, setFormType] = useState<"product" | "service">("product");
   const [createdCreds, setCreatedCreds] = useState<{ phone: string; password: string } | null>(null);
-  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", photoUrl:"", shift:"all", isAvailable: true, latitude:"", longitude:"", providerPhone:"", providerPassword:"" });
+  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", photoUrl:"", shift:"all", isAvailable: true, latitude:"", longitude:"", deliveryFee:"3", providerPhone:"", providerPassword:"" });
 
   const load = () => get<Supplier[]>("/admin/suppliers").then(setItems).catch(() => {});
   useEffect(() => { load(); }, []);
 
-  const EMPTY_FORM = { name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",photoUrl:"",shift:"all",isAvailable:true,latitude:"",longitude:"",providerPhone:"",providerPassword:"" };
+  const EMPTY_FORM = { name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",photoUrl:"",shift:"all",isAvailable:true,latitude:"",longitude:"",deliveryFee:"3",providerPhone:"",providerPassword:"" };
 
   const openAdd = () => {
     setFormType("product");
@@ -1382,7 +1382,7 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   const openEdit = (s: Supplier) => {
     setFormType(supplierType(s.category));
     setCreatedCreds(null);
-    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", photoUrl:(s as any).photoUrl||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"", providerPhone:"", providerPassword:"" });
+    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", photoUrl:(s as any).photoUrl||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"", deliveryFee:(s.deliveryFee ?? 3).toString(), providerPhone:"", providerPassword:"" });
     setModal(s);
   };
 
@@ -1598,6 +1598,16 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
             {t("اختياري · بن قردان: 33.1167, 11.2167","Optionnel · Ben Guerdane: 33.1167, 11.2167")}
           </p>
         </div>
+
+        {/* Delivery Fee */}
+        <Field label={t("رسوم التوصيل الأساسية (TND)","Frais de livraison de base (TND)")}>
+          <Input
+            type="number"
+            value={form.deliveryFee}
+            onChange={v => setForm(f => ({...f, deliveryFee: v}))}
+            placeholder="3.000"
+          />
+        </Field>
 
         {/* Account creation — add mode only */}
         {modal === "add" && (

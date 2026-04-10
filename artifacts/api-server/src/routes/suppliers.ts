@@ -79,7 +79,7 @@ router.get("/admin/suppliers/:id", requireAdmin, async (req, res) => {
 router.post("/admin/suppliers", requireAdmin, async (req, res) => {
   const {
     name, nameAr, category, description, descriptionAr, address, phone, photoUrl,
-    shift, rating, isAvailable, latitude, longitude,
+    shift, rating, isAvailable, latitude, longitude, deliveryFee,
     // optional account creation
     providerPhone, providerPassword,
   } = req.body;
@@ -122,6 +122,7 @@ router.post("/admin/suppliers", requireAdmin, async (req, res) => {
       isAvailable: isAvailable ?? true,
       latitude: latitude ? parseFloat(String(latitude)) : null,
       longitude: longitude ? parseFloat(String(longitude)) : null,
+      deliveryFee: deliveryFee !== undefined ? parseFloat(String(deliveryFee)) : 3.0,
     }).returning();
 
     // 2. Create provider account if requested
@@ -155,7 +156,7 @@ router.post("/admin/suppliers", requireAdmin, async (req, res) => {
 router.patch("/admin/suppliers/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
-  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable, latitude, longitude } = req.body;
+  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable, latitude, longitude, deliveryFee } = req.body;
   if (phone !== undefined && phone !== "" && !isValidPhone(phone)) {
     res.status(400).json({ message: "Invalid phone number format" }); return;
   }
@@ -165,6 +166,7 @@ router.patch("/admin/suppliers/:id", requireAdmin, async (req, res) => {
         name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable,
         latitude: latitude !== undefined ? (latitude ? parseFloat(String(latitude)) : null) : undefined,
         longitude: longitude !== undefined ? (longitude ? parseFloat(String(longitude)) : null) : undefined,
+        deliveryFee: deliveryFee !== undefined ? parseFloat(String(deliveryFee)) : undefined,
       })
       .where(eq(serviceProvidersTable.id, id)).returning();
     if (!row) { res.status(404).json({ message: "Not found" }); return; }

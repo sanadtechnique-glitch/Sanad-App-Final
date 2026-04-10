@@ -230,11 +230,9 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [, navigate] = useLocation();
   const session = getSession();
 
-  const subTotal = cart.items.reduce((s, i) => s + i.price * i.qty, 0);
-  const deliveryFee = (session?.role === "client" && session?.delegationFee !== undefined && session.delegationFee > 0)
-    ? session.delegationFee
-    : cart.deliveryFee;
-  const total = subTotal + deliveryFee;
+  const subTotal    = cart.items.reduce((s, i) => s + i.price * i.qty, 0);
+  const deliveryFee = cart.deliveryFee ?? 0;
+  const total       = subTotal + deliveryFee;
 
   const placeOrder = () => {
     if (!cart.supplierId || cart.items.length === 0) return;

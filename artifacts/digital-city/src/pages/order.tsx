@@ -21,6 +21,7 @@ interface Supplier {
   description: string; descriptionAr: string; address: string;
   rating?: number; isAvailable: boolean;
   latitude?: number | null; longitude?: number | null;
+  deliveryFee?: number | null;
 }
 interface DistanceResult { distanceKm: number; etaMinutes: number; deliveryFee: number; source: string; }
 
@@ -77,7 +78,11 @@ export default function Order() {
     () => cartItems.reduce((sum, item) => sum + (parseFloat(String(item.price)) || 0) * (parseInt(String(item.qty)) || 1), 0),
     [cartItems]
   );
-  const deliveryFee = useMemo(() => distInfo?.deliveryFee ?? 0, [distInfo]);
+  // Priority: GPS-calculated fee → provider's DB fee → cart stored fee → 0
+  const deliveryFee = useMemo(
+    () => distInfo?.deliveryFee ?? supplier?.deliveryFee ?? cart.deliveryFee ?? 0,
+    [distInfo, supplier, cart.deliveryFee]
+  );
   const finalTotal  = useMemo(() => subtotal + deliveryFee, [subtotal, deliveryFee]);
 
   const prefilledNotes = decodeURIComponent(new URLSearchParams(window.location.search).get("notes") || "");
