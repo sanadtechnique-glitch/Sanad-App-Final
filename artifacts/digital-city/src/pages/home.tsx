@@ -859,7 +859,7 @@ function HomeSearchBar({ lang, t }: { lang: string; t: (ar: string, fr: string) 
                   return (
                     <button
                       key={p.id}
-                      onClick={() => { navigate(`/provider/${p.id}`); setFocused(false); setQuery(""); setResults(null); }}
+                      onClick={() => { navigate(p.category === "hotel" ? `/hotel/${p.id}` : `/store/${p.id}`); setFocused(false); setQuery(""); setResults(null); }}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#FFF3E0] transition-colors text-right"
                       dir="rtl"
                     >
@@ -906,7 +906,7 @@ function HomeSearchBar({ lang, t }: { lang: string; t: (ar: string, fr: string) 
                 {results!.articles.map(a => (
                   <button
                     key={a.id}
-                    onClick={() => { navigate(`/provider/${a.supplierId}`); setFocused(false); setQuery(""); setResults(null); }}
+                    onClick={() => { navigate(`/store/${a.supplierId}`); setFocused(false); setQuery(""); setResults(null); }}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#FFF3E0] transition-colors text-right"
                     dir="rtl"
                   >

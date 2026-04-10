@@ -46,6 +46,7 @@ function discountPct(orig: string, sale: string) {
 
 // ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ p, t, lang }: { p: DealProduct; t: (ar: string, fr: string) => string; lang: string }) {
+  const [, navigate] = useLocation();
   const pct = discountPct(p.originalPrice ?? "0", p.salePrice ?? "0");
   const catLabel = p.category
     ? (lang === "ar" ? (CAT_AR[p.category] ?? p.category) : (CAT_FR[p.category] ?? p.category))
@@ -56,7 +57,8 @@ function ProductCard({ p, t, lang }: { p: DealProduct; t: (ar: string, fr: strin
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="rounded-2xl border overflow-hidden flex flex-col"
+      onClick={() => p.providerId && navigate(`/store/${p.providerId}`)}
+      className="rounded-2xl border overflow-hidden flex flex-col cursor-pointer"
       style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.15)" }}
     >
       {/* Circle image area */}
