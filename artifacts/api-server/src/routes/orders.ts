@@ -5,7 +5,7 @@ import { eq, inArray, and, ilike } from "drizzle-orm";
 import { emitNewOrder, emitOrderTaken, emitOrderStatus } from "../lib/socket";
 import { requireStaff, requireAdmin } from "../lib/authMiddleware";
 import { safeParseFloat, safeParseInt } from "../lib/validate";
-import { calculateDistance, haversineKm, getDeliveryConfig } from "../lib/distance";
+import { calculateDistance, haversineKm, getProviderCoords } from "../lib/distance";
 import { sendPushToUsers } from "./push";
 
 /* Arabic / French status labels for push notifications */
@@ -55,24 +55,25 @@ router.get("/orders/:id", async (req, res) => {
   }
 });
 
-// GET /distance — Calculate distance + fee + ETA between provider and customer
+// GET /distance — Provider → Customer: Haversine + 2.500 + (km × 0.500)
+// Query params: providerId (preferred) OR providerLat+providerLng, plus customerLat+customerLng
 router.get("/distance", async (req, res) => {
   const { providerLat, providerLng, customerLat, customerLng, providerId } = req.query as Record<string, string>;
 
+  const cLat = customerLat ? parseFloat(customerLat) : null;
+  const cLng = customerLng ? parseFloat(customerLng) : null;
+  if (!cLat || !cLng || isNaN(cLat) || isNaN(cLng)) {
+    res.status(400).json({ message: "customerLat and customerLng are required" }); return;
+  }
+
+  // Fetch provider coordinates: prefer DB lookup via providerId
   let pLat: number | null = providerLat ? parseFloat(providerLat) : null;
   let pLng: number | null = providerLng ? parseFloat(providerLng) : null;
 
   if (providerId && (!pLat || !pLng)) {
-    const [provider] = await db.select({ latitude: serviceProvidersTable.latitude, longitude: serviceProvidersTable.longitude })
-      .from(serviceProvidersTable).where(eq(serviceProvidersTable.id, parseInt(providerId)));
-    if (provider) { pLat = provider.latitude; pLng = provider.longitude; }
-  }
-
-  const cLat = customerLat ? parseFloat(customerLat) : null;
-  const cLng = customerLng ? parseFloat(customerLng) : null;
-
-  if (!cLat || !cLng || isNaN(cLat) || isNaN(cLng)) {
-    res.status(400).json({ message: "customerLat and customerLng are required" }); return;
+    const coords = await getProviderCoords(parseInt(providerId));
+    pLat = coords.latitude;
+    pLng = coords.longitude;
   }
 
   try {
@@ -102,27 +103,26 @@ router.post("/orders", async (req, res) => {
     const cLat = customerLat ? parseFloat(String(customerLat)) : null;
     const cLng = customerLng ? parseFloat(String(customerLng)) : null;
 
-    // Load config to enforce minimum fee server-side
-    const cfg = await getDeliveryConfig();
-
     let distanceKm: number | null = null;
     let etaMinutes: number | null = null;
-    let computedFee: number | null = null;
+    let savedFee   = 2.500; // minimum base fare (DT)
 
     if (cLat && cLng && !isNaN(cLat) && !isNaN(cLng)) {
       try {
+        // calculateDistance uses Haversine + 2.500 + (km × 0.500) + Math.max(minFee)
         const dist = await calculateDistance(provider.latitude, provider.longitude, cLat, cLng);
         distanceKm = dist.distanceKm;
         etaMinutes = dist.etaMinutes;
-        // calculateDistance already applies Math.max(minFee) — use directly
-        computedFee = dist.deliveryFee;
-      } catch { /* fallback to no calculation */ }
+        savedFee   = dist.deliveryFee; // already enforces minimum
+      } catch { /* GPS calculation failed — keep base fare */ }
+    } else if (req.body.deliveryFee) {
+      // Client sent a pre-calculated fee (e.g. from distance API call on order page)
+      const clientFee = parseFloat(String(req.body.deliveryFee));
+      savedFee = isNaN(clientFee) ? 2.500 : Math.max(clientFee, 2.500);
     }
 
-    // Server-side minimum enforcement — NEVER save a fee below minFee regardless of client value
-    const rawFee     = computedFee ?? (req.body.deliveryFee ? parseFloat(String(req.body.deliveryFee)) : 0);
-    const savedFee   = Math.max(rawFee, cfg.minFee);
-    const savedTotal = Math.round((savedFee + (totalAmount ? parseFloat(String(totalAmount)) - rawFee : 0)) * 1000) / 1000;
+    const subtotal   = totalAmount ? parseFloat(String(totalAmount)) : 0;
+    const savedTotal = Math.round((subtotal > 0 ? subtotal : savedFee) * 1000) / 1000;
 
     const [order] = await db.insert(ordersTable).values({
       customerName, customerPhone, customerAddress,
@@ -137,7 +137,7 @@ router.post("/orders", async (req, res) => {
       status: "searching_for_driver",
       customerId: isNaN(cid as number) ? null : cid,
       deliveryFee: savedFee,
-      totalAmount: totalAmount ? savedTotal : savedFee,
+      totalAmount: savedTotal,
       distanceKm,
       etaMinutes,
     }).returning();
