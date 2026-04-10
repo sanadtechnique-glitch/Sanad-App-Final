@@ -23,7 +23,7 @@ interface Supplier {
   latitude?: number | null; longitude?: number | null;
   deliveryFee?: number | null;
 }
-interface DistanceResult { distanceKm: number; etaMinutes: number; deliveryFee: number; source: string; }
+interface DistanceResult { distanceKm: number; etaMinutes: number; deliveryFee: number; baseFee: number; kmFee: number; nightSurcharge: number; isNight: boolean; source: string; }
 
 const schema = z.object({
   customerName:    z.string().min(2),
@@ -64,10 +64,14 @@ export default function Order() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [addressMode, setAddressMode] = useState<"gps" | "manual">("gps");
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState(false);
   const [customerLat, setCustomerLat] = useState<number | null>(null);
   const [customerLng, setCustomerLng] = useState<number | null>(null);
   const [distInfo, setDistInfo] = useState<DistanceResult | null>(null);
   const [distLoading, setDistLoading] = useState(false);
+
+  // Base fare (DT) — used as fallback when GPS is not available
+  const BASE_FARE = 2.5;
 
   // ── Reactive total calculation (useMemo — re-runs whenever cart or distInfo changes) ──
   const cartItems = useMemo(
@@ -78,10 +82,11 @@ export default function Order() {
     () => cartItems.reduce((sum, item) => sum + (parseFloat(String(item.price)) || 0) * (parseInt(String(item.qty)) || 1), 0),
     [cartItems]
   );
-  // Priority: GPS-calculated fee → provider's DB fee → cart stored fee → 0
+  // Priority: GPS-calculated dynamic fee → base fare fallback (2.500 DT)
+  // NEVER use hardcoded distances. If GPS unavailable → show base fare.
   const deliveryFee = useMemo(
-    () => distInfo?.deliveryFee ?? supplier?.deliveryFee ?? cart.deliveryFee ?? 0,
-    [distInfo, supplier, cart.deliveryFee]
+    () => distInfo?.deliveryFee ?? BASE_FARE,
+    [distInfo, BASE_FARE]
   );
   const finalTotal  = useMemo(() => subtotal + deliveryFee, [subtotal, deliveryFee]);
 
@@ -103,15 +108,29 @@ export default function Order() {
     }).catch(() => { setNotFound(true); setLoadingProvider(false); });
   }, [id]);
 
+  // Auto-trigger GPS as soon as supplier is loaded and we are in GPS mode
+  useEffect(() => {
+    if (supplier && addressMode === "gps" && !customerLat && !gpsLoading) {
+      getGPSAndCalculate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supplier]);
+
   const getGPSAndCalculate = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      setGpsError(true);
+      setCartDeliveryFee(BASE_FARE);
+      return;
+    }
     setGpsLoading(true);
+    setGpsError(false);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         setCustomerLat(lat);
         setCustomerLng(lng);
+        setGpsError(false);
         // Auto-fill address via reverse geocoding
         try {
           const r = await fetch(
@@ -140,7 +159,12 @@ export default function Order() {
           setCartDeliveryFee(res.deliveryFee);
         } catch { /* silent */ } finally { setDistLoading(false); }
       },
-      () => { setGpsLoading(false); },
+      () => {
+        // GPS denied or unavailable → fallback to base fare
+        setGpsLoading(false);
+        setGpsError(true);
+        setCartDeliveryFee(BASE_FARE);
+      },
       { timeout: 10000, enableHighAccuracy: true }
     );
   };
@@ -387,16 +411,35 @@ export default function Order() {
                     </button>
                   </div>
 
-                  {/* GPS mode */}
+                  {/* GPS mode — loading or error or trigger button */}
                   {addressMode === "gps" && !customerLat && (
-                    <button type="button" onClick={getGPSAndCalculate} disabled={gpsLoading}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm border border-[#FFA500]/40 transition-all disabled:opacity-50"
-                      style={{ background: "rgba(255,165,0,0.08)", color: "#1A4D1F" }}>
-                      {gpsLoading
-                        ? <><Loader2 size={14} className="animate-spin" />{t("جاري تحديد موقعك...","Localisation en cours...")}</>
-                        : <><Navigation size={14} className="text-[#FFA500]" />{t("تحديد موقعي الحالي","Utiliser ma position GPS")}</>
-                      }
-                    </button>
+                    <div className="space-y-2">
+                      <button type="button" onClick={getGPSAndCalculate} disabled={gpsLoading}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm border border-[#FFA500]/40 transition-all disabled:opacity-50"
+                        style={{ background: "rgba(255,165,0,0.08)", color: "#1A4D1F" }}>
+                        {gpsLoading
+                          ? <><Loader2 size={14} className="animate-spin" />{t("جاري تحديد موقعك...","Localisation en cours...")}</>
+                          : <><Navigation size={14} className="text-[#FFA500]" />{t("تحديد موقعي الحالي","Utiliser ma position GPS")}</>
+                        }
+                      </button>
+                      {/* GPS error — show fallback message */}
+                      {gpsError && !gpsLoading && (
+                        <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl border border-amber-400/40" style={{ background: "rgba(255,193,7,0.08)" }}>
+                          <AlertTriangle size={14} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs font-black text-amber-700">
+                              {t("فعّل GPS للحصول على سعر التوصيل الدقيق", "Activez le GPS pour un prix de livraison précis")}
+                            </p>
+                            <p className="text-[10px] text-amber-600/80 mt-0.5">
+                              {t(
+                                `سيتم تطبيق الأجرة الأساسية ${BASE_FARE.toFixed(3)} د.ت مؤقتاً`,
+                                `Tarif de base ${BASE_FARE.toFixed(3)} DT appliqué provisoirement`
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {/* GPS confirmed → show address + re-detect button */}
@@ -546,13 +589,19 @@ export default function Order() {
                         <span className="text-xs text-[#1A4D1F]/50 flex items-center gap-1">
                           <Navigation size={10} />
                           {t("رسوم التوصيل","Frais de livraison")}
+                          {distInfo && !distLoading && (
+                            <span className="text-[9px] text-emerald-500 font-black">
+                              · {distInfo.distanceKm.toFixed(1)} km
+                              {distInfo.isNight ? ` · ${t("ليلي","nuit")}` : ""}
+                            </span>
+                          )}
                           {!distInfo && !distLoading && (
-                            <span className="text-[9px] opacity-60">
-                              ({t("بعد تحديد GPS","après GPS")})
+                            <span className="text-[9px] opacity-50">
+                              ({t("أجرة أساسية","tarif de base")})
                             </span>
                           )}
                         </span>
-                        <span className="text-xs font-black text-[#FFA500]">{deliveryFee.toFixed(3)} TND</span>
+                        <span className="text-xs font-black text-[#FFA500]">{deliveryFee.toFixed(3)} DT</span>
                       </div>
                       <div className="border-t border-[#1A4D1F]/10 pt-1.5 flex items-center justify-between">
                         <span className="text-sm font-black text-[#1A4D1F]">{t("الإجمالي","Total")}</span>

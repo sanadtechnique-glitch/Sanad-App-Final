@@ -7,7 +7,7 @@ const BEN_GUERDANE_LNG = 11.2167;
 
 // ─── Default values (fallback when DB is not available) ──────────────────────
 const DEFAULTS = {
-  baseFee: 2.0,
+  baseFee: 2.5,
   ratePerKm: 0.5,
   minFee: 2.0,
   maxFee: null as number | null,
