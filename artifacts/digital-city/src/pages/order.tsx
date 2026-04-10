@@ -12,9 +12,10 @@ import { getSession } from "@/lib/auth";
 import {
   ChevronRight, CheckCircle2, MapPin, User, StickyNote,
   Phone, Loader2, AlertTriangle, Star, Building2, Hash,
-  Camera, X, Navigation, Zap, Search,
+  Camera, X, Navigation, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MapPickerModal, type MapPickerResult } from "@/components/MapPickerModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Supplier {
@@ -28,11 +29,6 @@ interface DistanceResult {
   distanceKm: number; etaMinutes: number; deliveryFee: number;
   baseFee: number; kmFee: number; isNight: boolean; source: string;
 }
-interface NominatimResult {
-  lat: string; lon: string; display_name: string;
-  address?: { city?: string; town?: string; village?: string; suburb?: string };
-}
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 const BASE_FARE      = 2.500; // DT — shown when GPS is unavailable
 const GPS_SESSION_KEY = "sanad_gps_coords"; // sessionStorage key for coord caching
@@ -95,11 +91,8 @@ export default function Order() {
   const [distInfo, setDistInfo]           = useState<DistanceResult | null>(null);
   const [distLoading, setDistLoading]     = useState(false);
 
-  // Map picker (fallback when GPS denied)
-  const [showPicker, setShowPicker]       = useState(false);
-  const [pickerQuery, setPickerQuery]     = useState("");
-  const [pickerResults, setPickerResults] = useState<NominatimResult[]>([]);
-  const [pickerSearching, setPickerSearching] = useState(false);
+  // Map picker modal (fallback when GPS denied or always available)
+  const [showPicker, setShowPicker] = useState(false);
 
   // Refs
   const watchIdRef      = useRef<number | null>(null);
@@ -259,30 +252,17 @@ export default function Order() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supplier]);
 
-  // ── Map picker: forward geocode via Nominatim ─────────────────────────────
-  const searchAddress = async () => {
-    if (!pickerQuery.trim()) return;
-    setPickerSearching(true);
-    setPickerResults([]);
-    try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(pickerQuery)}&format=json&limit=5&accept-language=${lang}&countrycodes=tn`;
-      const r   = await fetch(url, { headers: { "Accept-Language": lang } });
-      if (r.ok) setPickerResults(await r.json() as NominatimResult[]);
-    } catch { /* silent */ }
-    finally { setPickerSearching(false); }
-  };
-
-  const confirmPickedLocation = (result: NominatimResult) => {
-    const lat = parseFloat(result.lat);
-    const lng = parseFloat(result.lon);
-    firstFixRef.current = false; // allow address fill from picker result
-    applyPosition(lat, lng);
-    setValue("customerAddress", result.display_name, { shouldValidate: true });
+  // ── Map picker confirm handler ─────────────────────────────────────────────
+  const handleMapPickerConfirm = useCallback(({ lat, lng, address }: MapPickerResult) => {
+    firstFixRef.current = true; // prevent reverse-geocode from overwriting the picker address
+    setGpsStatus("ok");
+    setCustomerLat(lat);
+    setCustomerLng(lng);
+    setValue("customerAddress", address, { shouldValidate: true });
+    try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat, lng })); } catch { /* quota */ }
+    calculateFee(lat, lng);
     setShowPicker(false);
-    setPickerQuery("");
-    setPickerResults([]);
-    setGpsStatus("ok"); // treat picked location as confirmed
-  };
+  }, [setValue, calculateFee]);
 
   // ── Prescription photo upload ─────────────────────────────────────────────
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -528,24 +508,33 @@ export default function Order() {
 
                       {/* GPS OK — live tracking badge */}
                       {isGpsOk && customerLat && (
-                        <div className="flex items-center gap-2 p-3 rounded-xl border border-emerald-400/30"
-                          style={{ background: "rgba(52,211,153,0.06)" }}>
-                          <div className="relative flex-shrink-0">
-                            <Navigation size={14} className="text-emerald-500" />
-                            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 p-3 rounded-xl border border-emerald-400/30"
+                            style={{ background: "rgba(52,211,153,0.06)" }}>
+                            <div className="relative flex-shrink-0">
+                              <Navigation size={14} className="text-emerald-500" />
+                              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-black text-emerald-600">
+                                {t("GPS نشط · يتتبع موقعك","GPS actif · Suivi en temps réel")}
+                              </p>
+                              <p className="text-[10px] text-[#1A4D1F]/40 mt-0.5 font-mono">
+                                {customerLat.toFixed(5)}, {customerLng?.toFixed(5)}
+                                {gpsAccuracy !== null && <span className="opacity-60"> ±{Math.round(gpsAccuracy)}m</span>}
+                              </p>
+                            </div>
+                            <button type="button" onClick={() => { stopWatching(); startWatchingGPS(); }}
+                              className="text-[10px] text-emerald-600/60 underline flex-shrink-0">
+                              {t("تحديث","Actualiser")}
+                            </button>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-black text-emerald-600">
-                              {t("GPS نشط · يتتبع موقعك","GPS actif · Suivi en temps réel")}
-                            </p>
-                            <p className="text-[10px] text-[#1A4D1F]/40 mt-0.5 font-mono">
-                              {customerLat.toFixed(5)}, {customerLng?.toFixed(5)}
-                              {gpsAccuracy !== null && <span className="opacity-60"> ±{Math.round(gpsAccuracy)}m</span>}
-                            </p>
-                          </div>
-                          <button type="button" onClick={() => { stopWatching(); startWatchingGPS(); }}
-                            className="text-[10px] text-emerald-600/60 underline flex-shrink-0">
-                            {t("تحديث","Actualiser")}
+                          {/* Always-visible map button */}
+                          <button type="button" onClick={() => setShowPicker(true)}
+                            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border border-[#1A4D1F]/15 text-[#1A4D1F]/60 transition-all hover:border-[#FFA500]/40 hover:text-[#1A4D1F]"
+                            style={{ background: "rgba(26,77,31,0.03)" }}>
+                            <MapPin size={11} className="text-[#FFA500]" />
+                            {t("ضبط الموقع على الخريطة","Ajuster sur la carte")}
                           </button>
                         </div>
                       )}
@@ -765,87 +754,16 @@ export default function Order() {
         </AnimatePresence>
       </div>
 
-      {/* ── Map Picker Modal (GPS fallback) ── */}
+      {/* ── Full-screen Leaflet map picker ── */}
       <AnimatePresence>
-        {showPicker && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center"
-            style={{ background: "rgba(0,0,0,0.55)" }}
-            onClick={() => setShowPicker(false)}
-          >
-            <motion.div
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="w-full max-w-lg rounded-t-3xl p-5 space-y-4"
-              style={{ background: "#FFF3E0", maxHeight: "75vh", overflowY: "auto" }}
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Handle */}
-              <div className="w-12 h-1.5 rounded-full bg-[#1A4D1F]/20 mx-auto" />
-
-              <div>
-                <h3 className="text-lg font-black text-[#1A4D1F]">
-                  {t("📍 اختر موقعك","📍 Choisir votre emplacement")}
-                </h3>
-                <p className="text-xs text-[#1A4D1F]/40 mt-0.5">
-                  {t("ابحث عن عنوانك في بن قردان","Recherchez votre adresse à Ben Guerdane")}
-                </p>
-              </div>
-
-              {/* Search input */}
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search size={14} className={cn("absolute top-1/2 -translate-y-1/2 text-[#1A4D1F]/30 pointer-events-none", isRTL ? "right-3" : "left-3")} />
-                  <input
-                    value={pickerQuery}
-                    onChange={e => setPickerQuery(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && searchAddress()}
-                    placeholder={t("الشارع أو الحي...","Rue ou quartier...")}
-                    className={cn(
-                      "w-full bg-white border border-[#1A4D1F]/20 rounded-xl py-3 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/30 focus:outline-none focus:border-[#1A4D1F] transition-colors",
-                      isRTL ? "pr-9 pl-3" : "pl-9 pr-3",
-                    )}
-                    autoFocus
-                  />
-                </div>
-                <button type="button" onClick={searchAddress} disabled={pickerSearching}
-                  className="px-4 py-3 rounded-xl font-black text-sm text-white disabled:opacity-50 transition-all"
-                  style={{ background: "#1A4D1F" }}>
-                  {pickerSearching ? <Loader2 size={14} className="animate-spin" /> : t("بحث","Chercher")}
-                </button>
-              </div>
-
-              {/* Results */}
-              {pickerResults.length > 0 && (
-                <div className="space-y-2">
-                  {pickerResults.map((r, i) => (
-                    <button key={i} type="button" onClick={() => confirmPickedLocation(r)}
-                      className="w-full text-right p-3 rounded-xl border border-[#1A4D1F]/15 bg-white hover:border-[#FFA500]/60 hover:bg-[#FFF3E0] transition-all flex items-start gap-3">
-                      <MapPin size={14} className="text-[#FFA500] mt-0.5 flex-shrink-0" />
-                      <div className="flex-1 min-w-0 text-left" dir="ltr">
-                        <p className="text-xs font-bold text-[#1A4D1F] leading-tight truncate">{r.display_name}</p>
-                        <p className="text-[10px] text-[#1A4D1F]/40 mt-0.5 font-mono">
-                          {parseFloat(r.lat).toFixed(5)}, {parseFloat(r.lon).toFixed(5)}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {pickerResults.length === 0 && !pickerSearching && pickerQuery && (
-                <p className="text-center text-xs text-[#1A4D1F]/40 py-4">
-                  {t("لا نتائج، حاول بكلمات مختلفة","Aucun résultat, essayez d'autres mots-clés")}
-                </p>
-              )}
-
-              <button type="button" onClick={() => setShowPicker(false)}
-                className="w-full py-3 rounded-xl text-sm font-bold text-[#1A4D1F]/50 border border-[#1A4D1F]/15 hover:bg-[#1A4D1F]/5 transition-colors">
-                {t("إلغاء","Annuler")}
-              </button>
-            </motion.div>
-          </motion.div>
+        {showPicker && supplier && (
+          <MapPickerModal
+            initialLat={customerLat}
+            initialLng={customerLng}
+            supplierId={supplier.id}
+            onConfirm={handleMapPickerConfirm}
+            onClose={() => setShowPicker(false)}
+          />
         )}
       </AnimatePresence>
     </Layout>
