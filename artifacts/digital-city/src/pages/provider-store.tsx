@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Layout } from "@/components/layout";
 import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
 import { get } from "@/lib/admin-api";
-import { Plus, Minus, Package, Star, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Minus, Package, Star, ArrowRight, ChevronLeft } from "lucide-react";
 import { AdCarousel } from "@/components/AdCarousel";
+import { ImageGallery } from "@/components/ImageGallery";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_REDIRECT: Record<string, string> = {
@@ -28,59 +29,13 @@ interface Article {
   originalPrice?: number; photoUrl?: string; images?: string | null; isAvailable: boolean;
 }
 
-function parseImages(a: Article): string[] {
-  try { return a.images ? JSON.parse(a.images) : []; } catch { return []; }
-}
 function getImages(a: Article): string[] {
-  const imgs = parseImages(a);
-  return imgs.length > 0 ? imgs : (a.photoUrl ? [a.photoUrl] : []);
-}
-
-/** Swipeable image mini-slider for product cards */
-function ProductImageSlider({ images, nameAr }: { images: string[]; nameAr: string }) {
-  const [idx, setIdx] = useState(0);
-  if (images.length === 0) return (
-    <div className="w-full aspect-[4/3] bg-[#FFF8E7] flex items-center justify-center">
-      <Package size={26} className="text-[#1A4D1F]/15" />
-    </div>
-  );
-  return (
-    <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#FFF8E7] group">
-      <AnimatePresence initial={false} mode="wait">
-        <motion.img
-          key={idx}
-          src={images[idx]}
-          alt={nameAr}
-          className="absolute inset-0 w-full h-full object-cover"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-        />
-      </AnimatePresence>
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={e => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); }}
-            className="absolute left-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black/30 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
-            <ChevronLeft size={12} />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); }}
-            className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black/30 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
-            <ChevronRight size={12} />
-          </button>
-          {/* Dots */}
-          <div className="absolute bottom-1.5 left-0 right-0 flex justify-center gap-1">
-            {images.map((_, i) => (
-              <button key={i} onClick={e => { e.stopPropagation(); setIdx(i); }}
-                className={cn("rounded-full transition-all", i === idx ? "w-3 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/50")} />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
+  try {
+    const parsed = a.images ? JSON.parse(a.images) : [];
+    return parsed.length > 0 ? parsed : (a.photoUrl ? [a.photoUrl] : []);
+  } catch {
+    return a.photoUrl ? [a.photoUrl] : [];
+  }
 }
 
 export default function ProviderStore() {
@@ -231,18 +186,18 @@ export default function ProviderStore() {
                   )}
                   style={{ background: "#FFFFFF" }}>
 
-                  {/* Rectangular image with slider */}
+                  {/* Multi-image gallery with swipe + fullscreen lightbox */}
                   <div className="relative">
-                    <ProductImageSlider images={imgs} nameAr={article.nameAr} />
-                    {/* Sale badge */}
+                    <ImageGallery images={imgs} alt={lang === "ar" ? article.nameAr : article.nameFr} aspectRatio="4/3" />
+                    {/* Sale badge — z-20 to appear above gallery internal elements */}
                     {hasSale && (
-                      <div className="absolute top-1.5 start-1.5 bg-red-500 text-white text-[8px] font-black px-1 py-0.5 rounded-md">
+                      <div className="absolute top-1.5 start-1.5 z-20 bg-red-500 text-white text-[8px] font-black px-1 py-0.5 rounded-md pointer-events-none">
                         -{discountPct}%
                       </div>
                     )}
-                    {/* Cart quantity badge */}
+                    {/* Cart quantity badge — z-20 */}
                     {qty > 0 && (
-                      <div className="absolute top-1.5 end-1.5 w-5 h-5 rounded-full bg-[#1A4D1F] flex items-center justify-center shadow">
+                      <div className="absolute top-1.5 end-1.5 z-20 w-5 h-5 rounded-full bg-[#1A4D1F] flex items-center justify-center shadow pointer-events-none">
                         <span className="text-white text-[9px] font-black">{qty}</span>
                       </div>
                     )}
