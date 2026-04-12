@@ -136,8 +136,8 @@ function NotificationBell() {
             transition={{ duration: 0.15 }}
             className="absolute top-full mt-2 w-80 rounded-2xl shadow-2xl border z-[80] overflow-hidden"
             style={{
-              background: "#FFA500",
-              borderColor: "rgba(46,125,50,0.3)",
+              background: "#ffffff",
+              borderColor: "rgba(0,0,0,0.08)",
               insetInlineEnd: 0,
             }}
             dir="rtl"
@@ -252,7 +252,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
         <>
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-[#FFA500]/60 backdrop-blur-sm z-[60]"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60]"
             onClick={onClose}
           />
           <motion.div
@@ -262,9 +262,9 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
             className={cn("fixed top-0 h-full w-full max-w-sm z-[70] flex flex-col", isRTL ? "left-0" : "right-0")}
             style={{
-              background: "#FFA500",
-              borderLeft:  isRTL ? "none" : "2px solid #1A4D1F",
-              borderRight: isRTL ? "2px solid #1A4D1F" : "none",
+              background: "#ffffff",
+              borderLeft:  isRTL ? "none" : "1px solid #f0f0f0",
+              borderRight: isRTL ? "1px solid #f0f0f0" : "none",
             }}
             dir={isRTL ? "rtl" : "ltr"}
           >
@@ -435,7 +435,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             ? "right-0 border-l-2 border-l-[#1A4D1F]"
             : "left-0 border-r-2 border-r-[#1A4D1F]"
         )}
-        style={{ background: "#FFA500" }}
+        style={{ background: "#ffffff", borderColor: "#f0f0f0" }}
       >
         {/* Logo */}
         <img src={appLogo} alt="سند" style={{ height: 104, width: "auto" }} draggable={false} />
@@ -527,10 +527,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Desktop Top Header (sticky) ── */}
       <header
         className={cn(
-          "hidden md:flex items-center justify-between px-6 py-3 sticky top-0 z-40 border-b-2 border-[#1A4D1F]",
+          "hidden md:flex items-center justify-between px-6 py-3 sticky top-0 z-40 border-b border-gray-100",
           isRTL ? "md:pr-24" : "md:pl-24"
         )}
-        style={{ background: "#FFA500" }}
+        style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(8px)" }}
       >
         {/* Greeting + user info */}
         <div className="flex items-center gap-3" dir={isRTL ? "rtl" : "ltr"}>
@@ -580,8 +580,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Mobile Top Bar ── */}
       <header
-        className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b-2 border-[#1A4D1F] sticky top-0 z-50"
-        style={{ background: "#FFA500" }}
+        className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 sticky top-0 z-50"
+        style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(8px)" }}
       >
         {/* Logo */}
         <img src={appLogo} alt="سند" style={{ height: 88, width: "auto" }} draggable={false} />
@@ -677,8 +677,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Mobile Bottom Navigation ── */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 w-full border-t-2 border-[#FFD700] px-6 py-3 z-50 flex justify-around items-center rounded-t-2xl"
-        style={{ background: "#FFA500" }}
+        className="md:hidden fixed bottom-0 left-0 w-full border-t border-gray-100 px-6 py-3 z-50 flex justify-around items-center rounded-t-2xl"
+        style={{ background: "#ffffff", boxShadow: "0 -2px 12px rgba(0,0,0,0.06)" }}
       >
         {navItems.map(item => {
           const isActive =
