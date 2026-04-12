@@ -335,7 +335,7 @@ function OrderCard({ order, t, expanded, onToggle }: {
     <motion.div
       layout
       className="rounded-2xl border overflow-hidden cursor-pointer"
-      style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.15)" }}
+      style={{ background: "#f8f8f8", borderColor: "rgba(0,0,0,0.07)" }}
       onClick={onToggle}
       whileTap={{ scale: 0.99 }}
     >
@@ -853,7 +853,7 @@ function HomeSearchBar({ lang, t }: { lang: string; t: (ar: string, fr: string) 
                     <button
                       key={p.id}
                       onClick={() => { navigate(p.category === "hotel" ? `/hotel/${p.id}` : `/store/${p.id}`); setFocused(false); setQuery(""); setResults(null); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#FFF3E0] transition-colors text-right"
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-right"
                       dir="rtl"
                     >
                       <div
@@ -900,7 +900,7 @@ function HomeSearchBar({ lang, t }: { lang: string; t: (ar: string, fr: string) 
                   <button
                     key={a.id}
                     onClick={() => { navigate(`/store/${a.supplierId}`); setFocused(false); setQuery(""); setResults(null); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#FFF3E0] transition-colors text-right"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-right"
                     dir="rtl"
                   >
                     <div
@@ -1404,7 +1404,7 @@ export default function Home() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "#FFF3E0", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+      style={{ background: "#ffffff", fontFamily: "'Cairo','Tajawal',sans-serif" }}
       dir="rtl"
     >
 
@@ -1414,8 +1414,8 @@ export default function Home() {
       <header
         className="sticky top-0 z-50 w-full px-4 sm:px-6 lg:px-10 py-3 flex items-center justify-between"
         style={{
-          background: "rgba(255,243,224,0.92)",
-          borderBottom: "1.5px solid rgba(46,125,50,0.12)",
+          background: "rgba(255,255,255,0.92)",
+          borderBottom: "1px solid rgba(0,0,0,0.06)",
           backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)",
         }}
@@ -1562,16 +1562,7 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════════════════════════
           2. SERVICES — dual-ring orbital system
       ══════════════════════════════════════════════════════════════════════ */}
-      <section
-        className="mt-4 relative overflow-hidden"
-        style={{
-          background: "radial-gradient(ellipse 90% 60% at 50% 60%, rgba(26,77,31,0.09) 0%, rgba(255,165,0,0.04) 55%, transparent 80%)",
-        }}
-      >
-        {/* Decorative corner circles */}
-        <div style={{ position:"absolute", top:-40, right:-40, width:130, height:130, borderRadius:"50%", background:"rgba(255,165,0,0.055)", pointerEvents:"none" }} />
-        <div style={{ position:"absolute", bottom:-30, left:-30, width:100, height:100, borderRadius:"50%", background:"rgba(26,77,31,0.06)", pointerEvents:"none" }} />
-        <div style={{ position:"absolute", top:"20%", left:-20, width:70, height:70, borderRadius:"50%", background:"rgba(255,165,0,0.04)", pointerEvents:"none" }} />
+      <section className="mt-4 relative overflow-hidden">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
