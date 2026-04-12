@@ -303,3 +303,44 @@
   margin: 20px auto;
   color: #004D40;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ECONOMY MODE OVERRIDES
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* 1 ─ Global white background */
+:root {
+  --background: 0 0% 100% !important;
+  --card: 0 0% 100% !important;
+}
+
+/* 2 ─ Transparent / borderless cards */
+.card,
+.service-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 3 ─ Sticky transparent header */
+.header {
+  background: transparent !important;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  transition: background 0.3s;
+}
+/* Solid header when page is scrolled (add .scrolled via JS) */
+.header.scrolled {
+  background: #fff !important;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+}
+
+/* 4 ─ Footer slide-up drawer */
+.footer {
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+.footer.show {
+  transform: translateY(0);
+}
