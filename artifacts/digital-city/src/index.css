@@ -126,6 +126,59 @@
   }
 }
 
+/* ─── NEUBRUTALIST SYSTEM ────────────────────────────────────────────────────
+   Single class that replaces all gradients/soft-shadows/blurs.
+   Apply to: product cards, buttons, footer, any panel.
+   ─────────────────────────────────────────────────────────────────────────── */
+.neubrutal {
+  background: white !important;
+  border: 3px solid black !important;
+  box-shadow: 5px 5px 0px 0px black !important;
+  border-radius: 12px !important;
+  transition: none !important;
+}
+.neubrutal-btn {
+  background: white !important;
+  border: 3px solid black !important;
+  box-shadow: 3px 3px 0px 0px black !important;
+  border-radius: 8px !important;
+  transition: none !important;
+  cursor: pointer;
+  font-weight: 900;
+}
+.neubrutal-btn:active {
+  box-shadow: 1px 1px 0px 0px black !important;
+  transform: translate(2px, 2px);
+}
+.neubrutal-btn-black {
+  background: black !important;
+  color: white !important;
+  border: 3px solid black !important;
+  box-shadow: 3px 3px 0px 0px rgba(0,0,0,0.4) !important;
+  border-radius: 8px !important;
+  transition: none !important;
+  cursor: pointer;
+  font-weight: 900;
+}
+.neubrutal-btn-black:active {
+  box-shadow: 1px 1px 0px 0px rgba(0,0,0,0.4) !important;
+  transform: translate(2px, 2px);
+}
+.neubrutal-btn-yellow {
+  background: #FACC15 !important;
+  color: #000 !important;
+  border: 3px solid black !important;
+  box-shadow: 3px 3px 0px 0px black !important;
+  border-radius: 8px !important;
+  transition: none !important;
+  cursor: pointer;
+  font-weight: 900;
+}
+.neubrutal-btn-yellow:active {
+  box-shadow: 1px 1px 0px 0px black !important;
+  transform: translate(2px, 2px);
+}
+
 /* ─── Glass panel → cream panel ────────────────────────────────────────────── */
 .glass-panel {
   background: rgba(255,253,231,0.92);
@@ -142,24 +195,8 @@
   border-radius: 15px;
   padding: 15px;
   text-align: center;
-  transition: all 0.3s ease;
   position: relative;
   color: #004D40;
-}
-.provider-card:hover {
-  border-color: #1A4D1F;
-  transform: translateY(-5px);
-  box-shadow: 0 5px 15px rgba(46,125,50,0.3);
-}
-
-/* ─── Card hover lift ───────────────────────────────────────────────────────── */
-.card-hover {
-  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-}
-.card-hover:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 5px 20px rgba(46,125,50,0.25);
-  border-color: rgba(46,125,50,0.5) !important;
 }
 
 /* ─── Green button (formerly gold-btn) ──────────────────────────────────────── */
@@ -173,12 +210,7 @@
   font-family: 'Cairo', 'Tajawal', sans-serif;
   cursor: pointer;
   width: 100%;
-  transition: all 0.3s ease;
   letter-spacing: 0.5px;
-}
-.gold-btn:hover {
-  background: #1A4D1F;
-  box-shadow: 0 4px 15px rgba(46,125,50,0.4);
 }
 .gold-btn:disabled {
   opacity: 0.5;

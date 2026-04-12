@@ -1628,11 +1628,7 @@ export default function Home() {
           ADMIN FOOTER — لوحة الإدارة
       ══════════════════════════════════════════════════════════════════════ */}
       <section className="px-4 sm:px-6 lg:px-10 mt-8 mb-6">
-        <div
-          className="border-2 border-black bg-white p-4"
-          style={{ boxShadow: "4px 4px 0px 0px rgba(0,0,0,1)" }}
-          dir="rtl"
-        >
+        <div className="neubrutal" style={{ padding: 16 }} dir="rtl">
           {/* Section title */}
           <div className="flex items-center gap-2 mb-4 border-b-2 border-black pb-3">
             <span className="text-lg">⚙️</span>
@@ -1657,8 +1653,7 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-3">
             <Link href="/admin">
               <button
-                className="w-full py-2.5 border-2 border-black font-black text-xs text-black flex items-center justify-center gap-1.5 active:translate-x-px active:translate-y-px"
-                style={{ background: "#FACC15", boxShadow: "3px 3px 0px 0px rgba(0,0,0,1)" }}
+                className="neubrutal-btn-yellow w-full flex items-center justify-center gap-1.5 py-2.5 text-xs"
               >
                 <Store size={13} />
                 {t("تطبيق الإدارة", "App Admin")}
@@ -1666,8 +1661,7 @@ export default function Home() {
             </Link>
             <Link href="/delivery">
               <button
-                className="w-full py-2.5 border-2 border-black font-black text-xs text-white flex items-center justify-center gap-1.5 active:translate-x-px active:translate-y-px"
-                style={{ background: "#166534", boxShadow: "3px 3px 0px 0px rgba(0,0,0,1)" }}
+                className="neubrutal-btn-black w-full flex items-center justify-center gap-1.5 py-2.5 text-xs"
               >
                 <Truck size={13} />
                 {t("تطبيق السائق", "App Livreur")}

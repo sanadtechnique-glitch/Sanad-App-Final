@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { motion } from "framer-motion";
 import { Layout } from "@/components/layout";
 import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
@@ -40,7 +39,7 @@ function getImages(a: Article): string[] {
 export default function ProviderStore() {
   const { id } = useParams<{ id: string }>();
   const { lang, t, isRTL } = useLang();
-  const { addItem, updateQty, removeItem, cart } = useCart();
+  const { addItem, updateQty, cart } = useCart();
   const [, navigate] = useLocation();
 
   const [supplier, setSupplier] = useState<Supplier | null>(null);
@@ -54,7 +53,6 @@ export default function ProviderStore() {
       get<Supplier>(`/suppliers/${id}`).catch(() => null),
       get<Article[]>(`/articles?supplierId=${id}`).catch(() => []),
     ]).then(([sup, arts]) => {
-      // Suppliers with dedicated pages — redirect there instead of showing product catalog
       if (sup && CATEGORY_REDIRECT[sup.category]) {
         navigate(CATEGORY_REDIRECT[sup.category]);
         return;
@@ -80,8 +78,8 @@ export default function ProviderStore() {
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-2 border-[#1A4D1F] border-t-transparent animate-spin" />
+        <div style={{ background: "#FFFFFF", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 36, height: 36, border: "3px solid black", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
         </div>
       </Layout>
     );
@@ -90,11 +88,11 @@ export default function ProviderStore() {
   if (!supplier) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-[#1A4D1F]/40 mb-4">{t("المزود غير موجود", "Fournisseur introuvable")}</p>
+        <div style={{ background: "#FFFFFF", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ color: "#000", fontWeight: 900, marginBottom: 16 }}>{t("المزود غير موجود", "Fournisseur introuvable")}</p>
             <Link href="/services">
-              <button className="text-[#1A4D1F] text-sm underline">{t("العودة", "Retour")}</button>
+              <button className="neubrutal-btn" style={{ padding: "8px 24px", fontSize: 13 }}>{t("العودة", "Retour")}</button>
             </Link>
           </div>
         </div>
@@ -104,148 +102,181 @@ export default function ProviderStore() {
 
   return (
     <Layout>
+      {/* ── PAGE WRAPPER — pure white background ── */}
       <div style={{ background: "#FFFFFF", minHeight: "100vh" }}>
-      <div className="max-w-5xl mx-auto px-4 pt-6 pb-36" dir={isRTL ? "rtl" : "ltr"}>
+        <div style={{ maxWidth: 640, margin: "0 auto", padding: "24px 16px 120px" }} dir={isRTL ? "rtl" : "ltr"}>
 
-        {/* Back button — goes back to the supplier's category filter */}
-        <Link href={supplier.category ? `/services?category=${supplier.category}` : "/services"}>
-          <button className="flex items-center gap-2 text-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-colors mb-6 text-sm font-bold">
-            {isRTL ? <ChevronLeft size={16} /> : <ArrowRight size={16} className="rotate-180" />}
-            <span>{t("العودة للخدمات", "Retour aux services")}</span>
-          </button>
-        </Link>
+          {/* Back button */}
+          <Link href={supplier.category ? `/services?category=${supplier.category}` : "/services"}>
+            <button style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", fontWeight: 900, fontSize: 13, color: "#000", marginBottom: 20, cursor: "pointer" }}>
+              {isRTL ? <ChevronLeft size={15} /> : <ArrowRight size={15} style={{ transform: "rotate(180deg)" }} />}
+              {t("العودة للخدمات", "Retour aux services")}
+            </button>
+          </Link>
 
-        {/* Supplier header */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-[20px] p-5 mb-8 border border-[#1A4D1F]/20 flex items-center gap-4"
-          style={{ background: "#FFFFFF" }}>
-          <div className="w-16 h-16 rounded-full border-2 border-[#1A4D1F]/30 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-md"
-            style={{ background: "#FFF3E0" }}>
-            {supplier.photoUrl
-              ? <img src={supplier.photoUrl} alt="" className="w-full h-full object-cover" />
-              : <Package size={26} className="text-[#1A4D1F]" />}
+          {/* ── Supplier header card ── */}
+          <div className="neubrutal" style={{ display: "flex", alignItems: "center", gap: 14, padding: 16, marginBottom: 20 }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: "50%", border: "3px solid black",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              overflow: "hidden", flexShrink: 0, background: "#fff",
+            }}>
+              {supplier.photoUrl
+                ? <img src={supplier.photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : <Package size={24} />}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1 style={{ fontSize: 17, fontWeight: 900, color: "#000", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {lang === "ar" ? supplier.nameAr : supplier.name}
+              </h1>
+              {supplier.rating && (
+                <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 4 }}>
+                  {[1,2,3,4,5].map(i => (
+                    <Star key={i} size={11} style={{ color: i <= Math.round(supplier.rating!) ? "#166534" : "#ccc", fill: i <= Math.round(supplier.rating!) ? "#166534" : "none" }} />
+                  ))}
+                  <span style={{ fontSize: 10, color: "#555", marginRight: 4 }}>{supplier.rating.toFixed(1)}</span>
+                </div>
+              )}
+              <p style={{ fontSize: 11, color: "#555", margin: "4px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {lang === "ar" ? supplier.descriptionAr : supplier.description}
+              </p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-black text-[#1A4D1F] truncate">
-              {lang === "ar" ? supplier.nameAr : supplier.name}
-            </h1>
-            {supplier.rating && (
-              <div className="flex items-center gap-0.5 mt-1">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <Star key={i} size={11}
-                    className={i <= Math.round(supplier.rating!) ? "text-[#1A4D1F] fill-[#1A4D1F]" : "text-[#1A4D1F]/20"} />
-                ))}
-                <span className="text-xs text-[#1A4D1F]/40 ms-1">{supplier.rating.toFixed(1)}</span>
-              </div>
-            )}
-            <p className="text-xs text-[#1A4D1F]/30 mt-1 leading-relaxed truncate">
-              {lang === "ar" ? supplier.descriptionAr : supplier.description}
-            </p>
+
+          {/* Ad Carousel */}
+          <div style={{ marginBottom: 20 }}>
+            <AdCarousel supplierId={parseInt(id!)} height={90} />
           </div>
-        </motion.div>
 
-        {/* Ad Carousel for this supplier */}
-        <div className="mb-6">
-          <AdCarousel supplierId={parseInt(id!)} height={100} />
-        </div>
+          {/* Section title */}
+          {articles.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, borderBottom: "3px solid black", paddingBottom: 8 }}>
+              <span style={{ width: 4, height: 22, background: "#000", display: "block", borderRadius: 2 }} />
+              <h2 style={{ fontSize: 16, fontWeight: 900, color: "#000", margin: 0 }}>
+                {t("المنتجات المتاحة", "Produits disponibles")}
+              </h2>
+              <span style={{ fontSize: 11, fontWeight: 900, border: "2px solid black", padding: "0 6px", borderRadius: 4 }}>
+                {articles.length}
+              </span>
+            </div>
+          )}
 
-        {/* Section title */}
-        {articles.length > 0 && (
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-1 h-6 rounded-full bg-[#1A4D1F]" />
-            <h2 className="text-lg font-black text-[#1A4D1F]">{t("المنتجات المتاحة", "Produits disponibles")}</h2>
-            <span className="text-xs text-[#1A4D1F]/30 px-2 py-0.5 rounded-full border border-[#1A4D1F]/10">{articles.length}</span>
-          </div>
-        )}
+          {/* ══ PRODUCT GRID — 2 columns, full neubrutal ══ */}
+          {articles.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "60px 0" }}>
+              <Package size={48} style={{ color: "#ccc", margin: "0 auto 12px" }} />
+              <p style={{ fontWeight: 900, color: "#888" }}>{t("لا توجد منتجات متاحة حالياً", "Aucun produit disponible")}</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              {articles.map((article) => {
+                const qty = getQty(article.id);
+                const imgs = getImages(article);
+                const hasSale = !!(article.originalPrice && article.originalPrice > article.price);
+                const discountPct = hasSale
+                  ? Math.round(((article.originalPrice! - article.price) / article.originalPrice!) * 100)
+                  : 0;
 
-        {/* Product grid — Neubrutalist */}
-        {articles.length === 0 ? (
-          <div className="text-center py-20">
-            <Package size={48} className="text-[#1A4D1F]/10 mx-auto mb-4" />
-            <p className="text-[#1A4D1F]/40 font-bold">{t("لا توجد منتجات متاحة حالياً", "Aucun produit disponible")}</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {articles.map((article) => {
-              const qty = getQty(article.id);
-              const imgs = getImages(article);
-              const hasSale = !!(article.originalPrice && article.originalPrice > article.price);
-              const discountPct = hasSale ? Math.round(((article.originalPrice! - article.price) / article.originalPrice!) * 100) : 0;
-              return (
-                <div
-                  key={article.id}
-                  className="bg-white border-2 border-black flex flex-col overflow-hidden"
-                  style={{ boxShadow: "3px 3px 0px 0px rgba(0,0,0,1)" }}>
-
-                  {/* Image — fixed height, object-contain, transparent-friendly */}
-                  <div className="relative bg-white border-b-2 border-black" style={{ height: 120 }}>
-                    {imgs.length > 0 ? (
-                      <ImageGallery images={imgs} alt={lang === "ar" ? article.nameAr : article.nameFr} aspectRatio="none" objectFit="contain" className="h-full bg-white" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package size={32} className="text-black/10" />
-                      </div>
-                    )}
-                    {hasSale && (
-                      <div className="absolute top-1 start-1 z-20 bg-black text-white text-[8px] font-black px-1.5 py-0.5 pointer-events-none">
-                        -{discountPct}%
-                      </div>
-                    )}
-                    {qty > 0 && (
-                      <div className="absolute top-1 end-1 z-20 w-5 h-5 bg-black flex items-center justify-center pointer-events-none">
-                        <span className="text-white text-[9px] font-black">{qty}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Info + actions */}
-                  <div className="p-2 flex flex-col flex-1 gap-2" dir="rtl">
-                    <p className="text-[11px] font-black text-black leading-snug line-clamp-2">
-                      {lang === "ar" ? article.nameAr : article.nameFr}
-                    </p>
-
-                    <div className="mt-auto space-y-1.5">
-                      <div className="flex items-baseline gap-1.5 flex-wrap">
-                        <span className="text-[#166534] font-black text-sm">{article.price.toFixed(2)} DT</span>
-                        {hasSale && (
-                          <span className="text-gray-400 text-[10px] font-bold line-through">{article.originalPrice!.toFixed(2)}</span>
-                        )}
-                      </div>
-
-                      {qty > 0 ? (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => updateQty(article.id, qty - 1)}
-                            className="w-7 h-7 border-2 border-black bg-white flex items-center justify-center font-black active:translate-x-px active:translate-y-px"
-                            style={{ boxShadow: "2px 2px 0px 0px rgba(0,0,0,1)" }}>
-                            <Minus size={10} />
-                          </button>
-                          <span className="flex-1 text-center font-black text-xs text-black">{qty}</span>
-                          <button
-                            onClick={() => updateQty(article.id, qty + 1)}
-                            className="w-7 h-7 border-2 border-black bg-white flex items-center justify-center font-black active:translate-x-px active:translate-y-px"
-                            style={{ boxShadow: "2px 2px 0px 0px rgba(0,0,0,1)" }}>
-                            <Plus size={10} />
-                          </button>
-                        </div>
+                return (
+                  <div
+                    key={article.id}
+                    className="neubrutal"
+                    style={{ display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}
+                  >
+                    {/* ── Image area — transparent bg, object-contain ── */}
+                    <div style={{ height: 130, background: "transparent", borderBottom: "3px solid black", position: "relative", overflow: "hidden" }}>
+                      {imgs.length > 0 ? (
+                        <ImageGallery
+                          images={imgs}
+                          alt={lang === "ar" ? article.nameAr : article.nameFr}
+                          aspectRatio="none"
+                          objectFit="contain"
+                          className="h-full !bg-transparent"
+                          showDots={false}
+                        />
                       ) : (
-                        <button
-                          onClick={() => handleAdd(article)}
-                          className="w-full flex items-center justify-center gap-1 py-1.5 border-2 border-black bg-black text-white font-black text-[10px] active:translate-x-px active:translate-y-px"
-                          style={{ boxShadow: "2px 2px 0px 0px rgba(0,0,0,1)" }}>
-                          <Plus size={10} />
-                          {t("أضف", "Ajouter")}
-                        </button>
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Package size={34} style={{ color: "#ccc" }} />
+                        </div>
+                      )}
+                      {hasSale && (
+                        <div style={{
+                          position: "absolute", top: 6, insetInlineStart: 6, zIndex: 20,
+                          background: "#000", color: "#fff", fontSize: 9, fontWeight: 900,
+                          padding: "2px 6px", border: "2px solid black",
+                        }}>
+                          -{discountPct}%
+                        </div>
+                      )}
+                      {qty > 0 && (
+                        <div style={{
+                          position: "absolute", top: 6, insetInlineEnd: 6, zIndex: 20,
+                          width: 22, height: 22, background: "#000", color: "#fff",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 10, fontWeight: 900, border: "2px solid black",
+                        }}>
+                          {qty}
+                        </div>
                       )}
                     </div>
+
+                    {/* ── Info + action area ── */}
+                    <div style={{ padding: "10px 10px 10px", display: "flex", flexDirection: "column", flex: 1, gap: 8 }} dir="rtl">
+                      <p style={{ fontSize: 12, fontWeight: 900, color: "#000", lineHeight: 1.35, margin: 0,
+                        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                        {lang === "ar" ? article.nameAr : article.nameFr}
+                      </p>
+
+                      <div style={{ marginTop: "auto" }}>
+                        {/* Price row */}
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                          <span style={{ fontSize: 15, fontWeight: 900, color: "#166534" }}>
+                            {article.price.toFixed(2)} DT
+                          </span>
+                          {hasSale && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "#999", textDecoration: "line-through" }}>
+                              {article.originalPrice!.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Qty controls or Add button */}
+                        {qty > 0 ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <button
+                              className="neubrutal-btn"
+                              onClick={() => updateQty(article.id, qty - 1)}
+                              style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                            >
+                              <Minus size={11} />
+                            </button>
+                            <span style={{ flex: 1, textAlign: "center", fontWeight: 900, fontSize: 14, color: "#000" }}>{qty}</span>
+                            <button
+                              className="neubrutal-btn"
+                              onClick={() => updateQty(article.id, qty + 1)}
+                              style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                            >
+                              <Plus size={11} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            className="neubrutal-btn-black"
+                            onClick={() => handleAdd(article)}
+                            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 0", fontSize: 11 }}
+                          >
+                            <Plus size={11} />
+                            {t("أضف للسلة", "Ajouter")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </Layout>
   );
