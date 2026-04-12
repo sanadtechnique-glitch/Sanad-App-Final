@@ -168,6 +168,7 @@ interface GalleryProps {
   images: string[];
   alt?: string;
   aspectRatio?: string;
+  objectFit?: "cover" | "contain";
   showDots?: boolean;
   enableFullscreen?: boolean;
   className?: string;
@@ -178,6 +179,7 @@ export function ImageGallery({
   images,
   alt = "",
   aspectRatio = "4/3",
+  objectFit = "cover",
   showDots = true,
   enableFullscreen = true,
   className,
@@ -258,7 +260,7 @@ export function ImageGallery({
             alt={alt}
             draggable={false}
             loading={idx === 0 ? "eager" : "lazy"}
-            className="absolute inset-0 w-full h-full object-cover"
+            className={`absolute inset-0 w-full h-full ${objectFit === "contain" ? "object-contain p-1" : "object-cover"}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

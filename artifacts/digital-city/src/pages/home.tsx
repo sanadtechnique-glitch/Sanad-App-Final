@@ -1624,8 +1624,61 @@ export default function Home() {
       ══════════════════════════════════════════════════════════════════════ */}
       <WhySanadSection lang={lang} t={t} />
 
+      {/* ══════════════════════════════════════════════════════════════════════
+          ADMIN FOOTER — لوحة الإدارة
+      ══════════════════════════════════════════════════════════════════════ */}
+      <section className="px-4 sm:px-6 lg:px-10 mt-8 mb-6">
+        <div
+          className="border-2 border-black bg-white p-4"
+          style={{ boxShadow: "4px 4px 0px 0px rgba(0,0,0,1)" }}
+          dir="rtl"
+        >
+          {/* Section title */}
+          <div className="flex items-center gap-2 mb-4 border-b-2 border-black pb-3">
+            <span className="text-lg">⚙️</span>
+            <h3 className="font-black text-black text-base">
+              {t("لوحة الإدارة", "Administration")}
+            </h3>
+          </div>
+
+          {/* Contact info */}
+          <div className="space-y-1 mb-4">
+            <p className="text-xs font-bold text-black flex items-center gap-2">
+              <Phone size={12} className="flex-shrink-0" />
+              <span dir="ltr">+216 90 000 000</span>
+            </p>
+            <p className="text-xs font-bold text-black flex items-center gap-2">
+              <span className="text-[10px] font-black flex-shrink-0">✉</span>
+              <span dir="ltr">admin@sanad-bgardane.tn</span>
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <Link href="/admin">
+              <button
+                className="w-full py-2.5 border-2 border-black font-black text-xs text-black flex items-center justify-center gap-1.5 active:translate-x-px active:translate-y-px"
+                style={{ background: "#FACC15", boxShadow: "3px 3px 0px 0px rgba(0,0,0,1)" }}
+              >
+                <Store size={13} />
+                {t("تطبيق الإدارة", "App Admin")}
+              </button>
+            </Link>
+            <Link href="/delivery">
+              <button
+                className="w-full py-2.5 border-2 border-black font-black text-xs text-white flex items-center justify-center gap-1.5 active:translate-x-px active:translate-y-px"
+                style={{ background: "#166534", boxShadow: "3px 3px 0px 0px rgba(0,0,0,1)" }}
+              >
+                <Truck size={13} />
+                {t("تطبيق السائق", "App Livreur")}
+              </button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* bottom spacing */}
-      <div className="mt-6" />
+      <div className="mt-4" />
 
     </div>
   );

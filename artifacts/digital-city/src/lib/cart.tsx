@@ -8,7 +8,6 @@ export interface CartItem {
   qty: number;
   image?: string;
 }
-
 export interface CartState {
   supplierId: number | null;
   supplierName: string;

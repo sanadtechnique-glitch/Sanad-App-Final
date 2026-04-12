@@ -8,7 +8,6 @@ import { get } from "@/lib/admin-api";
 import { Plus, Minus, Package, Star, ArrowRight, ChevronLeft } from "lucide-react";
 import { AdCarousel } from "@/components/AdCarousel";
 import { ImageGallery } from "@/components/ImageGallery";
-import { cn } from "@/lib/utils";
 
 const CATEGORY_REDIRECT: Record<string, string> = {
   car_rental: "/car-rental",
@@ -105,6 +104,7 @@ export default function ProviderStore() {
 
   return (
     <Layout>
+      <div style={{ background: "#FFFFFF", minHeight: "100vh" }}>
       <div className="max-w-5xl mx-auto px-4 pt-6 pb-36" dir={isRTL ? "rtl" : "ltr"}>
 
         {/* Back button — goes back to the supplier's category filter */}
@@ -159,92 +159,93 @@ export default function ProviderStore() {
           </div>
         )}
 
-        {/* Product grid */}
+        {/* Product grid — Neubrutalist */}
         {articles.length === 0 ? (
           <div className="text-center py-20">
             <Package size={48} className="text-[#1A4D1F]/10 mx-auto mb-4" />
             <p className="text-[#1A4D1F]/40 font-bold">{t("لا توجد منتجات متاحة حالياً", "Aucun produit disponible")}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-            {articles.map((article, i) => {
+          <div className="grid grid-cols-2 gap-3">
+            {articles.map((article) => {
               const qty = getQty(article.id);
               const imgs = getImages(article);
               const hasSale = !!(article.originalPrice && article.originalPrice > article.price);
               const discountPct = hasSale ? Math.round(((article.originalPrice! - article.price) / article.originalPrice!) * 100) : 0;
               return (
-                <motion.div
+                <div
                   key={article.id}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.035 }}
-                  className={cn(
-                    "rounded-xl border overflow-hidden flex flex-col transition-all duration-300",
-                    qty > 0
-                      ? "border-[#1A4D1F]/45 shadow-[0_2px_10px_rgba(26,77,31,0.09)]"
-                      : "border-[#1A4D1F]/10 hover:border-[#1A4D1F]/30"
-                  )}
-                  style={{ background: "#FFFFFF" }}>
+                  className="bg-white border-2 border-black flex flex-col overflow-hidden"
+                  style={{ boxShadow: "3px 3px 0px 0px rgba(0,0,0,1)" }}>
 
-                  {/* Multi-image gallery with swipe + fullscreen lightbox */}
-                  <div className="relative">
-                    <ImageGallery images={imgs} alt={lang === "ar" ? article.nameAr : article.nameFr} aspectRatio="4/3" />
-                    {/* Sale badge — z-20 to appear above gallery internal elements */}
+                  {/* Image — fixed height, object-contain, transparent-friendly */}
+                  <div className="relative bg-white border-b-2 border-black" style={{ height: 120 }}>
+                    {imgs.length > 0 ? (
+                      <ImageGallery images={imgs} alt={lang === "ar" ? article.nameAr : article.nameFr} aspectRatio="none" objectFit="contain" className="h-full bg-white" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package size={32} className="text-black/10" />
+                      </div>
+                    )}
                     {hasSale && (
-                      <div className="absolute top-1.5 start-1.5 z-20 bg-red-500 text-white text-[8px] font-black px-1 py-0.5 rounded-md pointer-events-none">
+                      <div className="absolute top-1 start-1 z-20 bg-black text-white text-[8px] font-black px-1.5 py-0.5 pointer-events-none">
                         -{discountPct}%
                       </div>
                     )}
-                    {/* Cart quantity badge — z-20 */}
                     {qty > 0 && (
-                      <div className="absolute top-1.5 end-1.5 z-20 w-5 h-5 rounded-full bg-[#1A4D1F] flex items-center justify-center shadow pointer-events-none">
+                      <div className="absolute top-1 end-1 z-20 w-5 h-5 bg-black flex items-center justify-center pointer-events-none">
                         <span className="text-white text-[9px] font-black">{qty}</span>
                       </div>
                     )}
                   </div>
 
                   {/* Info + actions */}
-                  <div className="p-2 flex flex-col flex-1 gap-1" dir="rtl">
-                    <p className="text-[11px] font-black text-[#1A4D1F] leading-snug line-clamp-2">
+                  <div className="p-2 flex flex-col flex-1 gap-2" dir="rtl">
+                    <p className="text-[11px] font-black text-black leading-snug line-clamp-2">
                       {lang === "ar" ? article.nameAr : article.nameFr}
                     </p>
+
                     <div className="mt-auto space-y-1.5">
-                      <div className="flex items-baseline gap-1 flex-wrap">
-                        <span className="text-[#1A4D1F] font-black text-xs">{article.price.toFixed(2)} DT</span>
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-[#166534] font-black text-sm">{article.price.toFixed(2)} DT</span>
                         {hasSale && (
-                          <span className="text-[#1A4D1F]/25 text-[9px] font-bold line-through">{article.originalPrice!.toFixed(2)}</span>
+                          <span className="text-gray-400 text-[10px] font-bold line-through">{article.originalPrice!.toFixed(2)}</span>
                         )}
                       </div>
+
                       {qty > 0 ? (
-                        <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1">
                           <button
                             onClick={() => updateQty(article.id, qty - 1)}
-                            className="flex-1 h-6 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center text-red-400 hover:bg-red-100 transition-all">
+                            className="w-7 h-7 border-2 border-black bg-white flex items-center justify-center font-black active:translate-x-px active:translate-y-px"
+                            style={{ boxShadow: "2px 2px 0px 0px rgba(0,0,0,1)" }}>
                             <Minus size={10} />
                           </button>
-                          <span className="text-[#1A4D1F] font-black text-xs w-5 text-center">{qty}</span>
+                          <span className="flex-1 text-center font-black text-xs text-black">{qty}</span>
                           <button
                             onClick={() => updateQty(article.id, qty + 1)}
-                            className="flex-1 h-6 rounded-lg bg-[#1A4D1F]/10 border border-[#1A4D1F]/25 flex items-center justify-center text-[#1A4D1F] hover:bg-[#1A4D1F]/20 transition-all">
+                            className="w-7 h-7 border-2 border-black bg-white flex items-center justify-center font-black active:translate-x-px active:translate-y-px"
+                            style={{ boxShadow: "2px 2px 0px 0px rgba(0,0,0,1)" }}>
                             <Plus size={10} />
                           </button>
                         </div>
                       ) : (
                         <button
                           onClick={() => handleAdd(article)}
-                          className="w-full flex items-center justify-center gap-1 py-1 rounded-lg font-black text-[9px] transition-all"
-                          style={{ background: "#1A4D1F", color: "#fff" }}>
+                          className="w-full flex items-center justify-center gap-1 py-1.5 border-2 border-black bg-black text-white font-black text-[10px] active:translate-x-px active:translate-y-px"
+                          style={{ boxShadow: "2px 2px 0px 0px rgba(0,0,0,1)" }}>
                           <Plus size={10} />
                           {t("أضف", "Ajouter")}
                         </button>
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>
         )}
+      </div>
       </div>
     </Layout>
   );
