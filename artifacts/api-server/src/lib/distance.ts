@@ -7,10 +7,10 @@ const BEN_GUERDANE_LAT = 33.1167;
 const BEN_GUERDANE_LNG = 11.2167;
 
 // ─── Pricing constants ────────────────────────────────────────────────────────
-const BASE_FARE     = 3.000; // DT — fixed starting fare
+const BASE_FARE     = 4.800; // DT — fixed starting fare
 const RATE_PER_KM   = 0.500; // DT added per km
 const ROAD_FACTOR   = 1.35;  // straight-line → estimated road distance
-const MIN_FARE      = 3.000; // DT — absolute floor, never go below
+const MIN_FARE      = 4.800; // DT — absolute floor, never go below
 const AVG_SPEED_KPM = 0.500; // km per minute (avg delivery speed)
 const PREP_MINUTES  = 15;    // preparation time before dispatch
 

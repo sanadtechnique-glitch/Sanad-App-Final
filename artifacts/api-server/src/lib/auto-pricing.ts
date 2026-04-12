@@ -20,9 +20,9 @@ export interface AutoContext {
 }
 
 // Built-in defaults — no admin config needed
-export const AUTO_BASE_FEE     = 2.0;  // TND
-export const AUTO_RATE_PER_KM  = 0.5;  // TND/km
-export const AUTO_MIN_FEE      = 2.0;  // TND
+export const AUTO_BASE_FEE     = 4.800; // TND
+export const AUTO_RATE_PER_KM  = 0.500; // TND/km
+export const AUTO_MIN_FEE      = 4.800; // TND
 export const AUTO_PREP_MINUTES = 15;
 export const AUTO_SPEED_KM_MIN = 0.5;  // 30 km/h
 
