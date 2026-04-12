@@ -344,3 +344,32 @@
 .footer.show {
   transform: translateY(0);
 }
+
+/* ══ FINAL SYNC ══════════════════════════════════════════════════════════════ */
+
+/* Pure white everywhere */
+html, body, #root, main {
+  background: #ffffff !important;
+}
+
+/* Invisible containers */
+.card,
+.service-card,
+.product-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 10px !important;
+}
+
+/* Blend image white backgrounds with the page */
+.card img,
+.service-card img,
+.product-card img {
+  mix-blend-mode: multiply;
+}
+
+/* Transparent header logo */
+.header-logo {
+  background: transparent !important;
+}
