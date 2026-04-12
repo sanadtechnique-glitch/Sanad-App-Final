@@ -93,17 +93,31 @@ export interface AutoFeeResult {
   etaMinutes: number;
 }
 
-export function calcAutoFee(distanceKm: number, now: Date = new Date()): AutoFeeResult {
+export interface PricingConfig {
+  baseFee:    number;
+  minFee:     number;
+  ratePerKm:  number;
+}
+
+export function calcAutoFee(
+  distanceKm: number,
+  now: Date = new Date(),
+  cfg?: Partial<PricingConfig>,   // ← accepts DB values when provided
+): AutoFeeResult {
+  const effectiveBase    = cfg?.baseFee   ?? AUTO_BASE_FEE;
+  const effectiveMin     = cfg?.minFee    ?? AUTO_MIN_FEE;
+  const effectiveRate    = cfg?.ratePerKm ?? AUTO_RATE_PER_KM;
+
   const ctx      = getAutoContext(now);
-  const baseFee  = AUTO_BASE_FEE;
-  const kmFee    = Math.round(AUTO_RATE_PER_KM * distanceKm * 100) / 100;
+  const baseFee  = effectiveBase;
+  const kmFee    = Math.round(effectiveRate * distanceKm * 100) / 100;
   let   subtotal = baseFee + kmFee;
 
   const surchargeAmount = ctx.surchargePercent > 0
     ? Math.round(subtotal * (ctx.surchargePercent / 100) * 100) / 100
     : 0;
   subtotal += surchargeAmount;
-  subtotal  = Math.max(subtotal, AUTO_MIN_FEE);
+  subtotal  = Math.max(subtotal, effectiveMin);  // ← DB minFee enforced here
 
   const etaMinutes = AUTO_PREP_MINUTES + Math.ceil(distanceKm / AUTO_SPEED_KM_MIN);
 

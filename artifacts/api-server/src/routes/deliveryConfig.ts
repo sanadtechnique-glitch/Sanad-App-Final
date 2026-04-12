@@ -28,10 +28,16 @@ router.get("/delivery-config", async (req, res) => {
 });
 
 // GET /auto-context — real-time pricing context (public)
-router.get("/auto-context", (_req, res) => {
-  const ctx = getAutoContext();
-  const demo = calcAutoFee(3); // 3 km demo calculation
-  res.json({ context: ctx, demo });
+router.get("/auto-context", async (req, res) => {
+  try {
+    const [cfg] = await db.select().from(deliveryConfigTable).limit(1);
+    const ctx  = getAutoContext();
+    const demo = calcAutoFee(3, new Date(), cfg ? { baseFee: cfg.baseFee, minFee: cfg.minFee, ratePerKm: cfg.ratePerKm } : undefined);
+    res.json({ context: ctx, demo });
+  } catch (err) {
+    req.log?.error({ err }, "Error fetching auto-context");
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 // PATCH /admin/delivery-config — admin only

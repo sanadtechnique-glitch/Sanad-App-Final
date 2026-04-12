@@ -1,5 +1,5 @@
 import { db } from "@workspace/db";
-import { serviceProvidersTable } from "@workspace/db/schema";
+import { deliveryConfigTable, serviceProvidersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 
 // ─── Ben Guerdane city centre (fallback when provider has no coordinates) ──────
@@ -56,26 +56,36 @@ function isNight(): boolean {
 //   deliveryFee = Math.max(MIN_FARE, BASE_FARE + (distanceKm × RATE_PER_KM))
 //
 // Night surcharge (+20%) is applied on top when applicable.
+// ─── DB config fetch (with hardcoded fallback) ────────────────────────────────
+async function fetchPricingConfig(): Promise<{ baseFee: number; minFee: number; ratePerKm: number }> {
+  try {
+    const [row] = await db.select().from(deliveryConfigTable).where(eq(deliveryConfigTable.id, 1));
+    if (row) return { baseFee: row.baseFee, minFee: row.minFee, ratePerKm: row.ratePerKm };
+  } catch { /* fall through to hardcoded defaults */ }
+  return { baseFee: BASE_FARE, minFee: MIN_FARE, ratePerKm: RATE_PER_KM };
+}
+
 export async function calculateDistance(
   providerLat: number | null | undefined,
   providerLng: number | null | undefined,
   customerLat: number,
   customerLng: number,
 ): Promise<DistanceResult> {
+  const cfg  = await fetchPricingConfig();
   const pLat = (providerLat != null && !isNaN(providerLat)) ? providerLat : BEN_GUERDANE_LAT;
   const pLng = (providerLng != null && !isNaN(providerLng)) ? providerLng : BEN_GUERDANE_LNG;
 
   const distanceKm = haversineKm(pLat, pLng, customerLat, customerLng);
-  const kmFee      = Math.round(RATE_PER_KM * distanceKm * 100) / 100;
+  const kmFee      = Math.round(cfg.ratePerKm * distanceKm * 100) / 100;
 
   // Apply night surcharge (+20%) when order is placed between 22:00 and 06:00
   const night      = isNight();
-  const rawFee     = BASE_FARE + kmFee;
+  const rawFee     = cfg.baseFee + kmFee;
   const nightBonus = night ? Math.round(rawFee * 0.20 * 100) / 100 : 0;
 
   const deliveryFee = Math.max(
     Math.round((rawFee + nightBonus) * 100) / 100,
-    MIN_FARE,
+    cfg.minFee,                                    // ← DB minFee enforced here
   );
 
   const etaMinutes = PREP_MINUTES + Math.ceil(distanceKm / AVG_SPEED_KPM);
@@ -84,7 +94,7 @@ export async function calculateDistance(
     distanceKm,
     etaMinutes,
     deliveryFee,
-    baseFee: BASE_FARE,
+    baseFee: cfg.baseFee,
     kmFee,
     isNight: night,
     source:  "haversine",
