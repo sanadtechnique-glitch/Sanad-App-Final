@@ -11,9 +11,9 @@ import { z } from "zod/v4";
 
 export const deliveryConfigTable = pgTable("delivery_config", {
   id: serial("id").primaryKey(),
-  baseFee: real("base_fee").notNull().default(3.5),
+  baseFee: real("base_fee").notNull().default(3.0),
   ratePerKm: real("rate_per_km").notNull().default(0.7),
-  minFee: real("min_fee").notNull().default(3.5),
+  minFee: real("min_fee").notNull().default(3.0),
   maxFee: real("max_fee"),
   nightSurchargePercent: integer("night_surcharge_percent")
     .notNull()

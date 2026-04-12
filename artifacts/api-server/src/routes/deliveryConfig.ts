@@ -12,7 +12,10 @@ router.get("/delivery-config", async (req, res) => {
   try {
     const rows = await db.select().from(deliveryConfigTable).limit(1);
     if (rows.length === 0) {
-      await db.insert(deliveryConfigTable).values({ id: 1 }).onConflictDoNothing();
+      await db
+        .insert(deliveryConfigTable)
+        .values({ id: 1 })
+        .onConflictDoNothing();
       const [seeded] = await db.select().from(deliveryConfigTable).limit(1);
       res.json(seeded);
       return;
@@ -26,7 +29,7 @@ router.get("/delivery-config", async (req, res) => {
 
 // GET /auto-context — real-time pricing context (public)
 router.get("/auto-context", (_req, res) => {
-  const ctx  = getAutoContext();
+  const ctx = getAutoContext();
   const demo = calcAutoFee(3); // 3 km demo calculation
   res.json({ context: ctx, demo });
 });
@@ -35,33 +38,57 @@ router.get("/auto-context", (_req, res) => {
 router.patch("/admin/delivery-config", requireAdmin, async (req, res) => {
   try {
     const {
-      baseFee, ratePerKm, minFee, maxFee,
-      nightSurchargePercent, nightStartHour, nightEndHour,
-      platformCommissionPercent, prepTimeMinutes, avgSpeedKmPerMin,
-      expressEnabled, expressSurchargeTnd,
-      fixedFeeEnabled, fixedFeeTnd,
+      baseFee,
+      ratePerKm,
+      minFee,
+      maxFee,
+      nightSurchargePercent,
+      nightStartHour,
+      nightEndHour,
+      platformCommissionPercent,
+      prepTimeMinutes,
+      avgSpeedKmPerMin,
+      expressEnabled,
+      expressSurchargeTnd,
+      fixedFeeEnabled,
+      fixedFeeTnd,
     } = req.body;
+    console.log("وصل طلب تحديث! السعر الجديد هو:", baseFee);
+    // -------------------------------
 
     const updates: Record<string, unknown> = {};
-    if (baseFee !== undefined)                  updates.baseFee                  = Number(baseFee);
-    if (ratePerKm !== undefined)                updates.ratePerKm                = Number(ratePerKm);
-    if (minFee !== undefined)                   updates.minFee                   = Number(minFee);
-    if (maxFee !== undefined)                   updates.maxFee                   = maxFee === null || maxFee === "" ? null : Number(maxFee);
-    if (nightSurchargePercent !== undefined)    updates.nightSurchargePercent    = Number(nightSurchargePercent);
-    if (nightStartHour !== undefined)           updates.nightStartHour           = Number(nightStartHour);
-    if (nightEndHour !== undefined)             updates.nightEndHour             = Number(nightEndHour);
-    if (platformCommissionPercent !== undefined) updates.platformCommissionPercent = Number(platformCommissionPercent);
-    if (prepTimeMinutes !== undefined)          updates.prepTimeMinutes          = Number(prepTimeMinutes);
-    if (avgSpeedKmPerMin !== undefined)         updates.avgSpeedKmPerMin         = Number(avgSpeedKmPerMin);
-    if (expressEnabled !== undefined)           updates.expressEnabled           = Boolean(expressEnabled);
-    if (expressSurchargeTnd !== undefined)      updates.expressSurchargeTnd      = Number(expressSurchargeTnd);
-    if (fixedFeeEnabled !== undefined)          updates.fixedFeeEnabled          = Boolean(fixedFeeEnabled);
-    if (fixedFeeTnd !== undefined)              updates.fixedFeeTnd              = Number(fixedFeeTnd);
-    if (req.body.autoModeEnabled !== undefined) updates.autoModeEnabled          = Boolean(req.body.autoModeEnabled);
+    if (baseFee !== undefined) updates.baseFee = Number(baseFee);
+    if (ratePerKm !== undefined) updates.ratePerKm = Number(ratePerKm);
+    if (minFee !== undefined) updates.minFee = Number(minFee);
+    if (maxFee !== undefined)
+      updates.maxFee = maxFee === null || maxFee === "" ? null : Number(maxFee);
+    if (nightSurchargePercent !== undefined)
+      updates.nightSurchargePercent = Number(nightSurchargePercent);
+    if (nightStartHour !== undefined)
+      updates.nightStartHour = Number(nightStartHour);
+    if (nightEndHour !== undefined) updates.nightEndHour = Number(nightEndHour);
+    if (platformCommissionPercent !== undefined)
+      updates.platformCommissionPercent = Number(platformCommissionPercent);
+    if (prepTimeMinutes !== undefined)
+      updates.prepTimeMinutes = Number(prepTimeMinutes);
+    if (avgSpeedKmPerMin !== undefined)
+      updates.avgSpeedKmPerMin = Number(avgSpeedKmPerMin);
+    if (expressEnabled !== undefined)
+      updates.expressEnabled = Boolean(expressEnabled);
+    if (expressSurchargeTnd !== undefined)
+      updates.expressSurchargeTnd = Number(expressSurchargeTnd);
+    if (fixedFeeEnabled !== undefined)
+      updates.fixedFeeEnabled = Boolean(fixedFeeEnabled);
+    if (fixedFeeTnd !== undefined) updates.fixedFeeTnd = Number(fixedFeeTnd);
+    if (req.body.autoModeEnabled !== undefined)
+      updates.autoModeEnabled = Boolean(req.body.autoModeEnabled);
     updates.updatedAt = new Date();
 
     // Upsert: ensure row id=1 exists
-    await db.insert(deliveryConfigTable).values({ id: 1 }).onConflictDoNothing();
+    await db
+      .insert(deliveryConfigTable)
+      .values({ id: 1 })
+      .onConflictDoNothing();
     const { eq } = await import("drizzle-orm");
     const [updated] = await db
       .update(deliveryConfigTable)

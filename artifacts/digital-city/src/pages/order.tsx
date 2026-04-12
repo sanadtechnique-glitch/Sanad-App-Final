@@ -30,7 +30,7 @@ interface DistanceResult {
   baseFee: number; kmFee: number; isNight: boolean; source: string;
 }
 // ─── Constants ────────────────────────────────────────────────────────────────
-const BASE_FARE      = 2.500; // DT — shown when GPS is unavailable
+const BASE_FARE      = 3.000; // DT — shown when GPS is unavailable
 const GPS_SESSION_KEY = "sanad_gps_coords"; // sessionStorage key for coord caching
 
 // ─── Zod schema ───────────────────────────────────────────────────────────────
