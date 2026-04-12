@@ -1,12 +1,10 @@
 @import "tailwindcss";
 
-/* ─── Jumia-Inspired Design System ───────────────────────────────────────────
-   BG:      #FFA500  Mustard Yellow  — main background
-   PANEL:   #FFA500  Dark Mustard    — panels, sidebar, nav
-   CARD:    #FFFDE7  Cream           — product/service cards
-   ACCENT:  #1A4D1F  Light Green     — buttons, borders, icons, stars, panier
-   TEXT:    #004D40  Dark Green      — body text & labels
-   MUTED:   rgba(0,77,64,.55)        — muted text
+/* ─── سند · Sanad — Neubrutalist Design System ────────────────────────────────
+   BG:      #FFFFFF  Pure White      — global background
+   CARD:    #FFFFFF  White           — product/service cards
+   ACCENT:  #1A4D1F  Green           — buttons, borders, icons
+   TEXT:    #000000  Black           — primary text
    ─────────────────────────────────────────────────────────────────────────── */
 
 @theme inline {
@@ -17,10 +15,10 @@
   --color-gold:        #1A4D1F;
   --color-gold-light:  #C8E6C9;
   --color-gold-dark:   #0D3311;
-  --color-dark-grey:   #FFA500;
-  --color-input-bg:    #D4A800;
+  --color-dark-grey:   #FFFFFF;   /* was #FFA500 — now white */
+  --color-input-bg:    #FFFFFF;   /* was #D4A800 — now white */
 
-  --color-background: hsl(var(--background));
+  --color-background: #FFFFFF;    /* pure white — replaces hsl(var(--background)) */
   --color-foreground: hsl(var(--foreground));
   --color-primary:    hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
@@ -40,22 +38,20 @@
 
 /* ─── Colour tokens ────────────────────────────────────────────────────────── */
 :root {
-  /* Mustard Yellow background #FFA500  ≈ hsl(46 100% 44%) */
-  --background: 46 100% 44%;
-  --foreground: 172 100% 15%;      /* #004D40 dark green */
+  --background: 0 0% 100%;        /* Pure White #FFFFFF — was 46 100% 44% (orange) */
+  --foreground: 0 0% 0%;          /* Pure Black for text */
 
-  /* Light Green primary = #1A4D1F */
+  /* Green primary = #1A4D1F */
   --primary: 123 36% 57%;
   --primary-foreground: 0 0% 100%;
 
-  /* Dark Mustard panels = #FFA500 */
-  --secondary: 46 100% 39%;
-  --secondary-foreground: 172 100% 15%;
-  --card: 0 0% 100%;               /* white cards */
-  --card-foreground: 172 100% 15%;
+  --secondary: 0 0% 96%;          /* near-white panels */
+  --secondary-foreground: 0 0% 0%;
+  --card: 0 0% 100%;              /* white cards */
+  --card-foreground: 0 0% 0%;
 
-  --muted: 46 100% 50%;
-  --muted-foreground: 172 100% 25%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 40%;
 
   --accent: 123 36% 57%;
   --accent-foreground: 0 0% 100%;
@@ -63,7 +59,7 @@
   --destructive: 0 84% 58%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 123 36% 57%;
+  --border: 0 0% 0%;              /* black borders */
   --ring: 123 36% 57%;
   --radius: 0.875rem;
 }
@@ -74,13 +70,13 @@
 
   html {
     direction: rtl;
-    background-color: #FFA500;
+    background-color: #FFFFFF;
   }
 
   body {
     font-family: 'Cairo', 'Tajawal', sans-serif;
-    background-color: #FFA500;
-    color: #004D40;
+    background-color: #FFFFFF;
+    color: #000000;
     direction: rtl;
     overflow-x: hidden;
     @apply antialiased selection:bg-[#1A4D1F]/25 selection:text-[#004D40];
