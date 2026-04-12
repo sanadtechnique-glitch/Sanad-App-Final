@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
-/* ─── سند · Sanad — Neubrutalist Design System ────────────────────────────────
-   BG:      #FFFFFF  Pure White      — global background
-   CARD:    #FFFFFF  White           — product/service cards
-   ACCENT:  #1A4D1F  Green           — buttons, borders, icons
-   TEXT:    #000000  Black           — primary text
+/* ─── سند · Sanad — Design System ────────────────────────────────────────────
+   BG:      #FFFFFF  Pure White
+   ACCENT:  #1A4D1F  Green
+   NAV:     #FFA500  Orange
+   TEXT:    #000000  Black
    ─────────────────────────────────────────────────────────────────────────── */
 
 @theme inline {
@@ -122,10 +122,7 @@
   }
 }
 
-/* ─── NEUBRUTALIST SYSTEM ────────────────────────────────────────────────────
-   Single class that replaces all gradients/soft-shadows/blurs.
-   Apply to: product cards, buttons, footer, any panel.
-   ─────────────────────────────────────────────────────────────────────────── */
+/* ─── Utility button / panel styles (used by admin footer in home.tsx) ──────── */
 .neubrutal {
   background: white !important;
   border: 3px solid black !important;
