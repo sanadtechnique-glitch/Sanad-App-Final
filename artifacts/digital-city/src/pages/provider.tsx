@@ -283,7 +283,7 @@ function MultiImagePicker({
   return (
     <div className="space-y-2">
       <label className="block text-xs font-black opacity-60" style={{ color: accentColor }}>
-        {t("صور السيارة", "Photos de la voiture")}
+        {t("الصور", "Photos")}
         <span className="ms-1 opacity-50 font-bold">
           ({images.length} {t("صورة", "photo(s)")})
         </span>

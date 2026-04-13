@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
+import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout";
 import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
 import { get } from "@/lib/admin-api";
-import { Plus, Minus, Package, Star, ChevronLeft, ArrowRight, Search } from "lucide-react";
+import { Plus, Minus, Package, Star, ChevronLeft, ChevronRight, ArrowRight, Search, X, ShoppingCart } from "lucide-react";
 import { AdCarousel } from "@/components/AdCarousel";
 
 const CATEGORY_REDIRECT: Record<string, string> = {
@@ -51,6 +52,8 @@ export default function ProviderStore() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [detailArticle, setDetailArticle] = useState<Article | null>(null);
+  const [detailImgIdx, setDetailImgIdx] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -282,6 +285,7 @@ export default function ProviderStore() {
                       overflow: "hidden",
                       cursor: "pointer",
                     }}
+                    onClick={() => { setDetailArticle(article); setDetailImgIdx(0); }}
                   >
                     {/* ── Image area — transparent, object-contain ── */}
                     <div style={{
@@ -408,6 +412,220 @@ export default function ProviderStore() {
 
         </div>
       </div>
+
+      {/* ── Product Detail Modal with Image Gallery ── */}
+      <AnimatePresence>
+        {detailArticle && (() => {
+          const imgs = getImages(detailArticle);
+          const qty = getQty(detailArticle.id);
+          const hasSale = !!(detailArticle.originalPrice && detailArticle.originalPrice > detailArticle.price);
+          const discountPct = hasSale
+            ? Math.round(((detailArticle.originalPrice! - detailArticle.price) / detailArticle.price) * 100)
+            : 0;
+          return (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 100 }}
+                onClick={() => setDetailArticle(null)}
+              />
+              <motion.div
+                initial={{ y: "100%", opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 260 }}
+                style={{
+                  position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 101,
+                  background: "#fff", borderRadius: "20px 20px 0 0",
+                  maxHeight: "88vh", overflowY: "auto",
+                  paddingBottom: 32,
+                }}
+                dir={isRTL ? "rtl" : "ltr"}
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Close button */}
+                <button
+                  onClick={() => setDetailArticle(null)}
+                  style={{
+                    position: "absolute", top: 12, insetInlineEnd: 14, zIndex: 10,
+                    background: "rgba(0,0,0,0.06)", border: "none", borderRadius: "50%",
+                    width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer",
+                  }}
+                >
+                  <X size={16} color="#555" />
+                </button>
+
+                {/* ── Image Gallery / Slider ── */}
+                <div style={{ position: "relative", background: "#f8f8f8", height: 240, overflow: "hidden", borderRadius: "20px 20px 0 0" }}>
+                  {imgs.length > 0 ? (
+                    <>
+                      <motion.img
+                        key={detailImgIdx}
+                        initial={{ opacity: 0, scale: 1.03 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.25 }}
+                        src={imgs[detailImgIdx]}
+                        alt={lang === "ar" ? detailArticle.nameAr : detailArticle.nameFr}
+                        style={{ width: "100%", height: "100%", objectFit: "contain", padding: 12 }}
+                      />
+                      {/* Nav arrows */}
+                      {imgs.length > 1 && (
+                        <>
+                          <button
+                            onClick={() => setDetailImgIdx(i => (i - 1 + imgs.length) % imgs.length)}
+                            style={{
+                              position: "absolute", top: "50%", insetInlineStart: 10, transform: "translateY(-50%)",
+                              background: "rgba(255,255,255,0.85)", border: "none", borderRadius: "50%",
+                              width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+                              cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+                            }}
+                          >
+                            {isRTL ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                          </button>
+                          <button
+                            onClick={() => setDetailImgIdx(i => (i + 1) % imgs.length)}
+                            style={{
+                              position: "absolute", top: "50%", insetInlineEnd: 10, transform: "translateY(-50%)",
+                              background: "rgba(255,255,255,0.85)", border: "none", borderRadius: "50%",
+                              width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+                              cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+                            }}
+                          >
+                            {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                          </button>
+                          {/* Dots */}
+                          <div style={{ position: "absolute", bottom: 10, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 5 }}>
+                            {imgs.map((_, i) => (
+                              <button
+                                key={i}
+                                onClick={() => setDetailImgIdx(i)}
+                                style={{
+                                  width: i === detailImgIdx ? 18 : 6, height: 6,
+                                  borderRadius: 3, border: "none",
+                                  background: i === detailImgIdx ? "#1A4D1F" : "rgba(0,0,0,0.2)",
+                                  cursor: "pointer", transition: "all 0.2s",
+                                  padding: 0,
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      {/* Thumbnail strip */}
+                      {imgs.length > 1 && (
+                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, display: "flex", gap: 4, padding: "0 10px 26px", overflowX: "auto", scrollbarWidth: "none" }}>
+                          {imgs.map((src, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setDetailImgIdx(i)}
+                              style={{
+                                flexShrink: 0, width: 38, height: 38, borderRadius: 8, overflow: "hidden",
+                                border: `2px solid ${i === detailImgIdx ? "#1A4D1F" : "transparent"}`,
+                                background: "#fff", padding: 0, cursor: "pointer",
+                              }}
+                            >
+                              <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Package size={52} color="#ddd" />
+                    </div>
+                  )}
+
+                  {/* Discount badge */}
+                  {hasSale && (
+                    <div style={{
+                      position: "absolute", top: 12, insetInlineStart: 12,
+                      background: "#e53935", color: "#fff", fontSize: 11, fontWeight: 700,
+                      padding: "3px 8px", borderRadius: 6,
+                    }}>
+                      -{discountPct}%
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Info section ── */}
+                <div style={{ padding: "16px 18px 0" }}>
+                  <h2 style={{
+                    fontSize: 17, fontWeight: 800, color: "#111", margin: "0 0 4px",
+                    fontFamily: "'Cairo','Tajawal',sans-serif",
+                  }}>
+                    {lang === "ar" ? detailArticle.nameAr : detailArticle.nameFr}
+                  </h2>
+
+                  {detailArticle.descriptionAr && (
+                    <p style={{ fontSize: 12, color: "#777", margin: "0 0 12px", fontFamily: "'Cairo','Tajawal',sans-serif", lineHeight: 1.5 }}>
+                      {lang === "ar" ? detailArticle.descriptionAr : detailArticle.descriptionFr || detailArticle.descriptionAr}
+                    </p>
+                  )}
+
+                  {/* Price row */}
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 20 }}>
+                    <span style={{ fontSize: 22, fontWeight: 900, color: "#1A4D1F" }}>
+                      {formatPrice(detailArticle.price)}
+                    </span>
+                    {hasSale && (
+                      <span style={{ fontSize: 13, color: "#bbb", textDecoration: "line-through" }}>
+                        {formatPrice(detailArticle.originalPrice!)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Cart controls */}
+                  {qty === 0 ? (
+                    <button
+                      onClick={() => { handleAdd(detailArticle); }}
+                      style={{
+                        width: "100%", padding: "14px 0", borderRadius: 16,
+                        background: "#1A4D1F", color: "#fff", border: "none",
+                        fontSize: 15, fontWeight: 800, cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                        fontFamily: "'Cairo','Tajawal',sans-serif",
+                        boxShadow: "0 4px 14px rgba(26,77,31,0.3)",
+                      }}
+                    >
+                      <ShoppingCart size={18} />
+                      {t("أضف للسلة", "Ajouter au panier")}
+                    </button>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+                      <button
+                        onClick={() => updateQty(detailArticle.id, qty - 1)}
+                        style={{
+                          width: 44, height: 44, borderRadius: "50%",
+                          background: "#f0f0f0", border: "none", cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        <Minus size={18} />
+                      </button>
+                      <span style={{ fontSize: 20, fontWeight: 900, minWidth: 32, textAlign: "center", color: "#1A4D1F" }}>{qty}</span>
+                      <button
+                        onClick={() => updateQty(detailArticle.id, qty + 1)}
+                        style={{
+                          width: 44, height: 44, borderRadius: "50%",
+                          background: "#1A4D1F", border: "none", color: "#fff", cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          boxShadow: "0 2px 8px rgba(26,77,31,0.3)",
+                        }}
+                      >
+                        <Plus size={18} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </>
+          );
+        })()}
+      </AnimatePresence>
     </Layout>
   );
 }

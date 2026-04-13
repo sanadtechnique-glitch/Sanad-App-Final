@@ -96,6 +96,7 @@ const CATEGORIES = [
   // ── حلقة خارجية — منتجات (7) — صغيرة ─────────────────────────────────────
   { id: "restaurant",  ar: "مطاعم",       fr: "Restaurants",   href: null,            emoji: "🍽️",  bg: "radial-gradient(circle at 35% 30%, #FF8C00 0%, #C84B00 100%)" },
   { id: "grocery",     ar: "بقالة",       fr: "Épicerie",      href: null,            emoji: "🛒",  bg: "radial-gradient(circle at 35% 30%, #F59E0B 0%, #92400E 100%)" },
+  { id: "vegetables",  ar: "خضر وغلال",  fr: "Légumes & Fruits", href: null,          emoji: "🥦",  bg: "radial-gradient(circle at 35% 30%, #22C55E 0%, #14532D 100%)" },
   { id: "pharmacy",    ar: "صيدلية",      fr: "Pharmacie",     href: null,            emoji: "💊",  bg: "radial-gradient(circle at 35% 30%, #10B981 0%, #065F46 100%)" },
   { id: "bakery",      ar: "مخبز",        fr: "Boulangerie",   href: null,            emoji: "🥖",  bg: "radial-gradient(circle at 35% 30%, #D97706 0%, #78350F 100%)" },
   { id: "butcher",     ar: "جزار",        fr: "Boucherie",     href: null,            emoji: "🥩",  bg: "radial-gradient(circle at 35% 30%, #DC2626 0%, #7F1D1D 100%)" },
@@ -229,7 +230,7 @@ function OrbitRing({
   );
 }
 
-const ROW1_IDS = ["restaurant", "grocery", "taxi", "clothing"];
+const ROW1_IDS = ["restaurant", "grocery", "vegetables", "taxi", "clothing"];
 const ROW3_IDS = ["doctor", "pharmacy", "lawyer", "car_rental", "hotel"];
 
 function ServicesMarquee({ lang }: { lang: string }) {
@@ -261,9 +262,9 @@ function ServicesMarquee({ lang }: { lang: string }) {
 
   return (
     <div className="w-full" dir="rtl">
-      {/* ── Row 1: Static 4-column grid ── */}
-      <div className="grid grid-cols-4 px-4 sm:px-6 mb-1">
-        {row1.map(cat => <ServiceChip key={cat.id} cat={cat} size={34} />)}
+      {/* ── Row 1: Static 5-column grid ── */}
+      <div className="grid grid-cols-5 px-4 sm:px-6 mb-1">
+        {row1.map(cat => <ServiceChip key={cat.id} cat={cat} size={30} />)}
       </div>
 
       {/* ── Divider ── */}
