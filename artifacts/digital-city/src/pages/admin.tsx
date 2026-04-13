@@ -5878,7 +5878,210 @@ function StatsSection({ t, lang }: { t: (ar: string, fr: string) => string; lang
   );
 }
 
-type Section = "overview" | "orders" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests" | "partners" | "statistics";
+// ── Section: Messages (مراسلة الموردين) ────────────────────────────────────
+function MessagesSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
+  const [summaryList, setSummaryList]   = useState<any[]>([]);
+  const [selectedSup, setSelectedSup]   = useState<any | null>(null);
+  const [thread, setThread]             = useState<any[]>([]);
+  const [replyText, setReplyText]       = useState("");
+  const [sending, setSending]           = useState(false);
+  const [loadingThread, setLoadingThread] = useState(false);
+  const [unreadTotal, setUnreadTotal]   = useState(0);
+  const bottomRef                        = useRef<HTMLDivElement | null>(null);
+  const pollRef                          = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const loadSummary = useCallback(async () => {
+    try {
+      const list = await get<any[]>("/admin/vendor-messages");
+      setSummaryList(list);
+      setUnreadTotal(list.reduce((a: number, v: any) => a + (v.unreadCount ?? 0), 0));
+    } catch {}
+  }, []);
+
+  const loadThread = useCallback(async (supplierId: number, silent = false) => {
+    if (!silent) setLoadingThread(true);
+    try {
+      const msgs = await get<any[]>(`/vendor-messages/${supplierId}`);
+      setThread(msgs);
+      await patch(`/vendor-messages/read/${supplierId}`, {});
+      setTimeout(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, 80);
+      setSummaryList(prev => prev.map(s => s.id === supplierId ? { ...s, unreadCount: 0 } : s));
+    } catch {}
+    if (!silent) setLoadingThread(false);
+  }, []);
+
+  const openConversation = useCallback(async (sup: any) => {
+    setSelectedSup(sup);
+    setReplyText("");
+    await loadThread(sup.id);
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => loadThread(sup.id, true), 15_000);
+  }, [loadThread]);
+
+  const sendReply = async () => {
+    if (!replyText.trim() || !selectedSup || sending) return;
+    const body = replyText.trim();
+    setSending(true);
+    setReplyText("");
+    try {
+      const msg = await post<any>(`/vendor-messages/${selectedSup.id}`, { senderRole: "admin", body });
+      setThread(prev => [...prev, msg]);
+      setSummaryList(prev => prev.map(s => s.id === selectedSup.id ? { ...s, lastMessage: body, lastAt: new Date().toISOString() } : s));
+      setTimeout(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, 80);
+    } catch { setReplyText(body); }
+    setSending(false);
+  };
+
+  useEffect(() => {
+    loadSummary();
+    const refresh = setInterval(loadSummary, 30_000);
+    return () => { clearInterval(refresh); if (pollRef.current) clearInterval(pollRef.current); };
+  }, [loadSummary]);
+
+  return (
+    <div style={{ display: "flex", gap: 16, height: 600 }}>
+      {/* LEFT: vendor list */}
+      <div style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", borderRadius: 16, border: "1px solid #e5e7eb", overflow: "hidden", background: "#fff" }}>
+        <div style={{ padding: "12px 14px", background: "#1A4D1F", display: "flex", alignItems: "center", gap: 8 }}>
+          <MessageCircle size={14} color="#FFA500" />
+          <p style={{ color: "#fff", fontWeight: 800, fontSize: 12, margin: 0, flex: 1 }}>{t("رسائل الموردين", "Messages fournisseurs")}</p>
+          {unreadTotal > 0 && (
+            <span style={{ background: "#FFA500", color: "#fff", fontSize: 10, fontWeight: 800, borderRadius: 20, padding: "2px 7px" }}>{unreadTotal}</span>
+          )}
+        </div>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {summaryList.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", opacity: 0.4 }}>
+              <MessageCircle size={28} color="#1A4D1F" style={{ margin: "0 auto 8px" }} />
+              <p style={{ fontSize: 11, color: "#1A4D1F" }}>{t("لا توجد محادثات", "Aucune conversation")}</p>
+            </div>
+          ) : summaryList.map((sup: any) => (
+            <button
+              key={sup.id}
+              onClick={() => openConversation(sup)}
+              style={{
+                width: "100%", textAlign: "start", display: "block", padding: "10px 14px",
+                background: selectedSup?.id === sup.id ? "#f0fdf4" : "#fff",
+                borderBottom: "1px solid #f3f4f6",
+                borderLeft: selectedSup?.id === sup.id ? "3px solid #1A4D1F" : "3px solid transparent",
+                cursor: "pointer",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <p style={{ fontSize: 12, fontWeight: 800, color: "#1A4D1F", margin: 0 }}>{sup.nameAr ?? sup.nameFr}</p>
+                {sup.unreadCount > 0 && (
+                  <span style={{ background: "#FFA500", color: "#fff", fontSize: 9, fontWeight: 800, borderRadius: 20, padding: "1px 5px", flexShrink: 0 }}>{sup.unreadCount}</span>
+                )}
+              </div>
+              {sup.lastMessage && (
+                <p style={{ fontSize: 10, color: "#666", margin: "2px 0 0", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{sup.lastMessage}</p>
+              )}
+              {sup.lastAt && (
+                <p style={{ fontSize: 9, color: "#aaa", margin: "1px 0 0" }}>
+                  {new Date(sup.lastAt).toLocaleDateString(lang === "ar" ? "ar-TN" : "fr-TN", { day: "numeric", month: "short" })}
+                </p>
+              )}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={loadSummary}
+          style={{ padding: "8px 14px", borderTop: "1px solid #f3f4f6", fontSize: 11, color: "#1A4D1F", fontWeight: 700, background: "#fafafa", cursor: "pointer", border: "none" }}
+        >
+          ↻ {t("تحديث", "Actualiser")}
+        </button>
+      </div>
+
+      {/* RIGHT: thread */}
+      {selectedSup ? (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRadius: 16, border: "1px solid #e5e7eb", overflow: "hidden", background: "#fff" }}>
+          {/* Thread header */}
+          <div style={{ padding: "10px 16px", background: "#1A4D1F", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ color: "#fff", fontWeight: 800, fontSize: 12, margin: 0 }}>{selectedSup.nameAr ?? selectedSup.nameFr}</p>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, margin: 0 }}>{selectedSup.phone ?? ""}</p>
+            </div>
+            <button
+              onClick={() => loadThread(selectedSup.id)}
+              style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: 6, cursor: "pointer" }}
+            >
+              <RefreshCw size={12} color="rgba(255,255,255,0.7)" />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+            {loadingThread ? (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div className="w-6 h-6 border-[3px] border-[#1A4D1F] border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : thread.length === 0 ? (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: 0.3, gap: 8 }}>
+                <MessageCircle size={32} color="#1A4D1F" />
+                <p style={{ fontSize: 12, color: "#1A4D1F", fontWeight: 700 }}>{t("لا توجد رسائل", "Aucun message")}</p>
+              </div>
+            ) : thread.map((msg: any) => {
+              const isAdmin = msg.senderRole === "admin";
+              return (
+                <div key={msg.id} style={{ display: "flex", justifyContent: isAdmin ? "flex-end" : "flex-start" }}>
+                  <div style={{
+                    maxWidth: "72%", padding: "8px 12px",
+                    borderRadius: isAdmin ? "14px 14px 2px 14px" : "14px 14px 14px 2px",
+                    background: isAdmin ? "#1A4D1F" : "#f3f4f6",
+                    color: isAdmin ? "#fff" : "#111",
+                  }}>
+                    {!isAdmin && (
+                      <p style={{ fontSize: 9, fontWeight: 800, color: "#FFA500", marginBottom: 2 }}>{t("المورد", "Fournisseur")}</p>
+                    )}
+                    <p style={{ fontSize: 13, margin: 0, lineHeight: 1.4, wordBreak: "break-word", fontFamily: "'Cairo','Tajawal',sans-serif" }}>{msg.body}</p>
+                    <p style={{ fontSize: 9, opacity: 0.5, marginTop: 2, textAlign: isAdmin ? "right" : "left" }}>
+                      {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString("fr-TN", { hour: "2-digit", minute: "2-digit" }) : ""}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Reply input */}
+          <div style={{ display: "flex", gap: 8, padding: "10px 14px", borderTop: "1px solid #f3f4f6", background: "#fff" }}>
+            <input
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendReply(); } }}
+              placeholder={t("رد على المورد...", "Répondre au fournisseur...")}
+              style={{
+                flex: 1, border: "1.5px solid #e5e7eb", borderRadius: 10, padding: "8px 12px",
+                fontSize: 13, fontFamily: "'Cairo','Tajawal',sans-serif", outline: "none", background: "#fafafa",
+              }}
+              dir={lang === "ar" ? "rtl" : "ltr"}
+            />
+            <button
+              onClick={sendReply}
+              disabled={!replyText.trim() || sending}
+              style={{
+                background: "#FFA500", border: "none", borderRadius: 10, padding: "8px 18px",
+                fontWeight: 800, fontSize: 12, color: "#fff", cursor: "pointer",
+                opacity: (!replyText.trim() || sending) ? 0.4 : 1, flexShrink: 0,
+                fontFamily: "'Cairo','Tajawal',sans-serif",
+              }}
+            >
+              {sending ? "..." : t("إرسال", "Envoyer")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: 0.25, gap: 12, borderRadius: 16, border: "1.5px dashed #1A4D1F" }}>
+          <MessageCircle size={48} color="#1A4D1F" />
+          <p style={{ fontSize: 14, color: "#1A4D1F", fontWeight: 700 }}>{t("اختر محادثة من اليسار", "Choisissez une conversation")}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type Section = "overview" | "orders" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests" | "partners" | "statistics" | "messages";
 
 type NavItem = { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean };
 type NavGroup = { id: string; icon: React.FC<any>; ar: string; fr: string; color: string; items: NavItem[] };
@@ -5895,6 +6098,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "orders",      icon: Package,          ar: "الطلبات",          fr: "Commandes" },
       { id: "statistics",  icon: TrendingUp,       ar: "الإحصائيات",       fr: "Statistiques" },
       { id: "live_map",    icon: Map,              ar: "الخريطة المباشرة", fr: "Carte live" },
+      { id: "messages",    icon: MessageCircle,    ar: "الرسائل",          fr: "Messages" },
       { id: "users",       icon: UserCog,          ar: "المستخدمون",       fr: "Utilisateurs",  superOnly: true },
     ],
   },
@@ -6253,6 +6457,7 @@ export default function Admin() {
             {active === "sos_requests"    && isSuper && <SosSection t={t} />}
             {active === "lawyer_requests" && isSuper && <LawyerRequestsSection t={t} lang={lang} />}
             {active === "statistics"     && <StatsSection t={t} lang={lang} />}
+            {active === "messages"       && <MessagesSection t={t} lang={lang} />}
           </motion.div>
         </AnimatePresence>
       </main>

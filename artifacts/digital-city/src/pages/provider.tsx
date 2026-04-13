@@ -1173,7 +1173,12 @@ export default function ProviderDashboard() {
   const [pendingCount, setPendingCount] = useState(0);
   const [hasNewOrder, setHasNewOrder] = useState(false);
   const [photoModal, setPhotoModal] = useState<string | null>(null);
-  const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos" | "lawyer" | "cars">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos" | "lawyer" | "cars" | "chat">("pending");
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatInput, setChatInput]       = useState("");
+  const [chatSending, setChatSending]   = useState(false);
+  const chatPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const [driverNotif, setDriverNotif] = useState<Notification | null>(null);
   const [carBookings, setCarBookings]       = useState<any[]>([]);
   const [hotelBookings, setHotelBookings]   = useState<any[]>([]);
@@ -1394,6 +1399,27 @@ export default function ProviderDashboard() {
     setCarBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b));
   };
 
+  const loadChatMessages = useCallback(async (supplierId: number) => {
+    try {
+      const msgs = await get<any[]>(`/vendor-messages/${supplierId}`);
+      setChatMessages(msgs);
+      setTimeout(() => { chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, 80);
+    } catch {}
+  }, []);
+
+  const sendChatMessage = async (supplierId: number) => {
+    const body = chatInput.trim();
+    if (!body || chatSending) return;
+    setChatSending(true);
+    setChatInput("");
+    try {
+      const msg = await post<any>(`/vendor-messages/${supplierId}`, { senderRole: "vendor", body });
+      setChatMessages(prev => [...prev, msg]);
+      setTimeout(() => { chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, 80);
+    } catch { setChatInput(body); }
+    setChatSending(false);
+  };
+
   const selectProvider = async (provider: Supplier) => {
     setSelected(provider);
     setTab(provider.category === "lawyer" ? "lawyer" : provider.category === "car_rental" ? "cars" : "pending");
@@ -1404,6 +1430,9 @@ export default function ProviderDashboard() {
     if (provider.category === "hotel")    loadHotelBookings(provider);
     if (provider.category === "lawyer") loadLawyerRequests(provider);
     else loadSosRequests(provider);
+    loadChatMessages(provider.id);
+    if (chatPollRef.current) clearInterval(chatPollRef.current);
+    chatPollRef.current = setInterval(() => loadChatMessages(provider.id), 20_000);
   };
 
   const updateStatus = async (orderId: number, status: string) => {
@@ -1647,11 +1676,13 @@ export default function ProviderDashboard() {
             ? [
                 { id: "lawyer",   label: t("القضايا","Dossiers"),   icon: <Scale size={10} />, badge: lawyerRequests.filter(r=>r.status==="pending").length },
                 { id: "products", label: t("تخصصاتي","Spécialités"), icon: <FileText size={10} /> },
+                { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
               ]
             : selected.category === "car_rental"
             ? [
                 { id: "cars",     label: t("السيارات","Voitures"),  icon: <span className="text-[10px]">🚗</span> },
                 { id: "bookings", label: t("الحجوزات","Réserv."),  icon: <KeyRound size={10} />, badge: carBookings.filter((b:any)=>b.status==="pending").length },
+                { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
               ]
             : [
                 { id: "pending",  label: t("جديد","Nouv."),       badge: pendingOrders.length },
@@ -1669,6 +1700,7 @@ export default function ProviderDashboard() {
                 ...(isSosCat(selected.category) ? [{
                   id: "sos", label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true,
                 }] : []),
+                { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
               ]
           ).map((tb: any) => (
             <button key={tb.id} onClick={() => setTab(tb.id)}
@@ -2228,6 +2260,86 @@ export default function ProviderDashboard() {
             </div>
           </AnimatePresence>
         ))}
+
+        {/* ── Chat Panel (مراسلة الإدارة) ─────────────────────────── */}
+        {tab === "chat" && selected && (
+          <div style={{ display: "flex", flexDirection: "column", height: 460, background: "#fff", borderRadius: 16, border: "1px solid #1A4D1F12", overflow: "hidden" }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#1A4D1F", flexShrink: 0 }}>
+              <MessageCircle size={15} color="#FFA500" />
+              <div>
+                <p style={{ color: "#fff", fontWeight: 800, fontSize: 12, margin: 0 }}>{t("مراسلة الإدارة", "Contacter l'admin")}</p>
+                <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, margin: 0 }}>{t("يُحدَّث كل ٢٠ ث", "Actualisation auto. 20s")}</p>
+              </div>
+              <button
+                onClick={() => loadChatMessages(selected.id)}
+                style={{ marginInlineStart: "auto", background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: 6, cursor: "pointer" }}
+              >
+                <RefreshCw size={12} color="rgba(255,255,255,0.7)" />
+              </button>
+            </div>
+
+            {/* Messages area */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {chatMessages.length === 0 ? (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: 0.3, gap: 8, minHeight: 200 }}>
+                  <MessageCircle size={36} color="#1A4D1F" />
+                  <p style={{ fontSize: 12, color: "#1A4D1F", fontWeight: 700 }}>{t("لا توجد رسائل بعد", "Aucun message pour l'instant")}</p>
+                </div>
+              ) : chatMessages.map((msg: any) => {
+                const isVendor = msg.senderRole === "vendor";
+                return (
+                  <div key={msg.id} style={{ display: "flex", justifyContent: isVendor ? "flex-end" : "flex-start" }}>
+                    <div style={{
+                      maxWidth: "78%", padding: "8px 12px",
+                      borderRadius: isVendor ? "14px 14px 2px 14px" : "14px 14px 14px 2px",
+                      background: isVendor ? "#1A4D1F" : "#f3f4f6",
+                      color: isVendor ? "#fff" : "#111",
+                    }}>
+                      {!isVendor && (
+                        <p style={{ fontSize: 9, fontWeight: 800, color: "#FFA500", marginBottom: 3 }}>{t("الإدارة", "Admin")}</p>
+                      )}
+                      <p style={{ fontSize: 13, margin: 0, lineHeight: 1.4, fontFamily: "'Cairo','Tajawal',sans-serif", wordBreak: "break-word" }}>{msg.body}</p>
+                      <p style={{ fontSize: 9, opacity: 0.55, marginTop: 3, textAlign: isVendor ? "right" : "left" }}>
+                        {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString("fr-TN", { hour: "2-digit", minute: "2-digit" }) : ""}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={chatBottomRef} />
+            </div>
+
+            {/* Input */}
+            <div style={{ display: "flex", gap: 8, padding: "10px 12px", borderTop: "1px solid #f3f4f6", background: "#fff", flexShrink: 0 }}>
+              <input
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(selected.id); } }}
+                placeholder={t("اكتب رسالة...", "Écrire un message...")}
+                style={{
+                  flex: 1, border: "1.5px solid #e5e7eb", borderRadius: 10, padding: "8px 12px",
+                  fontSize: 13, fontFamily: "'Cairo','Tajawal',sans-serif", outline: "none",
+                  background: "#fafafa",
+                }}
+                dir={lang === "ar" ? "rtl" : "ltr"}
+              />
+              <button
+                onClick={() => sendChatMessage(selected.id)}
+                disabled={!chatInput.trim() || chatSending}
+                style={{
+                  background: "#FFA500", border: "none", borderRadius: 10,
+                  padding: "8px 14px", cursor: "pointer", fontWeight: 800, fontSize: 12,
+                  color: "#fff", opacity: (!chatInput.trim() || chatSending) ? 0.4 : 1, flexShrink: 0,
+                  fontFamily: "'Cairo','Tajawal',sans-serif",
+                }}
+              >
+                {chatSending ? "..." : t("إرسال", "Envoyer")}
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

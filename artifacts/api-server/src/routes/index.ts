@@ -24,6 +24,7 @@ import lawyerRequestsRouter from "./lawyerRequests";
 import pushRouter from "./push";
 import partnersRouter from "./partners";
 import searchRouter from "./search";
+import messagesRouter from "./messages";
 
 const router: IRouter = Router();
 
@@ -52,5 +53,6 @@ router.use(lawyerRequestsRouter);
 router.use(pushRouter);
 router.use(partnersRouter);
 router.use(searchRouter);
+router.use(messagesRouter);
 
 export default router;

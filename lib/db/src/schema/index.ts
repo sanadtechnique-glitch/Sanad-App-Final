@@ -22,3 +22,4 @@ export * from "./passwordResetTokens";
 export * from "./pushSubscriptions";
 export * from "./partners";
 export * from "./orderItems";
+export * from "./vendorMessages";
