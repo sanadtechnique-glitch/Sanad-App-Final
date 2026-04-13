@@ -683,18 +683,31 @@ function ActiveOrdersBar({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MY ORDERS SECTION (embedded in home page)
+// MY ORDERS SECTION — 3 tabs: En Route / Completed / Canceled
 // ─────────────────────────────────────────────────────────────────────────────
-function MyOrdersSection({ name, t }: { name: string; t: (ar: string, fr: string) => string }) {
-  const [orders, setOrders]       = useState<Order[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [showAll, setShowAll]     = useState(false);
+type OrderTab = "enroute" | "completed" | "cancelled";
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+const ORDER_TABS: { id: OrderTab; ar: string; fr: string; emoji: string }[] = [
+  { id: "enroute",   ar: "في الطريق", fr: "En route",   emoji: "🚀" },
+  { id: "completed", ar: "المنجزة",   fr: "Livrées",    emoji: "✅" },
+  { id: "cancelled", ar: "الملغاة",   fr: "Annulées",   emoji: "❌" },
+];
+
+function MyOrdersSection({ name, lang, t }: {
+  name: string;
+  lang: string;
+  t: (ar: string, fr: string) => string;
+}) {
+  const [, navigate]            = useLocation();
+  const [orders, setOrders]     = useState<Order[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab]   = useState<OrderTab>("enroute");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true); else setRefreshing(true);
     try {
       const data = await get<Order[]>(`/orders/customer?name=${encodeURIComponent(name)}`);
       setOrders(Array.isArray(data) ? data : []);
@@ -706,108 +719,152 @@ function MyOrdersSection({ name, t }: { name: string; t: (ar: string, fr: string
     }
   }, [name]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    pollRef.current = setInterval(() => load(true), 30_000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [load]);
 
-  const ongoing  = orders.filter(o => ONGOING_STATUSES.includes(o.status));
-  const history  = orders.filter(o => !ONGOING_STATUSES.includes(o.status));
-  const shown    = showAll ? history : history.slice(0, 3);
+  // Tab counts
+  const enroute   = orders.filter(o => ONGOING_STATUSES.includes(o.status));
+  const completed = orders.filter(o => o.status === "delivered");
+  const cancelled = orders.filter(o => o.status === "cancelled");
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <RefreshCw size={20} className="animate-spin text-[#1A4D1F]/40" />
-      </div>
-    );
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="text-center py-8" dir="rtl">
-        <ShoppingCart size={32} className="mx-auto mb-2 text-[#1A4D1F]/20" />
-        <p className="text-sm font-black text-[#1A4D1F]/30">
-          {t("لا توجد طلبات بعد", "Aucune commande pour l'instant")}
-        </p>
-        <p className="text-xs text-[#1A4D1F]/20 mt-1">
-          {t("ستظهر طلباتك هنا بمجرد إرسالها", "Vos commandes apparaîtront ici")}
-        </p>
-      </div>
-    );
-  }
+  const tabCounts: Record<OrderTab, number> = {
+    enroute: enroute.length,
+    completed: completed.length,
+    cancelled: cancelled.length,
+  };
+  const tabOrders: Record<OrderTab, Order[]> = { enroute, completed, cancelled };
+  const displayed = tabOrders[activeTab];
 
   return (
-    <div className="space-y-4" dir="rtl">
-      {/* Refresh button */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-[#1A4D1F]/40">
-          {orders.length} {t("طلب", "commande(s)")}
-        </span>
-        <button
-          onClick={() => load(true)}
-          disabled={refreshing}
-          className="flex items-center gap-1 text-xs font-bold text-[#1A4D1F]/50 hover:text-[#1A4D1F] transition-all"
-        >
-          <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
-          {t("تحديث", "Actualiser")}
-        </button>
+    <section className="px-4 py-2" dir={lang === "ar" ? "rtl" : "ltr"}>
+      {/* ── Section Header ── */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: 18 }}>🛒</span>
+          <div>
+            <p style={{ fontFamily: "'Cairo','Tajawal',sans-serif", fontWeight: 900, fontSize: 15, color: "#1A4D1F", lineHeight: 1.2 }}>
+              {t("طلباتي", "Mes commandes")}
+            </p>
+            <p style={{ fontSize: 10, color: "#1A4D1F", opacity: 0.4, fontWeight: 700 }}>
+              {orders.length > 0
+                ? `${orders.length} ${t("طلب", "commande(s)")}`
+                : t("لا توجد طلبات بعد", "Aucune commande")}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => load(true)}
+            disabled={refreshing}
+            style={{ background: "rgba(26,77,31,0.06)", border: "none", borderRadius: 8, padding: "5px 7px", cursor: "pointer" }}
+          >
+            <RefreshCw size={13} color="#1A4D1F" className={refreshing ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={() => navigate("/orders/history")}
+            style={{ fontSize: 11, fontWeight: 800, color: "#FFA500", background: "none", border: "none", cursor: "pointer", padding: "4px 2px", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+          >
+            {t("عرض الكل", "Voir tout")} ←
+          </button>
+        </div>
       </div>
 
-      {/* ONGOING */}
-      {ongoing.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            <span className="text-xs font-black text-amber-600">
-              {t("جارية الآن", "En cours")} ({ongoing.length})
-            </span>
-          </div>
-          <div className="space-y-2">
-            {ongoing.map(o => (
-              <OrderCard
-                key={o.id}
-                order={o}
-                t={t}
-                expanded={expandedId === o.id}
-                onToggle={() => setExpandedId(expandedId === o.id ? null : o.id)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* HISTORY */}
-      {history.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Clock size={12} className="text-[#1A4D1F]/40" />
-            <span className="text-xs font-black text-[#1A4D1F]/50">
-              {t("السابقة", "Historique")} ({history.length})
-            </span>
-          </div>
-          <div className="space-y-2">
-            {shown.map(o => (
-              <OrderCard
-                key={o.id}
-                order={o}
-                t={t}
-                expanded={expandedId === o.id}
-                onToggle={() => setExpandedId(expandedId === o.id ? null : o.id)}
-              />
-            ))}
-          </div>
-          {history.length > 3 && (
+      {/* ── 3 Pill Tabs ── */}
+      <div className="flex gap-2 mb-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+        {ORDER_TABS.map(tab => {
+          const active = activeTab === tab.id;
+          const count  = tabCounts[tab.id];
+          return (
             <button
-              onClick={() => setShowAll(v => !v)}
-              className="w-full mt-2 py-2 rounded-xl text-xs font-black text-[#1A4D1F]/50 hover:text-[#1A4D1F] border border-[#1A4D1F]/10 hover:border-[#1A4D1F]/30 transition-all"
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id); setExpandedId(null); }}
+              style={{
+                flexShrink: 0,
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "6px 14px", borderRadius: 24, border: "1.5px solid",
+                fontSize: 12, fontWeight: 800, cursor: "pointer",
+                fontFamily: "'Cairo','Tajawal',sans-serif",
+                transition: "all 0.18s",
+                background: active ? "#1A4D1F" : "rgba(255,255,255,0.8)",
+                borderColor: active ? "#1A4D1F" : "rgba(26,77,31,0.15)",
+                color: active ? "#fff" : "#1A4D1F",
+              }}
             >
-              {showAll
-                ? t("عرض أقل", "Voir moins")
-                : t(`عرض الكل (${history.length})`, `Voir tout (${history.length})`)
-              }
+              <span style={{ fontSize: 13 }}>{tab.emoji}</span>
+              {lang === "ar" ? tab.ar : tab.fr}
+              {count > 0 && (
+                <span style={{
+                  background: active ? "rgba(255,255,255,0.25)" : "#FFA500",
+                  color: active ? "#fff" : "#fff",
+                  borderRadius: 20, padding: "1px 6px", fontSize: 10, fontWeight: 800, minWidth: 18, textAlign: "center",
+                }}>
+                  {count}
+                </span>
+              )}
             </button>
-          )}
+          );
+        })}
+      </div>
+
+      {/* ── Tab Content ── */}
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2].map(i => (
+            <div key={i} className="rounded-2xl h-16 animate-pulse" style={{ background: "rgba(26,77,31,0.05)" }} />
+          ))}
         </div>
+      ) : displayed.length === 0 ? (
+        <div className="text-center py-8" style={{ opacity: 0.35 }}>
+          <span style={{ fontSize: 32, display: "block", marginBottom: 6 }}>
+            {activeTab === "enroute" ? "🚀" : activeTab === "completed" ? "✅" : "❌"}
+          </span>
+          <p style={{ fontSize: 12, fontWeight: 800, color: "#1A4D1F", fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+            {activeTab === "enroute"
+              ? t("لا توجد طلبات جارية", "Aucune commande en cours")
+              : activeTab === "completed"
+              ? t("لا توجد طلبات منجزة", "Aucune commande livrée")
+              : t("لا توجد طلبات ملغاة", "Aucune commande annulée")}
+          </p>
+        </div>
+      ) : (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-2"
+          >
+            {displayed.map(order => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                t={t}
+                expanded={expandedId === order.id}
+                onToggle={() => setExpandedId(expandedId === order.id ? null : order.id)}
+              />
+            ))}
+            {displayed.length >= 5 && (
+              <button
+                onClick={() => navigate("/orders/history")}
+                style={{
+                  width: "100%", padding: "9px", borderRadius: 14,
+                  border: "1.5px solid rgba(26,77,31,0.15)", background: "transparent",
+                  fontSize: 12, fontWeight: 800, color: "#1A4D1F", cursor: "pointer",
+                  fontFamily: "'Cairo','Tajawal',sans-serif",
+                }}
+              >
+                {t("عرض السجل الكامل →", "Voir l'historique complet →")}
+              </button>
+            )}
+          </motion.div>
+        </AnimatePresence>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -1791,6 +1848,13 @@ export default function Home() {
           3b. TRENDING NOW — الأكثر رواجاً
       ══════════════════════════════════════════════════════════════════════ */}
       <TrendingSection lang={lang} t={t} />
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          3b-2. MY ORDERS — طلباتي (only for logged-in customers)
+      ══════════════════════════════════════════════════════════════════════ */}
+      {session && (session.role === "client" || session.role === "customer") && (
+        <MyOrdersSection name={session.name} lang={lang} t={t} />
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           3c. ADVANCED ADS — إعلانات متقدمة
