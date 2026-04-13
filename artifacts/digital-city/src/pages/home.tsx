@@ -242,19 +242,22 @@ function ServicesMarquee({ lang }: { lang: string }) {
     <Link href={cat.href ?? `/services?category=${cat.id}`}>
       <div
         className="flex flex-col items-center gap-1.5 cursor-pointer select-none active:scale-90 transition-transform duration-100"
-        style={{ background: "transparent", border: "none", boxShadow: "none", padding: "10px 6px" }}
+        style={{ background: "transparent", border: "none", boxShadow: "none", padding: "10px 5px" }}
       >
-        {/* Icon circle — subtle tinted ring for prominence */}
+        {/* Icon tile — glassmorphism */}
         <div
           className="flex items-center justify-center rounded-2xl"
           style={{
             width: size + 18,
             height: size + 18,
-            background: "rgba(26,77,31,0.05)",
-            border: "1.5px solid rgba(26,77,31,0.08)",
+            background: "rgba(255,255,255,0.55)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            border: "1px solid rgba(255,255,255,0.80)",
+            boxShadow: "0 2px 10px rgba(26,77,31,0.08), 0 1px 3px rgba(0,0,0,0.06)",
           }}
         >
-          <span style={{ fontSize: size, lineHeight: 1, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.13))" }}>
+          <span style={{ fontSize: size, lineHeight: 1, filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.10))" }}>
             {cat.emoji}
           </span>
         </div>
@@ -264,7 +267,7 @@ function ServicesMarquee({ lang }: { lang: string }) {
           textAlign: "center",
           lineHeight: 1.25,
           whiteSpace: "nowrap",
-          marginTop: 2,
+          marginTop: 3,
         }}>
           {lang === "ar" ? cat.ar : cat.fr}
         </span>
@@ -282,19 +285,16 @@ function ServicesMarquee({ lang }: { lang: string }) {
       {/* ── Divider ── */}
       <div className="mx-4 sm:mx-6 my-2.5" style={{ height: 1, background: "rgba(26,77,31,0.07)" }} />
 
-      {/* ── Row 2: Horizontal scroll slider ── */}
+      {/* ── Row 2: Horizontal scroll slider — compact, unified group ── */}
       <div
         className="flex overflow-x-auto px-3 sm:px-5 pb-1"
         style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", gap: 0 }}
       >
-        {row2.map((cat, i) => (
+        {row2.map((cat) => (
           <div
             key={cat.id}
             className="flex-shrink-0"
-            style={{
-              transform: i % 2 === 0 ? "translateY(0px)" : "translateY(5px)",
-              minWidth: "28%",
-            }}
+            style={{ minWidth: "21%" }}
           >
             <ServiceChip cat={cat} size={34} />
           </div>
