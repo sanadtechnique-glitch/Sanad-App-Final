@@ -7,7 +7,7 @@ import { getSession, clearSession, isAdminRole, isSuperAdmin, ROLE_META, ROLE_SE
 import {
   LayoutDashboard, Package, Tag, Users, ShoppingBag,
   Truck, Map, Megaphone, RefreshCw, Plus, Pencil, Trash2,
-  X, Check, Clock, CheckCircle, AlertCircle, Star,
+  X, Check, Clock, CheckCircle, XCircle, AlertCircle, Star,
   ChevronRight, ChevronDown, Power, MessageCircle, Moon, Sun, Hotel, Car, ExternalLink,
   UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
   Image, ImageIcon, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
@@ -32,7 +32,7 @@ interface Order {
   status: OrderStatus; deliveryFee?: number; totalAmount?: number; deliveryStaffId?: number;
   createdAt: string; notes?: string; delegationId?: number;
 }
-interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; deliveryFee?: number | null; }
+interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; deliveryFee?: number | null; subscriptionFee?: number | null; subscriptionActive?: boolean; subscriptionRenewalDate?: string | null; }
 interface Article { id: number; supplierId: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; originalPrice?: number; discountedPrice?: number; photoUrl?: string | null; isAvailable: boolean; supplierName?: string; }
 interface DeliveryStaff { id: number; name: string; nameAr: string; phone: string; zone?: string; isAvailable: boolean; }
 interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
@@ -190,11 +190,14 @@ interface DbStats {
     broadcasts: number; ratings: number; };
 }
 
+interface SubStats { totalVendors: number; activeSubscriptions: number; inactiveSubscriptions: number; totalMonthlyRevenue: number; renewingSoon: number; }
+
 function OverviewSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [dbStats, setDbStats] = useState<DbStats | null>(null);
   const [dbLoading, setDbLoading] = useState(true);
+  const [subStats, setSubStats] = useState<SubStats | null>(null);
 
   const loadDbStats = () => {
     setDbLoading(true);
@@ -206,9 +209,11 @@ function OverviewSection({ t }: { t: (ar: string, fr: string) => string }) {
   useEffect(() => {
     get<Order[]>("/orders").then(setOrders).catch(() => {});
     get<Supplier[]>("/admin/suppliers").then(setSuppliers).catch(() => {});
+    get<SubStats>("/admin/subscription-stats").then(setSubStats).catch(() => {});
     loadDbStats();
     const iv = setInterval(loadDbStats, 20_000);
-    return () => clearInterval(iv);
+    const subIv = setInterval(() => get<SubStats>("/admin/subscription-stats").then(setSubStats).catch(() => {}), 60_000);
+    return () => { clearInterval(iv); clearInterval(subIv); };
   }, []);
 
   const stats = {
@@ -285,6 +290,55 @@ function OverviewSection({ t }: { t: (ar: string, fr: string) => string }) {
         <StatCard label={t("قيد الانتظار", "En attente")} value={stats.pending} color="text-amber-400" />
         <StatCard label={t("في التوصيل", "En livraison")} value={stats.inDelivery} color="text-indigo-500" />
         <StatCard label={t("تم التوصيل", "Livrés")} value={stats.delivered} color="text-emerald-400" />
+      </div>
+
+      {/* ── Subscription Revenue Panel ──────────────────────────────────── */}
+      <div className="rounded-2xl border border-[#1A4D1F]/15 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 bg-[#1A4D1F]/5 border-b border-[#1A4D1F]/8">
+          <div className="flex items-center gap-2">
+            <DollarSign size={15} style={{ color: "#1A4D1F" }} />
+            <span className="font-black text-sm text-[#1A4D1F]">
+              {t("اشتراكات المزودين الشهرية", "Abonnements mensuels fournisseurs")}
+            </span>
+          </div>
+          {subStats?.renewingSoon ? (
+            <span className="flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full"
+              style={{ background: "rgba(255,165,0,0.12)", color: "#FFA500", border: "1px solid rgba(255,165,0,0.3)" }}>
+              ⚠ {subStats.renewingSoon} {t("تنتهي قريباً", "expirent bientôt")}
+            </span>
+          ) : null}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-x-reverse divide-[#1A4D1F]/8">
+          {[
+            {
+              label: t("إجمالي الاشتراكات الشهرية", "Revenus mensuels"),
+              value: subStats ? `${subStats.totalMonthlyRevenue.toFixed(2)} TND` : "—",
+              color: "#1A4D1F", icon: "💰", highlight: true,
+            },
+            {
+              label: t("مشتركون نشطون", "Abonnés actifs"),
+              value: subStats?.activeSubscriptions ?? "—",
+              color: "#16a34a", icon: "✅",
+            },
+            {
+              label: t("غير نشطين / موقوفون", "Inactifs / Suspendus"),
+              value: subStats?.inactiveSubscriptions ?? "—",
+              color: "#ef4444", icon: "⛔",
+            },
+            {
+              label: t("إجمالي المزودين", "Total fournisseurs"),
+              value: subStats?.totalVendors ?? "—",
+              color: "#64748b", icon: "🏪",
+            },
+          ].map((item, i) => (
+            <div key={i} className="flex flex-col items-center justify-center py-4 px-3 gap-1 text-center"
+              style={item.highlight ? { background: "rgba(26,77,31,0.04)" } : {}}>
+              <span className="text-lg leading-none">{item.icon}</span>
+              <span className="text-xl font-black" style={{ color: item.color }}>{item.value}</span>
+              <span className="text-[10px] font-bold text-[#1A4D1F]/40 leading-tight">{item.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="glass-panel rounded-2xl p-5">
@@ -1330,6 +1384,29 @@ function SupplierCard({ s, t, lang, type, typeConfig, onManage, onToggle, onEdit
           <p className="text-sm text-[#1A4D1F]/40 truncate">{s.address}</p>
           {s.phone && <p className="text-xs text-[#1A4D1F]/30">{s.phone}</p>}
           <Stars rating={s.rating} />
+          {/* Subscription status badge */}
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black border"
+              style={s.subscriptionActive !== false
+                ? { background: "#1A4D1F10", color: "#1A4D1F", borderColor: "#1A4D1F33" }
+                : { background: "#ef444410", color: "#ef4444", borderColor: "#ef444433" }}>
+              {s.subscriptionActive !== false ? "✅" : "⛔"}
+              {s.subscriptionActive !== false ? t("اشتراك نشط","Abonné") : t("غير مشترك","Non abonné")}
+            </span>
+            {(s.subscriptionFee ?? 0) > 0 && (
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black"
+                style={{ background: "rgba(255,165,0,0.1)", color: "#b45309", border: "1px solid rgba(255,165,0,0.3)" }}>
+                💰 {(s.subscriptionFee ?? 0).toFixed(0)} TND/
+                {t("شهر","mois")}
+              </span>
+            )}
+            {s.subscriptionRenewalDate && (
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black text-[#1A4D1F]/40"
+                style={{ background: "#1A4D1F06", border: "1px solid #1A4D1F15" }}>
+                🗓 {new Date(s.subscriptionRenewalDate).toLocaleDateString("ar-TN")}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Manage as provider */}
@@ -1369,12 +1446,12 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   const [filter, setFilter]     = useState<"all" | "products" | "services">("all");
   const [formType, setFormType] = useState<"product" | "service">("product");
   const [createdCreds, setCreatedCreds] = useState<{ phone: string; password: string } | null>(null);
-  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", photoUrl:"", shift:"all", isAvailable: true, latitude:"", longitude:"", deliveryFee:"3", providerPhone:"", providerPassword:"" });
+  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", photoUrl:"", shift:"all", isAvailable: true, latitude:"", longitude:"", deliveryFee:"3", providerPhone:"", providerPassword:"", subscriptionFee:"0", subscriptionActive: true, subscriptionRenewalDate:"" });
 
   const load = () => get<Supplier[]>("/admin/suppliers").then(setItems).catch(() => {});
   useEffect(() => { load(); }, []);
 
-  const EMPTY_FORM = { name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",photoUrl:"",shift:"all",isAvailable:true,latitude:"",longitude:"",deliveryFee:"3",providerPhone:"",providerPassword:"" };
+  const EMPTY_FORM = { name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",photoUrl:"",shift:"all",isAvailable:true,latitude:"",longitude:"",deliveryFee:"3",providerPhone:"",providerPassword:"", subscriptionFee:"0", subscriptionActive: true, subscriptionRenewalDate:"" };
 
   const openAdd = () => {
     setFormType("product");
@@ -1385,7 +1462,12 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   const openEdit = (s: Supplier) => {
     setFormType(supplierType(s.category));
     setCreatedCreds(null);
-    setForm({ name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", photoUrl:(s as any).photoUrl||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"", deliveryFee:(s.deliveryFee ?? 3).toString(), providerPhone:"", providerPassword:"" });
+    setForm({
+      name:s.name, nameAr:s.nameAr, category:s.category, description:s.description, descriptionAr:s.descriptionAr, address:s.address, phone:s.phone||"", photoUrl:(s as any).photoUrl||"", shift:s.shift||"all", isAvailable:s.isAvailable, latitude:s.latitude?.toString()||"", longitude:s.longitude?.toString()||"", deliveryFee:(s.deliveryFee ?? 3).toString(), providerPhone:"", providerPassword:"",
+      subscriptionFee: (s.subscriptionFee ?? 0).toString(),
+      subscriptionActive: s.subscriptionActive !== false,
+      subscriptionRenewalDate: s.subscriptionRenewalDate ? s.subscriptionRenewalDate.split("T")[0] : "",
+    });
     setModal(s);
   };
 
@@ -1611,6 +1693,58 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
             placeholder="3.000"
           />
         </Field>
+
+        {/* ── Subscription Section ── */}
+        <div className="rounded-xl overflow-hidden border border-[#1A4D1F]/15">
+          <div className="flex items-center gap-2 px-4 py-2 bg-[#1A4D1F]/5 border-b border-[#1A4D1F]/10">
+            <DollarSign size={13} style={{ color: "#1A4D1F" }} />
+            <p className="text-[11px] font-black text-[#1A4D1F]/60 uppercase tracking-wider">
+              {t("الاشتراك الشهري", "Abonnement mensuel")}
+            </p>
+          </div>
+          <div className="p-4 space-y-3">
+            {/* Status toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-black text-[#1A4D1F]">{t("حالة الاشتراك","Statut de l'abonnement")}</p>
+                <p className="text-[10px] text-[#1A4D1F]/40">
+                  {t("إذا كان غير نشط، تُخفى منتجاته من الصفحة الرئيسية","Inactif = produits masqués sur la page d'accueil")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, subscriptionActive: !f.subscriptionActive }))}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border transition-all"
+                style={form.subscriptionActive
+                  ? { background: "#1A4D1F14", borderColor: "#1A4D1F44", color: "#1A4D1F" }
+                  : { background: "#ef444412", borderColor: "#ef444444", color: "#ef4444" }}
+              >
+                {form.subscriptionActive
+                  ? <><CheckCircle size={12} /> {t("نشط","Actif")}</>
+                  : <><XCircle size={12} /> {t("غير نشط","Inactif")}</>}
+              </button>
+            </div>
+            {/* Fee + Renewal date */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("مبلغ الاشتراك الشهري (TND)","Frais mensuel (TND)")}>
+                <Input
+                  type="number"
+                  value={form.subscriptionFee}
+                  onChange={v => setForm(f => ({ ...f, subscriptionFee: v }))}
+                  placeholder="0.00"
+                />
+              </Field>
+              <Field label={t("تاريخ التجديد","Date de renouvellement")}>
+                <input
+                  type="date"
+                  value={form.subscriptionRenewalDate}
+                  onChange={e => setForm(f => ({ ...f, subscriptionRenewalDate: e.target.value }))}
+                  className="w-full bg-[#FFA500]/50 border border-[#1A4D1F]/10 rounded-xl px-3 py-2.5 text-sm text-[#1A4D1F] focus:outline-none focus:border-[#1A4D1F]/50"
+                />
+              </Field>
+            </div>
+          </div>
+        </div>
 
         {/* Account creation — add mode only */}
         {modal === "add" && (

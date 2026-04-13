@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { serviceProvidersTable, usersTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, ne, sql } from "drizzle-orm";
 import { requireAdmin, requireStaff } from "../lib/authMiddleware";
 import { isValidPhone } from "../lib/validate";
 import { withCache, cacheDeletePrefix } from "../lib/cache";
@@ -15,6 +15,7 @@ const router: IRouter = Router();
 
 router.get("/suppliers", async (req, res) => {
   try {
+    // Only show vendors with an active subscription (or no subscription set = legacy = active)
     const rows = await withCache("suppliers:all", SUPPLIERS_CACHE_TTL, () => db.select({
       id:            serviceProvidersTable.id,
       name:          serviceProvidersTable.name,
@@ -29,7 +30,9 @@ router.get("/suppliers", async (req, res) => {
       shift:         serviceProvidersTable.shift,
       latitude:      serviceProvidersTable.latitude,
       longitude:     serviceProvidersTable.longitude,
-    }).from(serviceProvidersTable).orderBy(serviceProvidersTable.name));
+    }).from(serviceProvidersTable)
+      .where(ne(serviceProvidersTable.subscriptionActive, false))
+      .orderBy(serviceProvidersTable.name));
     res.json(rows);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
@@ -156,23 +159,64 @@ router.post("/admin/suppliers", requireAdmin, async (req, res) => {
 router.patch("/admin/suppliers/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
-  const { name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable, latitude, longitude, deliveryFee } = req.body;
+  const {
+    name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable,
+    latitude, longitude, deliveryFee,
+    subscriptionFee, subscriptionActive, subscriptionRenewalDate,
+  } = req.body;
   if (phone !== undefined && phone !== "" && !isValidPhone(phone)) {
     res.status(400).json({ message: "Invalid phone number format" }); return;
   }
   try {
+    const updates: Record<string, unknown> = {
+      name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable,
+      latitude: latitude !== undefined ? (latitude ? parseFloat(String(latitude)) : null) : undefined,
+      longitude: longitude !== undefined ? (longitude ? parseFloat(String(longitude)) : null) : undefined,
+      deliveryFee: deliveryFee !== undefined ? parseFloat(String(deliveryFee)) : undefined,
+    };
+    if (subscriptionFee !== undefined) updates.subscriptionFee = parseFloat(String(subscriptionFee)) || 0;
+    if (subscriptionActive !== undefined) updates.subscriptionActive = Boolean(subscriptionActive);
+    if (subscriptionRenewalDate !== undefined) {
+      updates.subscriptionRenewalDate = subscriptionRenewalDate ? new Date(subscriptionRenewalDate) : null;
+    }
     const [row] = await db.update(serviceProvidersTable)
-      .set({
-        name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable,
-        latitude: latitude !== undefined ? (latitude ? parseFloat(String(latitude)) : null) : undefined,
-        longitude: longitude !== undefined ? (longitude ? parseFloat(String(longitude)) : null) : undefined,
-        deliveryFee: deliveryFee !== undefined ? parseFloat(String(deliveryFee)) : undefined,
-      })
+      .set(updates as any)
       .where(eq(serviceProvidersTable.id, id)).returning();
     if (!row) { res.status(404).json({ message: "Not found" }); return; }
     cacheDeletePrefix("suppliers:");
     res.json(row);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+});
+
+// ── Subscription stats — total monthly revenue ────────────────────────────────
+router.get("/admin/subscription-stats", requireAdmin, async (_req, res) => {
+  try {
+    const all = await db.select({
+      subscriptionFee:    serviceProvidersTable.subscriptionFee,
+      subscriptionActive: serviceProvidersTable.subscriptionActive,
+      subscriptionRenewalDate: serviceProvidersTable.subscriptionRenewalDate,
+    }).from(serviceProvidersTable);
+
+    const active   = all.filter(r => r.subscriptionActive !== false);
+    const inactive = all.filter(r => r.subscriptionActive === false);
+    const totalRevenue = active.reduce((sum, r) => sum + (r.subscriptionFee ?? 0), 0);
+
+    const now = new Date();
+    const soonMs = 7 * 24 * 60 * 60 * 1000; // 7 days
+    const renewingSoon = active.filter(r => {
+      if (!r.subscriptionRenewalDate) return false;
+      const diff = new Date(r.subscriptionRenewalDate).getTime() - now.getTime();
+      return diff > 0 && diff <= soonMs;
+    }).length;
+
+    res.json({
+      totalVendors: all.length,
+      activeSubscriptions: active.length,
+      inactiveSubscriptions: inactive.length,
+      totalMonthlyRevenue: Math.round(totalRevenue * 100) / 100,
+      renewingSoon,
+    });
+  } catch (err) { (req as any).log?.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
 router.delete("/admin/suppliers/:id", requireAdmin, async (req, res) => {

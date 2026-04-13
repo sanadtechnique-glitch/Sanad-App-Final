@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, real, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, real, timestamp, index, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -24,6 +24,9 @@ export const serviceProvidersTable = pgTable("service_providers", {
   latitude: real("latitude"),
   longitude: real("longitude"),
   deliveryFee: real("delivery_fee").default(3.0),
+  subscriptionFee: real("subscription_fee").default(0),
+  subscriptionActive: boolean("subscription_active").default(true).notNull(),
+  subscriptionRenewalDate: timestamp("subscription_renewal_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
   index("idx_providers_category").on(t.category),
