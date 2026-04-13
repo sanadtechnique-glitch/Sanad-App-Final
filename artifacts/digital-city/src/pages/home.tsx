@@ -229,20 +229,21 @@ function OrbitRing({
   );
 }
 
-// IDs for the static 4-column top row
 const ROW1_IDS = ["restaurant", "grocery", "taxi", "clothing"];
+const ROW3_IDS = ["doctor", "pharmacy", "lawyer"];
 
 function ServicesMarquee({ lang }: { lang: string }) {
-  const row1 = CATEGORIES.filter(c => ROW1_IDS.includes(c.id));
-  const row2 = CATEGORIES.filter(c => !ROW1_IDS.includes(c.id));
+  const row1 = ROW1_IDS.map(id => CATEGORIES.find(c => c.id === id)!).filter(Boolean);
+  const row3 = ROW3_IDS.map(id => CATEGORIES.find(c => c.id === id)!).filter(Boolean);
+  const row2 = CATEGORIES.filter(c => !ROW1_IDS.includes(c.id) && !ROW3_IDS.includes(c.id));
 
-  const ServiceChip = ({ cat }: { cat: typeof CATEGORIES[0] }) => (
+  const ServiceChip = ({ cat, size = 32 }: { cat: typeof CATEGORIES[0]; size?: number }) => (
     <Link href={cat.href ?? `/services?category=${cat.id}`}>
       <div
         className="flex flex-col items-center gap-1 cursor-pointer select-none active:scale-90 transition-transform duration-100"
-        style={{ background: "transparent", border: "none", boxShadow: "none", padding: "6px 4px" }}
+        style={{ background: "transparent", border: "none", boxShadow: "none", padding: "6px 6px" }}
       >
-        <span style={{ fontSize: 32, lineHeight: 1, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.18))" }}>
+        <span style={{ fontSize: size, lineHeight: 1, filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.15))" }}>
           {cat.emoji}
         </span>
         <span style={{
@@ -261,21 +262,115 @@ function ServicesMarquee({ lang }: { lang: string }) {
   return (
     <div className="w-full" dir="rtl">
       {/* ── Row 1: Static 4-column grid ── */}
-      <div className="grid grid-cols-4 px-4 sm:px-6 mb-1">
-        {row1.map(cat => <ServiceChip key={cat.id} cat={cat} />)}
+      <div className="grid grid-cols-4 px-4 sm:px-6 mb-0">
+        {row1.map(cat => <ServiceChip key={cat.id} cat={cat} size={34} />)}
       </div>
 
       {/* ── Row 2: Horizontal scroll slider ── */}
       <div
-        className="flex overflow-x-auto gap-1 px-4 sm:px-6 pb-1"
+        className="flex overflow-x-auto gap-0 px-4 sm:px-6 py-1"
         style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
       >
         {row2.map(cat => (
           <div key={cat.id} className="flex-shrink-0">
-            <ServiceChip cat={cat} />
+            <ServiceChip cat={cat} size={30} />
           </div>
         ))}
       </div>
+
+      {/* ── Row 3: Static 3-column grid ── */}
+      <div className="grid grid-cols-3 px-4 sm:px-6 mt-0">
+        {row3.map(cat => <ServiceChip key={cat.id} cat={cat} size={32} />)}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GPS LOCATION PICKER
+// ─────────────────────────────────────────────────────────────────────────────
+function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
+  const [status, setStatus] = useState<"idle" | "loading" | "granted" | "denied">("idle");
+  const [cityName, setCityName] = useState<string>("");
+
+  useEffect(() => {
+    const cached = sessionStorage.getItem("sanad_gps_coords");
+    if (cached) {
+      try {
+        const { city } = JSON.parse(cached);
+        if (city) { setCityName(city); setStatus("granted"); }
+        else setStatus("granted");
+      } catch { /* ignore */ }
+    }
+  }, []);
+
+  const requestGPS = () => {
+    if (!navigator.geolocation) { setStatus("denied"); return; }
+    setStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude, longitude } = pos.coords;
+        const payload = { lat: latitude, lng: longitude, city: "بن قردان" };
+        sessionStorage.setItem("sanad_gps_coords", JSON.stringify(payload));
+        setCityName("بن قردان");
+        setStatus("granted");
+      },
+      () => setStatus("denied"),
+      { timeout: 8000, enableHighAccuracy: false }
+    );
+  };
+
+  return (
+    <div className="px-4 sm:px-6 mt-4" dir="rtl">
+      <button
+        onClick={status === "idle" || status === "denied" ? requestGPS : undefined}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 active:scale-[0.98]"
+        style={{
+          background: "#ffffff",
+          border: "1.5px solid rgba(26,77,31,0.15)",
+          boxShadow: "0 2px 10px rgba(26,77,31,0.07)",
+          cursor: status === "granted" ? "default" : "pointer",
+        }}
+      >
+        {/* GPS Icon */}
+        <div
+          className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center"
+          style={{ background: status === "granted" ? "#1A4D1F" : "rgba(26,77,31,0.08)" }}
+        >
+          {status === "loading" ? (
+            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+              <MapPin size={17} style={{ color: "#1A4D1F" }} />
+            </motion.div>
+          ) : (
+            <MapPin size={17} style={{ color: status === "granted" ? "#fff" : "#1A4D1F" }} />
+          )}
+        </div>
+
+        {/* Text */}
+        <div className="flex-1 text-right">
+          <p className="text-xs font-black text-[#1A4D1F]" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+            {status === "granted"
+              ? t(`موقعك: ${cityName || "بن قردان"}`, `Votre position: ${cityName || "Ben Guerdane"}`)
+              : status === "loading"
+              ? t("جاري تحديد موقعك...", "Localisation en cours...")
+              : status === "denied"
+              ? t("تعذّر الوصول للموقع — اضغط للمحاولة", "Accès refusé — Réessayer")
+              : t("المواقع القريبة منك", "Points proches de vous")}
+          </p>
+          <p className="text-[10px] text-[#1A4D1F]/50 mt-0.5" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+            {status === "granted"
+              ? t("المحلات القريبة جاهزة للعرض", "Boutiques à proximité disponibles")
+              : t("اضغط لتفعيل GPS وعرض المحلات القريبة", "Appuyez pour activer le GPS")}
+          </p>
+        </div>
+
+        {/* Arrow / Check */}
+        <div className="flex-shrink-0">
+          {status === "granted"
+            ? <CheckCircle size={16} style={{ color: "#1A4D1F" }} />
+            : <ChevronLeft size={16} style={{ color: "#1A4D1F", opacity: 0.4 }} />}
+        </div>
+      </button>
     </div>
   );
 }
@@ -1556,7 +1651,12 @@ export default function Home() {
       </motion.section>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          2. SERVICES — dual-ring orbital system
+          1b. LOCATION PICKER — GPS nearby stores
+      ══════════════════════════════════════════════════════════════════════ */}
+      <LocationPickerBar lang={lang} t={t} />
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          2. SERVICES
       ══════════════════════════════════════════════════════════════════════ */}
       <section className="mt-4 relative overflow-hidden">
         {/* Header */}
@@ -1611,55 +1711,93 @@ export default function Home() {
       ══════════════════════════════════════════════════════════════════════ */}
       <WhySanadSection lang={lang} t={t} />
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          ADMIN FOOTER — لوحة الإدارة
-      ══════════════════════════════════════════════════════════════════════ */}
-      <section className="px-4 sm:px-6 lg:px-10 mt-8 mb-6">
-        <div className="neubrutal" style={{ padding: 16 }} dir="rtl">
-          {/* Section title */}
-          <div className="flex items-center gap-2 mb-4 border-b-2 border-black pb-3">
-            <span className="text-lg">⚙️</span>
-            <h3 className="font-black text-black text-base">
-              {t("لوحة الإدارة", "Administration")}
-            </h3>
-          </div>
+      {/* ── PROFESSIONAL FOOTER ── */}
+      <footer
+        className="mt-10 w-full px-5 py-7"
+        style={{ background: "#064e3b" }}
+        dir="rtl"
+      >
+        {/* Logo line */}
+        <div className="flex items-center justify-center gap-2 mb-5">
+          <span style={{ color: "#eab308", fontSize: 22, fontWeight: 900, fontFamily: "'Cairo','Tajawal',sans-serif", letterSpacing: 1 }}>
+            سند · Sanad
+          </span>
+        </div>
 
-          {/* Contact info */}
-          <div className="space-y-1 mb-4">
-            <p className="text-xs font-bold text-black flex items-center gap-2">
-              <Phone size={12} className="flex-shrink-0" />
-              <span dir="ltr">+216 90 000 000</span>
-            </p>
-            <p className="text-xs font-bold text-black flex items-center gap-2">
-              <span className="text-[10px] font-black flex-shrink-0">✉</span>
-              <span dir="ltr">admin@sanad-bgardane.tn</span>
-            </p>
-          </div>
+        {/* Divider */}
+        <div style={{ height: 1, background: "rgba(234,179,8,0.25)", marginBottom: 18 }} />
 
-          {/* Action buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/admin">
-              <button
-                className="neubrutal-btn-yellow w-full flex items-center justify-center gap-1.5 py-2.5 text-xs"
-              >
-                <Store size={13} />
-                {t("تطبيق الإدارة", "App Admin")}
-              </button>
-            </Link>
-            <Link href="/delivery">
-              <button
-                className="neubrutal-btn-black w-full flex items-center justify-center gap-1.5 py-2.5 text-xs"
-              >
-                <Truck size={13} />
-                {t("تطبيق السائق", "App Livreur")}
-              </button>
-            </Link>
+        {/* Admin team */}
+        <div className="mb-4">
+          <p style={{ color: "#eab308", fontSize: 11, fontWeight: 300, fontFamily: "'Cairo','Tajawal',sans-serif", marginBottom: 6, opacity: 0.8 }}>
+            {t("للانضمام لفريقنا الإداري:", "Pour rejoindre notre équipe administrative :")}
+          </p>
+          <div className="flex flex-col gap-1.5 pr-2">
+            <span className="flex items-center gap-2" dir="ltr">
+              <Phone size={11} style={{ color: "#eab308", opacity: 0.7, flexShrink: 0 }} />
+              <span style={{ color: "#eab308", fontSize: 12, fontWeight: 300, letterSpacing: 0.5 }}>53 604 284</span>
+            </span>
+            <span className="flex items-center gap-2" dir="ltr">
+              <span style={{ color: "#eab308", fontSize: 11, opacity: 0.7, flexShrink: 0 }}>✉</span>
+              <span style={{ color: "#eab308", fontSize: 11, fontWeight: 300, letterSpacing: 0.3 }}>Sanad.administration@gmail.com</span>
+            </span>
           </div>
         </div>
-      </section>
 
-      {/* bottom spacing */}
-      <div className="mt-4" />
+        {/* Tech team */}
+        <div className="mb-5">
+          <p style={{ color: "#eab308", fontSize: 11, fontWeight: 300, fontFamily: "'Cairo','Tajawal',sans-serif", marginBottom: 6, opacity: 0.8 }}>
+            {t("للانضمام لفريقنا التقني:", "Pour rejoindre notre équipe technique :")}
+          </p>
+          <div className="flex flex-col gap-1.5 pr-2">
+            <span className="flex items-center gap-2" dir="ltr">
+              <Phone size={11} style={{ color: "#eab308", opacity: 0.7, flexShrink: 0 }} />
+              <span style={{ color: "#eab308", fontSize: 12, fontWeight: 300, letterSpacing: 0.5 }}>27 777 589</span>
+            </span>
+            <span className="flex items-center gap-2" dir="ltr">
+              <span style={{ color: "#eab308", fontSize: 11, opacity: 0.7, flexShrink: 0 }}>✉</span>
+              <span style={{ color: "#eab308", fontSize: 11, fontWeight: 300, letterSpacing: 0.3 }}>Sanad.technique@gmail.com</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: "rgba(234,179,8,0.2)", marginBottom: 14 }} />
+
+        {/* App links */}
+        <div className="flex gap-3 mb-5 justify-center">
+          <Link href="/admin">
+            <button
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl"
+              style={{ background: "rgba(234,179,8,0.12)", border: "1px solid rgba(234,179,8,0.3)" }}
+            >
+              <Store size={12} style={{ color: "#eab308" }} />
+              <span style={{ color: "#eab308", fontSize: 11, fontWeight: 400, fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                {t("لوحة الإدارة", "Administration")}
+              </span>
+            </button>
+          </Link>
+          <Link href="/delivery">
+            <button
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl"
+              style={{ background: "rgba(234,179,8,0.12)", border: "1px solid rgba(234,179,8,0.3)" }}
+            >
+              <Truck size={12} style={{ color: "#eab308" }} />
+              <span style={{ color: "#eab308", fontSize: 11, fontWeight: 400, fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                {t("تطبيق السائق", "Livreur")}
+              </span>
+            </button>
+          </Link>
+        </div>
+
+        {/* Copyright */}
+        <p
+          className="text-center"
+          style={{ color: "rgba(234,179,8,0.5)", fontSize: 10, fontWeight: 300, fontFamily: "'Cairo','Tajawal',sans-serif", letterSpacing: 0.5 }}
+        >
+          سند · sanad &amp; جميع الحقوق محفوظة 2026
+        </p>
+      </footer>
 
     </div>
   );
