@@ -59,11 +59,11 @@ function ProductCard({ p, t, lang }: { p: DealProduct; t: (ar: string, fr: strin
       animate={{ opacity: 1, scale: 1 }}
       onClick={() => p.providerId && navigate(`/store/${p.providerId}`)}
       className="rounded-2xl border overflow-hidden flex flex-col cursor-pointer"
-      style={{ background: "#FFFDE7", borderColor: "rgba(46,125,50,0.15)" }}
+      style={{ background: "#ffffff", borderColor: "rgba(46,125,50,0.1)" }}
     >
       {/* Circle image area */}
       <div className="flex flex-col items-center pt-3 pb-1 px-2"
-        style={{ background: "linear-gradient(to bottom, #FFF8E7, #FFFDE7)" }}>
+        style={{ background: "#f6f6f6" }}>
         <div className="relative">
           <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-[#1A4D1F]/5 flex items-center justify-center">
             {p.imageUrl ? (
@@ -159,12 +159,12 @@ export default function Deals() {
   }, 0);
 
   return (
-    <div className="min-h-screen" style={{ background: "#FFF3E0", fontFamily: "'Cairo','Tajawal',sans-serif" }} dir="rtl">
+    <div className="min-h-screen" style={{ background: "#ffffff", fontFamily: "'Cairo','Tajawal',sans-serif" }} dir="rtl">
 
       {/* ── Header ── */}
       <header
         className="sticky top-0 z-50 px-4 py-3 flex items-center gap-3 border-b"
-        style={{ background: "rgba(255,243,224,0.95)", borderColor: "rgba(46,125,50,0.12)", backdropFilter: "blur(10px)" }}
+        style={{ background: "rgba(255,255,255,0.95)", borderColor: "rgba(46,125,50,0.08)", backdropFilter: "blur(10px)" }}
       >
         <button
           onClick={() => navigate("/home")}

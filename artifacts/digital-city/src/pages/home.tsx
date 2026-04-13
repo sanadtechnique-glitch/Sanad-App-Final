@@ -230,7 +230,7 @@ function OrbitRing({
 }
 
 const ROW1_IDS = ["restaurant", "grocery", "taxi", "clothing"];
-const ROW3_IDS = ["doctor", "pharmacy", "lawyer"];
+const ROW3_IDS = ["doctor", "pharmacy", "lawyer", "car_rental", "hotel"];
 
 function ServicesMarquee({ lang }: { lang: string }) {
   const row1 = ROW1_IDS.map(id => CATEGORIES.find(c => c.id === id)!).filter(Boolean);
@@ -262,25 +262,35 @@ function ServicesMarquee({ lang }: { lang: string }) {
   return (
     <div className="w-full" dir="rtl">
       {/* ── Row 1: Static 4-column grid ── */}
-      <div className="grid grid-cols-4 px-4 sm:px-6 mb-0">
+      <div className="grid grid-cols-4 px-4 sm:px-6 mb-1">
         {row1.map(cat => <ServiceChip key={cat.id} cat={cat} size={34} />)}
       </div>
 
+      {/* ── Divider ── */}
+      <div className="mx-4 sm:mx-6 my-2" style={{ height: 1, background: "rgba(26,77,31,0.07)" }} />
+
       {/* ── Row 2: Horizontal scroll slider ── */}
       <div
-        className="flex overflow-x-auto gap-0 px-4 sm:px-6 py-1"
-        style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
+        className="flex overflow-x-auto px-4 sm:px-6 pb-1"
+        style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", gap: 0 }}
       >
-        {row2.map(cat => (
-          <div key={cat.id} className="flex-shrink-0">
+        {row2.map((cat, i) => (
+          <div
+            key={cat.id}
+            className="flex-shrink-0"
+            style={{ transform: i % 2 === 0 ? "translateY(0px)" : "translateY(4px)" }}
+          >
             <ServiceChip cat={cat} size={30} />
           </div>
         ))}
       </div>
 
-      {/* ── Row 3: Static 3-column grid ── */}
-      <div className="grid grid-cols-3 px-4 sm:px-6 mt-0">
-        {row3.map(cat => <ServiceChip key={cat.id} cat={cat} size={32} />)}
+      {/* ── Divider ── */}
+      <div className="mx-4 sm:mx-6 my-2" style={{ height: 1, background: "rgba(26,77,31,0.07)" }} />
+
+      {/* ── Row 3: Static 5-column grid ── */}
+      <div className="grid grid-cols-5 px-4 sm:px-6 mt-1">
+        {row3.map(cat => <ServiceChip key={cat.id} cat={cat} size={28} />)}
       </div>
     </div>
   );
@@ -1503,12 +1513,13 @@ export default function Home() {
           HEADER
       ══════════════════════════════════════════════════════════════════════ */}
       <header
-        className="sticky top-0 z-50 w-full px-4 sm:px-6 lg:px-10 py-3 flex items-center justify-between"
+        className="sticky top-0 z-50 w-full px-4 sm:px-6 lg:px-10 py-1.5 flex items-center justify-between"
         style={{
-          background: "rgba(255,255,255,0.92)",
-          borderBottom: "1px solid rgba(0,0,0,0.06)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
+          background: "rgba(255,255,255,0.95)",
+          borderBottom: "1px solid rgba(0,0,0,0.05)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          minHeight: 52,
         }}
       >
         <motion.div
@@ -1518,7 +1529,7 @@ export default function Home() {
           className="flex items-center gap-2 cursor-pointer"
           onClick={() => navigate("/home")}
         >
-          <img src={appLogo} alt="سند" style={{ height: 88, width: "auto" }} draggable={false} />
+          <img src={appLogo} alt="سند" style={{ height: 46, width: "auto" }} draggable={false} />
         </motion.div>
 
         <motion.div

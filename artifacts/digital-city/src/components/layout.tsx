@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut, Bell, CheckCheck, Bike, History, UserCircle, LogIn, Phone } from "lucide-react";
+import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut, Bell, CheckCheck, Bike, History, UserCircle, LogIn, Phone, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
@@ -406,6 +406,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
   const { t, lang, isRTL } = useLang();
   const [cartOpen, setCartOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const session = getSession();
   const appLogo = useAppLogo();
 
@@ -580,54 +581,142 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Mobile Top Bar ── */}
       <header
-        className="md:hidden flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 sticky top-0 z-50"
-        style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(8px)" }}
+        className="md:hidden flex items-center justify-between px-4 py-2 border-b border-gray-100 sticky top-0 z-50"
+        style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(10px)", minHeight: 52 }}
       >
-        {/* Logo */}
-        <img src={appLogo} alt="سند" style={{ height: 88, width: "auto" }} draggable={false} />
+        {/* Logo — compact */}
+        <img src={appLogo} alt="سند" style={{ height: 54, width: "auto" }} draggable={false} />
 
-        {/* User greeting (mobile — center) */}
-        {session ? (
-          <div className="flex items-center gap-2" dir="rtl">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-sm shadow ring-2 ring-white/20"
-              style={{ background: getRoleBadge(session.role).bg }}
-            >
-              {session.name?.charAt(0)?.toUpperCase() ?? "؟"}
-            </div>
-            <div className="flex flex-col items-end leading-none">
-              <span className="text-[#1A4D1F] font-black text-xs">
-                {session.name?.split(" ")[0]}
-              </span>
-              <span
-                className="text-[9px] font-black px-1.5 py-0.5 rounded-full mt-0.5 text-white"
-                style={{
-                  background: getRoleBadge(session.role).bg,
-                  border: `1px solid ${getRoleBadge(session.role).border}`,
-                }}
-              >
-                {lang === "ar"
-                  ? getRoleBadge(session.role).ar
-                  : getRoleBadge(session.role).fr}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <Link href="/auth">
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-[#1A4D1F]/30 bg-[#1A4D1F]/5 cursor-pointer">
-              <UserCircle size={14} className="text-[#1A4D1F]/50" />
-              <span className="text-[#1A4D1F]/60 text-xs font-bold">{t("زائر", "Visiteur")}</span>
-            </div>
-          </Link>
-        )}
-
-        {/* Actions */}
+        {/* Right: bell + hamburger */}
         <div className="flex items-center gap-2">
-          <CartButton onClick={() => setCartOpen(true)} large />
           <NotificationBell />
-          <LangToggle />
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="p-2 rounded-xl text-[#1A4D1F] hover:bg-[#1A4D1F]/8 transition-all"
+          >
+            <Menu size={22} />
+          </button>
         </div>
       </header>
+
+      {/* ── Side Drawer (slide from left) ── */}
+      <AnimatePresence>
+        {drawerOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="md:hidden fixed inset-0 z-[60] bg-black/40"
+              onClick={() => setDrawerOpen(false)}
+            />
+            {/* Drawer panel */}
+            <motion.div
+              initial={{ x: isRTL ? "100%" : "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: isRTL ? "100%" : "-100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className={`md:hidden fixed top-0 bottom-0 z-[70] w-72 flex flex-col py-6 px-5 shadow-2xl ${isRTL ? "right-0" : "left-0"}`}
+              style={{ background: "#ffffff" }}
+              dir="rtl"
+            >
+              {/* Drawer header */}
+              <div className="flex items-center justify-between mb-6">
+                <img src={appLogo} alt="سند" style={{ height: 52, width: "auto" }} draggable={false} />
+                <button
+                  onClick={() => setDrawerOpen(false)}
+                  className="p-2 rounded-xl text-[#1A4D1F]/40 hover:text-[#1A4D1F] hover:bg-[#1A4D1F]/8 transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* User info */}
+              {session ? (
+                <div className="flex items-center gap-3 p-3 rounded-2xl mb-6" style={{ background: "#f4f7f4" }}>
+                  <div
+                    className="w-11 h-11 rounded-full flex items-center justify-center font-black text-white text-base flex-shrink-0 shadow"
+                    style={{ background: getRoleBadge(session.role).bg }}
+                  >
+                    {session.name?.charAt(0)?.toUpperCase() ?? "؟"}
+                  </div>
+                  <div className="flex flex-col items-end min-w-0">
+                    <span className="text-[#1A4D1F] font-black text-sm truncate">{session.name}</span>
+                    <span
+                      className="text-[9px] font-black px-2 py-0.5 rounded-full mt-1 text-white"
+                      style={{ background: getRoleBadge(session.role).bg }}
+                    >
+                      {lang === "ar" ? getRoleBadge(session.role).ar : getRoleBadge(session.role).fr}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <Link href="/auth" onClick={() => setDrawerOpen(false)}>
+                  <div className="flex items-center gap-3 p-3 rounded-2xl mb-6 border border-[#1A4D1F]/20 cursor-pointer hover:bg-[#1A4D1F]/5 transition-all">
+                    <UserCircle size={22} className="text-[#1A4D1F]/40" />
+                    <span className="text-[#1A4D1F]/60 font-bold text-sm">{t("تسجيل الدخول", "Se connecter")}</span>
+                  </div>
+                </Link>
+              )}
+
+              {/* Nav links */}
+              <nav className="flex flex-col gap-1 mb-6">
+                {navItems.map(item => {
+                  const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setDrawerOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                      style={{ background: isActive ? "rgba(26,77,31,0.1)" : "transparent" }}
+                    >
+                      <item.icon
+                        size={18}
+                        style={{ color: isActive ? "#1A4D1F" : "rgba(26,77,31,0.4)" }}
+                        strokeWidth={isActive ? 2.5 : 2}
+                      />
+                      <span
+                        className="font-bold text-sm"
+                        style={{ color: isActive ? "#1A4D1F" : "rgba(26,77,31,0.5)", fontFamily: "'Cairo','Tajawal',sans-serif" }}
+                      >
+                        {item.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Cart button */}
+              <div className="mb-3">
+                <CartButton onClick={() => { setDrawerOpen(false); setCartOpen(true); }} large />
+              </div>
+
+              {/* Lang toggle */}
+              <div className="flex justify-center mb-4">
+                <LangToggle />
+              </div>
+
+              {/* Logout */}
+              {session && (
+                <button
+                  onClick={() => { setDrawerOpen(false); handleLogout(); }}
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-red-200/60 text-red-400/70 hover:bg-red-50 hover:text-red-500 transition-all"
+                >
+                  <LogOut size={16} />
+                  <span className="text-sm font-bold" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                    {t("تسجيل الخروج", "Déconnexion")}
+                  </span>
+                </button>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ── Main Content (grows to push footer down) ── */}
       <main className="flex-1 w-full max-w-7xl mx-auto pb-4">
