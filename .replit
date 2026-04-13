@@ -34,3 +34,6 @@ channel = "stable-25_05"
 VAPID_PUBLIC_KEY = "BK9NHaQ-1wsWZbDr0jrM7WmFKX4kZAyeTXmrOadbVm6Rpvog5zujW_jy-fMeia519jS9efnMKCX4UymaOulsJnI"
 VAPID_PRIVATE_KEY = "2beo12Itbni1zGxnNRyAazkLX9tzrYpHCd4VJ5liMlI"
 VAPID_SUBJECT = "mailto:sanad.technique@gmail.com"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-49e44086-7118-405f-98e3-cd4a42259a68"
