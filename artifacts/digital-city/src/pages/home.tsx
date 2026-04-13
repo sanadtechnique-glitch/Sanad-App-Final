@@ -229,56 +229,52 @@ function OrbitRing({
   );
 }
 
+// IDs for the static 4-column top row
+const ROW1_IDS = ["restaurant", "grocery", "taxi", "clothing"];
+
 function ServicesMarquee({ lang }: { lang: string }) {
-  const items = CATEGORIES;
-  const doubled = [...items, ...items];
+  const row1 = CATEGORIES.filter(c => ROW1_IDS.includes(c.id));
+  const row2 = CATEGORIES.filter(c => !ROW1_IDS.includes(c.id));
+
+  const ServiceChip = ({ cat }: { cat: typeof CATEGORIES[0] }) => (
+    <Link href={cat.href ?? `/services?category=${cat.id}`}>
+      <div
+        className="flex flex-col items-center gap-1 cursor-pointer select-none active:scale-90 transition-transform duration-100"
+        style={{ background: "transparent", border: "none", boxShadow: "none", padding: "6px 4px" }}
+      >
+        <span style={{ fontSize: 32, lineHeight: 1, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.18))" }}>
+          {cat.emoji}
+        </span>
+        <span style={{
+          fontSize: 10, fontWeight: 800, color: "#1A4D1F",
+          fontFamily: "'Cairo','Tajawal',sans-serif",
+          textAlign: "center",
+          lineHeight: 1.2,
+          whiteSpace: "nowrap",
+        }}>
+          {lang === "ar" ? cat.ar : cat.fr}
+        </span>
+      </div>
+    </Link>
+  );
 
   return (
-    <div className="w-full py-3 overflow-hidden" dir="ltr">
-      <style>{`
-        @keyframes marquee-ltr {
-          0%   { transform: translateX(-50%); }
-          100% { transform: translateX(0%);   }
-        }
-        .marquee-track {
-          display: flex;
-          width: max-content;
-          animation: marquee-ltr 22s linear infinite;
-          will-change: transform;
-        }
-        .marquee-track:hover { animation-play-state: paused; }
-        .marquee-card:hover  { transform: scale(1.12) translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.22); }
-      `}</style>
+    <div className="w-full" dir="rtl">
+      {/* ── Row 1: Static 4-column grid ── */}
+      <div className="grid grid-cols-4 px-4 sm:px-6 mb-1">
+        {row1.map(cat => <ServiceChip key={cat.id} cat={cat} />)}
+      </div>
 
-      <div className="marquee-track gap-3 px-3" style={{ gap: 12, paddingLeft: 12, paddingRight: 12 }}>
-        {doubled.map((cat, i) => {
-          const dest = cat.href ?? `/services?category=${cat.id}`;
-          return (
-            <Link key={`${cat.id}-${i}`} href={dest}>
-              <div
-                className="marquee-card flex-shrink-0 flex flex-col items-center justify-center gap-1 rounded-2xl cursor-pointer select-none"
-                style={{
-                  width: 78, height: 82,
-                  background: cat.bg,
-                  boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
-                  transition: "transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.25s ease",
-                }}
-              >
-                <span style={{ fontSize: 26, lineHeight: 1 }}>{cat.emoji}</span>
-                <span style={{
-                  fontSize: 10, fontWeight: 800, color: "#fff",
-                  fontFamily: "'Cairo','Tajawal',sans-serif",
-                  textAlign: "center", letterSpacing: 0.2,
-                  textShadow: "0 1px 3px rgba(0,0,0,0.4)",
-                  paddingLeft: 4, paddingRight: 4,
-                  lineHeight: 1.2,
-                }}>
-                  {lang === "ar" ? cat.ar : cat.fr}
-                </span>
-              </div>
-            </Link>
-          );
-        })}
+      {/* ── Row 2: Horizontal scroll slider ── */}
+      <div
+        className="flex overflow-x-auto gap-1 px-4 sm:px-6 pb-1"
+        style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
+      >
+        {row2.map(cat => (
+          <div key={cat.id} className="flex-shrink-0">
+            <ServiceChip cat={cat} />
+          </div>
+        ))}
       </div>
     </div>
   );
