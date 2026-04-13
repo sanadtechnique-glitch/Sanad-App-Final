@@ -278,7 +278,10 @@ function ServicesMarquee({ lang }: { lang: string }) {
           <div
             key={cat.id}
             className="flex-shrink-0"
-            style={{ transform: i % 2 === 0 ? "translateY(0px)" : "translateY(4px)" }}
+            style={{
+              transform: i % 2 === 0 ? "translateY(0px)" : "translateY(4px)",
+              minWidth: "25%",
+            }}
           >
             <ServiceChip cat={cat} size={30} />
           </div>

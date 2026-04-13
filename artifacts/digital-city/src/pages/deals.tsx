@@ -59,11 +59,11 @@ function ProductCard({ p, t, lang }: { p: DealProduct; t: (ar: string, fr: strin
       animate={{ opacity: 1, scale: 1 }}
       onClick={() => p.providerId && navigate(`/store/${p.providerId}`)}
       className="rounded-2xl border overflow-hidden flex flex-col cursor-pointer"
-      style={{ background: "#ffffff", borderColor: "rgba(46,125,50,0.1)" }}
+      style={{ background: "#f0fdf4", borderColor: "rgba(46,125,50,0.12)" }}
     >
       {/* Circle image area */}
       <div className="flex flex-col items-center pt-3 pb-1 px-2"
-        style={{ background: "#f6f6f6" }}>
+        style={{ background: "#dcfce7" }}>
         <div className="relative">
           <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-[#1A4D1F]/5 flex items-center justify-center">
             {p.imageUrl ? (
