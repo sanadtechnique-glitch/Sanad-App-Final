@@ -61,23 +61,25 @@ const STATUS: Record<string, { ar: string; fr: string; color: string; icon: Reac
 
 const CATEGORY_LABELS: Record<string, { ar: string; fr: string }> = {
   // ── مزودو المنتجات (توصيل) ──
-  restaurant: { ar: "مطعم",    fr: "Restaurant" },
-  grocery:    { ar: "بقالة",   fr: "Épicerie"   },
-  pharmacy:   { ar: "صيدلية",  fr: "Pharmacie"  },
-  bakery:     { ar: "مخبزة",   fr: "Boulangerie"},
-  butcher:    { ar: "ملّاح",   fr: "Boucherie"  },
-  cafe:       { ar: "مقهى",    fr: "Café"       },
-  sweets:     { ar: "حلويات",  fr: "Pâtisserie" },
-  clothing:   { ar: "ملابس",   fr: "Vêtements"  },
+  restaurant:  { ar: "مطعم",         fr: "Restaurant"       },
+  grocery:     { ar: "بقالة",        fr: "Épicerie"         },
+  vegetables:  { ar: "خضر وغلال",   fr: "Légumes & Fruits" },
+  pharmacy:    { ar: "صيدلية",       fr: "Pharmacie"        },
+  bakery:      { ar: "مخبزة",        fr: "Boulangerie"      },
+  butcher:     { ar: "ملّاح",        fr: "Boucherie"        },
+  cafe:        { ar: "مقهى",         fr: "Café"             },
+  sweets:      { ar: "حلويات",       fr: "Pâtisserie"       },
+  clothing:    { ar: "ملابس",        fr: "Vêtements"        },
   // ── مزودو الخدمات ──
-  hotel:      { ar: "فندق",    fr: "Hôtel"      },
-  car_rental: { ar: "كراء سيارات", fr: "Location auto" },
-  sos:        { ar: "SOS · إنقاذ", fr: "SOS · Dépannage" },
-  lawyer:     { ar: "محامي",   fr: "Avocat"     },
+  hotel:       { ar: "فندق",         fr: "Hôtel"            },
+  car_rental:  { ar: "كراء سيارات", fr: "Location auto"    },
+  sos:         { ar: "SOS · إنقاذ", fr: "SOS · Dépannage"  },
+  lawyer:      { ar: "محامي",        fr: "Avocat"           },
+  taxi:        { ar: "تاكسي",        fr: "Taxi"             },
 };
 
-const PRODUCT_CATS = ["restaurant","grocery","pharmacy","bakery","butcher","cafe","sweets","clothing"] as const;
-const SERVICE_CATS = ["hotel","car_rental","sos","lawyer"] as const;
+const PRODUCT_CATS = ["restaurant","grocery","vegetables","pharmacy","bakery","butcher","cafe","sweets","clothing"] as const;
+const SERVICE_CATS = ["hotel","car_rental","sos","lawyer","taxi"] as const;
 
 function supplierType(cat: string): "product" | "service" {
   return (PRODUCT_CATS as readonly string[]).includes(cat) ? "product" : "service";

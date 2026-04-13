@@ -1182,112 +1182,50 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
 }
 
 function WhySanadSection({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
+  const FONT: React.CSSProperties = { fontFamily: "'Cairo','Tajawal',sans-serif" };
   return (
     <motion.section
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.15 }}
-      className="px-4 sm:px-6 lg:px-10 mt-10"
+      transition={{ duration: 0.4 }}
+      className="mt-5 px-4 sm:px-6"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6" dir="rtl">
-        <div className="flex items-center gap-2.5">
-          <span className="w-1.5 h-6 rounded-full bg-[#FFA500] block" />
-          <div>
-            <h2 className="text-xl font-black text-[#1A4D1F]">{t("لماذا سند؟", "Pourquoi Sanad ?")}</h2>
-            <p className="text-[10px] font-bold text-[#1A4D1F]/40 mt-0.5">{t("سندك في التوصيل.. لباب الدار", "Votre partenaire de livraison")}</p>
-          </div>
-        </div>
-        <span
-          className="text-2xl select-none"
-          style={{ filter: "drop-shadow(0 2px 6px rgba(255,165,0,0.4))" }}
-        >
-          🌟
-        </span>
+      {/* Compact header — same style as TrendingSection */}
+      <div className="flex items-center gap-2 mb-3" dir="rtl">
+        <span className="w-1 h-5 rounded-full bg-[#FFA500] block flex-shrink-0" />
+        <h2 className="text-base font-black text-[#1A4D1F]" style={FONT}>
+          {t("لماذا سند؟", "Pourquoi Sanad ?")}
+        </h2>
+        <span className="text-base select-none">🌟</span>
       </div>
 
-      {/* Feature cards grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {/* Horizontal scrollable pill cards */}
+      <div
+        className="flex overflow-x-auto pb-1 scrollbar-hide"
+        style={{ gap: 8, WebkitOverflowScrolling: "touch" }}
+        dir="rtl"
+      >
         {WHY_FEATURES.map((f, i) => (
-          <motion.div
+          <div
             key={i}
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.07 }}
-            className="rounded-2xl p-4 flex flex-col gap-2 relative overflow-hidden"
+            className="flex-shrink-0 flex items-center gap-2 rounded-xl px-3 py-2"
             style={{
-              background: "#FFFFFF",
-              border: `1.5px solid ${f.color}22`,
-              boxShadow: `0 2px 12px ${f.color}14`,
+              background: f.bg,
+              border: `1px solid ${f.color}20`,
+              minWidth: 120,
             }}
           >
-            {/* Color accent strip */}
-            <div
-              style={{
-                position: "absolute", top: 0, right: 0, left: 0, height: 3,
-                background: f.color, borderRadius: "12px 12px 0 0",
-                opacity: 0.75,
-              }}
-            />
-            {/* Icon */}
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center mt-1"
-              style={{ background: f.bg }}
-            >
-              <span style={{ fontSize: 22 }}>{f.emoji}</span>
-            </div>
-            {/* Text */}
+            <span style={{ fontSize: 16, flexShrink: 0 }}>{f.emoji}</span>
             <div dir={lang === "ar" ? "rtl" : "ltr"}>
-              <p
-                style={{
-                  fontFamily: "'Cairo','Tajawal',sans-serif",
-                  fontWeight: 900,
-                  fontSize: 13,
-                  color: "#1A4D1F",
-                  lineHeight: 1.2,
-                }}
-              >
+              <p style={{ ...FONT, fontWeight: 800, fontSize: 11, color: f.color, lineHeight: 1.2 }}>
                 {lang === "ar" ? f.ar : f.fr}
               </p>
-              <p
-                style={{
-                  fontFamily: "'Cairo','Tajawal',sans-serif",
-                  fontWeight: 500,
-                  fontSize: 10,
-                  color: "rgba(26,77,31,0.45)",
-                  marginTop: 3,
-                  lineHeight: 1.4,
-                }}
-              >
+              <p style={{ ...FONT, fontWeight: 500, fontSize: 9, color: "rgba(26,77,31,0.5)", lineHeight: 1.3, marginTop: 1 }}>
                 {lang === "ar" ? f.desc_ar : f.desc_fr}
               </p>
             </div>
-          </motion.div>
+          </div>
         ))}
-      </div>
-
-      {/* Bottom slogan */}
-      <div
-        className="mt-5 rounded-2xl px-5 py-4 flex items-center justify-center gap-3"
-        style={{
-          background: "linear-gradient(100deg, #1A4D1F 0%, #0D3311 100%)",
-          boxShadow: "0 4px 20px rgba(26,77,31,0.25)",
-        }}
-        dir="rtl"
-      >
-        <span style={{ fontSize: 20 }}>🤝</span>
-        <p
-          style={{
-            fontFamily: "'Cairo','Tajawal',sans-serif",
-            fontWeight: 900,
-            fontStyle: "italic",
-            fontSize: 14,
-            color: "#FFA500",
-            textAlign: "center",
-          }}
-        >
-          {t("سندك في التوصيل.. لباب الدار", "Votre partenaire de confiance à Ben Guerdane")}
-        </p>
       </div>
     </motion.section>
   );
