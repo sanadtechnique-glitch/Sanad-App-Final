@@ -238,21 +238,33 @@ function ServicesMarquee({ lang }: { lang: string }) {
   const row3 = ROW3_IDS.map(id => CATEGORIES.find(c => c.id === id)!).filter(Boolean);
   const row2 = CATEGORIES.filter(c => !ROW1_IDS.includes(c.id) && !ROW3_IDS.includes(c.id));
 
-  const ServiceChip = ({ cat, size = 32 }: { cat: typeof CATEGORIES[0]; size?: number }) => (
+  const ServiceChip = ({ cat, size = 36 }: { cat: typeof CATEGORIES[0]; size?: number }) => (
     <Link href={cat.href ?? `/services?category=${cat.id}`}>
       <div
-        className="flex flex-col items-center gap-1 cursor-pointer select-none active:scale-90 transition-transform duration-100"
-        style={{ background: "transparent", border: "none", boxShadow: "none", padding: "6px 6px" }}
+        className="flex flex-col items-center gap-1.5 cursor-pointer select-none active:scale-90 transition-transform duration-100"
+        style={{ background: "transparent", border: "none", boxShadow: "none", padding: "10px 6px" }}
       >
-        <span style={{ fontSize: size, lineHeight: 1, filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.15))" }}>
-          {cat.emoji}
-        </span>
+        {/* Icon circle — subtle tinted ring for prominence */}
+        <div
+          className="flex items-center justify-center rounded-2xl"
+          style={{
+            width: size + 18,
+            height: size + 18,
+            background: "rgba(26,77,31,0.05)",
+            border: "1.5px solid rgba(26,77,31,0.08)",
+          }}
+        >
+          <span style={{ fontSize: size, lineHeight: 1, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.13))" }}>
+            {cat.emoji}
+          </span>
+        </div>
         <span style={{
-          fontSize: 10, fontWeight: 800, color: "#1A4D1F",
+          fontSize: 11, fontWeight: 800, color: "#1A4D1F",
           fontFamily: "'Cairo','Tajawal',sans-serif",
           textAlign: "center",
-          lineHeight: 1.2,
+          lineHeight: 1.25,
           whiteSpace: "nowrap",
+          marginTop: 2,
         }}>
           {lang === "ar" ? cat.ar : cat.fr}
         </span>
@@ -263,16 +275,16 @@ function ServicesMarquee({ lang }: { lang: string }) {
   return (
     <div className="w-full" dir="rtl">
       {/* ── Row 1: Static 5-column grid ── */}
-      <div className="grid grid-cols-5 px-4 sm:px-6 mb-1">
-        {row1.map(cat => <ServiceChip key={cat.id} cat={cat} size={30} />)}
+      <div className="grid grid-cols-5 gap-y-1 px-3 sm:px-5 mb-1">
+        {row1.map(cat => <ServiceChip key={cat.id} cat={cat} size={34} />)}
       </div>
 
       {/* ── Divider ── */}
-      <div className="mx-4 sm:mx-6 my-2" style={{ height: 1, background: "rgba(26,77,31,0.07)" }} />
+      <div className="mx-4 sm:mx-6 my-2.5" style={{ height: 1, background: "rgba(26,77,31,0.07)" }} />
 
       {/* ── Row 2: Horizontal scroll slider ── */}
       <div
-        className="flex overflow-x-auto px-4 sm:px-6 pb-1"
+        className="flex overflow-x-auto px-3 sm:px-5 pb-1"
         style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", gap: 0 }}
       >
         {row2.map((cat, i) => (
@@ -280,21 +292,21 @@ function ServicesMarquee({ lang }: { lang: string }) {
             key={cat.id}
             className="flex-shrink-0"
             style={{
-              transform: i % 2 === 0 ? "translateY(0px)" : "translateY(4px)",
-              minWidth: "25%",
+              transform: i % 2 === 0 ? "translateY(0px)" : "translateY(5px)",
+              minWidth: "28%",
             }}
           >
-            <ServiceChip cat={cat} size={30} />
+            <ServiceChip cat={cat} size={34} />
           </div>
         ))}
       </div>
 
       {/* ── Divider ── */}
-      <div className="mx-4 sm:mx-6 my-2" style={{ height: 1, background: "rgba(26,77,31,0.07)" }} />
+      <div className="mx-4 sm:mx-6 my-2.5" style={{ height: 1, background: "rgba(26,77,31,0.07)" }} />
 
       {/* ── Row 3: Static 5-column grid ── */}
-      <div className="grid grid-cols-5 px-4 sm:px-6 mt-1">
-        {row3.map(cat => <ServiceChip key={cat.id} cat={cat} size={28} />)}
+      <div className="grid grid-cols-5 gap-y-1 px-3 sm:px-5 mt-1">
+        {row3.map(cat => <ServiceChip key={cat.id} cat={cat} size={32} />)}
       </div>
     </div>
   );
