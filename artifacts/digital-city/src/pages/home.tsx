@@ -1048,6 +1048,138 @@ const WHY_FEATURES = [
   { emoji: "🕐", ar: "متاح دائماً",     fr: "Disponible 24/7",     desc_ar: "خدمة مستمرة كل يوم",       desc_fr: "Service continu chaque jour", color: "#059669", bg: "rgba(5,150,105,0.08)" },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TRENDING NOW SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+interface Supplier { id: number; name: string; nameAr: string; category: string; photoUrl?: string; rating?: string; isAvailable: boolean; }
+interface TrendProduct { id: number; title: string; imageUrl?: string; salePrice?: string; originalPrice?: string; providerId: number; }
+
+function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
+  const [vendors, setVendors]     = useState<Supplier[]>([]);
+  const [products, setProducts]   = useState<TrendProduct[]>([]);
+
+  useEffect(() => {
+    get<Supplier[]>("/suppliers")
+      .then(d => { if (Array.isArray(d)) setVendors(d.filter(s => s.isAvailable).slice(0, 12)); })
+      .catch(() => {});
+    get<TrendProduct[]>("/products/deals")
+      .then(d => { if (Array.isArray(d)) setProducts(d.slice(0, 12)); })
+      .catch(() => {});
+  }, []);
+
+  if (vendors.length === 0 && products.length === 0) return null;
+
+  const FONT: React.CSSProperties = { fontFamily: "'Cairo','Tajawal',sans-serif" };
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="mt-6 px-4 sm:px-6"
+    >
+      {/* Section header */}
+      <div className="flex items-center gap-2.5 mb-4" dir="rtl">
+        <span className="w-1.5 h-6 rounded-full bg-[#FFA500] block flex-shrink-0" />
+        <h2 className="text-xl font-black text-[#1A4D1F]" style={FONT}>
+          {t("الأكثر رواجاً", "Tendances")}
+        </h2>
+        <span className="text-lg select-none">🔥</span>
+      </div>
+
+      {/* ── Row 1: Trending Vendors ── */}
+      {vendors.length > 0 && (
+        <div className="mb-5">
+          <p className="text-xs font-black text-[#1A4D1F]/50 mb-2 text-right" style={FONT}>
+            {t("مزودون مميزون", "Fournisseurs vedettes")}
+          </p>
+          <div
+            className="flex overflow-x-auto pb-1"
+            style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", gap: 12 }}
+            dir="rtl"
+          >
+            {vendors.map(v => (
+              <Link key={v.id} href={`/store/${v.id}`}>
+                <div
+                  className="flex-shrink-0 flex flex-col items-center gap-1.5 cursor-pointer active:scale-95 transition-transform duration-100"
+                  style={{ width: 72, background: "transparent" }}
+                >
+                  {/* Avatar */}
+                  <div
+                    className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center"
+                    style={{ background: "transparent", border: "1.5px solid rgba(26,77,31,0.12)" }}
+                  >
+                    {v.photoUrl ? (
+                      <img src={v.photoUrl} alt={lang === "ar" ? v.nameAr : v.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span style={{ fontSize: 26 }}>🏪</span>
+                    )}
+                  </div>
+                  {/* Name */}
+                  <p
+                    className="text-center leading-tight"
+                    style={{ ...FONT, fontSize: 9, fontWeight: 800, color: "#1A4D1F", width: "100%", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}
+                  >
+                    {lang === "ar" ? v.nameAr || v.name : v.name}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Row 2: Trending Products ── */}
+      {products.length > 0 && (
+        <div>
+          <p className="text-xs font-black text-[#1A4D1F]/50 mb-2 text-right" style={FONT}>
+            {t("منتجات رائجة", "Produits tendance")}
+          </p>
+          <div
+            className="flex overflow-x-auto pb-1"
+            style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", gap: 10 }}
+            dir="rtl"
+          >
+            {products.map(p => (
+              <Link key={p.id} href={`/store/${p.providerId}`}>
+                <div
+                  className="flex-shrink-0 flex flex-col items-center gap-1 cursor-pointer active:scale-95 transition-transform duration-100"
+                  style={{ width: 80, background: "transparent" }}
+                >
+                  {/* Image */}
+                  <div
+                    className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center"
+                    style={{ background: "transparent", border: "1.5px solid rgba(26,77,31,0.1)" }}
+                  >
+                    {p.imageUrl ? (
+                      <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <span style={{ fontSize: 28 }}>🛍️</span>
+                    )}
+                  </div>
+                  {/* Title */}
+                  <p
+                    className="text-center leading-tight"
+                    style={{ ...FONT, fontSize: 9, fontWeight: 800, color: "#1A4D1F", width: "100%", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}
+                  >
+                    {p.title}
+                  </p>
+                  {/* Price */}
+                  {p.salePrice && (
+                    <p style={{ ...FONT, fontSize: 9, fontWeight: 900, color: "#B91C1C" }}>
+                      {parseFloat(p.salePrice).toFixed(3)} DT
+                    </p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </motion.section>
+  );
+}
+
 function WhySanadSection({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
   return (
     <motion.section
@@ -1716,7 +1848,12 @@ export default function Home() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          3b. ADVANCED ADS — إعلانات متقدمة
+          3b. TRENDING NOW — الأكثر رواجاً
+      ══════════════════════════════════════════════════════════════════════ */}
+      <TrendingSection lang={lang} t={t} />
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          3c. ADVANCED ADS — إعلانات متقدمة
       ══════════════════════════════════════════════════════════════════════ */}
       <AdvancedAdsSection lang={lang} t={t} />
 
