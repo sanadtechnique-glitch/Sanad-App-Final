@@ -558,14 +558,30 @@ router.patch("/admin/users/:id", requireAdmin, async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DELETE /admin/users/:id — remove user [ADMIN ONLY]
+// If the user is a driver with a linkedStaffId, their driver profile is
+// deactivated (archived) instead of deleted, preserving order history.
 // ─────────────────────────────────────────────────────────────────────────────
 router.delete("/admin/users/:id", requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
 
   try {
+    // Look up the user first to check for a linked driver profile
+    const [user] = await db.select({
+      role: usersTable.role,
+      linkedStaffId: usersTable.linkedStaffId,
+    }).from(usersTable).where(eq(usersTable.id, id));
+
+    // Cascade: deactivate linked driver profile before deleting user
+    if (user?.role === "driver" && user.linkedStaffId) {
+      await db
+        .update(deliveryStaffTable)
+        .set({ isAvailable: false })
+        .where(eq(deliveryStaffTable.id, user.linkedStaffId));
+    }
+
     await db.delete(usersTable).where(eq(usersTable.id, id));
-    res.json({ ok: true });
+    res.json({ ok: true, driverDeactivated: !!(user?.role === "driver" && user.linkedStaffId) });
   } catch (err) {
     req.log.error({ err }, "Error deleting user");
     res.status(500).json({ message: "Internal server error" });

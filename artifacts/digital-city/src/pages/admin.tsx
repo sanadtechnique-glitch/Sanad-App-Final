@@ -2776,6 +2776,47 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // ── Register Driver (unified form) ──────────────────────────────────────────
+  const [driverModal, setDriverModal] = useState(false);
+  const [driverForm, setDriverForm] = useState({ nameAr: "", name: "", phone: "", password: "", zone: "" });
+  const [driverLoading, setDriverLoading] = useState(false);
+  const [driverError, setDriverError] = useState<string | null>(null);
+  const [driverSuccess, setDriverSuccess] = useState<string | null>(null);
+  const [showDriverPw, setShowDriverPw] = useState(false);
+
+  const openDriverModal = () => {
+    setDriverForm({ nameAr: "", name: "", phone: "", password: "", zone: "" });
+    setDriverError(null); setDriverSuccess(null); setShowDriverPw(false);
+    setDriverModal(true);
+  };
+
+  const registerDriver = async () => {
+    setDriverError(null);
+    if (!driverForm.nameAr.trim()) { setDriverError(t("الاسم بالعربي مطلوب", "Nom arabe requis")); return; }
+    if (!driverForm.name.trim())   { setDriverError(t("الاسم اللاتيني مطلوب", "Nom latin requis")); return; }
+    if (!driverForm.phone.trim())  { setDriverError(t("رقم الهاتف مطلوب", "Numéro de téléphone requis")); return; }
+    if (driverForm.password.trim().length < 6) { setDriverError(t("كلمة المرور 6 أحرف على الأقل", "Mot de passe min. 6 caractères")); return; }
+    setDriverLoading(true);
+    try {
+      await post("/admin/delivery-staff", {
+        name:          driverForm.name.trim(),
+        nameAr:        driverForm.nameAr.trim(),
+        phone:         driverForm.phone.trim(),
+        zone:          driverForm.zone.trim() || undefined,
+        isAvailable:   true,
+        driverPhone:   driverForm.phone.trim(),
+        driverPassword: driverForm.password.trim(),
+      });
+      setDriverSuccess(driverForm.nameAr.trim());
+      setDriverForm({ nameAr: "", name: "", phone: "", password: "", zone: "" });
+      load();
+    } catch (err: any) {
+      setDriverError(err?.message || t("حدث خطأ أثناء التسجيل", "Erreur lors de l'enregistrement"));
+    } finally {
+      setDriverLoading(false);
+    }
+  };
+
   const load = (silent = false) => {
     if (!silent) setListLoading(true);
     else setRefreshing(true);
@@ -2913,7 +2954,7 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => load(true)}
             disabled={refreshing}
@@ -2922,6 +2963,15 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
           >
             <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
             {t("تحديث","Actualiser")}
+          </button>
+          {/* ── Register as Driver quick button ── */}
+          <button
+            onClick={openDriverModal}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-black transition-all"
+            style={{ background: "rgba(0,107,60,0.08)", borderColor: "#1A4D1F44", color: "#1A4D1F" }}
+          >
+            <Truck size={13} />
+            {t("تسجيل سائق توصيل","Inscrire un livreur")}
           </button>
           <GoldBtn onClick={openAdd}>
             <Plus size={14} />{t("إضافة مستخدم","Ajouter utilisateur")}
@@ -3016,7 +3066,16 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
             <div className="flex-1 min-w-0">
               <p className="font-black text-[#1A4D1F] text-sm truncate">{u.name}</p>
               {isSystem
-                ? <p className="text-xs text-[#1A4D1F]/35 font-mono mt-0.5">@{u.username}</p>
+                ? <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <p className="text-xs text-[#1A4D1F]/35 font-mono">@{u.username}</p>
+                    {u.role === "driver" && (u as unknown as AppUser).linkedStaffId && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black"
+                        style={{ background: "#1A4D1F14", color: "#1A4D1F", border: "1px solid #1A4D1F33" }}>
+                        <Truck size={8} />
+                        {t("سائق مرتبط","Livreur lié")}
+                      </span>
+                    )}
+                  </div>
                 : <span className="inline-flex items-center gap-1 mt-0.5">
                     <div className="w-1.5 h-1.5 rounded-full" style={{ background: srcMeta.color }} />
                     <span className="text-[10px] font-bold" style={{ color: srcMeta.color }}>{srcMeta.ar}</span>
@@ -3221,6 +3280,163 @@ function UsersSection({ t }: { t: (ar: string, fr: string) => string }) {
               ? <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-full border-2 border-black/30 border-t-black animate-spin" />{t("جاري الحفظ...","Enregistrement...")}</span>
               : t("حفظ التغييرات","Enregistrer")}
           </GoldBtn>
+        </div>
+      </Modal>
+
+      {/* ══════════════════════════════════════════════════════════════
+          REGISTER DRIVER — Unified form (User Account + Driver Profile)
+      ══════════════════════════════════════════════════════════════ */}
+      <Modal
+        open={driverModal}
+        onClose={() => { setDriverModal(false); setDriverSuccess(null); setDriverError(null); }}
+        title={t("تسجيل سائق توصيل جديد", "Inscrire un nouveau livreur")}
+      >
+        <div className="space-y-4" dir="rtl">
+          {/* Info banner */}
+          <div className="flex items-start gap-3 px-4 py-3 rounded-xl border"
+            style={{ background: "rgba(26,77,31,0.05)", borderColor: "#1A4D1F22" }}>
+            <Truck size={16} style={{ color: "#1A4D1F", flexShrink: 0, marginTop: 1 }} />
+            <p className="text-xs font-bold text-[#1A4D1F]/70 leading-relaxed">
+              {t(
+                "هذا النموذج يُنشئ حساب مستخدم وملف سائق في خطوة واحدة. السائق يستطيع تسجيل الدخول بالهاتف وكلمة المرور فوراً.",
+                "Ce formulaire crée simultanément un compte utilisateur et un profil livreur. Le livreur peut se connecter immédiatement avec son téléphone et son mot de passe."
+              )}
+            </p>
+          </div>
+
+          {/* ── Success state ── */}
+          {driverSuccess ? (
+            <div className="text-center py-6 space-y-4">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
+                style={{ background: "#1A4D1F14", border: "2px solid #1A4D1F33" }}>
+                <CheckCircle size={28} style={{ color: "#1A4D1F" }} />
+              </div>
+              <div>
+                <p className="font-black text-lg text-[#1A4D1F]">
+                  {t("تم التسجيل بنجاح!","Inscription réussie !")}
+                </p>
+                <p className="text-sm text-[#1A4D1F]/50 mt-1">
+                  {t(`السائق "${driverSuccess}" مسجّل ومربوط بملف توصيل جديد.`,
+                     `Le livreur "${driverSuccess}" est inscrit et lié à un nouveau profil.`)}
+                </p>
+              </div>
+              <div className="flex gap-2 justify-center">
+                <button
+                  onClick={() => { setDriverSuccess(null); }}
+                  className="px-5 py-2 rounded-xl text-sm font-black text-white"
+                  style={{ background: "#1A4D1F" }}
+                >
+                  {t("تسجيل سائق آخر","Inscrire un autre")}
+                </button>
+                <button
+                  onClick={() => { setDriverModal(false); setDriverSuccess(null); }}
+                  className="px-5 py-2 rounded-xl text-sm font-black border"
+                  style={{ borderColor: "#1A4D1F33", color: "#1A4D1F" }}
+                >
+                  {t("إغلاق","Fermer")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* ── Section: Identity ── */}
+              <div className="rounded-xl border border-[#1A4D1F]/10 overflow-hidden">
+                <div className="px-4 py-2 bg-[#1A4D1F]/5 border-b border-[#1A4D1F]/8">
+                  <p className="text-[11px] font-black text-[#1A4D1F]/50 uppercase tracking-wider">
+                    {t("الهوية","Identité")}
+                  </p>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label={t("الاسم بالعربية *","Nom arabe *")}>
+                      <Input
+                        value={driverForm.nameAr}
+                        onChange={v => setDriverForm(f => ({ ...f, nameAr: v }))}
+                        placeholder={t("مثال: محمد علي","ex: Mohamed Ali")}
+                      />
+                    </Field>
+                    <Field label={t("الاسم اللاتيني *","Nom latin *")}>
+                      <Input
+                        value={driverForm.name}
+                        onChange={v => setDriverForm(f => ({ ...f, name: v }))}
+                        placeholder="ex: Mohamed Ali"
+                      />
+                    </Field>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Section: Account (Login credentials) ── */}
+              <div className="rounded-xl border border-[#1A4D1F]/10 overflow-hidden">
+                <div className="px-4 py-2 bg-[#1A4D1F]/5 border-b border-[#1A4D1F]/8">
+                  <p className="text-[11px] font-black text-[#1A4D1F]/50 uppercase tracking-wider">
+                    {t("بيانات الدخول","Identifiants de connexion")}
+                  </p>
+                </div>
+                <div className="p-4 space-y-3">
+                  <Field label={t("رقم الهاتف * (يُستخدم للدخول وملف السائق)","Téléphone * (connexion + profil livreur)")}>
+                    <Input
+                      value={driverForm.phone}
+                      onChange={v => setDriverForm(f => ({ ...f, phone: v }))}
+                      placeholder="+21698..."
+                    />
+                  </Field>
+                  <Field label={t("كلمة المرور * (6 أحرف على الأقل)","Mot de passe * (min. 6 caractères)")}>
+                    <div className="relative">
+                      <input
+                        type={showDriverPw ? "text" : "password"}
+                        value={driverForm.password}
+                        onChange={e => setDriverForm(f => ({ ...f, password: e.target.value }))}
+                        placeholder="••••••••"
+                        className="w-full bg-[#FFA500]/50 border border-[#1A4D1F]/10 rounded-xl px-3 py-2.5 pe-10 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/20 focus:outline-none focus:border-[#1A4D1F]/50"
+                      />
+                      <button type="button" onClick={() => setShowDriverPw(p => !p)}
+                        className="absolute top-1/2 -translate-y-1/2 end-3 text-[#1A4D1F]/30 hover:text-[#1A4D1F]">
+                        {showDriverPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </Field>
+                </div>
+              </div>
+
+              {/* ── Section: Driver Profile ── */}
+              <div className="rounded-xl border border-[#1A4D1F]/10 overflow-hidden">
+                <div className="px-4 py-2 bg-[#1A4D1F]/5 border-b border-[#1A4D1F]/8">
+                  <p className="text-[11px] font-black text-[#1A4D1F]/50 uppercase tracking-wider">
+                    {t("ملف السائق (اختياري)","Profil livreur (optionnel)")}
+                  </p>
+                </div>
+                <div className="p-4">
+                  <Field label={t("منطقة التوصيل","Zone de livraison")}>
+                    <Input
+                      value={driverForm.zone}
+                      onChange={v => setDriverForm(f => ({ ...f, zone: v }))}
+                      placeholder={t("مثال: وسط المدينة","ex: Centre-ville")}
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              {/* Error */}
+              {driverError && (
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-red-500/25 bg-red-500/8">
+                  <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
+                  <p className="text-red-400 text-sm font-bold">{driverError}</p>
+                </div>
+              )}
+
+              {/* Submit */}
+              <GoldBtn onClick={registerDriver} disabled={driverLoading} className="w-full justify-center">
+                {driverLoading
+                  ? <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full border-2 border-black/30 border-t-black animate-spin" />
+                      {t("جاري التسجيل...","Inscription en cours...")}
+                    </span>
+                  : <><Truck size={15} />{t("تسجيل السائق","Inscrire le livreur")}</>
+                }
+              </GoldBtn>
+            </>
+          )}
         </div>
       </Modal>
     </div>
