@@ -167,16 +167,17 @@ interface Order {
 
 // ── Status Configuration ───────────────────────────────────────────────────────
 const STATUS: Record<string, { ar: string; fr: string; color: string; bg: string; icon: React.FC<any> }> = {
-  pending:         { ar: "قيد الانتظار",     fr: "En attente",       color: "#F59E0B", bg: "#FEF3C7", icon: Clock },
-  accepted:        { ar: "مقبول",            fr: "Accepté",          color: "#3B82F6", bg: "#EFF6FF", icon: CheckCircle },
-  prepared:        { ar: "جاهز للتسليم",     fr: "Prêt",             color: "#8B5CF6", bg: "#F5F3FF", icon: Package },
-  driver_accepted: { ar: "سائق في الطريق",  fr: "Livreur en route", color: "#6366F1", bg: "#EEF2FF", icon: Truck },
-  in_delivery:     { ar: "قيد التوصيل",      fr: "En livraison",     color: "#FFA500", bg: "#FFF7ED", icon: Truck },
-  delivered:       { ar: "تم التوصيل",       fr: "Livré",            color: "#1A4D1F", bg: "#F0FDF4", icon: CheckCircle },
-  cancelled:       { ar: "ملغي",             fr: "Annulé",           color: "#EF4444", bg: "#FEF2F2", icon: XCircle },
+  searching_for_driver: { ar: "بحث عن سائق",    fr: "Recherche livreur", color: "#F97316", bg: "#FFF7ED", icon: Search },
+  pending:              { ar: "قيد الانتظار",    fr: "En attente",        color: "#F59E0B", bg: "#FEF3C7", icon: Clock },
+  accepted:             { ar: "مقبول",           fr: "Accepté",           color: "#3B82F6", bg: "#EFF6FF", icon: CheckCircle },
+  prepared:             { ar: "جاهز للتسليم",    fr: "Prêt",              color: "#8B5CF6", bg: "#F5F3FF", icon: Package },
+  driver_accepted:      { ar: "سائق في الطريق", fr: "Livreur en route",  color: "#6366F1", bg: "#EEF2FF", icon: Truck },
+  in_delivery:          { ar: "قيد التوصيل",     fr: "En livraison",      color: "#FFA500", bg: "#FFF7ED", icon: Truck },
+  delivered:            { ar: "تم التوصيل",      fr: "Livré",             color: "#1A4D1F", bg: "#F0FDF4", icon: CheckCircle },
+  cancelled:            { ar: "ملغي",            fr: "Annulé",            color: "#EF4444", bg: "#FEF2F2", icon: XCircle },
 };
 
-const ONGOING_STATUSES  = ["pending", "accepted", "prepared", "driver_accepted", "in_delivery"];
+const ONGOING_STATUSES  = ["searching_for_driver", "pending", "accepted", "prepared", "driver_accepted", "in_delivery"];
 const HISTORY_STATUSES  = ["delivered", "cancelled"];
 const PAGE_SIZE = 10;
 
@@ -556,15 +557,18 @@ export default function OrderHistory() {
   const sessionName = session.name;
   const supplierId  = (session as any).supplierId as number | undefined;
   const staffId     = (session as any).staffId    as number | undefined;
+  const isAdmin     = ["admin", "super_admin", "manager"].includes(role);
 
   // ── Role meta ────────────────────────────────────────────────────────────────
   const roleLabel = (role === "client" || role === "customer") ? t("عميل", "Client")
     : role === "provider"             ? t("مزود خدمة", "Fournisseur")
     : role === "delivery"             ? t("سائق توصيل", "Livreur")
+    : isAdmin                         ? t("إدارة", "Admin")
     : role;
 
   const roleColor = role === "provider" ? "#8B5CF6"
     : role === "delivery"              ? "#3B82F6"
+    : isAdmin                          ? "#1A4D1F"
     : "#1A4D1F";
 
   // ── Fetch orders ──────────────────────────────────────────────────────────────
@@ -573,7 +577,9 @@ export default function OrderHistory() {
     else setLoading(true);
     try {
       let orders: Order[] = [];
-      if (role === "client" || role === "customer") {
+      if (isAdmin) {
+        orders = await get<Order[]>("/orders");
+      } else if (role === "client" || role === "customer") {
         const [regularOrders, taxis] = await Promise.allSettled([
           get<Order[]>(`/orders/customer?name=${encodeURIComponent(sessionName)}`),
           get<TaxiRide[]>("/taxi/customer/history"),
@@ -582,8 +588,8 @@ export default function OrderHistory() {
         if (taxis.status === "fulfilled") setTaxiRides(taxis.value);
       } else if (role === "provider" && supplierId) {
         orders = await get<Order[]>(`/provider/${supplierId}/orders`);
-      } else if (role === "delivery" && staffId) {
-        orders = await get<Order[]>(`/delivery/staff/${staffId}/orders`);
+      } else if ((role === "delivery" || role === "driver") && staffId) {
+        orders = await get<Order[]>(`/delivery/${staffId}/orders`);
       }
       setAllOrders(orders);
     } catch {
@@ -592,7 +598,7 @@ export default function OrderHistory() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [role, sessionName, supplierId, staffId]);
+  }, [role, sessionName, supplierId, staffId, isAdmin]);
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
 
@@ -661,8 +667,9 @@ export default function OrderHistory() {
     setDateTo("");
   };
 
-  const backHref = role === "provider" ? "/provider"
-    : role === "delivery"             ? "/delivery"
+  const backHref = isAdmin                    ? "/admin"
+    : role === "provider"               ? "/provider"
+    : (role === "delivery" || role === "driver") ? "/delivery"
     : "/home";
 
   // ── Loading state ─────────────────────────────────────────────────────────────

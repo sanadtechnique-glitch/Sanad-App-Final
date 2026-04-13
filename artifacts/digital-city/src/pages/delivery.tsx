@@ -210,7 +210,7 @@ export default function DeliveryDashboard() {
   const loadHistory = useCallback(async (staffId: number) => {
     setHistoryLoading(true);
     try {
-      const data = await get<Order[]>(`/delivery/staff/${staffId}/orders`);
+      const data = await get<Order[]>(`/delivery/${staffId}/orders`);
       setHistory(data.filter(o => o.status === "delivered"));
     } catch {}
     setHistoryLoading(false);

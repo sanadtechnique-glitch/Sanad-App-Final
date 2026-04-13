@@ -158,7 +158,7 @@ function Router() {
 
       {/* ── Order history (multi-role) ── */}
       <Route path="/orders/history">
-        {() => <ProtectedRoute component={OrderHistory} roles={["client", "customer", "provider", "delivery", "driver"]} />}
+        {() => <ProtectedRoute component={OrderHistory} roles={["client", "customer", "provider", "delivery", "driver", "admin", "super_admin", "manager"]} />}
       </Route>
 
       {/* ── Deals / promotions (public) ── */}

@@ -392,10 +392,11 @@ function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: stri
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
-const ONGOING_STATUSES = ["pending", "accepted", "prepared", "driver_accepted", "in_delivery"];
+const ONGOING_STATUSES = ["searching_for_driver", "pending", "accepted", "prepared", "driver_accepted", "in_delivery"];
 
 function statusConfig(status: string, t: (ar: string, fr: string) => string) {
   const map: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+    searching_for_driver: { label: t("بحث عن سائق",     "Recherche livreur"), color: "#C2410C", bg: "#FFF7ED", icon: <Search size={11} /> },
     pending:        { label: t("في الانتظار",     "En attente"),     color: "#92400E", bg: "#FEF3C7", icon: <Clock size={11} /> },
     accepted:       { label: t("مقبول",           "Accepté"),        color: "#1D4ED8", bg: "#DBEAFE", icon: <CheckCircle size={11} /> },
     prepared:       { label: t("جاهز",            "Prêt"),           color: "#6D28D9", bg: "#EDE9FE", icon: <Package size={11} /> },
