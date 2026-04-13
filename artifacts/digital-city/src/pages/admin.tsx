@@ -29,7 +29,7 @@ type OrderStatus = "pending" | "accepted" | "in_delivery" | "delivered" | "cance
 interface Order {
   id: number; customerName: string; customerPhone?: string;
   customerAddress: string; serviceProviderName: string; serviceType: string;
-  status: OrderStatus; deliveryFee?: number; deliveryStaffId?: number;
+  status: OrderStatus; deliveryFee?: number; totalAmount?: number; deliveryStaffId?: number;
   createdAt: string; notes?: string; delegationId?: number;
 }
 interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; deliveryFee?: number | null; }
@@ -5679,7 +5679,206 @@ function LawyerRequestsSection({ t, lang }: { t: (ar: string, fr: string) => str
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-type Section = "overview" | "orders" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests" | "partners";
+// ── Statistics & Commissions Section ─────────────────────────────────────────
+function StatsSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
+  const [orders, setOrders]   = useState<Order[]>([]);
+  const [config, setConfig]   = useState<DeliveryConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      get<Order[]>("/orders").catch(() => []),
+      get<DeliveryConfig>("/delivery-config").catch(() => null),
+    ]).then(([o, c]) => { setOrders(o); setConfig(c); setLoading(false); });
+  }, []);
+
+  const fmt = (n: number) =>
+    n.toLocaleString("fr-TN", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " DT";
+  const fmtInt = (n: number) => n.toLocaleString("fr-TN");
+
+  const now   = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const weekAgo  = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const commPct   = config?.platformCommissionPercent ?? 0;
+  const delivered = orders.filter(o => o.status === "delivered");
+  const active    = orders.filter(o => !["delivered","cancelled"].includes(o.status));
+  const todayOrds = orders.filter(o => o.createdAt?.slice(0, 10) === todayStr);
+  const weekOrds  = orders.filter(o => new Date(o.createdAt) >= weekAgo);
+
+  const sum = (arr: Order[], field: "totalAmount" | "deliveryFee") =>
+    arr.reduce((acc, o) => acc + (Number(o[field] ?? 0)), 0);
+
+  const earnedComm   = sum(delivered, "totalAmount") * commPct / 100;
+  const pendingComm  = sum(active, "totalAmount")    * commPct / 100;
+  const totalRevenue = sum(delivered, "totalAmount");
+  const dailySales   = sum(todayOrds, "totalAmount");
+  const weeklySales  = sum(weekOrds,  "totalAmount");
+  const deliveryCosts = sum(delivered, "deliveryFee");
+
+  const CARD_STYLE: React.CSSProperties = {
+    background: "#fff", border: "1px solid #e5e7eb",
+    borderRadius: 12, padding: "16px 18px",
+  };
+  const LABEL: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 };
+  const VALUE: React.CSSProperties = { fontSize: 22, fontWeight: 900, color: "#1A4D1F", lineHeight: 1 };
+  const VALUE_SM: React.CSSProperties = { ...VALUE, fontSize: 16 };
+  const SUB: React.CSSProperties = { fontSize: 10, color: "#9ca3af", marginTop: 3 };
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-16 gap-2 text-[#1A4D1F]/40">
+      <div className="w-4 h-4 rounded-full border-2 border-[#1A4D1F]/20 border-t-[#1A4D1F] animate-spin" />
+      <span className="text-xs font-bold">{t("جارٍ التحميل…","Chargement…")}</span>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6" dir={lang === "ar" ? "rtl" : "ltr"}>
+      <h2 className="text-xl font-black text-[#1A4D1F]">
+        {t("الإحصائيات والعمولات", "Statistiques & Commissions")}
+      </h2>
+
+      {/* ── Commission Monitor ─────────────────────────────────────────── */}
+      <div>
+        <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-wider mb-3">
+          {t("مراقب العمولات", "Moniteur de commissions")}
+          {commPct > 0 && (
+            <span className="ms-2 text-[#FFA500]">· {commPct}%</span>
+          )}
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Earned */}
+          <div style={{ ...CARD_STYLE, borderRight: "3px solid #1A4D1F" }}>
+            <p style={LABEL}>{t("عمولات محصّلة", "Commissions encaissées")}</p>
+            <p style={VALUE}>{fmt(earnedComm)}</p>
+            <p style={SUB}>
+              {t("من", "Basé sur")} {fmtInt(delivered.length)} {t("طلب موصّل", "livraisons réussies")}
+              {" · "}{t("إجمالي مبيعات", "CA total")} {fmt(totalRevenue)}
+            </p>
+          </div>
+          {/* Pending */}
+          <div style={{ ...CARD_STYLE, borderRight: "3px solid #FFA500" }}>
+            <p style={LABEL}>{t("عمولات قيد التنفيذ", "Commissions en cours")}</p>
+            <p style={{ ...VALUE, color: "#B45309" }}>{fmt(pendingComm)}</p>
+            <p style={SUB}>
+              {t("من", "Basé sur")} {fmtInt(active.length)} {t("طلب نشط", "commandes actives")}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Divider ── */}
+      <div style={{ height: 1, background: "#f3f4f6" }} />
+
+      {/* ── Delivery Statistics ────────────────────────────────────────── */}
+      <div>
+        <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-wider mb-3">
+          {t("إحصائيات التوصيل والمبيعات", "Statistiques livraisons & ventes")}
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div style={CARD_STYLE}>
+            <p style={LABEL}>{t("توصيلات ناجحة", "Livraisons réussies")}</p>
+            <p style={VALUE}>{fmtInt(delivered.length)}</p>
+            <p style={SUB}>{t("إجمالي المنجزة", "Total complétées")}</p>
+          </div>
+          <div style={CARD_STYLE}>
+            <p style={LABEL}>{t("إجمالي الطلبات", "Total commandes")}</p>
+            <p style={VALUE}>{fmtInt(orders.length)}</p>
+            <p style={SUB}>{t("كل الحالات", "Toutes statuts")}</p>
+          </div>
+          <div style={CARD_STYLE}>
+            <p style={LABEL}>{t("مبيعات اليوم", "Ventes du jour")}</p>
+            <p style={VALUE_SM}>{fmt(dailySales)}</p>
+            <p style={SUB}>{fmtInt(todayOrds.length)} {t("طلب اليوم", "commandes auj.")}</p>
+          </div>
+          <div style={CARD_STYLE}>
+            <p style={LABEL}>{t("مبيعات الأسبوع", "Ventes 7 jours")}</p>
+            <p style={VALUE_SM}>{fmt(weeklySales)}</p>
+            <p style={SUB}>{fmtInt(weekOrds.length)} {t("طلب هذا الأسبوع", "cette semaine")}</p>
+          </div>
+          <div style={CARD_STYLE}>
+            <p style={LABEL}>{t("تكاليف التوصيل", "Coûts de livraison")}</p>
+            <p style={VALUE_SM}>{fmt(deliveryCosts)}</p>
+            <p style={SUB}>{t("من الطلبات الموصّلة", "Livraisons complètes")}</p>
+          </div>
+          <div style={CARD_STYLE}>
+            <p style={LABEL}>{t("ملغاة / معلّقة", "Annulées / En attente")}</p>
+            <p style={{ ...VALUE_SM, color: "#ef4444" }}>
+              {fmtInt(orders.filter(o => o.status === "cancelled").length)}
+              <span style={{ fontSize: 13, color: "#9ca3af" }}> / </span>
+              {fmtInt(orders.filter(o => o.status === "pending").length)}
+            </p>
+            <p style={SUB}>{t("إلغاء / انتظار", "Annulées / En attente")}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Recent 10 orders mini-table ────────────────────────────────── */}
+      <div>
+        <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-wider mb-3">
+          {t("آخر ١٠ طلبات", "10 dernières commandes")}
+        </p>
+        <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
+          {/* Header */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1.5fr 1.2fr",
+            padding: "8px 14px", background: "#f9fafb",
+            borderBottom: "1px solid #e5e7eb",
+          }}>
+            {[
+              t("العميل","Client"),
+              t("المزود","Fournisseur"),
+              t("الحالة","Statut"),
+              t("المبلغ","Montant"),
+              t("التاريخ","Date"),
+            ].map((h, i) => (
+              <span key={i} style={{ fontSize: 10, fontWeight: 700, color: "#6b7280" }}>{h}</span>
+            ))}
+          </div>
+          {orders.slice(0, 10).map((o, i) => {
+            const sc = STATUS[o.status];
+            return (
+              <div
+                key={o.id}
+                style={{
+                  display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1.5fr 1.2fr",
+                  padding: "8px 14px",
+                  borderBottom: i < 9 ? "1px solid #f3f4f6" : "none",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.customerName}</span>
+                <span style={{ fontSize: 11, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.serviceProviderName}</span>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 20,
+                  background: sc?.color?.split(" ")[1] ?? "#f3f4f6",
+                  color: sc?.color?.split(" ")[0] ?? "#374151",
+                  whiteSpace: "nowrap", display: "inline-block",
+                }}>
+                  {lang === "ar" ? sc?.ar : sc?.fr}
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#1A4D1F" }}>
+                  {o.totalAmount != null ? fmt(o.totalAmount) : "—"}
+                </span>
+                <span style={{ fontSize: 10, color: "#9ca3af" }}>
+                  {o.createdAt ? new Date(o.createdAt).toLocaleDateString("fr-TN", { day: "2-digit", month: "2-digit" }) : "—"}
+                </span>
+              </div>
+            );
+          })}
+          {orders.length === 0 && (
+            <div style={{ textAlign: "center", padding: 24, color: "#9ca3af", fontSize: 12 }}>
+              {t("لا توجد طلبات بعد", "Aucune commande encore")}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type Section = "overview" | "orders" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests" | "partners" | "statistics";
 
 type NavItem = { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean };
 type NavGroup = { id: string; icon: React.FC<any>; ar: string; fr: string; color: string; items: NavItem[] };
@@ -5692,10 +5891,11 @@ const NAV_GROUPS: NavGroup[] = [
     fr: "Vue générale",
     color: "#1A4D1F",
     items: [
-      { id: "overview",  icon: LayoutDashboard, ar: "لوحة المعلومات", fr: "Tableau de bord" },
-      { id: "orders",    icon: Package,          ar: "الطلبات",        fr: "Commandes" },
-      { id: "live_map",  icon: Map,              ar: "الخريطة المباشرة", fr: "Carte live" },
-      { id: "users",     icon: UserCog,          ar: "المستخدمون",     fr: "Utilisateurs",  superOnly: true },
+      { id: "overview",    icon: LayoutDashboard, ar: "لوحة المعلومات",   fr: "Tableau de bord" },
+      { id: "orders",      icon: Package,          ar: "الطلبات",          fr: "Commandes" },
+      { id: "statistics",  icon: TrendingUp,       ar: "الإحصائيات",       fr: "Statistiques" },
+      { id: "live_map",    icon: Map,              ar: "الخريطة المباشرة", fr: "Carte live" },
+      { id: "users",       icon: UserCog,          ar: "المستخدمون",       fr: "Utilisateurs",  superOnly: true },
     ],
   },
   {
@@ -6052,6 +6252,7 @@ export default function Admin() {
             {active === "car_rental"      && isSuper && <CarRentalSection t={t} />}
             {active === "sos_requests"    && isSuper && <SosSection t={t} />}
             {active === "lawyer_requests" && isSuper && <LawyerRequestsSection t={t} lang={lang} />}
+            {active === "statistics"     && <StatsSection t={t} lang={lang} />}
           </motion.div>
         </AnimatePresence>
       </main>
