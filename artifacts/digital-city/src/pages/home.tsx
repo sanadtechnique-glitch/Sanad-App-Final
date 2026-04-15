@@ -313,38 +313,58 @@ function ServicesMarquee({ lang }: { lang: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MODULE-LEVEL GPS STORE — computed once, shared across all components
+// ─────────────────────────────────────────────────────────────────────────────
+const gpsStore = (() => {
+  let _region: string | null = null;
+  const _listeners = new Set<() => void>();
+  // Hydrate from sessionStorage on module init (runs once)
+  try {
+    const raw = sessionStorage.getItem("sanad_gps_coords");
+    if (raw) _region = JSON.parse(raw).city ?? null;
+  } catch { /* ignore */ }
+  return {
+    get region() { return _region; },
+    set(city: string, lat: number, lng: number) {
+      _region = city;
+      try { sessionStorage.setItem("sanad_gps_coords", JSON.stringify({ lat, lng, city })); } catch { /* ignore */ }
+      _listeners.forEach(fn => fn());
+    },
+    subscribe(fn: () => void) {
+      _listeners.add(fn);
+      return () => { _listeners.delete(fn); };
+    },
+  };
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GPS LOCATION PICKER
 // ─────────────────────────────────────────────────────────────────────────────
 function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
-  const [status, setStatus] = useState<"idle" | "loading" | "granted" | "denied">("idle");
-  const [cityName, setCityName] = useState<string>("");
+  const [status, setStatus] = useState<"idle" | "loading" | "granted" | "denied">(
+    gpsStore.region ? "granted" : "idle"
+  );
+  const [cityName, setCityName] = useState<string>(gpsStore.region ?? "");
 
-  useEffect(() => {
-    const cached = sessionStorage.getItem("sanad_gps_coords");
-    if (cached) {
-      try {
-        const { city } = JSON.parse(cached);
-        if (city) { setCityName(city); setStatus("granted"); }
-        else setStatus("granted");
-      } catch { /* ignore */ }
-    }
-  }, []);
+  // Keep in sync if another component updates the store
+  useEffect(() => gpsStore.subscribe(() => {
+    if (gpsStore.region) { setCityName(gpsStore.region); setStatus("granted"); }
+  }), []);
 
-  const requestGPS = () => {
+  const requestGPS = useCallback(() => {
     if (!navigator.geolocation) { setStatus("denied"); return; }
     setStatus("loading");
     navigator.geolocation.getCurrentPosition(
       pos => {
-        const { latitude, longitude } = pos.coords;
-        const payload = { lat: latitude, lng: longitude, city: "بن قردان" };
-        sessionStorage.setItem("sanad_gps_coords", JSON.stringify(payload));
-        setCityName("بن قردان");
+        const city = "بن قردان";
+        gpsStore.set(city, pos.coords.latitude, pos.coords.longitude);
+        setCityName(city);
         setStatus("granted");
       },
       () => setStatus("denied"),
-      { timeout: 8000, enableHighAccuracy: false }
+      { timeout: 8000, enableHighAccuracy: false, maximumAge: 60000 }
     );
-  };
+  }, []);
 
   return (
     <div className="px-4 sm:px-6 mt-4" dir="rtl">
@@ -390,11 +410,25 @@ function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: stri
           </p>
         </div>
 
-        {/* Arrow / Check */}
-        <div className="flex-shrink-0">
-          {status === "granted"
-            ? <CheckCircle size={16} style={{ color: "#1A4D1F" }} />
-            : <ChevronLeft size={16} style={{ color: "#1A4D1F", opacity: 0.4 }} />}
+        {/* Check + manual refresh button (only when granted) */}
+        <div className="flex-shrink-0 flex items-center gap-1.5">
+          {status === "granted" ? (
+            <>
+              <CheckCircle size={16} style={{ color: "#1A4D1F" }} />
+              {/* Tap to manually refresh — stops propagation so main button doesn't re-trigger */}
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); requestGPS(); }}
+                className="p-1 rounded-full transition-colors active:scale-90"
+                style={{ background: "rgba(26,77,31,0.08)" }}
+                title={lang === "ar" ? "تحديث الموقع" : "Actualiser"}
+              >
+                <RefreshCw size={12} style={{ color: "#1A4D1F" }} />
+              </button>
+            </>
+          ) : (
+            <ChevronLeft size={16} style={{ color: "#1A4D1F", opacity: 0.4 }} />
+          )}
         </div>
       </button>
     </div>
@@ -1125,9 +1159,15 @@ const WHY_FEATURES = [
 interface Supplier { id: number; name: string; nameAr: string; category: string; photoUrl?: string; rating?: string; isAvailable: boolean; }
 interface TrendProduct { id: number; title: string; imageUrl?: string; salePrice?: string; originalPrice?: string; providerId: number; }
 
+const ZONE = "بن قردان"; // The only supported delivery zone — string compare, zero math
+
 function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
   const [vendors, setVendors]     = useState<Supplier[]>([]);
   const [products, setProducts]   = useState<TrendProduct[]>([]);
+  // Mirror the GPS store region into local state so re-renders happen on store changes
+  const [gpsRegion, setGpsRegion] = useState<string | null>(gpsStore.region);
+
+  useEffect(() => gpsStore.subscribe(() => setGpsRegion(gpsStore.region)), []);
 
   useEffect(() => {
     get<Supplier[]>("/suppliers")
@@ -1138,6 +1178,13 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
       .catch(() => {});
   }, []);
 
+  // Zone filter: if GPS is set to a different region, hide vendors from this zone.
+  // Graceful fallback: if GPS not yet set (null), show all — assume user is in Ben Guerdane.
+  const zoneMatch = gpsRegion === null || gpsRegion === ZONE;
+  const visibleVendors  = zoneMatch ? vendors  : [];
+  const visibleProducts = zoneMatch ? products : [];
+
+  // No data at all yet — hide section entirely
   if (vendors.length === 0 && products.length === 0) return null;
 
   const FONT: React.CSSProperties = { fontFamily: "'Cairo','Tajawal',sans-serif" };
@@ -1158,8 +1205,16 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
         <span className="text-lg select-none">🔥</span>
       </div>
 
+      {/* Zone mismatch notice — only shown if GPS placed user outside Ben Guerdane */}
+      {!zoneMatch && (
+        <div className="mb-4 px-3 py-2 rounded-xl text-center text-xs font-black text-[#b45309]"
+          style={{ background: "rgba(255,165,0,0.08)", border: "1px solid rgba(255,165,0,0.2)" }} dir="rtl">
+          📍 {t(`لا توجد محلات في منطقتك الحالية (${gpsRegion})`, `Aucun commerce dans votre zone (${gpsRegion})`)}
+        </div>
+      )}
+
       {/* ── Row 1: Trending Vendors ── */}
-      {vendors.length > 0 && (
+      {visibleVendors.length > 0 && (
         <div className="mb-5">
           <p className="text-xs font-black text-[#1A4D1F]/50 mb-2 text-right" style={FONT}>
             {t("مزودون مميزون", "Fournisseurs vedettes")}
@@ -1169,7 +1224,7 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
             style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", gap: 12 }}
             dir="rtl"
           >
-            {vendors.map(v => (
+            {visibleVendors.map(v => (
               <Link key={v.id} href={`/store/${v.id}`}>
                 <div
                   className="flex-shrink-0 flex flex-col items-center gap-1.5 cursor-pointer active:scale-95 transition-transform duration-100"
@@ -1201,7 +1256,7 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
       )}
 
       {/* ── Row 2: Trending Products ── */}
-      {products.length > 0 && (
+      {visibleProducts.length > 0 && (
         <div>
           <p className="text-xs font-black text-[#1A4D1F]/50 mb-2 text-right" style={FONT}>
             {t("منتجات رائجة", "Produits tendance")}
@@ -1211,7 +1266,7 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
             style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", gap: 10 }}
             dir="rtl"
           >
-            {products.map(p => (
+            {visibleProducts.map(p => (
               <Link key={p.id} href={`/store/${p.providerId}`}>
                 <div
                   className="flex-shrink-0 flex flex-col items-center gap-1 cursor-pointer active:scale-95 transition-transform duration-100"
