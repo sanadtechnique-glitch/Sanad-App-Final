@@ -317,125 +317,348 @@ function ServicesMarquee({ lang }: { lang: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 const DEFAULT_ZONE = "بن قردان"; // Safety-net default — always set, never empty
 
-const gpsStore = (() => {
-  // Always start with the default zone → UI loads data instantly, no blank state
-  let _region: string = DEFAULT_ZONE;
-  let _source: "default" | "gps" | "manual" = "default";
-  const _listeners = new Set<() => void>();
-  // Hydrate from sessionStorage (user's last confirmed zone takes priority)
+// ── Tunisia governorates + delegations for the manual picker ──────────────────
+const TUNISIA_GOV = [
+  { gov: "مدنين",      gov_fr: "Médenine",    delegations: [
+      { ar: "بن قردان",            fr: "Ben Guerdane" },
+      { ar: "مدنين الشمالية",      fr: "Médenine Nord" },
+      { ar: "مدنين الجنوبية",      fr: "Médenine Sud" },
+      { ar: "جرجيس",               fr: "Zarzis" },
+      { ar: "سيدي مخلوف",          fr: "Sidi Makhlouf" },
+      { ar: "بني خداش",            fr: "Beni Khedache" },
+      { ar: "جربة حومة السوق",     fr: "Djerba - Houmt Souk" },
+      { ar: "جربة ميدون",          fr: "Djerba - Midoun" },
+      { ar: "جربة أجيم",           fr: "Djerba - Ajim" },
+  ]},
+  { gov: "تطاوين",    gov_fr: "Tataouine",   delegations: [
+      { ar: "تطاوين الشمالية",     fr: "Tataouine Nord" },
+      { ar: "تطاوين الجنوبية",     fr: "Tataouine Sud" },
+      { ar: "غمراسن",              fr: "Ghomrassen" },
+      { ar: "ذهيبة",               fr: "Dhehiba" },
+      { ar: "بئر الأحمر",          fr: "Bir Lahmar" },
+      { ar: "رمادة",               fr: "Remada" },
+  ]},
+  { gov: "قابس",      gov_fr: "Gabès",       delegations: [
+      { ar: "قابس المدينة",        fr: "Gabès Ville" },
+      { ar: "قابس الغربية",        fr: "Gabès Ouest" },
+      { ar: "قابس الجنوبية",       fr: "Gabès Sud" },
+      { ar: "الحامة",              fr: "El Hamma" },
+      { ar: "مطماطة",              fr: "Matmata" },
+      { ar: "مارث",                fr: "Mareth" },
+      { ar: "منزل الحبيب",         fr: "Menzel Habib" },
+  ]},
+  { gov: "صفاقس",     gov_fr: "Sfax",        delegations: [
+      { ar: "صفاقس المدينة",       fr: "Sfax Ville" },
+      { ar: "صفاقس الغربية",       fr: "Sfax Ouest" },
+      { ar: "صفاقس الجنوبية",      fr: "Sfax Sud" },
+      { ar: "الحنشة",              fr: "El Hencha" },
+      { ar: "قرقنة",               fr: "Kerkennah" },
+      { ar: "جبنيانة",             fr: "Jebeniana" },
+  ]},
+  { gov: "قبلي",      gov_fr: "Kébili",      delegations: [
+      { ar: "قبلي الشمالية",       fr: "Kébili Nord" },
+      { ar: "قبلي الجنوبية",       fr: "Kébili Sud" },
+      { ar: "دوز الشمالية",        fr: "Douz Nord" },
+      { ar: "دوز الجنوبية",        fr: "Douz Sud" },
+      { ar: "فوار",                fr: "Faouar" },
+  ]},
+  { gov: "توزر",      gov_fr: "Tozeur",      delegations: [
+      { ar: "توزر",                fr: "Tozeur" },
+      { ar: "نفطة",                fr: "Nefta" },
+      { ar: "حامة الجريد",         fr: "Hamet Jérid" },
+      { ar: "دقاش",                fr: "Degache" },
+  ]},
+  { gov: "سوسة",      gov_fr: "Sousse",      delegations: [
+      { ar: "سوسة المدينة",        fr: "Sousse Ville" },
+      { ar: "سوسة الرياض",         fr: "Sousse Riadh" },
+      { ar: "سوسة جوهرة",          fr: "Sousse Jawhara" },
+      { ar: "القلعة الكبرى",       fr: "Kalâa Kebira" },
+      { ar: "حمام سوسة",           fr: "Hammam Sousse" },
+  ]},
+  { gov: "المهدية",   gov_fr: "Mahdia",      delegations: [
+      { ar: "المهدية",             fr: "Mahdia" },
+      { ar: "بومرداس",             fr: "Boumerdes" },
+      { ar: "الشابة",              fr: "Chebba" },
+      { ar: "قصور الساف",          fr: "Ksour Essaf" },
+  ]},
+  { gov: "المنستير",  gov_fr: "Monastir",    delegations: [
+      { ar: "المنستير",            fr: "Monastir" },
+      { ar: "المكنين",             fr: "Moknine" },
+      { ar: "صواف",                fr: "Sayada" },
+      { ar: "جمال",                fr: "Djemal" },
+  ]},
+  { gov: "القيروان",  gov_fr: "Kairouan",    delegations: [
+      { ar: "القيروان الشمالية",   fr: "Kairouan Nord" },
+      { ar: "القيروان الجنوبية",   fr: "Kairouan Sud" },
+      { ar: "الشبيكة",             fr: "Chebika" },
+      { ar: "حفوز",                fr: "Haffouz" },
+  ]},
+  { gov: "قصرين",     gov_fr: "Kasserine",   delegations: [
+      { ar: "قصرين الشمالية",      fr: "Kasserine Nord" },
+      { ar: "قصرين الجنوبية",      fr: "Kasserine Sud" },
+      { ar: "سبيطلة",              fr: "Sbeitla" },
+      { ar: "تالة",                fr: "Thala" },
+  ]},
+  { gov: "سيدي بوزيد", gov_fr: "Sidi Bouzid", delegations: [
+      { ar: "سيدي بوزيد الغربية",  fr: "Sidi Bouzid Ouest" },
+      { ar: "سيدي بوزيد الشرقية",  fr: "Sidi Bouzid Est" },
+      { ar: "جلمة",                fr: "Jelma" },
+      { ar: "مكثر",                fr: "Meknassy" },
+  ]},
+  { gov: "قفصة",      gov_fr: "Gafsa",       delegations: [
+      { ar: "قفصة الشمالية",       fr: "Gafsa Nord" },
+      { ar: "قفصة الجنوبية",       fr: "Gafsa Sud" },
+      { ar: "أم العرائس",          fr: "Oum El Arayés" },
+      { ar: "الرديف",              fr: "Redeyef" },
+  ]},
+  { gov: "تونس",      gov_fr: "Tunis",       delegations: [
+      { ar: "تونس",                fr: "Tunis" },
+      { ar: "قرطاج",               fr: "Carthage" },
+      { ar: "المرسى",              fr: "La Marsa" },
+      { ar: "سيدي بوسعيد",         fr: "Sidi Bou Saïd" },
+  ]},
+  { gov: "أريانة",    gov_fr: "Ariana",      delegations: [
+      { ar: "أريانة المدينة",      fr: "Ariana Ville" },
+      { ar: "سكرة",                fr: "Soukra" },
+      { ar: "قلعة الأندلس",        fr: "Kalâat El Andalous" },
+  ]},
+  { gov: "بن عروس",   gov_fr: "Ben Arous",   delegations: [
+      { ar: "بن عروس",             fr: "Ben Arous" },
+      { ar: "حمام الأنف",          fr: "Hammam-Lif" },
+      { ar: "المحمدية",            fr: "Mohammédia" },
+  ]},
+  { gov: "منوبة",     gov_fr: "Manouba",     delegations: [
+      { ar: "منوبة",               fr: "Manouba" },
+      { ar: "دوار هيشر",           fr: "Douar Hicher" },
+      { ar: "برج العامري",          fr: "Borj El Amri" },
+  ]},
+  { gov: "نابل",      gov_fr: "Nabeul",      delegations: [
+      { ar: "نابل",                fr: "Nabeul" },
+      { ar: "الحمامات",            fr: "Hammamet" },
+      { ar: "قربة",                fr: "Korbous" },
+      { ar: "منزل تميم",           fr: "Menzel Temime" },
+  ]},
+  { gov: "زغوان",     gov_fr: "Zaghouan",    delegations: [
+      { ar: "زغوان",               fr: "Zaghouan" },
+      { ar: "الفحص",               fr: "El Fahs" },
+      { ar: "بئر مشارقة",          fr: "Bir Mchergua" },
+  ]},
+  { gov: "بنزرت",     gov_fr: "Bizerte",     delegations: [
+      { ar: "بنزرت الشمالية",      fr: "Bizerte Nord" },
+      { ar: "بنزرت الجنوبية",      fr: "Bizerte Sud" },
+      { ar: "منزل بورقيبة",        fr: "Menzel Bourguiba" },
+      { ar: "ماطر",                fr: "Mateur" },
+  ]},
+  { gov: "جندوبة",    gov_fr: "Jendouba",    delegations: [
+      { ar: "جندوبة الشمالية",     fr: "Jendouba Nord" },
+      { ar: "جندوبة الجنوبية",     fr: "Jendouba Sud" },
+      { ar: "طبرقة",               fr: "Tabarka" },
+      { ar: "عين دراهم",           fr: "Aïn Draham" },
+  ]},
+  { gov: "الكاف",     gov_fr: "Le Kef",      delegations: [
+      { ar: "الكاف الغربية",       fr: "Le Kef Ouest" },
+      { ar: "الكاف الشرقية",       fr: "Le Kef Est" },
+      { ar: "الجريصة",             fr: "Jerissa" },
+  ]},
+  { gov: "سليانة",    gov_fr: "Siliana",     delegations: [
+      { ar: "سليانة الشمالية",     fr: "Siliana Nord" },
+      { ar: "سليانة الجنوبية",     fr: "Siliana Sud" },
+      { ar: "القصور",              fr: "Kesra" },
+  ]},
+  { gov: "باجة",      gov_fr: "Béja",        delegations: [
+      { ar: "باجة الشمالية",       fr: "Béja Nord" },
+      { ar: "باجة الجنوبية",       fr: "Béja Sud" },
+      { ar: "تبرسق",               fr: "Thibar" },
+  ]},
+];
+
+// ── Reverse geocode using OpenStreetMap Nominatim (free, no key needed) ────────
+async function reverseGeocode(lat: number, lng: number): Promise<{
+  delegation: string; governorate: string; gov_fr: string;
+} | null> {
   try {
-    const raw = sessionStorage.getItem("sanad_gps_coords");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed.city) { _region = parsed.city; _source = parsed.source ?? "gps"; }
-    }
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ar`,
+      { headers: { "User-Agent": "SanadApp/1.0 (ben-guerdane.sanad)" }, signal: AbortSignal.timeout(6000) }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const addr = data.address ?? {};
+    // Tunisia address fields: county = delegation, state = governorate
+    let delegation  = (addr.county ?? addr.municipality ?? addr.city ?? addr.town ?? addr.village ?? "").trim();
+    let governorate = (addr.state ?? "").trim();
+    // Strip Arabic prefixes like "معتمدية" / "ولاية"
+    delegation  = delegation.replace(/^(معتمدية|منطقة|مركز)\s+/u, "").trim();
+    governorate = governorate.replace(/^(ولاية|محافظة)\s+/u, "").trim();
+    // Look up matching French gov name from our table
+    const match = TUNISIA_GOV.find(g => g.gov === governorate);
+    return { delegation, governorate, gov_fr: match?.gov_fr ?? governorate };
+  } catch { return null; }
+}
+
+// ── Global GPS store — module-level singleton ──────────────────────────────────
+interface GpsState {
+  delegation: string;  // Arabic delegation name (معتمدية)
+  governorate: string; // Arabic governorate
+  gov_fr: string;      // French governorate
+  source: "default" | "gps" | "manual";
+  accuracy: number;    // metres (0 = unknown)
+}
+
+const gpsStore = (() => {
+  let _state: GpsState = {
+    delegation: DEFAULT_ZONE, governorate: "مدنين", gov_fr: "Médenine",
+    source: "default", accuracy: 0,
+  };
+  const _listeners = new Set<() => void>();
+  try {
+    const raw = sessionStorage.getItem("sanad_gps_v2");
+    if (raw) { const p = JSON.parse(raw); if (p?.delegation) _state = { ..._state, ...p }; }
   } catch { /* ignore */ }
+  const _notify = () => _listeners.forEach(fn => fn());
   return {
-    get region()  { return _region; },
-    get source()  { return _source; },
-    set(city: string, lat: number, lng: number, source: "gps" | "manual" = "gps") {
-      _region = city; _source = source;
-      try { sessionStorage.setItem("sanad_gps_coords", JSON.stringify({ lat, lng, city, source })); } catch { /* ignore */ }
-      _listeners.forEach(fn => fn());
+    get state()    { return _state; },
+    get region()   { return _state.delegation; }, // backward compat
+    get source()   { return _state.source; },
+    update(patch: Partial<GpsState>) {
+      _state = { ..._state, ...patch };
+      try { sessionStorage.setItem("sanad_gps_v2", JSON.stringify(_state)); } catch { /* ignore */ }
+      _notify();
     },
-    setDefault() {
-      _region = DEFAULT_ZONE; _source = "default";
-      try { sessionStorage.removeItem("sanad_gps_coords"); } catch { /* ignore */ }
-      _listeners.forEach(fn => fn());
+    reset() {
+      _state = { delegation: DEFAULT_ZONE, governorate: "مدنين", gov_fr: "Médenine", source: "default", accuracy: 0 };
+      try { sessionStorage.removeItem("sanad_gps_v2"); } catch { /* ignore */ }
+      _notify();
     },
-    subscribe(fn: () => void) {
-      _listeners.add(fn);
-      return () => { _listeners.delete(fn); };
-    },
+    subscribe(fn: () => void) { _listeners.add(fn); return () => _listeners.delete(fn); },
   };
 })();
-
-// Local sectors — all map to the same zone for filtering; purely for UX clarity
-const MANUAL_ZONES = [
-  { ar: "بن قردان — المركز",    fr: "Ben Guerdane Centre",    id: "بن قردان" },
-  { ar: "بن قردان — الشمال",    fr: "Ben Guerdane Nord",      id: "بن قردان" },
-  { ar: "بن قردان — الجنوب",    fr: "Ben Guerdane Sud",       id: "بن قردان" },
-  { ar: "بن قردان — الصناعية",  fr: "Zone Industrielle",      id: "بن قردان" },
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GPS LOCATION PICKER
 // ─────────────────────────────────────────────────────────────────────────────
 function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
   const FONT: React.CSSProperties = { fontFamily: "'Cairo','Tajawal',sans-serif" };
+  type Status = "loading" | "granted" | "denied" | "default";
 
-  // Derive initial UI state from already-hydrated store
-  const initStatus = (): "loading" | "granted" | "denied" | "default" => {
-    if (gpsStore.source === "gps")    return "granted";
-    if (gpsStore.source === "manual") return "granted";
-    return "default"; // showing Ben Guerdane as fallback, GPS will try silently
-  };
+  const [status,       setStatus]      = useState<Status>(
+    gpsStore.source === "default" ? "default" : "granted"
+  );
+  const [showPicker,   setShowPicker]  = useState(false);
+  const [searchQ,      setSearchQ]     = useState("");
+  const [pickerGov,    setPickerGov]   = useState<string | null>(null);
+  const [showToast,    setShowToast]   = useState(false);
+  const [gpsState,     setGpsState]    = useState(gpsStore.state);
 
-  const [status,      setStatus]      = useState<"loading" | "granted" | "denied" | "default">(initStatus);
-  const [cityName,    setCityName]    = useState<string>(gpsStore.region);
-  const [showPicker,  setShowPicker]  = useState(false);
-
-  // Sync on external store updates
+  // Sync with global store
   useEffect(() => gpsStore.subscribe(() => {
-    setCityName(gpsStore.region);
+    setGpsState({ ...gpsStore.state });
     setStatus(gpsStore.source === "default" ? "default" : "granted");
   }), []);
 
-  const attemptGPS = useCallback((silent = false) => {
+  // ── Core GPS + Nominatim flow ─────────────────────────────────────────────
+  const attemptGPS = useCallback(async (silent = false) => {
     if (!navigator.geolocation) {
       if (!silent) setStatus("denied");
       return;
     }
     if (!silent) setStatus("loading");
+
     navigator.geolocation.getCurrentPosition(
-      pos => {
-        gpsStore.set(DEFAULT_ZONE, pos.coords.latitude, pos.coords.longitude, "gps");
-        setCityName(DEFAULT_ZONE);
+      async pos => {
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+
+        // Reverse geocode via OpenStreetMap Nominatim (free, no key)
+        const geo = await reverseGeocode(lat, lng);
+        const delegation  = geo?.delegation  ?? DEFAULT_ZONE;
+        const governorate = geo?.governorate ?? "مدنين";
+        const gov_fr      = geo?.gov_fr      ?? "Médenine";
+
+        gpsStore.update({ delegation, governorate, gov_fr, source: "gps", accuracy });
         setStatus("granted");
+
+        // Accuracy toast: warn if circle > 1000 m
+        if (accuracy > 1000) {
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 6000);
+        }
       },
-      () => {
-        // GPS failed — keep default Ben Guerdane, show friendly hint
-        if (!silent) setStatus("denied");
-        // In silent mode just stay on "default" — data already visible
-      },
-      { timeout: 8000, enableHighAccuracy: false, maximumAge: 60000 }
+      () => { if (!silent) setStatus("denied"); },
+      { timeout: 9000, enableHighAccuracy: false, maximumAge: 60000 }
     );
   }, []);
 
-  // On first mount: silently attempt GPS in the background while default data shows
+  // Silent GPS on first mount — default data already shown
   useEffect(() => {
     if (gpsStore.source === "default") attemptGPS(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const pickManual = (zone: typeof MANUAL_ZONES[0]) => {
-    gpsStore.set(zone.id, 0, 0, "manual");
-    setCityName(lang === "ar" ? zone.ar : zone.fr);
+  // ── Manual picker ─────────────────────────────────────────────────────────
+  const pickDelegation = (delAr: string, delFr: string, govAr: string, govFr: string) => {
+    gpsStore.update({ delegation: delAr, governorate: govAr, gov_fr: govFr, source: "manual", accuracy: 0 });
     setStatus("granted");
     setShowPicker(false);
+    setSearchQ("");
+    setPickerGov(null);
   };
 
-  // ── Status-derived display strings ──
-  const headline = status === "granted"
-    ? t(`موقعك: ${cityName}`, `Votre zone: ${cityName}`)
-    : status === "loading"
+  // Filter delegations by search query
+  const filteredGovs = searchQ.trim()
+    ? TUNISIA_GOV.map(g => ({
+        ...g,
+        delegations: g.delegations.filter(d =>
+          d.ar.includes(searchQ) || d.fr.toLowerCase().includes(searchQ.toLowerCase())
+        ),
+      })).filter(g => g.delegations.length > 0)
+    : pickerGov
+    ? TUNISIA_GOV.filter(g => g.gov === pickerGov)
+    : TUNISIA_GOV;
+
+  // ── Display strings ───────────────────────────────────────────────────────
+  const s = gpsState;
+  const headline = status === "loading"
     ? t("جاري تحديد موقعك...", "Localisation en cours...")
     : status === "denied"
-    ? t("GPS غير متاح — بن قردان (افتراضي)", "GPS indisponible — Ben Guerdane (défaut)")
-    : t(`المنطقة: ${DEFAULT_ZONE} (افتراضي)`, `Zone: Ben Guerdane (défaut)`);
+    ? t(`GPS غير متاح — ${s.delegation} (افتراضي)`, `GPS indisponible — Ben Guerdane (défaut)`)
+    : status === "default"
+    ? t(`المنطقة: ${s.delegation} (افتراضي)`, `Zone: Ben Guerdane (défaut)`)
+    : t(`${s.delegation}، ${s.governorate}`, `${s.delegation} — ${s.gov_fr}`);
 
   const subline = status === "denied"
-    ? t("يرجى تفعيل الموقع للحصول على أفضل تجربة، أو اختر منطقتك يدوياً", "Activez le GPS ou choisissez votre zone manuellement")
+    ? t("يرجى تفعيل الموقع للحصول على أفضل تجربة، أو اختر منطقتك يدوياً",
+        "Activez le GPS ou choisissez votre zone manuellement")
     : status === "granted"
-    ? t("المحلات في منطقتك جاهزة", "Commerces de votre zone disponibles")
+    ? t(`${s.source === "manual" ? "✏️ اخترت يدوياً" : "📡 تم التحديد تلقائياً"} — المحلات جاهزة`,
+        `${s.source === "manual" ? "✏️ Sélection manuelle" : "📡 Localisé automatiquement"} — Commerces disponibles`)
     : status === "loading"
-    ? t("البيانات متوفرة — جاري تأكيد الموقع", "Données disponibles — confirmation GPS en cours")
-    : t("البيانات محملة — اضغط GPS أو اختر يدوياً", "Données chargées — GPS ou sélection manuelle");
+    ? t("البيانات متوفرة — جاري تأكيد الموقع عبر OpenStreetMap", "Données disponibles — confirmation via OpenStreetMap")
+    : t("بيانات بن قردان محملة — اضغط GPS أو اختر يدوياً",
+        "Données Ben Guerdane chargées — GPS ou sélection manuelle");
 
-  const iconBg = status === "granted" ? "#1A4D1F" : status === "denied" ? "#b45309" : "rgba(26,77,31,0.10)";
+  const iconBg    = status === "granted" ? "#1A4D1F" : status === "denied" ? "#b45309" : "rgba(26,77,31,0.10)";
   const iconColor = (status === "granted" || status === "denied") ? "#fff" : "#1A4D1F";
 
   return (
     <div className="px-4 sm:px-6 mt-4" dir="rtl">
+
+      {/* ── Accuracy toast ── */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div
+            key="acc-toast"
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="mb-2 flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-black"
+            style={{ background: "rgba(255,165,0,0.12)", border: "1px solid rgba(255,165,0,0.3)", color: "#b45309" }}
+          >
+            <span>⚠️</span>
+            <span style={FONT}>
+              {t("تحديد الموقع تلقائياً قد لا يكون دقيقاً، يمكنك التعديل يدوياً.",
+                 "La localisation automatique peut manquer de précision. Vous pouvez la modifier manuellement.")}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Main bar ── */}
       <div
         className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200"
@@ -445,96 +668,144 @@ function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: stri
           boxShadow: "0 2px 10px rgba(26,77,31,0.07)",
         }}
       >
-        {/* GPS icon pill */}
-        <div
-          className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center"
-          style={{ background: iconBg }}
-        >
-          {status === "loading" ? (
-            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
-              <MapPin size={17} style={{ color: "#1A4D1F" }} />
-            </motion.div>
-          ) : (
-            <MapPin size={17} style={{ color: iconColor }} />
-          )}
+        {/* GPS icon */}
+        <div className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: iconBg }}>
+          {status === "loading"
+            ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                <MapPin size={17} style={{ color: "#1A4D1F" }} />
+              </motion.div>
+            : <MapPin size={17} style={{ color: iconColor }} />}
         </div>
 
-        {/* Text block */}
+        {/* Text */}
         <div className="flex-1 text-right min-w-0">
           <p className="text-xs font-black text-[#1A4D1F] truncate" style={FONT}>{headline}</p>
           <p className="text-[10px] text-[#1A4D1F]/50 mt-0.5 leading-tight" style={FONT}>{subline}</p>
         </div>
 
-        {/* Action buttons */}
+        {/* Buttons */}
         <div className="flex-shrink-0 flex items-center gap-1.5">
-          {status === "granted" && (
-            <button
-              type="button"
-              onClick={() => attemptGPS(false)}
+          {(status === "granted" || status === "default") && (
+            <button type="button" onClick={() => attemptGPS(false)}
               className="p-1.5 rounded-full active:scale-90 transition-transform"
               style={{ background: "rgba(26,77,31,0.08)" }}
-              title={lang === "ar" ? "تحديث GPS" : "Actualiser GPS"}
-            >
+              title={lang === "ar" ? "تحديث GPS" : "Actualiser GPS"}>
               <RefreshCw size={12} style={{ color: "#1A4D1F" }} />
             </button>
           )}
           {status === "denied" && (
-            <button
-              type="button"
-              onClick={() => attemptGPS(false)}
-              className="text-[10px] font-black px-2 py-1 rounded-full active:scale-95 transition-transform"
-              style={{ background: "rgba(26,77,31,0.08)", color: "#1A4D1F" }}
-            >
+            <button type="button" onClick={() => attemptGPS(false)}
+              className="text-[10px] font-black px-2 py-1 rounded-full active:scale-95"
+              style={{ background: "rgba(26,77,31,0.08)", color: "#1A4D1F" }}>
               {t("إعادة", "Réessayer")}
             </button>
           )}
-          {/* Manual picker toggle */}
-          <button
-            type="button"
-            onClick={() => setShowPicker(v => !v)}
+          <button type="button" onClick={() => { setShowPicker(v => !v); setSearchQ(""); setPickerGov(null); }}
             className="text-[10px] font-black px-2 py-1 rounded-full active:scale-95 transition-transform"
-            style={{ background: showPicker ? "#1A4D1F" : "rgba(255,165,0,0.15)", color: showPicker ? "#fff" : "#b45309", border: "1px solid rgba(255,165,0,0.3)" }}
-          >
-            {t("يدوياً", "Manuel")}
+            style={{ background: showPicker ? "#1A4D1F" : "rgba(255,165,0,0.15)", color: showPicker ? "#fff" : "#b45309", border: "1px solid rgba(255,165,0,0.3)" }}>
+            {t("تحديد يدوياً", "Manuel")}
           </button>
         </div>
       </div>
 
-      {/* ── Manual zone picker dropdown ── */}
+      {/* ── Full Tunisia delegation picker ── */}
       <AnimatePresence>
         {showPicker && (
           <motion.div
-            key="zone-picker"
-            initial={{ opacity: 0, y: -6, scaleY: 0.92 }}
+            key="delegation-picker"
+            initial={{ opacity: 0, y: -8, scaleY: 0.95 }}
             animate={{ opacity: 1, y: 0, scaleY: 1 }}
-            exit={{ opacity: 0, y: -6, scaleY: 0.92 }}
+            exit={{ opacity: 0, y: -8, scaleY: 0.95 }}
             transition={{ duration: 0.18 }}
             className="mt-2 rounded-2xl overflow-hidden"
-            style={{ background: "#fff", border: "1.5px solid rgba(26,77,31,0.12)", boxShadow: "0 4px 16px rgba(26,77,31,0.10)" }}
+            style={{ background: "#fff", border: "1.5px solid rgba(26,77,31,0.12)", boxShadow: "0 8px 24px rgba(26,77,31,0.12)", maxHeight: 380 }}
             dir="rtl"
           >
-            <div className="px-4 py-2 border-b border-[#1A4D1F]/8">
-              <p className="text-[11px] font-black text-[#1A4D1F]/50" style={FONT}>
-                {t("تحديد الموقع يدوياً", "Sélection manuelle de zone")}
+            {/* Header */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-[#1A4D1F]/8 sticky top-0 bg-white z-10">
+              <MapPin size={13} style={{ color: "#FFA500", flexShrink: 0 }} />
+              <p className="text-[11px] font-black text-[#1A4D1F]/60 flex-1" style={FONT}>
+                {t("اختر معتمديتك — تونس", "Choisissez votre délégation — Tunisie")}
               </p>
-            </div>
-            {MANUAL_ZONES.map((zone, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => pickManual(zone)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-right transition-colors active:bg-[#1A4D1F]/5 hover:bg-[#1A4D1F]/3"
-                style={{ borderBottom: i < MANUAL_ZONES.length - 1 ? "1px solid rgba(26,77,31,0.06)" : "none" }}
-              >
-                <MapPin size={14} style={{ color: "#FFA500", flexShrink: 0 }} />
-                <span className="text-sm font-black text-[#1A4D1F]" style={FONT}>
-                  {lang === "ar" ? zone.ar : zone.fr}
-                </span>
-                {gpsStore.region === zone.id && gpsStore.source === "manual" && (
-                  <CheckCircle size={13} style={{ color: "#1A4D1F", marginRight: "auto" }} />
-                )}
+              <button type="button" onClick={() => setShowPicker(false)}
+                className="p-1 rounded-full" style={{ background: "rgba(26,77,31,0.06)" }}>
+                <XIcon size={12} style={{ color: "#1A4D1F" }} />
               </button>
-            ))}
+            </div>
+
+            {/* Search */}
+            <div className="px-3 py-2 border-b border-[#1A4D1F]/6">
+              <input
+                type="text"
+                value={searchQ}
+                onChange={e => { setSearchQ(e.target.value); setPickerGov(null); }}
+                placeholder={t("ابحث عن معتمدية...", "Rechercher une délégation...")}
+                className="w-full text-sm bg-[#1A4D1F]/4 rounded-xl px-3 py-2 outline-none text-right"
+                style={{ ...FONT, color: "#1A4D1F", border: "1px solid rgba(26,77,31,0.10)" }}
+                autoFocus
+              />
+            </div>
+
+            {/* Governorate chips (when no search) */}
+            {!searchQ && !pickerGov && (
+              <div className="flex flex-wrap gap-1.5 px-3 py-2 border-b border-[#1A4D1F]/6">
+                {TUNISIA_GOV.map(g => (
+                  <button key={g.gov} type="button"
+                    onClick={() => setPickerGov(g.gov)}
+                    className="text-[10px] font-black px-2.5 py-1 rounded-full transition-all active:scale-95"
+                    style={{ background: "rgba(26,77,31,0.06)", color: "#1A4D1F", border: "1px solid rgba(26,77,31,0.12)" }}>
+                    {lang === "ar" ? g.gov : g.gov_fr}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Back when a gov is selected */}
+            {pickerGov && !searchQ && (
+              <button type="button" onClick={() => setPickerGov(null)}
+                className="flex items-center gap-1.5 px-4 py-2 text-[11px] font-black w-full border-b border-[#1A4D1F]/6 text-right"
+                style={{ color: "#1A4D1F", background: "rgba(26,77,31,0.03)" }}>
+                <ChevronRight size={13} />
+                {lang === "ar" ? pickerGov : TUNISIA_GOV.find(g => g.gov === pickerGov)?.gov_fr}
+              </button>
+            )}
+
+            {/* Delegation list */}
+            <div style={{ overflowY: "auto", maxHeight: 220 }}>
+              {filteredGovs.map(g => (
+                <div key={g.gov}>
+                  {!pickerGov && !searchQ ? null : (
+                    <div className="px-4 py-1.5 sticky top-0"
+                      style={{ background: "rgba(26,77,31,0.04)", borderBottom: "1px solid rgba(26,77,31,0.06)" }}>
+                      <p className="text-[10px] font-black text-[#1A4D1F]/40 uppercase tracking-wide" style={FONT}>
+                        {lang === "ar" ? g.gov : g.gov_fr}
+                      </p>
+                    </div>
+                  )}
+                  {g.delegations.map((d, i) => {
+                    const isActive = gpsStore.state.delegation === d.ar && gpsStore.source === "manual";
+                    return (
+                      <button key={i} type="button"
+                        onClick={() => pickDelegation(d.ar, d.fr, g.gov, g.gov_fr)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-right transition-colors active:bg-[#1A4D1F]/5"
+                        style={{ borderBottom: "1px solid rgba(26,77,31,0.05)" }}>
+                        <MapPin size={12} style={{ color: isActive ? "#1A4D1F" : "#FFA500", flexShrink: 0 }} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-[#1A4D1F] truncate" style={FONT}>{lang === "ar" ? d.ar : d.fr}</p>
+                          <p className="text-[10px] text-[#1A4D1F]/40" style={FONT}>{lang === "ar" ? g.gov : g.gov_fr}</p>
+                        </div>
+                        {isActive && <CheckCircle size={13} style={{ color: "#1A4D1F", flexShrink: 0 }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+              {filteredGovs.every(g => g.delegations.length === 0) && (
+                <p className="text-center py-6 text-xs text-[#1A4D1F]/40" style={FONT}>
+                  {t("لا نتائج", "Aucun résultat")}
+                </p>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
