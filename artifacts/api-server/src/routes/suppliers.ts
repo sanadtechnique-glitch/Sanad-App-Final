@@ -13,24 +13,30 @@ const router: IRouter = Router();
 
 // ── Public endpoints — safe fields only (no phone exposed to customers) ──────
 
+// Shared public supplier field list — MUST include delegationAr for zone filtering
+const PUBLIC_SUPPLIER_FIELDS = {
+  id:            serviceProvidersTable.id,
+  name:          serviceProvidersTable.name,
+  nameAr:        serviceProvidersTable.nameAr,
+  category:      serviceProvidersTable.category,
+  description:   serviceProvidersTable.description,
+  descriptionAr: serviceProvidersTable.descriptionAr,
+  address:       serviceProvidersTable.address,
+  photoUrl:      serviceProvidersTable.photoUrl,
+  rating:        serviceProvidersTable.rating,
+  isAvailable:   serviceProvidersTable.isAvailable,
+  shift:         serviceProvidersTable.shift,
+  latitude:      serviceProvidersTable.latitude,
+  longitude:     serviceProvidersTable.longitude,
+  delegationAr:  serviceProvidersTable.delegationAr,  // required for zone filtering
+  delegationFr:  serviceProvidersTable.delegationFr,
+} as const;
+
 router.get("/suppliers", async (req, res) => {
   try {
     // Only show vendors with an active subscription (or no subscription set = legacy = active)
-    const rows = await withCache("suppliers:all", SUPPLIERS_CACHE_TTL, () => db.select({
-      id:            serviceProvidersTable.id,
-      name:          serviceProvidersTable.name,
-      nameAr:        serviceProvidersTable.nameAr,
-      category:      serviceProvidersTable.category,
-      description:   serviceProvidersTable.description,
-      descriptionAr: serviceProvidersTable.descriptionAr,
-      address:       serviceProvidersTable.address,
-      photoUrl:      serviceProvidersTable.photoUrl,
-      rating:        serviceProvidersTable.rating,
-      isAvailable:   serviceProvidersTable.isAvailable,
-      shift:         serviceProvidersTable.shift,
-      latitude:      serviceProvidersTable.latitude,
-      longitude:     serviceProvidersTable.longitude,
-    }).from(serviceProvidersTable)
+    const rows = await withCache("suppliers:all", SUPPLIERS_CACHE_TTL, () => db.select(PUBLIC_SUPPLIER_FIELDS)
+      .from(serviceProvidersTable)
       .where(ne(serviceProvidersTable.subscriptionActive, false))
       .orderBy(serviceProvidersTable.name));
     res.json(rows);
@@ -41,21 +47,8 @@ router.get("/suppliers/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   try {
-    const [row] = await db.select({
-      id:            serviceProvidersTable.id,
-      name:          serviceProvidersTable.name,
-      nameAr:        serviceProvidersTable.nameAr,
-      category:      serviceProvidersTable.category,
-      description:   serviceProvidersTable.description,
-      descriptionAr: serviceProvidersTable.descriptionAr,
-      address:       serviceProvidersTable.address,
-      photoUrl:      serviceProvidersTable.photoUrl,
-      rating:        serviceProvidersTable.rating,
-      isAvailable:   serviceProvidersTable.isAvailable,
-      shift:         serviceProvidersTable.shift,
-      latitude:      serviceProvidersTable.latitude,
-      longitude:     serviceProvidersTable.longitude,
-    }).from(serviceProvidersTable).where(eq(serviceProvidersTable.id, id));
+    const [row] = await db.select(PUBLIC_SUPPLIER_FIELDS)
+      .from(serviceProvidersTable).where(eq(serviceProvidersTable.id, id));
     if (!row) { res.status(404).json({ message: "Not found" }); return; }
     res.json(row);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }

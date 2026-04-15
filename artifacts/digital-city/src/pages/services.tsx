@@ -105,6 +105,17 @@ export default function Services() {
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [, navigate] = useLocation();
+  // Live zone tracking — updates when user changes delegation (fired by gpsStore)
+  const [liveZone, setLiveZone] = useState<string>(getUserDelegation());
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const zone = (e as CustomEvent<{ delegation?: string }>).detail?.delegation;
+      if (zone) setLiveZone(zone);
+    };
+    window.addEventListener("sanad:zoneChange", handler);
+    return () => window.removeEventListener("sanad:zoneChange", handler);
+  }, []);
 
   // Sync with URL changes (e.g. pressing back then navigating again)
   useEffect(() => {
@@ -135,9 +146,9 @@ export default function Services() {
 
   const cfg = (id: string) => CATS.find(c => c.id === id) ?? CATS[0];
 
-  // STRICT: only show vendors in user's current delegation
-  const userDelegation = getUserDelegation();
-  const zoneSuppliers = suppliers.filter(inUserZone);
+  // STRICT: only show vendors in user's current delegation (liveZone updates on zone change)
+  const userDelegation = liveZone;
+  const zoneSuppliers = suppliers.filter(s => Boolean(s.delegationAr) && s.delegationAr === liveZone);
 
   const effectivelyAvailable = (s: Supplier) => {
     if (!s.isAvailable) return false;

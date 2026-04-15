@@ -373,11 +373,14 @@ const gpsStore = (() => {
       _state = { ..._state, ...patch };
       try { sessionStorage.setItem("sanad_gps_v2", JSON.stringify(_state)); } catch { /* ignore */ }
       _notify();
+      // Broadcast to other pages (services, order, etc.) so they re-filter immediately
+      try { window.dispatchEvent(new CustomEvent("sanad:zoneChange", { detail: { ..._state } })); } catch { /* ignore */ }
     },
     reset() {
       _state = { delegation: DEFAULT_ZONE, governorate: "مدنين", gov_fr: "Médenine", source: "default", accuracy: 0 };
       try { sessionStorage.removeItem("sanad_gps_v2"); } catch { /* ignore */ }
       _notify();
+      try { window.dispatchEvent(new CustomEvent("sanad:zoneChange", { detail: { ..._state } })); } catch { /* ignore */ }
     },
     subscribe(fn: () => void) { _listeners.add(fn); return () => _listeners.delete(fn); },
   };
@@ -1429,14 +1432,22 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
         <span className="text-lg select-none">🔥</span>
       </div>
 
-      {/* Zone mismatch notice — only shown if GPS placed user outside Ben Guerdane */}
+      {/* Zone diagnostic — shown when no vendors match current delegation */}
       {visibleVendors.length === 0 && vendors.length > 0 && (
-        <div className="mb-4 px-3 py-2.5 rounded-xl text-center text-xs font-black text-[#b45309]"
-          style={{ background: "rgba(255,165,0,0.08)", border: "1px solid rgba(255,165,0,0.2)" }} dir="rtl">
-          📍 {t(
-            `لا توجد محلات مسجّلة في معتمديتك الحالية (${gpsRegion}) — جرب تغيير المنطقة`,
-            `Aucun commerce disponible dans votre délégation (${gpsRegion})`
-          )}
+        <div className="mb-4 rounded-xl overflow-hidden" dir="rtl">
+          <div className="px-3 py-2 text-center text-xs font-black text-[#b45309]"
+            style={{ background: "rgba(255,165,0,0.08)", border: "1px solid rgba(255,165,0,0.2)", borderBottom: "none", borderRadius: "12px 12px 0 0" }}>
+            📍 {t(
+              `لا توجد محلات مسجّلة في معتمديتك الحالية — جرب تغيير المنطقة`,
+              `Aucun commerce disponible dans votre délégation actuelle`
+            )}
+          </div>
+          <div className="px-3 py-1.5 text-center text-[10px] font-mono font-bold"
+            style={{ background: "#1A4D1F08", border: "1px solid rgba(255,165,0,0.2)", borderTop: "1px dashed rgba(255,165,0,0.2)", borderRadius: "0 0 12px 12px", color: "#1A4D1F60" }}>
+            🔍 {t(`فحص: معتمدية "${gpsRegion}"`, `Vérification: délégation "${gpsRegion}"`)}
+            {" · "}{vendors.length} {t("مزود في النظام", "fournisseurs en base")}
+            {" · "}{vendors.filter(v => v.delegationAr).length} {t("بموقع محدد", "localisés")}
+          </div>
         </div>
       )}
 
