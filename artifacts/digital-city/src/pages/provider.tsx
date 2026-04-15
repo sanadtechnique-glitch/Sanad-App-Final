@@ -14,7 +14,13 @@ import { useLang } from "@/lib/language";
 import { NotificationBell } from "@/components/notification-bell";
 import { get, patch, post, del } from "@/lib/admin-api";
 import { pushNotification, readNotifKey, markNotifKeyRead, providerKey, type Notification } from "@/lib/notifications";
-import { playSanadSound, unlockAudio } from "@/lib/notification-sound";
+import { playProviderChime, playTaxiHorn, playTruckAlert, unlockAudio } from "@/lib/notification-sound";
+
+function playRoleSound(category: string) {
+  if (category === "taxi")               { playTaxiHorn();    return; }
+  if (category === "sos")                { playTruckAlert();  return; }
+  playProviderChime();
+}
 
 interface Supplier { id: number; name: string; nameAr: string; category: string; isAvailable: boolean; shift?: string; rating?: number; phone?: string; photoUrl?: string | null; }
 interface Order { id: number; customerName: string; customerPhone?: string; customerAddress: string; notes?: string; status: string; createdAt: string; deliveryFee?: number; photoUrl?: string; }
@@ -1252,7 +1258,7 @@ export default function ProviderDashboard() {
           if (count > prev) {
             setHasNewOrder(true);
             setTimeout(() => setHasNewOrder(false), 4000);
-            playSanadSound();
+            playRoleSound(provider.category);
           }
           return count;
         });
@@ -1273,7 +1279,7 @@ export default function ProviderDashboard() {
       const unread = notifs.filter(n => !n.read);
       if (unread.length > 0) {
         setDriverNotif(unread[0]);
-        playSanadSound();
+        playRoleSound(provider.category);
         markNotifKeyRead(providerKey(provider.id));
         setTimeout(() => setDriverNotif(null), 6000);
       }

@@ -79,10 +79,53 @@ router.get("/admin/suppliers/:id", requireAdmin, async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
+// ── Delegation stats — count per delegation per category ─────────────────────
+router.get("/admin/suppliers/delegation-stats", requireAdmin, async (_req, res) => {
+  try {
+    const all = await db.select({
+      delegationAr: serviceProvidersTable.delegationAr,
+      delegationFr: serviceProvidersTable.delegationFr,
+      category:     serviceProvidersTable.category,
+    }).from(serviceProvidersTable);
+
+    // Build map: delegationAr → { gov_fr, categories: { cat: count } }
+    const map: Record<string, { delegationFr: string | null; categories: Record<string, number>; total: number }> = {};
+    for (const row of all) {
+      const key = row.delegationAr ?? "__none__";
+      if (!map[key]) map[key] = { delegationFr: row.delegationFr, categories: {}, total: 0 };
+      map[key].categories[row.category] = (map[key].categories[row.category] ?? 0) + 1;
+      map[key].total++;
+    }
+    res.json(map);
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+});
+
+// ── Location audit — flag providers missing delegation ───────────────────────
+router.get("/admin/suppliers/location-audit", requireAdmin, async (_req, res) => {
+  try {
+    const all = await db.select({
+      id:           serviceProvidersTable.id,
+      name:         serviceProvidersTable.name,
+      nameAr:       serviceProvidersTable.nameAr,
+      category:     serviceProvidersTable.category,
+      address:      serviceProvidersTable.address,
+      delegationAr: serviceProvidersTable.delegationAr,
+      delegationFr: serviceProvidersTable.delegationFr,
+      latitude:     serviceProvidersTable.latitude,
+      longitude:    serviceProvidersTable.longitude,
+    }).from(serviceProvidersTable);
+
+    const flagged = all.filter(r => !r.delegationAr || r.delegationAr.trim() === "");
+    const ok      = all.filter(r => r.delegationAr && r.delegationAr.trim() !== "");
+    res.json({ total: all.length, flagged, ok: ok.length });
+  } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
+});
+
 router.post("/admin/suppliers", requireAdmin, async (req, res) => {
   const {
     name, nameAr, category, description, descriptionAr, address, phone, photoUrl,
     shift, rating, isAvailable, latitude, longitude, deliveryFee,
+    delegationAr, delegationFr,
     // optional account creation
     providerPhone, providerPassword,
   } = req.body;
@@ -126,6 +169,8 @@ router.post("/admin/suppliers", requireAdmin, async (req, res) => {
       latitude: latitude ? parseFloat(String(latitude)) : null,
       longitude: longitude ? parseFloat(String(longitude)) : null,
       deliveryFee: deliveryFee !== undefined ? parseFloat(String(deliveryFee)) : 3.0,
+      delegationAr: delegationAr || null,
+      delegationFr: delegationFr || null,
     }).returning();
 
     // 2. Create provider account if requested
@@ -163,6 +208,7 @@ router.patch("/admin/suppliers/:id", requireAdmin, async (req, res) => {
     name, nameAr, category, description, descriptionAr, address, phone, photoUrl, shift, rating, isAvailable,
     latitude, longitude, deliveryFee,
     subscriptionFee, subscriptionActive, subscriptionRenewalDate,
+    delegationAr, delegationFr,
   } = req.body;
   if (phone !== undefined && phone !== "" && !isValidPhone(phone)) {
     res.status(400).json({ message: "Invalid phone number format" }); return;
@@ -179,6 +225,8 @@ router.patch("/admin/suppliers/:id", requireAdmin, async (req, res) => {
     if (subscriptionRenewalDate !== undefined) {
       updates.subscriptionRenewalDate = subscriptionRenewalDate ? new Date(subscriptionRenewalDate) : null;
     }
+    if (delegationAr !== undefined) updates.delegationAr = delegationAr || null;
+    if (delegationFr !== undefined) updates.delegationFr = delegationFr || null;
     const [row] = await db.update(serviceProvidersTable)
       .set(updates as any)
       .where(eq(serviceProvidersTable.id, id)).returning();

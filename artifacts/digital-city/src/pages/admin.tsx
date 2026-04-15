@@ -12,7 +12,7 @@ import {
   UserCog, Shield, Search, Eye, EyeOff, UserCheck, UserX, Send, Radio, Bell,
   Image, ImageIcon, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
   Settings, Sliders, DollarSign, Zap, TrendingUp, Upload, AlertTriangle, KeyRound, Stethoscope, Scale, FileText, Phone,
-  Camera, Bed, Wrench, Menu,
+  Camera, Bed, Wrench, Menu, MapPin,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ import { useLang } from "@/lib/language";
 import { get, post, patch, del } from "@/lib/admin-api";
 import { getSessionToken } from "@/lib/auth";
 import { format } from "date-fns";
+import { TUNISIA_GOV, ALL_DELEGATIONS } from "@/lib/tunisia-gov";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -32,7 +33,7 @@ interface Order {
   status: OrderStatus; deliveryFee?: number; totalAmount?: number; deliveryStaffId?: number;
   createdAt: string; notes?: string; delegationId?: number;
 }
-interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; deliveryFee?: number | null; subscriptionFee?: number | null; subscriptionActive?: boolean; subscriptionRenewalDate?: string | null; }
+interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; deliveryFee?: number | null; subscriptionFee?: number | null; subscriptionActive?: boolean; subscriptionRenewalDate?: string | null; delegationAr?: string | null; delegationFr?: string | null; }
 interface Article { id: number; supplierId: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; originalPrice?: number; discountedPrice?: number; photoUrl?: string | null; isAvailable: boolean; supplierName?: string; }
 interface DeliveryStaff { id: number; name: string; nameAr: string; phone: string; zone?: string; isAvailable: boolean; }
 interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
@@ -198,6 +199,8 @@ function OverviewSection({ t }: { t: (ar: string, fr: string) => string }) {
   const [dbStats, setDbStats] = useState<DbStats | null>(null);
   const [dbLoading, setDbLoading] = useState(true);
   const [subStats, setSubStats] = useState<SubStats | null>(null);
+  const [delegationStats, setDelegationStats] = useState<{ delegation: string; count: number }[]>([]);
+  const [flaggedCount, setFlaggedCount] = useState<number>(0);
 
   const loadDbStats = () => {
     setDbLoading(true);
@@ -206,11 +209,21 @@ function OverviewSection({ t }: { t: (ar: string, fr: string) => string }) {
       .catch(() => setDbLoading(false));
   };
 
+  const loadDelegationStats = () => {
+    get<{ stats: { delegation: string; count: number }[] }>("/admin/suppliers/delegation-stats")
+      .then(r => setDelegationStats(r.stats ?? []))
+      .catch(() => {});
+    get<{ total: number; flagged: unknown[] }>("/admin/suppliers/location-audit")
+      .then(r => setFlaggedCount(r.flagged?.length ?? 0))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     get<Order[]>("/orders").then(setOrders).catch(() => {});
     get<Supplier[]>("/admin/suppliers").then(setSuppliers).catch(() => {});
     get<SubStats>("/admin/subscription-stats").then(setSubStats).catch(() => {});
     loadDbStats();
+    loadDelegationStats();
     const iv = setInterval(loadDbStats, 20_000);
     const subIv = setInterval(() => get<SubStats>("/admin/subscription-stats").then(setSubStats).catch(() => {}), 60_000);
     return () => { clearInterval(iv); clearInterval(subIv); };
@@ -377,6 +390,56 @@ function OverviewSection({ t }: { t: (ar: string, fr: string) => string }) {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ── Delegation Heatmap ── */}
+      <div className="glass-panel rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-[#1A4D1F]/60 text-sm uppercase tracking-wider flex items-center gap-2">
+            <MapPin size={14} className="text-[#FFA500]" />
+            {t("خريطة الحرارة — المعتمديات", "Carte de chaleur — Délégations")}
+          </h3>
+          {flaggedCount > 0 && (
+            <span className="text-[11px] font-black px-2.5 py-1 rounded-full"
+              style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}>
+              ⚠️ {flaggedCount} {t("مزود بدون موقع", "fournisseur(s) sans localisation")}
+            </span>
+          )}
+        </div>
+        {delegationStats.length === 0 ? (
+          <p className="text-center text-sm text-[#1A4D1F]/40 py-6">
+            {t("لا توجد بيانات موقع بعد", "Aucune donnée de localisation pour l'instant")}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {(() => {
+              const max = Math.max(...delegationStats.map(d => d.count), 1);
+              return delegationStats.sort((a, b) => b.count - a.count).map(d => {
+                const pct = Math.round((d.count / max) * 100);
+                const isMain = d.delegation === "بن قردان";
+                return (
+                  <div key={d.delegation} className="flex items-center gap-3">
+                    <span className={cn("text-xs font-bold w-28 text-right shrink-0", isMain ? "text-[#FFA500]" : "text-[#1A4D1F]/60")}>
+                      {isMain ? "🏠 " : ""}{d.delegation}
+                    </span>
+                    <div className="flex-1 h-5 rounded-lg overflow-hidden" style={{ background: "#1A4D1F10" }}>
+                      <div
+                        className="h-full rounded-lg transition-all duration-700"
+                        style={{
+                          width: `${pct}%`,
+                          background: isMain
+                            ? "linear-gradient(90deg, #FFA500, #ff8c00)"
+                            : "linear-gradient(90deg, #1A4D1F60, #1A4D1F)",
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs font-black text-[#1A4D1F]/70 w-6 text-left shrink-0">{d.count}</span>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1406,6 +1469,16 @@ function SupplierCard({ s, t, lang, type, typeConfig, onManage, onToggle, onEdit
                 🗓 {new Date(s.subscriptionRenewalDate).toLocaleDateString("ar-TN")}
               </span>
             )}
+            {s.delegationAr
+              ? <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black"
+                  style={{ background: "rgba(26,77,31,0.08)", color: "#1A4D1F", border: "1px solid rgba(26,77,31,0.2)" }}>
+                  📍 {s.delegationAr}
+                </span>
+              : <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black"
+                  style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>
+                  ⚠️ {t("موقع غير محدد", "Localisation manquante")}
+                </span>
+            }
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -1446,17 +1519,19 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
   const [filter, setFilter]     = useState<"all" | "products" | "services">("all");
   const [formType, setFormType] = useState<"product" | "service">("product");
   const [createdCreds, setCreatedCreds] = useState<{ phone: string; password: string } | null>(null);
-  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", photoUrl:"", shift:"all", isAvailable: true, latitude:"", longitude:"", deliveryFee:"3", providerPhone:"", providerPassword:"", subscriptionFee:"0", subscriptionActive: true, subscriptionRenewalDate:"" });
+  const [formGov, setFormGov]   = useState<string>("");
+  const [form, setForm] = useState({ name:"", nameAr:"", category:"restaurant", description:"", descriptionAr:"", address:"", phone:"", photoUrl:"", shift:"all", isAvailable: true, latitude:"", longitude:"", deliveryFee:"3", providerPhone:"", providerPassword:"", subscriptionFee:"0", subscriptionActive: true, subscriptionRenewalDate:"", delegationAr:"", delegationFr:"" });
 
   const load = () => get<Supplier[]>("/admin/suppliers").then(setItems).catch(() => {});
   useEffect(() => { load(); }, []);
 
-  const EMPTY_FORM = { name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",photoUrl:"",shift:"all",isAvailable:true,latitude:"",longitude:"",deliveryFee:"3",providerPhone:"",providerPassword:"", subscriptionFee:"0", subscriptionActive: true, subscriptionRenewalDate:"" };
+  const EMPTY_FORM = { name:"",nameAr:"",category:"restaurant",description:"",descriptionAr:"",address:"",phone:"",photoUrl:"",shift:"all",isAvailable:true,latitude:"",longitude:"",deliveryFee:"3",providerPhone:"",providerPassword:"", subscriptionFee:"0", subscriptionActive: true, subscriptionRenewalDate:"", delegationAr:"", delegationFr:"" };
 
   const openAdd = () => {
     setFormType("product");
     setCreatedCreds(null);
     setForm(EMPTY_FORM);
+    setFormGov("");
     setModal("add");
   };
   const openEdit = (s: Supplier) => {
@@ -1467,7 +1542,10 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
       subscriptionFee: (s.subscriptionFee ?? 0).toString(),
       subscriptionActive: s.subscriptionActive !== false,
       subscriptionRenewalDate: s.subscriptionRenewalDate ? s.subscriptionRenewalDate.split("T")[0] : "",
+      delegationAr: s.delegationAr || "",
+      delegationFr: s.delegationFr || "",
     });
+    setFormGov(TUNISIA_GOV.find(g => g.delegations.some(d => d.ar === (s.delegationAr || "")))?.gov ?? "");
     setModal(s);
   };
 
@@ -1743,6 +1821,53 @@ function SuppliersSection({ t, lang }: { t: (ar: string, fr: string) => string; 
                 />
               </Field>
             </div>
+          </div>
+        </div>
+
+        {/* ── Delegation / Location lock ── */}
+        <div className="rounded-xl p-3 border space-y-3" style={{ borderColor: "#1A4D1F20", background: "#1A4D1F05" }}>
+          <div className="flex items-center gap-2">
+            <MapPin size={13} style={{ color: "#1A4D1F" }} />
+            <p className="text-xs font-black text-[#1A4D1F]">
+              {t("📍 موقع المزود — المعتمدية", "📍 Localisation du fournisseur — Délégation")}
+            </p>
+            {form.delegationAr && (
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "#1A4D1F15", color: "#1A4D1F" }}>
+                ✅ {form.delegationAr}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("اختر الولاية", "Gouvernorat")}>
+              <select
+                value={formGov || (TUNISIA_GOV.find(g => g.delegations.some(d => d.ar === form.delegationAr))?.gov ?? "")}
+                onChange={e => { setFormGov(e.target.value); setForm(f => ({ ...f, delegationAr: "", delegationFr: "" })); }}
+                className="w-full bg-[#FFA500]/50 border border-[#1A4D1F]/10 rounded-xl px-3 py-2.5 text-sm text-[#1A4D1F] focus:outline-none focus:border-[#1A4D1F]/50"
+              >
+                <option value="">{t("— كل الولايات —", "— Tous les gouvernorats —")}</option>
+                {TUNISIA_GOV.map(g => (
+                  <option key={g.gov} value={g.gov}>{lang === "ar" ? g.gov : g.gov_fr}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t("اختر المعتمدية", "Délégation")}>
+              <select
+                value={form.delegationAr}
+                onChange={e => {
+                  const delAr = e.target.value;
+                  const found = ALL_DELEGATIONS.find(d => d.ar === delAr);
+                  setForm(f => ({ ...f, delegationAr: delAr, delegationFr: found?.fr ?? "" }));
+                }}
+                className="w-full bg-[#FFA500]/50 border border-[#1A4D1F]/10 rounded-xl px-3 py-2.5 text-sm text-[#1A4D1F] focus:outline-none focus:border-[#1A4D1F]/50"
+              >
+                <option value="">{t("— اختر المعتمدية —", "— Choisir la délégation —")}</option>
+                {TUNISIA_GOV.filter(g => !formGov || g.gov === formGov).flatMap(g =>
+                  g.delegations.map(d => (
+                    <option key={d.ar} value={d.ar}>{lang === "ar" ? `${d.ar} (${g.gov})` : `${d.fr} (${g.gov_fr})`}</option>
+                  ))
+                )}
+              </select>
+            </Field>
           </div>
         </div>
 

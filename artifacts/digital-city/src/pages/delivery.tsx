@@ -15,7 +15,7 @@ import { getSessionToken } from "@/lib/auth";
 import {
   pushNotification, pushProviderNotif, pushAdminNotif,
 } from "@/lib/notifications";
-import { playSanadSound, unlockAudio } from "@/lib/notification-sound";
+import { playDeliveryBell, unlockAudio } from "@/lib/notification-sound";
 import { io, type Socket } from "socket.io-client";
 
 const DeliveryMap = lazy(() => import("@/components/delivery-map"));
@@ -196,7 +196,7 @@ export default function DeliveryDashboard() {
            && !rejectedIds.current.has(o.id)
       );
       if (fresh.length > 0) {
-        playSanadSound();
+        playDeliveryBell();
         fresh.forEach(o => seenOrderIds.current.add(o.id));
         setIncomingQueue(prev => {
           const existingIds = new Set(prev.map(o => o.id));
@@ -237,7 +237,7 @@ export default function DeliveryDashboard() {
       if (rejectedIds.current.has(order.id)) return;
       if (seenOrderIds.current.has(order.id)) return;
       seenOrderIds.current.add(order.id);
-      playSanadSound();
+      playDeliveryBell();
       // Also add to orders list so it shows in active tab
       setOrders(prev => {
         const exists = prev.some(o => o.id === order.id);

@@ -27,6 +27,8 @@ export const serviceProvidersTable = pgTable("service_providers", {
   subscriptionFee: real("subscription_fee").default(0),
   subscriptionActive: boolean("subscription_active").default(true).notNull(),
   subscriptionRenewalDate: timestamp("subscription_renewal_date"),
+  delegationAr: text("delegation_ar"),
+  delegationFr: text("delegation_fr"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
   index("idx_providers_category").on(t.category),
