@@ -1387,29 +1387,41 @@ const WHY_FEATURES = [
 // TRENDING NOW SECTION
 // ─────────────────────────────────────────────────────────────────────────────
 interface Supplier { id: number; name: string; nameAr: string; category: string; photoUrl?: string; rating?: string; isAvailable: boolean; delegationAr?: string | null; }
-interface TrendProduct { id: number; title: string; imageUrl?: string; salePrice?: string; originalPrice?: string; providerId: number; }
+interface TrendProduct { id: number; title: string; titleFr?: string; imageUrl?: string; salePrice?: string | null; originalPrice?: string | null; providerId: number; delegationAr?: string | null; isFallback?: boolean; }
 
 function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
-  const [vendors, setVendors]     = useState<Supplier[]>([]);
-  const [products, setProducts]   = useState<TrendProduct[]>([]);
+  const [vendors,  setVendors]  = useState<Supplier[]>([]);
+  const [products, setProducts] = useState<TrendProduct[]>([]);
+  const [prodLoading, setProdLoading] = useState(false);
   // Mirror the GPS store region — always non-null (defaults to "بن قردان")
   const [gpsRegion, setGpsRegion] = useState<string>(gpsStore.region);
 
   useEffect(() => gpsStore.subscribe(() => setGpsRegion(gpsStore.region)), []);
 
+  // Fetch vendors once on mount (client-side zone filter applied below)
   useEffect(() => {
     get<Supplier[]>("/suppliers")
       .then(d => { if (Array.isArray(d)) setVendors(d.filter(s => s.isAvailable)); })
       .catch(() => {});
-    get<TrendProduct[]>("/products/deals")
-      .then(d => { if (Array.isArray(d)) setProducts(d.slice(0, 12)); })
-      .catch(() => {});
   }, []);
+
+  // Re-fetch products every time the zone changes — server filters by delegation
+  useEffect(() => {
+    setProducts([]);   // clear immediately so stale products from another zone vanish
+    setProdLoading(true);
+    const params = new URLSearchParams({ delegation: gpsRegion, fallback: "latest" });
+    get<TrendProduct[]>(`/products/deals?${params}`)
+      .then(d => { if (Array.isArray(d)) setProducts(d.slice(0, 12)); })
+      .catch(() => {})
+      .finally(() => setProdLoading(false));
+  }, [gpsRegion]); // re-run whenever zone changes
 
   // STRICT delegation filter — vendor must have a matching delegationAr.
   // Vendors with no delegationAr set are excluded to prevent cross-zone leaks.
   const visibleVendors  = vendors.filter(v => v.delegationAr && v.delegationAr === gpsRegion).slice(0, 12);
-  const visibleProducts = products; // products are zone-agnostic for now
+  // Products are already zone-filtered by the server — no extra client filter needed
+  const visibleProducts = products;
+  const hasFallbackProducts = products.some(p => p.isFallback);
 
   // No data at all yet — hide section entirely
   if (vendors.length === 0 && products.length === 0) return null;
@@ -1493,51 +1505,82 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
         </div>
       )}
 
-      {/* ── Row 2: Trending Products ── */}
-      {visibleProducts.length > 0 && (
+      {/* ── Row 2: Trending / Latest Products ── */}
+      {(visibleProducts.length > 0 || prodLoading) && (
         <div>
-          <p className="text-xs font-black text-[#1A4D1F]/50 mb-2 text-right" style={FONT}>
-            {t("منتجات رائجة", "Produits tendance")}
-          </p>
-          <div
-            className="flex overflow-x-auto pb-1"
-            style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", gap: 10 }}
-            dir="rtl"
-          >
-            {visibleProducts.map(p => (
-              <Link key={p.id} href={`/store/${p.providerId}`}>
-                <div
-                  className="flex-shrink-0 flex flex-col items-center gap-1 cursor-pointer active:scale-95 transition-transform duration-100"
-                  style={{ width: 80, background: "transparent" }}
-                >
-                  {/* Image */}
+          <div className="flex items-center justify-between mb-2" dir="rtl">
+            <p className="text-xs font-black text-[#1A4D1F]/50" style={FONT}>
+              {hasFallbackProducts
+                ? t("أحدث منتجات المنطقة", "Derniers produits de la zone")
+                : t("منتجات رائجة بأسعار مخفضة 🔖", "Produits tendance en promotion 🔖")}
+            </p>
+            {hasFallbackProducts && (
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full"
+                style={{ background: "rgba(26,77,31,0.08)", color: "#1A4D1F60", border: "1px solid rgba(26,77,31,0.1)" }}>
+                {t("لا عروض حالياً", "Pas de promos")}
+              </span>
+            )}
+          </div>
+          {prodLoading ? (
+            <div className="flex gap-3 overflow-hidden" dir="rtl">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex-shrink-0 flex flex-col items-center gap-1.5" style={{ width: 80 }}>
+                  <div className="w-16 h-16 rounded-2xl animate-pulse" style={{ background: "rgba(26,77,31,0.07)" }} />
+                  <div className="w-12 h-2 rounded animate-pulse" style={{ background: "rgba(26,77,31,0.07)" }} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              className="flex overflow-x-auto pb-1"
+              style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", gap: 10 }}
+              dir="rtl"
+            >
+              {visibleProducts.map(p => (
+                <Link key={p.id} href={`/store/${p.providerId}`}>
                   <div
-                    className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center"
-                    style={{ background: "transparent", border: "1.5px solid rgba(26,77,31,0.1)" }}
+                    className="flex-shrink-0 flex flex-col items-center gap-1 cursor-pointer active:scale-95 transition-transform duration-100"
+                    style={{ width: 80, background: "transparent" }}
                   >
-                    {p.imageUrl ? (
-                      <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <span style={{ fontSize: 28 }}>🛍️</span>
+                    {/* Image */}
+                    <div className="relative w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center"
+                      style={{ background: "transparent", border: "1.5px solid rgba(26,77,31,0.1)" }}>
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <span style={{ fontSize: 28 }}>🛍️</span>
+                      )}
+                      {/* Discount badge */}
+                      {!p.isFallback && p.originalPrice && p.salePrice && parseFloat(p.originalPrice) > parseFloat(p.salePrice) && (
+                        <span className="absolute top-0.5 end-0.5 text-[8px] font-black text-white px-1 rounded-full"
+                          style={{ background: "#B91C1C", lineHeight: "14px" }}>
+                          -{Math.round((1 - parseFloat(p.salePrice) / parseFloat(p.originalPrice)) * 100)}%
+                        </span>
+                      )}
+                    </div>
+                    {/* Title */}
+                    <p className="text-center leading-tight"
+                      style={{ ...FONT, fontSize: 9, fontWeight: 800, color: "#1A4D1F", width: "100%", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                      {lang === "ar" ? (p.title || "") : (p.titleFr || p.title || "")}
+                    </p>
+                    {/* Price */}
+                    {p.salePrice && (
+                      <div className="flex flex-col items-center gap-0">
+                        <p style={{ ...FONT, fontSize: 9, fontWeight: 900, color: "#B91C1C" }}>
+                          {parseFloat(p.salePrice).toFixed(3)} DT
+                        </p>
+                        {!p.isFallback && p.originalPrice && (
+                          <p style={{ ...FONT, fontSize: 8, fontWeight: 700, color: "#1A4D1F40", textDecoration: "line-through" }}>
+                            {parseFloat(p.originalPrice).toFixed(3)}
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
-                  {/* Title */}
-                  <p
-                    className="text-center leading-tight"
-                    style={{ ...FONT, fontSize: 9, fontWeight: 800, color: "#1A4D1F", width: "100%", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}
-                  >
-                    {p.title}
-                  </p>
-                  {/* Price */}
-                  {p.salePrice && (
-                    <p style={{ ...FONT, fontSize: 9, fontWeight: 900, color: "#B91C1C" }}>
-                      {parseFloat(p.salePrice).toFixed(3)} DT
-                    </p>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </motion.section>

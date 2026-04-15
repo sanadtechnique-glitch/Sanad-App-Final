@@ -22,47 +22,90 @@ router.get("/articles", async (req, res) => {
   }
 });
 
-// Public: deals — articles with originalPrice > price (discounted)
+// Public: deals — discounted articles, scoped to vendor delegation
+// Query params:
+//   delegation  — Arabic delegation name (e.g. "بن قردان") — REQUIRED for correct zone filtering
+//   fallback    — "latest" (default) | "none"  — what to return when no deals found in zone
 router.get("/products/deals", async (req, res) => {
+  const delegation = typeof req.query.delegation === "string" ? req.query.delegation.trim() : null;
+  const fallback   = req.query.fallback === "none" ? "none" : "latest";
+
+  // Shared field list used for both deal and fallback queries
+  const FIELDS = {
+    id:            articlesTable.id,
+    providerId:    articlesTable.supplierId,
+    title:         articlesTable.nameAr,
+    titleFr:       articlesTable.nameFr,
+    description:   articlesTable.descriptionAr,
+    imageUrl:      articlesTable.photoUrl,
+    salePrice:     articlesTable.price,
+    originalPrice: articlesTable.originalPrice,
+    category:      serviceProvidersTable.category,
+    supplierName:  serviceProvidersTable.nameAr,
+    delegationAr:  serviceProvidersTable.delegationAr,
+    isAvailable:   articlesTable.isAvailable,
+    createdAt:     articlesTable.createdAt,
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fmt = (rows: any[]) => rows.map(r => ({
+    ...r,
+    salePrice:     r.salePrice     != null ? String(r.salePrice)     : null,
+    originalPrice: r.originalPrice != null ? String(r.originalPrice) : null,
+  }));
+
   try {
-    const rows = await db
-      .select({
-        id:           articlesTable.id,
-        providerId:   articlesTable.supplierId,
-        title:        articlesTable.nameAr,
-        titleFr:      articlesTable.nameFr,
-        description:  articlesTable.descriptionAr,
-        imageUrl:     articlesTable.photoUrl,
-        salePrice:    articlesTable.price,
-        originalPrice: articlesTable.originalPrice,
-        category:     serviceProvidersTable.category,
-        supplierName: serviceProvidersTable.nameAr,
-        isAvailable:  articlesTable.isAvailable,
-        createdAt:    articlesTable.createdAt,
-      })
+    // Build the zone condition — if delegation provided, filter strictly
+    const zoneCondition = delegation
+      ? eq(serviceProvidersTable.delegationAr, delegation)
+      : sql`1=1`;
+
+    // 1st query: discounted products in zone
+    const deals = await db
+      .select(FIELDS)
       .from(articlesTable)
       .leftJoin(serviceProvidersTable, eq(articlesTable.supplierId, serviceProvidersTable.id))
       .where(
         and(
+          eq(articlesTable.isAvailable, true),
           isNotNull(articlesTable.originalPrice),
           sql`${articlesTable.price} < ${articlesTable.originalPrice}`,
-          eq(articlesTable.isAvailable, true),
+          zoneCondition,
         )
       )
-      .orderBy(articlesTable.createdAt)
-      .limit(60);
-    // Convert numeric prices to strings for frontend compatibility
-    const formatted = rows.map(r => ({
-      ...r,
-      salePrice:     r.salePrice    != null ? String(r.salePrice)    : null,
-      originalPrice: r.originalPrice != null ? String(r.originalPrice) : null,
-    }));
-    res.json(formatted);
+      .orderBy(sql`${articlesTable.createdAt} desc`)
+      .limit(24);
+
+    if (deals.length > 0) {
+      return res.json(fmt(deals));
+    }
+
+    // No deals in zone — fallback: return latest available products in same zone
+    if (fallback === "none" || !delegation) {
+      return res.json([]);
+    }
+
+    const latest = await db
+      .select(FIELDS)
+      .from(articlesTable)
+      .leftJoin(serviceProvidersTable, eq(articlesTable.supplierId, serviceProvidersTable.id))
+      .where(
+        and(
+          eq(articlesTable.isAvailable, true),
+          zoneCondition,
+        )
+      )
+      .orderBy(sql`${articlesTable.createdAt} desc`)
+      .limit(12);
+
+    // Tag fallback rows so the frontend can show a "latest" label instead of "deals"
+    return res.json(fmt(latest).map(r => ({ ...r, isFallback: true })));
   } catch (err) {
     req.log.error({ err });
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 // ── Provider-facing article endpoints ────────────────────────────────────────
 
