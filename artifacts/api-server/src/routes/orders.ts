@@ -107,6 +107,8 @@ router.post("/orders", async (req, res) => {
     let etaMinutes: number | null = null;
     let savedFee   = 2.500; // minimum base fare (DT)
 
+    const MAX_DELIVERY_FEE = 15; // DT — hard server-side cap
+
     if (cLat && cLng && !isNaN(cLat) && !isNaN(cLng)) {
       try {
         // calculateDistance uses Haversine + 2.500 + (km × 0.500) + Math.max(minFee)
@@ -119,6 +121,17 @@ router.post("/orders", async (req, res) => {
       // Client sent a pre-calculated fee (e.g. from distance API call on order page)
       const clientFee = parseFloat(String(req.body.deliveryFee));
       savedFee = isNaN(clientFee) ? 2.500 : Math.max(clientFee, 2.500);
+    }
+
+    // Hard cap: reject orders where delivery fee exceeds limit
+    if (savedFee > MAX_DELIVERY_FEE) {
+      res.status(422).json({
+        message: "المسافة بعيدة جداً للتوصيل حالياً",
+        code: "DELIVERY_FEE_EXCEEDED",
+        deliveryFee: savedFee,
+        maxAllowed: MAX_DELIVERY_FEE,
+      });
+      return;
     }
 
     const subtotal   = totalAmount ? parseFloat(String(totalAmount)) : 0;

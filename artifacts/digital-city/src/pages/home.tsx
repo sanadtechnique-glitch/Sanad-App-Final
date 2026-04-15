@@ -1383,10 +1383,8 @@ const WHY_FEATURES = [
 // ─────────────────────────────────────────────────────────────────────────────
 // TRENDING NOW SECTION
 // ─────────────────────────────────────────────────────────────────────────────
-interface Supplier { id: number; name: string; nameAr: string; category: string; photoUrl?: string; rating?: string; isAvailable: boolean; }
+interface Supplier { id: number; name: string; nameAr: string; category: string; photoUrl?: string; rating?: string; isAvailable: boolean; delegationAr?: string | null; }
 interface TrendProduct { id: number; title: string; imageUrl?: string; salePrice?: string; originalPrice?: string; providerId: number; }
-
-const ZONE = "بن قردان"; // The only supported delivery zone — string compare, zero math
 
 function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
   const [vendors, setVendors]     = useState<Supplier[]>([]);
@@ -1398,18 +1396,17 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
 
   useEffect(() => {
     get<Supplier[]>("/suppliers")
-      .then(d => { if (Array.isArray(d)) setVendors(d.filter(s => s.isAvailable).slice(0, 12)); })
+      .then(d => { if (Array.isArray(d)) setVendors(d.filter(s => s.isAvailable)); })
       .catch(() => {});
     get<TrendProduct[]>("/products/deals")
       .then(d => { if (Array.isArray(d)) setProducts(d.slice(0, 12)); })
       .catch(() => {});
   }, []);
 
-  // Zone filter: string compare only — no math.
-  // Since gpsStore always defaults to ZONE, this is true on first load (data visible immediately).
-  const zoneMatch = gpsRegion === ZONE;
-  const visibleVendors  = zoneMatch ? vendors  : [];
-  const visibleProducts = zoneMatch ? products : [];
+  // STRICT delegation filter — vendor must have a matching delegationAr.
+  // Vendors with no delegationAr set are excluded to prevent cross-zone leaks.
+  const visibleVendors  = vendors.filter(v => v.delegationAr && v.delegationAr === gpsRegion).slice(0, 12);
+  const visibleProducts = products; // products are zone-agnostic for now
 
   // No data at all yet — hide section entirely
   if (vendors.length === 0 && products.length === 0) return null;
@@ -1433,10 +1430,13 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
       </div>
 
       {/* Zone mismatch notice — only shown if GPS placed user outside Ben Guerdane */}
-      {!zoneMatch && (
-        <div className="mb-4 px-3 py-2 rounded-xl text-center text-xs font-black text-[#b45309]"
+      {visibleVendors.length === 0 && vendors.length > 0 && (
+        <div className="mb-4 px-3 py-2.5 rounded-xl text-center text-xs font-black text-[#b45309]"
           style={{ background: "rgba(255,165,0,0.08)", border: "1px solid rgba(255,165,0,0.2)" }} dir="rtl">
-          📍 {t(`لا توجد محلات في منطقتك الحالية (${gpsRegion})`, `Aucun commerce dans votre zone (${gpsRegion})`)}
+          📍 {t(
+            `لا توجد محلات مسجّلة في معتمديتك الحالية (${gpsRegion}) — جرب تغيير المنطقة`,
+            `Aucun commerce disponible dans votre délégation (${gpsRegion})`
+          )}
         </div>
       )}
 

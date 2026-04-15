@@ -16,7 +16,24 @@ interface Supplier {
   id: number; name: string; nameAr: string; category: string;
   description: string; descriptionAr: string; address: string;
   rating?: number; isAvailable: boolean; shift?: string;
-  photoUrl?: string | null;
+  photoUrl?: string | null; delegationAr?: string | null;
+}
+
+// ── Read user's current delegation from sessionStorage (written by gpsStore) ──
+const GPS_KEY = "sanad_gps_v2";
+function getUserDelegation(): string {
+  try {
+    const raw = sessionStorage.getItem(GPS_KEY);
+    if (raw) { const p = JSON.parse(raw); if (p?.delegation) return p.delegation; }
+  } catch {}
+  return "بن قردان";
+}
+
+// ── Strict delegation guard: returns true only if vendor is in user's zone ────
+function inUserZone(s: Supplier): boolean {
+  const userDel = getUserDelegation();
+  // Vendor must have a delegation set AND it must match the user's delegation exactly
+  return Boolean(s.delegationAr) && s.delegationAr === userDel;
 }
 
 // Matches exact DB category values
@@ -118,6 +135,10 @@ export default function Services() {
 
   const cfg = (id: string) => CATS.find(c => c.id === id) ?? CATS[0];
 
+  // STRICT: only show vendors in user's current delegation
+  const userDelegation = getUserDelegation();
+  const zoneSuppliers = suppliers.filter(inUserZone);
+
   const effectivelyAvailable = (s: Supplier) => {
     if (!s.isAvailable) return false;
     if (s.category === "pharmacy") return isPharmacyShiftActive(s.shift);
@@ -192,13 +213,29 @@ export default function Services() {
             <h3 className="text-xl font-black text-[#1A4D1F] mb-2">{t("حدث خطأ", "Erreur de chargement")}</h3>
             <p className="text-[#1A4D1F]/30 text-sm">{t("حاول مرة أخرى", "Veuillez réessayer")}</p>
           </div>
-        ) : (suppliers.length === 0 && !showTaxiCard) ? (
+        ) : (zoneSuppliers.length === 0 && !showTaxiCard) ? (
           <div className="glass-panel rounded-3xl p-14 text-center flex flex-col items-center border border-[#1A4D1F]/5 mt-4">
             <div className="w-20 h-20 rounded-full bg-[#1A4D1F]/10 flex items-center justify-center mb-4 border border-[#1A4D1F]/20">
               <Star size={32} className="text-[#1A4D1F]/50" />
             </div>
-            <h3 className="text-xl font-black text-[#1A4D1F] mb-2">{t("لا توجد نتائج", "Aucun résultat")}</h3>
-            <p className="text-[#1A4D1F]/30 text-sm">{t("جرّب فئة أخرى", "Essayez une autre catégorie")}</p>
+            {suppliers.length > 0 && zoneSuppliers.length === 0 ? (
+              <>
+                <h3 className="text-xl font-black text-[#1A4D1F] mb-2" dir="rtl">
+                  {t("لا توجد محلات في معتمديتك", "Aucun commerce dans votre délégation")}
+                </h3>
+                <p className="text-[#1A4D1F]/40 text-sm font-bold" dir="rtl">
+                  📍 {userDelegation}
+                </p>
+                <p className="text-[#1A4D1F]/30 text-xs mt-1" dir="rtl">
+                  {t("غيّر منطقتك من الصفحة الرئيسية", "Changez votre zone depuis la page d'accueil")}
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-black text-[#1A4D1F] mb-2">{t("لا توجد نتائج", "Aucun résultat")}</h3>
+                <p className="text-[#1A4D1F]/30 text-sm">{t("جرّب فئة أخرى", "Essayez une autre catégorie")}</p>
+              </>
+            )}
           </div>
         ) : (
           <AnimatePresence mode="wait">
@@ -208,7 +245,7 @@ export default function Services() {
               {/* Taxi shortcut — shown in "all" tab */}
               {showTaxiCard && <TaxiShortcutCard t={t} isRTL={isRTL} />}
 
-              {suppliers.map(s => {
+              {zoneSuppliers.map(s => {
                 const c = cfg(s.category);
                 const Icon = c.icon ?? Utensils;
                 const avail = effectivelyAvailable(s);

@@ -23,15 +23,26 @@ interface Supplier {
   description: string; descriptionAr: string; address: string;
   rating?: number; isAvailable: boolean;
   latitude?: number | null; longitude?: number | null;
-  deliveryFee?: number | null;
+  deliveryFee?: number | null; delegationAr?: string | null;
 }
 interface DistanceResult {
   distanceKm: number; etaMinutes: number; deliveryFee: number;
   baseFee: number; kmFee: number; isNight: boolean; source: string;
 }
 // ─── Constants ────────────────────────────────────────────────────────────────
-const BASE_FARE      = 4.800; // DT — shown when GPS is unavailable
-const GPS_SESSION_KEY = "sanad_gps_coords"; // sessionStorage key for coord caching
+const BASE_FARE        = 4.800; // DT — shown when GPS is unavailable
+const MAX_DELIVERY_FEE = 15;    // DT — hard cap; orders above this are blocked
+const GPS_SESSION_KEY  = "sanad_gps_coords"; // sessionStorage key for coord caching
+const GPS_STORE_KEY    = "sanad_gps_v2";     // delegation store key
+
+// Read user's current delegation (written by gpsStore in home.tsx)
+function getUserDelegation(): string {
+  try {
+    const raw = sessionStorage.getItem(GPS_STORE_KEY);
+    if (raw) { const p = JSON.parse(raw); if (p?.delegation) return p.delegation; }
+  } catch {}
+  return "بن قردان";
+}
 
 // ─── Zod schema ───────────────────────────────────────────────────────────────
 const schema = z.object({
@@ -321,6 +332,15 @@ export default function Order() {
   const isGpsOk      = gpsStatus === "ok";
   const isGpsWatching = gpsStatus === "watching";
   const isGpsError   = gpsStatus === "error";
+
+  // ── Zone + fee guards ─────────────────────────────────────────────────────
+  const userDelegation  = getUserDelegation();
+  const vendorDelegation = supplier?.delegationAr ?? "";
+  // Block if vendor is in a different delegation than user (strict equality)
+  const zoneMismatch = Boolean(vendorDelegation) && vendorDelegation !== userDelegation;
+  // Block if GPS-calculated fee exceeds the hard cap
+  const feeBlocked   = distInfo !== null && distInfo.deliveryFee > MAX_DELIVERY_FEE;
+  const orderBlocked = zoneMismatch || feeBlocked;
 
   // ── Render: loading / not found ───────────────────────────────────────────
   if (loadingProvider) {
@@ -738,14 +758,41 @@ export default function Order() {
                   </div>
                 </div>
 
+                {/* ── Zone / Fee block warnings ── */}
+                {feeBlocked && (
+                  <div className="rounded-2xl px-4 py-3 flex items-start gap-3 text-sm font-black"
+                    style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#dc2626" }} dir="rtl">
+                    <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                    <div>
+                      <p>{t("المسافة بعيدة جداً للتوصيل حالياً", "Distance trop grande pour la livraison")}</p>
+                      <p className="text-xs font-medium opacity-70 mt-0.5">
+                        {t(`رسوم التوصيل (${distInfo?.deliveryFee.toFixed(2)} DT) تتجاوز الحد الأقصى المسموح به (${MAX_DELIVERY_FEE} DT)`,
+                           `Frais de livraison (${distInfo?.deliveryFee.toFixed(2)} DT) dépassent le plafond (${MAX_DELIVERY_FEE} DT)`)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {zoneMismatch && !feeBlocked && (
+                  <div className="rounded-2xl px-4 py-3 flex items-start gap-3 text-sm font-black"
+                    style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#dc2626" }} dir="rtl">
+                    <MapPin size={18} className="shrink-0 mt-0.5" />
+                    <p>{t(
+                      `هذا المزود خارج منطقتك (${userDelegation}) — لا يمكن إتمام الطلب`,
+                      `Ce prestataire est hors de votre zone (${userDelegation})`
+                    )}</p>
+                  </div>
+                )}
+
                 {/* Submit */}
-                <motion.button type="submit" disabled={submitting}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full py-4 rounded-2xl font-black text-base text-white transition-all disabled:opacity-60"
-                  style={{ background: submitting ? "#1A4D1F80" : "linear-gradient(135deg,#1A4D1F,#2E7D32)" }}>
+                <motion.button type="submit" disabled={submitting || orderBlocked}
+                  whileTap={orderBlocked ? {} : { scale: 0.98 }}
+                  className="w-full py-4 rounded-2xl font-black text-base text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: (submitting || orderBlocked) ? "#9ca3af" : "linear-gradient(135deg,#1A4D1F,#2E7D32)" }}>
                   {submitting
                     ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" />{t("جاري الإرسال...","Envoi...")}</span>
-                    : t("تأكيد الطلب →","Confirmer la commande →")}
+                    : orderBlocked
+                      ? t("⛔ الطلب محظور", "⛔ Commande bloquée")
+                      : t("تأكيد الطلب →","Confirmer la commande →")}
                 </motion.button>
 
               </form>
