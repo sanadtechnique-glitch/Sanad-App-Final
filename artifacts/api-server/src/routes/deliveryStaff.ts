@@ -101,14 +101,30 @@ router.delete("/admin/delivery-staff/:id", requireAdmin, async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-// Driver's own history — by staffId (used by delivery dashboard)
-router.get("/delivery/:staffId/orders", async (req, res) => {
+// [C-4 FIXED] Driver's own history — requires staff auth + ownership check
+router.get("/delivery/:staffId/orders", requireStaff, async (req, res) => {
   const staffId = parseInt(req.params.staffId);
   if (isNaN(staffId)) { res.status(400).json({ message: "Invalid staffId" }); return; }
+
+  const session = (req as any).authSession as { userId: number; role: string };
+  const isAdmin = ["super_admin", "admin", "manager"].includes(session.role);
+
+  if (!isAdmin) {
+    // Driver can only access their own order history
+    const [user] = await db.select({ linkedStaffId: usersTable.linkedStaffId })
+      .from(usersTable).where(eq(usersTable.id, session.userId));
+    if (!user?.linkedStaffId || user.linkedStaffId !== staffId) {
+      res.status(403).json({ message: "غير مصرح · Non autorisé" }); return;
+    }
+  }
+
   try {
+    const { desc } = await import("drizzle-orm");
     const orders = await db.select().from(ordersTable)
-      .where(eq(ordersTable.deliveryStaffId, staffId));
-    res.json(orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      .where(eq(ordersTable.deliveryStaffId, staffId))
+      .orderBy(desc(ordersTable.createdAt))
+      .limit(200);
+    res.json(orders);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 

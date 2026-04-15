@@ -1416,9 +1416,10 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
       .finally(() => setProdLoading(false));
   }, [gpsRegion]); // re-run whenever zone changes
 
-  // STRICT delegation filter — vendor must have a matching delegationAr.
-  // Vendors with no delegationAr set are excluded to prevent cross-zone leaks.
-  const visibleVendors  = vendors.filter(v => v.delegationAr && v.delegationAr === gpsRegion).slice(0, 12);
+  // [H-3] Normalize delegation strings before comparing
+  const normDel = (s?: string | null) => (s ?? "").trim().replace(/\s+/g, " ");
+  // STRICT delegation filter — vendor must have a matching delegationAr (normalized).
+  const visibleVendors  = vendors.filter(v => normDel(v.delegationAr) !== "" && normDel(v.delegationAr) === normDel(gpsRegion)).slice(0, 12);
   // Products are already zone-filtered by the server — no extra client filter needed
   const visibleProducts = products;
   const hasFallbackProducts = products.some(p => p.isFallback);

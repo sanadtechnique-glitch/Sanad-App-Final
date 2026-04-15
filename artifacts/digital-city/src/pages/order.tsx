@@ -28,6 +28,7 @@ interface Supplier {
 interface DistanceResult {
   distanceKm: number; etaMinutes: number; deliveryFee: number;
   baseFee: number; kmFee: number; isNight: boolean; source: string;
+  providerCoordsSet?: boolean; // [E-2] false = city-centre fallback used, fee may be inaccurate
 }
 // ─── Constants ────────────────────────────────────────────────────────────────
 const BASE_FARE        = 4.800; // DT — shown when GPS is unavailable
@@ -318,6 +319,8 @@ export default function Order() {
         deliveryFee,
         totalAmount:       finalTotal,
         items:             orderItems,
+        // [H-2] Send user's zone so server can enforce delegation match
+        userDelegation:    userDelegation,
       }).then(res => {
         setOrderId(res.id);
         setSuccess(true);
@@ -334,10 +337,12 @@ export default function Order() {
   const isGpsError   = gpsStatus === "error";
 
   // ── Zone + fee guards ─────────────────────────────────────────────────────
-  const userDelegation  = getUserDelegation();
+  // [H-3] Normalize delegation strings — trim and collapse spaces to prevent false mismatches
+  const normDel = (s?: string | null) => (s ?? "").trim().replace(/\s+/g, " ");
+  const userDelegation   = getUserDelegation();
   const vendorDelegation = supplier?.delegationAr ?? "";
-  // Block if vendor is in a different delegation than user (strict equality)
-  const zoneMismatch = Boolean(vendorDelegation) && vendorDelegation !== userDelegation;
+  // Block if vendor is in a different delegation than user (normalized comparison)
+  const zoneMismatch = Boolean(normDel(vendorDelegation)) && normDel(vendorDelegation) !== normDel(userDelegation);
   // Block if GPS-calculated fee exceeds the hard cap
   const feeBlocked   = distInfo !== null && distInfo.deliveryFee > MAX_DELIVERY_FEE;
   const orderBlocked = zoneMismatch || feeBlocked;
@@ -680,8 +685,11 @@ export default function Order() {
                     <Zap size={13} className="text-[#FFA500]" />
                     <p className="text-xs font-black text-[#1A4D1F] uppercase tracking-widest">{t("ملخص الطلب","Récapitulatif")}</p>
                     {distInfo && (
-                      <span className="mr-auto text-[10px] text-emerald-500 font-bold">
-                        {t("محسوب بـ GPS","Calculé par GPS")} ✓
+                      <span className="mr-auto text-[10px] font-bold"
+                        style={{ color: distInfo.providerCoordsSet === false ? "#B45309" : "#10b981" }}>
+                        {distInfo.providerCoordsSet === false
+                          ? t("⚠️ موقع المزود تقريبي","⚠️ Position vendeur approx.")
+                          : `${t("محسوب بـ GPS","Calculé par GPS")} ✓`}
                       </span>
                     )}
                   </div>

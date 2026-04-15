@@ -6,23 +6,25 @@ import { eq } from "drizzle-orm";
 const BEN_GUERDANE_LAT = 33.1167;
 const BEN_GUERDANE_LNG = 11.2167;
 
-// ─── Pricing constants ────────────────────────────────────────────────────────
-const BASE_FARE     = 4.800; // DT — fixed starting fare
-const RATE_PER_KM   = 0.500; // DT added per km
-const ROAD_FACTOR   = 1.35;  // straight-line → estimated road distance
-const MIN_FARE      = 4.800; // DT — absolute floor, never go below
-const AVG_SPEED_KPM = 0.500; // km per minute (avg delivery speed)
-const PREP_MINUTES  = 15;    // preparation time before dispatch
+// ─── Pricing constants (used as fallback when DB config unavailable) ───────────
+const BASE_FARE     = 4.800;
+const RATE_PER_KM   = 0.500;
+const ROAD_FACTOR   = 1.35;
+const MIN_FARE      = 4.800;
+const AVG_SPEED_KPM = 0.500;
+const PREP_MINUTES  = 15;
 
 // ─── Result shape ─────────────────────────────────────────────────────────────
 export interface DistanceResult {
-  distanceKm:  number;
-  etaMinutes:  number;
-  deliveryFee: number;
-  baseFee:     number;
-  kmFee:       number;
-  isNight:     boolean;
-  source:      "haversine";
+  distanceKm:      number;
+  etaMinutes:      number;
+  deliveryFee:     number;
+  baseFee:         number;
+  kmFee:           number;
+  isNight:         boolean;
+  source:          "haversine";
+  // [E-2] true when provider had stored coordinates; false = used city-centre fallback
+  providerCoordsSet: boolean;
 }
 
 // ─── Haversine formula (straight-line × road factor) ─────────────────────────
@@ -48,21 +50,29 @@ function isNight(): boolean {
   return h >= 22 || h < 6;
 }
 
-// ─── Main calculation ─────────────────────────────────────────────────────────
-// Provider coordinates are fetched from DB using providerId.
-// Fallback: Ben Guerdane city centre when provider has no stored coordinates.
-//
-// Formula:
-//   deliveryFee = Math.max(MIN_FARE, BASE_FARE + (distanceKm × RATE_PER_KM))
-//
-// Night surcharge (+20%) is applied on top when applicable.
-// ─── DB config fetch (with hardcoded fallback) ────────────────────────────────
+// [P-3 FIXED] In-memory cache for pricing config — refreshes every 5 minutes
+let _configCache: { baseFee: number; minFee: number; ratePerKm: number } | null = null;
+let _configCacheAt = 0;
+const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 async function fetchPricingConfig(): Promise<{ baseFee: number; minFee: number; ratePerKm: number }> {
+  if (_configCache && (Date.now() - _configCacheAt) < CONFIG_CACHE_TTL) {
+    return _configCache;
+  }
   try {
     const [row] = await db.select().from(deliveryConfigTable).where(eq(deliveryConfigTable.id, 1));
-    if (row) return { baseFee: row.baseFee, minFee: row.minFee, ratePerKm: row.ratePerKm };
+    if (row) {
+      _configCache   = { baseFee: row.baseFee, minFee: row.minFee, ratePerKm: row.ratePerKm };
+      _configCacheAt = Date.now();
+      return _configCache;
+    }
   } catch { /* fall through to hardcoded defaults */ }
   return { baseFee: BASE_FARE, minFee: MIN_FARE, ratePerKm: RATE_PER_KM };
+}
+
+export function invalidateConfigCache(): void {
+  _configCache   = null;
+  _configCacheAt = 0;
 }
 
 export async function calculateDistance(
@@ -72,20 +82,22 @@ export async function calculateDistance(
   customerLng: number,
 ): Promise<DistanceResult> {
   const cfg  = await fetchPricingConfig();
-  const pLat = (providerLat != null && !isNaN(providerLat)) ? providerLat : BEN_GUERDANE_LAT;
-  const pLng = (providerLng != null && !isNaN(providerLng)) ? providerLng : BEN_GUERDANE_LNG;
+
+  // [E-2] Track whether we used real provider coordinates or the city-centre fallback
+  const hasCoords = providerLat != null && !isNaN(providerLat) && providerLng != null && !isNaN(providerLng);
+  const pLat = hasCoords ? providerLat! : BEN_GUERDANE_LAT;
+  const pLng = hasCoords ? providerLng! : BEN_GUERDANE_LNG;
 
   const distanceKm = haversineKm(pLat, pLng, customerLat, customerLng);
   const kmFee      = Math.round(cfg.ratePerKm * distanceKm * 100) / 100;
 
-  // Apply night surcharge (+20%) when order is placed between 22:00 and 06:00
   const night      = isNight();
   const rawFee     = cfg.baseFee + kmFee;
   const nightBonus = night ? Math.round(rawFee * 0.20 * 100) / 100 : 0;
 
   const deliveryFee = Math.max(
     Math.round((rawFee + nightBonus) * 100) / 100,
-    cfg.minFee,                                    // ← DB minFee enforced here
+    cfg.minFee,
   );
 
   const etaMinutes = PREP_MINUTES + Math.ceil(distanceKm / AVG_SPEED_KPM);
@@ -94,14 +106,15 @@ export async function calculateDistance(
     distanceKm,
     etaMinutes,
     deliveryFee,
-    baseFee: cfg.baseFee,
+    baseFee:  cfg.baseFee,
     kmFee,
-    isNight: night,
-    source:  "haversine",
+    isNight:  night,
+    source:   "haversine",
+    providerCoordsSet: hasCoords,
   };
 }
 
-// ─── Provider coordinates lookup (used by /api/distance route) ────────────────
+// ─── Provider coordinates lookup ─────────────────────────────────────────────
 export async function getProviderCoords(
   providerId: number,
 ): Promise<{ latitude: number | null; longitude: number | null }> {
@@ -115,6 +128,3 @@ export async function getProviderCoords(
     return { latitude: null, longitude: null };
   }
 }
-
-// ─── Stub — kept so deliveryConfig route import does not break ────────────────
-export function invalidateConfigCache(): void { /* no-op — config cache removed */ }

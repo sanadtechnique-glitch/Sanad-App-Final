@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { serviceProvidersTable, usersTable } from "@workspace/db/schema";
-import { eq, ne, sql } from "drizzle-orm";
+import { eq, ne, sql, count, desc } from "drizzle-orm";
 import { requireAdmin, requireStaff } from "../lib/authMiddleware";
 import { isValidPhone } from "../lib/validate";
 import { withCache, cacheDeletePrefix } from "../lib/cache";
@@ -56,9 +56,15 @@ router.get("/suppliers/:id", async (req, res) => {
 
 // ── Admin-only endpoints ──────────────────────────────────────────────────────
 
+// [P-1 FIXED] Admin supplier list with pagination (limit/offset)
 router.get("/admin/suppliers", requireAdmin, async (req, res) => {
+  const limit  = Math.min(parseInt(String(req.query.limit  || "100")), 500);
+  const offset = parseInt(String(req.query.offset || "0"));
   try {
-    res.json(await db.select().from(serviceProvidersTable).orderBy(serviceProvidersTable.name));
+    const rows = await db.select().from(serviceProvidersTable)
+      .orderBy(serviceProvidersTable.name)
+      .limit(limit).offset(offset);
+    res.json(rows);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
@@ -72,22 +78,30 @@ router.get("/admin/suppliers/:id", requireAdmin, async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
-// ── Delegation stats — count per delegation per category ─────────────────────
+// [P-4 FIXED] Delegation stats — uses SQL GROUP BY instead of loading all rows
 router.get("/admin/suppliers/delegation-stats", requireAdmin, async (_req, res) => {
   try {
-    const all = await db.select({
-      delegationAr: serviceProvidersTable.delegationAr,
-      delegationFr: serviceProvidersTable.delegationFr,
-      category:     serviceProvidersTable.category,
-    }).from(serviceProvidersTable);
+    // One efficient query: GROUP BY delegation + category → count
+    const rows = await db
+      .select({
+        delegationAr: serviceProvidersTable.delegationAr,
+        delegationFr: serviceProvidersTable.delegationFr,
+        category:     serviceProvidersTable.category,
+        cnt:          count(serviceProvidersTable.id),
+      })
+      .from(serviceProvidersTable)
+      .groupBy(
+        serviceProvidersTable.delegationAr,
+        serviceProvidersTable.delegationFr,
+        serviceProvidersTable.category,
+      );
 
-    // Build map: delegationAr → { gov_fr, categories: { cat: count } }
     const map: Record<string, { delegationFr: string | null; categories: Record<string, number>; total: number }> = {};
-    for (const row of all) {
+    for (const row of rows) {
       const key = row.delegationAr ?? "__none__";
       if (!map[key]) map[key] = { delegationFr: row.delegationFr, categories: {}, total: 0 };
-      map[key].categories[row.category] = (map[key].categories[row.category] ?? 0) + 1;
-      map[key].total++;
+      map[key].categories[row.category] = (map[key].categories[row.category] ?? 0) + Number(row.cnt);
+      map[key].total += Number(row.cnt);
     }
     res.json(map);
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }

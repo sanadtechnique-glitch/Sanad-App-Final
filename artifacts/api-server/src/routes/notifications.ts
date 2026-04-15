@@ -1,28 +1,37 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { broadcastsTable, usersTable } from "@workspace/db/schema";
-import { desc, gte, eq } from "drizzle-orm";
+import { desc, gte, eq, or, and } from "drizzle-orm";
 import { requireAdmin } from "../lib/authMiddleware";
 import { sendPushToUsers } from "./push";
 
 const router: IRouter = Router();
 
 // Public — clients poll for broadcasts directed at them
+// [P: FIXED] Broadcast fetch — role filter applied in SQL, not in JS memory
 router.get("/notifications/broadcast", async (req, res) => {
+  const role  = (req.query.role as string) || "all";
+  const since = req.query.since ? new Date(parseInt(req.query.since as string)) : null;
+
+  // Accept only known roles to prevent enumeration
+  const VALID_ROLES = new Set(["all", "customer", "driver", "provider", "admin", "manager"]);
+  const safeRole    = VALID_ROLES.has(role) ? role : "all";
+
   try {
-    const role = (req.query.role as string) || "all";
-    const since = req.query.since ? new Date(parseInt(req.query.since as string)) : null;
-
-    let query = db.select().from(broadcastsTable).$dynamic();
-    if (since) query = query.where(gte(broadcastsTable.createdAt, since));
-
-    const all = await query.orderBy(desc(broadcastsTable.createdAt)).limit(30);
-
-    const filtered = all.filter(b =>
-      b.targetRole === "all" || b.targetRole === role
+    const roleFilter = or(
+      eq(broadcastsTable.targetRole, "all"),
+      eq(broadcastsTable.targetRole, safeRole),
     );
+    const whereClause = since
+      ? and(roleFilter, gte(broadcastsTable.createdAt, since))
+      : roleFilter;
 
-    res.json(filtered);
+    const rows = await db.select().from(broadcastsTable)
+      .where(whereClause)
+      .orderBy(desc(broadcastsTable.createdAt))
+      .limit(30);
+
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ message: "Internal server error" });
   }

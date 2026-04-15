@@ -29,11 +29,13 @@ function getUserDelegation(): string {
   return "بن قردان";
 }
 
+// [H-3] Normalize Arabic/French delegation — trim + collapse spaces
+const normDel = (s?: string | null) => (s ?? "").trim().replace(/\s+/g, " ");
 // ── Strict delegation guard: returns true only if vendor is in user's zone ────
 function inUserZone(s: Supplier): boolean {
   const userDel = getUserDelegation();
-  // Vendor must have a delegation set AND it must match the user's delegation exactly
-  return Boolean(s.delegationAr) && s.delegationAr === userDel;
+  // [H-3] Vendor must have a delegation AND it must match the user's delegation (normalized)
+  return Boolean(normDel(s.delegationAr)) && normDel(s.delegationAr) === normDel(userDel);
 }
 
 // Matches exact DB category values
@@ -148,7 +150,7 @@ export default function Services() {
 
   // STRICT: only show vendors in user's current delegation (liveZone updates on zone change)
   const userDelegation = liveZone;
-  const zoneSuppliers = suppliers.filter(s => Boolean(s.delegationAr) && s.delegationAr === liveZone);
+  const zoneSuppliers = suppliers.filter(s => Boolean(normDel(s.delegationAr)) && normDel(s.delegationAr) === normDel(liveZone));
 
   const effectivelyAvailable = (s: Supplier) => {
     if (!s.isAvailable) return false;

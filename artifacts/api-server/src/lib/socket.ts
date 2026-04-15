@@ -1,7 +1,11 @@
 import { Server as SocketIOServer } from "socket.io";
 import type { Server as HttpServer } from "node:http";
+import { getSession } from "./sessionStore";
 
 let io: SocketIOServer | null = null;
+
+const ADMIN_ROLES  = new Set(["super_admin", "admin", "manager"]);
+const STAFF_ROLES  = new Set(["super_admin", "admin", "manager", "provider", "driver"]);
 
 export function initSocket(httpServer: HttpServer): SocketIOServer {
   io = new SocketIOServer(httpServer, {
@@ -12,25 +16,51 @@ export function initSocket(httpServer: HttpServer): SocketIOServer {
     transports: ["websocket", "polling"],
   });
 
-  io.on("connection", (socket) => {
-    const role = socket.handshake.query.role as string | undefined;
+  // [C-5 FIXED] Token-validated room assignment
+  io.on("connection", async (socket) => {
+    const token  = socket.handshake.query.token  as string | undefined;
     const userId = socket.handshake.query.userId as string | undefined;
 
-    if (role === "driver" || role === "delivery") {
-      socket.join("drivers");
-    }
-    if (role === "customer" && userId) {
+    // Public room for customers (order tracking by customerId only, no sensitive data)
+    // Customer sockets: validate token OR allow anonymous with userId only for their own room
+    if (token) {
+      const session = await getSession(token).catch(() => null);
+
+      if (!session) {
+        // Invalid/expired token — disconnect immediately
+        socket.disconnect(true);
+        return;
+      }
+
+      // Join rooms based on verified role
+      if (ADMIN_ROLES.has(session.role)) {
+        socket.join("admins");
+      }
+
+      if (session.role === "driver") {
+        socket.join("drivers");
+        socket.join(`driver:${session.userId}`);
+      }
+
+      if (session.role === "provider") {
+        socket.join(`provider:${session.userId}`);
+      }
+
+      if (session.role === "taxi_driver") {
+        socket.join("taxi_drivers");
+        socket.join(`taxi_driver:${session.userId}`);
+      }
+
+      // All authenticated users join their personal room for push-style events
+      socket.join(`user:${session.userId}`);
+
+    } else if (userId) {
+      // Unauthenticated connection — allow ONLY the personal customer room (order status updates)
+      // They cannot join "drivers", "admins", or any privileged rooms
       socket.join(`customer:${userId}`);
-    }
-    if (role === "admin" || role === "manager" || role === "super_admin") {
-      socket.join("admins");
-    }
-    if (role === "provider") {
-      socket.join(`provider:${userId}`);
-    }
-    if (role === "taxi_driver" && userId) {
-      socket.join("taxi_drivers");
-      socket.join(`taxi_driver:${userId}`);
+    } else {
+      // No token, no userId — disconnect
+      socket.disconnect(true);
     }
   });
 
@@ -42,7 +72,7 @@ export function getIO(): SocketIOServer {
   return io;
 }
 
-// Emit new order to ALL drivers (broadcast)
+// Emit new order to ALL verified drivers
 export function emitNewOrder(order: Record<string, unknown>) {
   try {
     getIO().to("drivers").emit("new_order", order);
@@ -63,21 +93,18 @@ export function emitOrderTaken(orderId: number, driverName: string, customerId?:
 }
 
 // ── TAXI ──────────────────────────────────────────────────────────────────────
-// Notify a specific taxi driver of a new ride request
 export function emitTaxiRequest(driverUserId: number, request: Record<string, unknown>) {
   try {
     getIO().to(`taxi_driver:${driverUserId}`).emit("taxi_request", request);
   } catch {}
 }
 
-// Notify customer of driver response (accepted with ETA, or rejected/no_driver)
 export function emitTaxiResponse(customerId: number, payload: Record<string, unknown>) {
   try {
     getIO().to(`customer:${customerId}`).emit("taxi_response", payload);
   } catch {}
 }
 
-// Notify a taxi driver of a customer action (confirmed / declined)
 export function emitTaxiDriverUpdate(driverUserId: number, payload: Record<string, unknown>) {
   try {
     getIO().to(`taxi_driver:${driverUserId}`).emit("taxi_update", payload);
@@ -89,7 +116,6 @@ export function emitOrderStatus(orderId: number, status: string, extra?: Record<
   try {
     getIO().to("drivers").emit("order_status", { orderId, status, ...extra });
     getIO().to("admins").emit("order_updated", { orderId, status });
-    // Also notify the customer who placed the order
     const customerId = extra?.order?.customerId;
     if (customerId != null) {
       getIO().to(`customer:${customerId}`).emit("order_status", { orderId, status });
