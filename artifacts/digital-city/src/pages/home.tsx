@@ -315,19 +315,32 @@ function ServicesMarquee({ lang }: { lang: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MODULE-LEVEL GPS STORE — computed once, shared across all components
 // ─────────────────────────────────────────────────────────────────────────────
+const DEFAULT_ZONE = "بن قردان"; // Safety-net default — always set, never empty
+
 const gpsStore = (() => {
-  let _region: string | null = null;
+  // Always start with the default zone → UI loads data instantly, no blank state
+  let _region: string = DEFAULT_ZONE;
+  let _source: "default" | "gps" | "manual" = "default";
   const _listeners = new Set<() => void>();
-  // Hydrate from sessionStorage on module init (runs once)
+  // Hydrate from sessionStorage (user's last confirmed zone takes priority)
   try {
     const raw = sessionStorage.getItem("sanad_gps_coords");
-    if (raw) _region = JSON.parse(raw).city ?? null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.city) { _region = parsed.city; _source = parsed.source ?? "gps"; }
+    }
   } catch { /* ignore */ }
   return {
-    get region() { return _region; },
-    set(city: string, lat: number, lng: number) {
-      _region = city;
-      try { sessionStorage.setItem("sanad_gps_coords", JSON.stringify({ lat, lng, city })); } catch { /* ignore */ }
+    get region()  { return _region; },
+    get source()  { return _source; },
+    set(city: string, lat: number, lng: number, source: "gps" | "manual" = "gps") {
+      _region = city; _source = source;
+      try { sessionStorage.setItem("sanad_gps_coords", JSON.stringify({ lat, lng, city, source })); } catch { /* ignore */ }
+      _listeners.forEach(fn => fn());
+    },
+    setDefault() {
+      _region = DEFAULT_ZONE; _source = "default";
+      try { sessionStorage.removeItem("sanad_gps_coords"); } catch { /* ignore */ }
       _listeners.forEach(fn => fn());
     },
     subscribe(fn: () => void) {
@@ -337,100 +350,194 @@ const gpsStore = (() => {
   };
 })();
 
+// Local sectors — all map to the same zone for filtering; purely for UX clarity
+const MANUAL_ZONES = [
+  { ar: "بن قردان — المركز",    fr: "Ben Guerdane Centre",    id: "بن قردان" },
+  { ar: "بن قردان — الشمال",    fr: "Ben Guerdane Nord",      id: "بن قردان" },
+  { ar: "بن قردان — الجنوب",    fr: "Ben Guerdane Sud",       id: "بن قردان" },
+  { ar: "بن قردان — الصناعية",  fr: "Zone Industrielle",      id: "بن قردان" },
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GPS LOCATION PICKER
 // ─────────────────────────────────────────────────────────────────────────────
 function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
-  const [status, setStatus] = useState<"idle" | "loading" | "granted" | "denied">(
-    gpsStore.region ? "granted" : "idle"
-  );
-  const [cityName, setCityName] = useState<string>(gpsStore.region ?? "");
+  const FONT: React.CSSProperties = { fontFamily: "'Cairo','Tajawal',sans-serif" };
 
-  // Keep in sync if another component updates the store
+  // Derive initial UI state from already-hydrated store
+  const initStatus = (): "loading" | "granted" | "denied" | "default" => {
+    if (gpsStore.source === "gps")    return "granted";
+    if (gpsStore.source === "manual") return "granted";
+    return "default"; // showing Ben Guerdane as fallback, GPS will try silently
+  };
+
+  const [status,      setStatus]      = useState<"loading" | "granted" | "denied" | "default">(initStatus);
+  const [cityName,    setCityName]    = useState<string>(gpsStore.region);
+  const [showPicker,  setShowPicker]  = useState(false);
+
+  // Sync on external store updates
   useEffect(() => gpsStore.subscribe(() => {
-    if (gpsStore.region) { setCityName(gpsStore.region); setStatus("granted"); }
+    setCityName(gpsStore.region);
+    setStatus(gpsStore.source === "default" ? "default" : "granted");
   }), []);
 
-  const requestGPS = useCallback(() => {
-    if (!navigator.geolocation) { setStatus("denied"); return; }
-    setStatus("loading");
+  const attemptGPS = useCallback((silent = false) => {
+    if (!navigator.geolocation) {
+      if (!silent) setStatus("denied");
+      return;
+    }
+    if (!silent) setStatus("loading");
     navigator.geolocation.getCurrentPosition(
       pos => {
-        const city = "بن قردان";
-        gpsStore.set(city, pos.coords.latitude, pos.coords.longitude);
-        setCityName(city);
+        gpsStore.set(DEFAULT_ZONE, pos.coords.latitude, pos.coords.longitude, "gps");
+        setCityName(DEFAULT_ZONE);
         setStatus("granted");
       },
-      () => setStatus("denied"),
+      () => {
+        // GPS failed — keep default Ben Guerdane, show friendly hint
+        if (!silent) setStatus("denied");
+        // In silent mode just stay on "default" — data already visible
+      },
       { timeout: 8000, enableHighAccuracy: false, maximumAge: 60000 }
     );
   }, []);
 
+  // On first mount: silently attempt GPS in the background while default data shows
+  useEffect(() => {
+    if (gpsStore.source === "default") attemptGPS(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pickManual = (zone: typeof MANUAL_ZONES[0]) => {
+    gpsStore.set(zone.id, 0, 0, "manual");
+    setCityName(lang === "ar" ? zone.ar : zone.fr);
+    setStatus("granted");
+    setShowPicker(false);
+  };
+
+  // ── Status-derived display strings ──
+  const headline = status === "granted"
+    ? t(`موقعك: ${cityName}`, `Votre zone: ${cityName}`)
+    : status === "loading"
+    ? t("جاري تحديد موقعك...", "Localisation en cours...")
+    : status === "denied"
+    ? t("GPS غير متاح — بن قردان (افتراضي)", "GPS indisponible — Ben Guerdane (défaut)")
+    : t(`المنطقة: ${DEFAULT_ZONE} (افتراضي)`, `Zone: Ben Guerdane (défaut)`);
+
+  const subline = status === "denied"
+    ? t("يرجى تفعيل الموقع للحصول على أفضل تجربة، أو اختر منطقتك يدوياً", "Activez le GPS ou choisissez votre zone manuellement")
+    : status === "granted"
+    ? t("المحلات في منطقتك جاهزة", "Commerces de votre zone disponibles")
+    : status === "loading"
+    ? t("البيانات متوفرة — جاري تأكيد الموقع", "Données disponibles — confirmation GPS en cours")
+    : t("البيانات محملة — اضغط GPS أو اختر يدوياً", "Données chargées — GPS ou sélection manuelle");
+
+  const iconBg = status === "granted" ? "#1A4D1F" : status === "denied" ? "#b45309" : "rgba(26,77,31,0.10)";
+  const iconColor = (status === "granted" || status === "denied") ? "#fff" : "#1A4D1F";
+
   return (
     <div className="px-4 sm:px-6 mt-4" dir="rtl">
-      <button
-        onClick={status === "idle" || status === "denied" ? requestGPS : undefined}
-        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 active:scale-[0.98]"
+      {/* ── Main bar ── */}
+      <div
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200"
         style={{
           background: "#ffffff",
-          border: "1.5px solid rgba(26,77,31,0.15)",
+          border: status === "denied" ? "1.5px solid rgba(180,83,9,0.25)" : "1.5px solid rgba(26,77,31,0.15)",
           boxShadow: "0 2px 10px rgba(26,77,31,0.07)",
-          cursor: status === "granted" ? "default" : "pointer",
         }}
       >
-        {/* GPS Icon */}
+        {/* GPS icon pill */}
         <div
           className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center"
-          style={{ background: status === "granted" ? "#1A4D1F" : "rgba(26,77,31,0.08)" }}
+          style={{ background: iconBg }}
         >
           {status === "loading" ? (
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
               <MapPin size={17} style={{ color: "#1A4D1F" }} />
             </motion.div>
           ) : (
-            <MapPin size={17} style={{ color: status === "granted" ? "#fff" : "#1A4D1F" }} />
+            <MapPin size={17} style={{ color: iconColor }} />
           )}
         </div>
 
-        {/* Text */}
-        <div className="flex-1 text-right">
-          <p className="text-xs font-black text-[#1A4D1F]" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-            {status === "granted"
-              ? t(`موقعك: ${cityName || "بن قردان"}`, `Votre position: ${cityName || "Ben Guerdane"}`)
-              : status === "loading"
-              ? t("جاري تحديد موقعك...", "Localisation en cours...")
-              : status === "denied"
-              ? t("تعذّر الوصول للموقع — اضغط للمحاولة", "Accès refusé — Réessayer")
-              : t("المواقع القريبة منك", "Points proches de vous")}
-          </p>
-          <p className="text-[10px] text-[#1A4D1F]/50 mt-0.5" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
-            {status === "granted"
-              ? t("المحلات القريبة جاهزة للعرض", "Boutiques à proximité disponibles")
-              : t("اضغط لتفعيل GPS وعرض المحلات القريبة", "Appuyez pour activer le GPS")}
-          </p>
+        {/* Text block */}
+        <div className="flex-1 text-right min-w-0">
+          <p className="text-xs font-black text-[#1A4D1F] truncate" style={FONT}>{headline}</p>
+          <p className="text-[10px] text-[#1A4D1F]/50 mt-0.5 leading-tight" style={FONT}>{subline}</p>
         </div>
 
-        {/* Check + manual refresh button (only when granted) */}
+        {/* Action buttons */}
         <div className="flex-shrink-0 flex items-center gap-1.5">
-          {status === "granted" ? (
-            <>
-              <CheckCircle size={16} style={{ color: "#1A4D1F" }} />
-              {/* Tap to manually refresh — stops propagation so main button doesn't re-trigger */}
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); requestGPS(); }}
-                className="p-1 rounded-full transition-colors active:scale-90"
-                style={{ background: "rgba(26,77,31,0.08)" }}
-                title={lang === "ar" ? "تحديث الموقع" : "Actualiser"}
-              >
-                <RefreshCw size={12} style={{ color: "#1A4D1F" }} />
-              </button>
-            </>
-          ) : (
-            <ChevronLeft size={16} style={{ color: "#1A4D1F", opacity: 0.4 }} />
+          {status === "granted" && (
+            <button
+              type="button"
+              onClick={() => attemptGPS(false)}
+              className="p-1.5 rounded-full active:scale-90 transition-transform"
+              style={{ background: "rgba(26,77,31,0.08)" }}
+              title={lang === "ar" ? "تحديث GPS" : "Actualiser GPS"}
+            >
+              <RefreshCw size={12} style={{ color: "#1A4D1F" }} />
+            </button>
           )}
+          {status === "denied" && (
+            <button
+              type="button"
+              onClick={() => attemptGPS(false)}
+              className="text-[10px] font-black px-2 py-1 rounded-full active:scale-95 transition-transform"
+              style={{ background: "rgba(26,77,31,0.08)", color: "#1A4D1F" }}
+            >
+              {t("إعادة", "Réessayer")}
+            </button>
+          )}
+          {/* Manual picker toggle */}
+          <button
+            type="button"
+            onClick={() => setShowPicker(v => !v)}
+            className="text-[10px] font-black px-2 py-1 rounded-full active:scale-95 transition-transform"
+            style={{ background: showPicker ? "#1A4D1F" : "rgba(255,165,0,0.15)", color: showPicker ? "#fff" : "#b45309", border: "1px solid rgba(255,165,0,0.3)" }}
+          >
+            {t("يدوياً", "Manuel")}
+          </button>
         </div>
-      </button>
+      </div>
+
+      {/* ── Manual zone picker dropdown ── */}
+      <AnimatePresence>
+        {showPicker && (
+          <motion.div
+            key="zone-picker"
+            initial={{ opacity: 0, y: -6, scaleY: 0.92 }}
+            animate={{ opacity: 1, y: 0, scaleY: 1 }}
+            exit={{ opacity: 0, y: -6, scaleY: 0.92 }}
+            transition={{ duration: 0.18 }}
+            className="mt-2 rounded-2xl overflow-hidden"
+            style={{ background: "#fff", border: "1.5px solid rgba(26,77,31,0.12)", boxShadow: "0 4px 16px rgba(26,77,31,0.10)" }}
+            dir="rtl"
+          >
+            <div className="px-4 py-2 border-b border-[#1A4D1F]/8">
+              <p className="text-[11px] font-black text-[#1A4D1F]/50" style={FONT}>
+                {t("تحديد الموقع يدوياً", "Sélection manuelle de zone")}
+              </p>
+            </div>
+            {MANUAL_ZONES.map((zone, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => pickManual(zone)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-right transition-colors active:bg-[#1A4D1F]/5 hover:bg-[#1A4D1F]/3"
+                style={{ borderBottom: i < MANUAL_ZONES.length - 1 ? "1px solid rgba(26,77,31,0.06)" : "none" }}
+              >
+                <MapPin size={14} style={{ color: "#FFA500", flexShrink: 0 }} />
+                <span className="text-sm font-black text-[#1A4D1F]" style={FONT}>
+                  {lang === "ar" ? zone.ar : zone.fr}
+                </span>
+                {gpsStore.region === zone.id && gpsStore.source === "manual" && (
+                  <CheckCircle size={13} style={{ color: "#1A4D1F", marginRight: "auto" }} />
+                )}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1164,8 +1271,8 @@ const ZONE = "بن قردان"; // The only supported delivery zone — string c
 function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string) => string }) {
   const [vendors, setVendors]     = useState<Supplier[]>([]);
   const [products, setProducts]   = useState<TrendProduct[]>([]);
-  // Mirror the GPS store region into local state so re-renders happen on store changes
-  const [gpsRegion, setGpsRegion] = useState<string | null>(gpsStore.region);
+  // Mirror the GPS store region — always non-null (defaults to "بن قردان")
+  const [gpsRegion, setGpsRegion] = useState<string>(gpsStore.region);
 
   useEffect(() => gpsStore.subscribe(() => setGpsRegion(gpsStore.region)), []);
 
@@ -1178,9 +1285,9 @@ function TrendingSection({ lang, t }: { lang: string; t: (ar: string, fr: string
       .catch(() => {});
   }, []);
 
-  // Zone filter: if GPS is set to a different region, hide vendors from this zone.
-  // Graceful fallback: if GPS not yet set (null), show all — assume user is in Ben Guerdane.
-  const zoneMatch = gpsRegion === null || gpsRegion === ZONE;
+  // Zone filter: string compare only — no math.
+  // Since gpsStore always defaults to ZONE, this is true on first load (data visible immediately).
+  const zoneMatch = gpsRegion === ZONE;
   const visibleVendors  = zoneMatch ? vendors  : [];
   const visibleProducts = zoneMatch ? products : [];
 
