@@ -118,6 +118,7 @@ function PasswordInput({
       <Lock size={15} className="absolute top-1/2 -translate-y-1/2 start-3.5 text-[#1A4D1F]/30" />
       <input
         type={show ? "text" : "password"}
+        autoComplete="current-password"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder ?? "••••••••"}

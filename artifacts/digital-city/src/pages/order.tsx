@@ -48,7 +48,9 @@ function getUserDelegation(): string {
 // ─── Zod schema ───────────────────────────────────────────────────────────────
 const schema = z.object({
   customerName:    z.string().min(2),
-  customerPhone:   z.string().min(8),
+  customerPhone:   z.string()
+    .min(8, "رقم الهاتف قصير جداً · Numéro trop court")
+    .regex(/^(\+?216)?[2-9]\d{6,9}$/, "رقم الهاتف غير صحيح · Numéro invalide"),
   customerAddress: z.string().min(5),
   notes:           z.string().optional(),
 });

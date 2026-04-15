@@ -40,19 +40,37 @@ router.get("/orders", requireAdmin, async (req, res) => {
   }
 });
 
-// [C-2 FIXED] Customer order lookup — requires name + phone to prevent enumeration
+// [C-2 FIXED] Customer order lookup
+// — Logged-in users: valid session token → only name required (phone skip)
+// — Guest lookup:    no token         → both name + phone required (anti-enum)
 // !! MUST be before /orders/:id to avoid "customer" being treated as an ID
 router.get("/orders/customer", async (req, res) => {
   const name  = req.query.name  as string;
-  const phone = req.query.phone as string;
-  if (!name)  { res.status(400).json({ message: "name is required" }); return; }
-  if (!phone) { res.status(400).json({ message: "phone is required for identity verification" }); return; }
+  const phone = req.query.phone as string | undefined;
+  if (!name) { res.status(400).json({ message: "name is required" }); return; }
+
+  // Check for a valid session token — authenticated users skip phone requirement
+  let sessionValid = false;
+  const token = req.headers["x-session-token"] as string | undefined;
+  if (token) {
+    const { getSession } = await import("../lib/sessionStore");
+    const session = await getSession(token);
+    if (session) sessionValid = true;
+  }
+
+  // Unauthenticated (guest) lookup must supply phone to prevent enumeration
+  if (!sessionValid && !phone) {
+    res.status(400).json({ message: "phone is required for identity verification" });
+    return;
+  }
+
   try {
+    const conditions = sessionValid
+      ? ilike(ordersTable.customerName, name)
+      : and(ilike(ordersTable.customerName, name), ilike(ordersTable.customerPhone, phone!));
+
     const orders = await db.select().from(ordersTable)
-      .where(and(
-        ilike(ordersTable.customerName,  name),
-        ilike(ordersTable.customerPhone, phone),
-      ))
+      .where(conditions)
       .orderBy(desc(ordersTable.createdAt));
     res.json(orders);
   } catch (err) {
