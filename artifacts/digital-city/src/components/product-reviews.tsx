@@ -212,8 +212,8 @@ function WriteReviewForm({
         <CheckCircle size={18} />
         <span className="text-sm font-black" style={{ fontFamily: "'Cairo','Tajawal',sans-serif" }}>
           {lang === "ar"
-            ? "شكراً! سيظهر تقييمك بعد المراجعة."
-            : "Merci ! Votre avis sera affiché après validation."}
+            ? "شكراً! تم نشر تقييمك."
+            : "Merci ! Votre avis est publié."}
         </span>
       </div>
     );
@@ -391,6 +391,7 @@ export function ProductReviews({
               onSuccess={() => {
                 setShowForm(false);
                 setHasReviewed(true);
+                fetchReviews();
               }}
             />
           </motion.div>

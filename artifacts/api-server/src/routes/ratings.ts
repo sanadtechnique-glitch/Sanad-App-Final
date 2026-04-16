@@ -67,13 +67,12 @@ router.post("/reviews", requireAuth, async (req, res) => {
       rating,
       comment: comment?.trim() || null,
       isVerifiedBuyer,
-      isApproved: false,
+      isApproved: true,
     }).returning();
 
     res.status(201).json({
       ...row,
-      pendingApproval: true,
-      message: "تم إرسال تقييمك بنجاح وسيظهر بعد المراجعة · Avis soumis, en attente de validation",
+      message: "تم إرسال تقييمك بنجاح · Merci pour votre avis !",
     });
   } catch (err) {
     req.log.error({ err }, "Error posting review");

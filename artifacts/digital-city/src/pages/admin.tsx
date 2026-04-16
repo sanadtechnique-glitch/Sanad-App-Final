@@ -34,7 +34,7 @@ interface Order {
   createdAt: string; notes?: string; delegationId?: number;
 }
 interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; deliveryFee?: number | null; subscriptionFee?: number | null; subscriptionActive?: boolean; subscriptionRenewalDate?: string | null; delegationAr?: string | null; delegationFr?: string | null; }
-interface Article { id: number; supplierId: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; originalPrice?: number; discountedPrice?: number; photoUrl?: string | null; isAvailable: boolean; supplierName?: string; }
+interface Article { id: number; supplierId: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; originalPrice?: number; discountedPrice?: number; photoUrl?: string | null; images?: string | null; isAvailable: boolean; supplierName?: string; }
 interface DeliveryStaff { id: number; name: string; nameAr: string; phone: string; zone?: string; isAvailable: boolean; }
 interface Delegation { id: number; name: string; nameAr: string; deliveryFee: number; }
 interface PromoBanner {
@@ -744,18 +744,24 @@ function AdminImagePicker({ value, onChange, label, guideAr, guideFr, aspect = "
 
 function MultiImagePickerAdmin({
   images, onChange, accent = "#1565C0", t,
+  maxImages = 99,
+  labelAr = "صور السيارة",
+  labelFr = "Photos de la voiture",
 }: {
   images: string[];
   onChange: (imgs: string[]) => void;
   accent?: string;
   t: (ar: string, fr: string) => string;
+  maxImages?: number;
+  labelAr?: string;
+  labelFr?: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState("");
 
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    const files = Array.from(e.target.files || []).slice(0, maxImages - images.length);
     if (!files.length) return;
     e.target.value = "";
     setUploading(true);
@@ -763,7 +769,7 @@ function MultiImagePickerAdmin({
     try {
       const token = getSessionToken() || "";
       const uploaded = await Promise.all(files.map(f => uploadImageFileAdmin(f, token)));
-      onChange([...images, ...uploaded]);
+      onChange([...images, ...uploaded].slice(0, maxImages));
     } catch {
       setUploadErr(t("فشل رفع بعض الصور", "Échec du chargement"));
     } finally {
@@ -772,12 +778,13 @@ function MultiImagePickerAdmin({
   };
 
   const remove = (idx: number) => onChange(images.filter((_, i) => i !== idx));
+  const canAddMore = images.length < maxImages;
 
   return (
     <div className="space-y-2">
       <label className="block text-xs font-black opacity-60" style={{ color: accent }}>
-        {t("صور السيارة", "Photos de la voiture")}
-        <span className="ms-1 opacity-50 font-bold">({images.length} {t("صورة", "photo(s)")})</span>
+        {t(labelAr, labelFr)}
+        <span className="ms-1 opacity-50 font-bold">({images.length}/{maxImages === 99 ? "∞" : maxImages} {t("صورة", "photo(s)")})</span>
       </label>
       {images.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
@@ -802,21 +809,28 @@ function MultiImagePickerAdmin({
         </div>
       )}
       <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFiles} />
-      <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
-        className="w-full py-3 rounded-2xl border-2 border-dashed flex flex-col items-center gap-1.5 disabled:opacity-50"
-        style={{ borderColor: accent + "30", background: accent + "06" }}>
-        {uploading
-          ? <RefreshCw size={18} className="animate-spin" style={{ color: accent }} />
-          : <Camera size={18} style={{ color: accent, opacity: 0.5 }} />}
-        <span className="text-xs font-black" style={{ color: accent, opacity: 0.6 }}>
-          {uploading ? t("جارٍ الرفع...", "Chargement...") : images.length === 0
-            ? t("اضغط لاختيار صورة أو أكثر", "Choisir une ou plusieurs photos")
-            : t("إضافة صور أخرى", "Ajouter d'autres photos")}
-        </span>
-        <span className="text-[10px] font-bold opacity-30" style={{ color: accent }}>
-          {t("من المعرض أو الكاميرا", "Depuis la galerie ou l'appareil photo")}
-        </span>
-      </button>
+      {canAddMore && (
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+          className="w-full py-3 rounded-2xl border-2 border-dashed flex flex-col items-center gap-1.5 disabled:opacity-50"
+          style={{ borderColor: accent + "30", background: accent + "06" }}>
+          {uploading
+            ? <RefreshCw size={18} className="animate-spin" style={{ color: accent }} />
+            : <Camera size={18} style={{ color: accent, opacity: 0.5 }} />}
+          <span className="text-xs font-black" style={{ color: accent, opacity: 0.6 }}>
+            {uploading ? t("جارٍ الرفع...", "Chargement...") : images.length === 0
+              ? t("اضغط لاختيار صورة من الجهاز", "Choisir une photo depuis l'appareil")
+              : t("إضافة صورة أخرى", "Ajouter une autre photo")}
+          </span>
+          <span className="text-[10px] font-bold opacity-30" style={{ color: accent }}>
+            {t("من المعرض أو الكاميرا · رفع مباشر فقط", "Galerie ou caméra · Upload direct uniquement")}
+          </span>
+        </button>
+      )}
+      {!canAddMore && images.length > 0 && (
+        <p className="text-[10px] text-center font-black opacity-40" style={{ color: accent }}>
+          {t(`تم الوصول للحد الأقصى (${maxImages} صور)`, `Maximum atteint (${maxImages} photos)`)}
+        </p>
+      )}
       {uploadErr && <p className="text-xs font-bold text-red-500">{uploadErr}</p>}
     </div>
   );
@@ -1953,8 +1967,11 @@ function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
   const [saving, setSaving]     = useState(false);
   const [errMsg, setErrMsg]     = useState("");
   const [filterSup, setFilterSup] = useState<string>("all");
-  const EMPTY_FORM = { supplierId: "", nameAr: "", nameFr: "", descriptionAr: "", descriptionFr: "", price: "0", originalPrice: "", discountedPrice: "", photoUrl: "", isAvailable: true };
+  const EMPTY_FORM = { supplierId: "", nameAr: "", nameFr: "", descriptionAr: "", descriptionFr: "", price: "0", originalPrice: "", discountedPrice: "", images: [] as string[], isAvailable: true };
   const [form, setForm] = useState(EMPTY_FORM);
+  const parseAImages = (a: Article): string[] => {
+    try { return a.images ? JSON.parse(a.images) : (a.photoUrl ? [a.photoUrl] : []); } catch { return a.photoUrl ? [a.photoUrl] : []; }
+  };
 
   const load = async () => {
     const [a, s] = await Promise.all([
@@ -1979,7 +1996,7 @@ function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
       price: a.price.toString(),
       originalPrice: a.originalPrice?.toString() || "",
       discountedPrice: a.discountedPrice?.toString() || "",
-      photoUrl: (a as any).photoUrl || "",
+      images: parseAImages(a),
       isAvailable: a.isAvailable,
     });
     setModal(a);
@@ -2000,7 +2017,7 @@ function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
         price: parseFloat(form.price) || 0,
         originalPrice: form.originalPrice ? parseFloat(form.originalPrice) : null,
         discountedPrice: form.discountedPrice ? parseFloat(form.discountedPrice) : null,
-        photoUrl: form.photoUrl || null,
+        images: form.images,
         isAvailable: form.isAvailable,
       };
       if (modal === "add") {
@@ -2086,10 +2103,21 @@ function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(a => (
             <div key={a.id} className="glass-panel rounded-2xl p-4 flex flex-col gap-2">
-              {/* Image */}
-              {(a as any).photoUrl && (
-                <img src={(a as any).photoUrl} alt={a.nameAr} className="w-full h-28 object-cover rounded-xl mb-1" />
-              )}
+              {/* Image(s) */}
+              {(() => {
+                const imgs = parseAImages(a);
+                const thumb = imgs[0];
+                return thumb ? (
+                  <div className="relative">
+                    <img src={thumb} alt={a.nameAr} className="w-full h-28 object-cover rounded-xl mb-1" />
+                    {imgs.length > 1 && (
+                      <span className="absolute bottom-2 end-2 text-[9px] font-black px-1.5 py-0.5 rounded-full text-white" style={{ background: "rgba(0,0,0,0.55)" }}>
+                        {imgs.length} {t("صور","photos")}
+                      </span>
+                    )}
+                  </div>
+                ) : null;
+              })()}
               <div className="flex justify-between items-start">
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-[#1A4D1F] truncate">{lang === "ar" ? a.nameAr : a.nameFr}</p>
@@ -2162,14 +2190,13 @@ function ArticlesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
         </div>
         <Field label={t("الوصف عربي","Description arabe")}><Input value={form.descriptionAr} onChange={v => setForm(f => ({...f, descriptionAr: v}))} /></Field>
         <Field label={t("الوصف فرنسي","Description française")}><Input value={form.descriptionFr} onChange={v => setForm(f => ({...f, descriptionFr: v}))} /></Field>
-        <AdminImagePicker
-          value={form.photoUrl}
-          onChange={v => setForm(f => ({ ...f, photoUrl: v }))}
-          label={t("صورة المنتج", "Photo du produit")}
-          guideAr="صورة واضحة للمنتج على خلفية محايدة"
-          guideFr="Photo nette du produit sur fond neutre"
-          aspect="1:1"
+        <MultiImagePickerAdmin
+          images={form.images}
+          onChange={imgs => setForm(f => ({ ...f, images: imgs }))}
           accent="#1A4D1F"
+          maxImages={3}
+          labelAr="صور المنتج (حتى 3 صور)"
+          labelFr="Photos du produit (jusqu'à 3)"
           t={t}
         />
         <Field label={t("متاح","Disponible")}><Toggle checked={form.isAvailable} onChange={v => setForm(f => ({...f, isAvailable: v}))} label={form.isAvailable ? t("نعم","Oui") : t("لا","Non")} /></Field>
