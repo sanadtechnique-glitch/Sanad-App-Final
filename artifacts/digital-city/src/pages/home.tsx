@@ -434,6 +434,18 @@ function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: stri
         // _ts is checked by order.tsx to reject stale positions (> 3 min)
         const address = geo ? `${geo.delegation}، ${geo.governorate}` : undefined;
         gpsStore.update({ delegation, governorate, gov_fr, source: "gps", accuracy, lat, lng, address, _ts: Date.now() });
+
+        // Also write to localStorage as a 6-hour GPS seed — order page reads this
+        // so the delivery fee populates immediately on next session (no GPS wait).
+        // Manual locations (source="manual") override this so we only write source="gps" here.
+        try {
+          const existing = JSON.parse(localStorage.getItem("sanad_location_v1") ?? "null");
+          if (!existing || existing.source !== "manual") {
+            localStorage.setItem("sanad_location_v1", JSON.stringify({
+              lat, lng, address, source: "gps", savedAt: Date.now(),
+            }));
+          }
+        } catch { /* quota — ignore */ }
         setStatus("granted");
 
         // Accuracy toast: warn if circle > 1000 m

@@ -34,8 +34,42 @@ interface DistanceResult {
 // ─── Constants ────────────────────────────────────────────────────────────────
 const BASE_FARE        = 4.800; // DT — shown when GPS is unavailable
 const MAX_DELIVERY_FEE = 15;    // DT — hard cap; orders above this are blocked
-const GPS_SESSION_KEY  = "sanad_gps_coords"; // sessionStorage key for coord caching (own)
+const GPS_SESSION_KEY  = "sanad_gps_coords"; // sessionStorage key for GPS coord caching
 const GPS_STORE_KEY    = "sanad_gps_v2";     // shared store written by home.tsx
+const SAVED_LOC_KEY    = "sanad_location_v1"; // localStorage: permanent manual/GPS pick
+
+// ─── Saved location shape ─────────────────────────────────────────────────────
+interface SavedLocation {
+  lat: number; lng: number; address?: string;
+  source: "manual" | "gps"; // manual = user confirmed via map; gps = device GPS seed
+  savedAt: number;
+}
+
+// ─── Persist a confirmed location to localStorage ─────────────────────────────
+function saveLocationPermanently(lat: number, lng: number, address?: string, source: SavedLocation["source"] = "gps"): void {
+  try {
+    const payload: SavedLocation = { lat, lng, address, source, savedAt: Date.now() };
+    localStorage.setItem(SAVED_LOC_KEY, JSON.stringify(payload));
+  } catch { /* quota — ignore */ }
+}
+
+// ─── Read the permanently saved location ─────────────────────────────────────
+// "manual" picks are returned with no age check.
+// "gps" picks are only returned if saved within the last 6 hours.
+function getPermanentLocation(): SavedLocation | null {
+  try {
+    const raw = localStorage.getItem(SAVED_LOC_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as SavedLocation;
+    if (typeof p.lat !== "number" || typeof p.lng !== "number") return null;
+    if (p.source === "manual") return p; // manual picks never expire
+    const ageMs = Date.now() - (p.savedAt ?? 0);
+    if (ageMs < 6 * 60 * 60 * 1000) return p; // gps seeds expire after 6 hours
+    // stale GPS seed — clear it
+    try { localStorage.removeItem(SAVED_LOC_KEY); } catch { /* ignore */ }
+  } catch {}
+  return null;
+}
 
 // Read user's current delegation (written by gpsStore in home.tsx)
 function getUserDelegation(): string {
@@ -46,37 +80,36 @@ function getUserDelegation(): string {
   return "بن قردان";
 }
 
-// ── Read shared GPS coords from home page ────────────────────────────────────
-// home.tsx writes { lat, lng, address, _ts, ... } to sanad_gps_v2.
-// We reject anything older than 3 minutes to avoid stale positions.
+// ── Read best available GPS coords ───────────────────────────────────────────
+// Priority: localStorage manual > sessionStorage GPS (max 3 min old)
 const GPS_MAX_AGE_MS = 3 * 60 * 1000; // 3 minutes
 
-function getSharedGpsCoords(): { lat: number; lng: number; address?: string } | null {
+function getSharedGpsCoords(): { lat: number; lng: number; address?: string; isManual?: boolean } | null {
+  // 1. Permanent localStorage (manual picks have no expiry)
+  const saved = getPermanentLocation();
+  if (saved) return { lat: saved.lat, lng: saved.lng, address: saved.address, isManual: saved.source === "manual" };
+
+  // 2. Session GPS store from home page (ephemeral, max 3 min old)
   try {
     const raw = sessionStorage.getItem(GPS_STORE_KEY);
     if (raw) {
-      const p = JSON.parse(raw) as { lat?: number; lng?: number; address?: string; source?: string; _ts?: number };
+      const p = JSON.parse(raw) as { lat?: number; lng?: number; address?: string; _ts?: number };
       if (typeof p.lat === "number" && typeof p.lng === "number") {
-        // Only accept if the GPS fix is recent, OR if no timestamp (legacy — accept it)
         const ageMs = p._ts ? Date.now() - p._ts : 0;
-        if (ageMs < GPS_MAX_AGE_MS) {
-          return { lat: p.lat, lng: p.lng, address: p.address };
-        }
-        // Stale: clear it so we don't keep serving wrong coords
+        if (ageMs < GPS_MAX_AGE_MS) return { lat: p.lat, lng: p.lng, address: p.address };
         try { sessionStorage.removeItem(GPS_STORE_KEY); } catch { /* ignore */ }
       }
     }
   } catch {}
-  // Fallback: check own GPS cache (also with age check)
+
+  // 3. Own session GPS cache
   try {
     const raw = sessionStorage.getItem(GPS_SESSION_KEY);
     if (raw) {
       const p = JSON.parse(raw) as { lat?: number; lng?: number; _ts?: number };
       if (typeof p.lat === "number" && typeof p.lng === "number") {
         const ageMs = p._ts ? Date.now() - p._ts : 0;
-        if (ageMs < GPS_MAX_AGE_MS) {
-          return { lat: p.lat, lng: p.lng };
-        }
+        if (ageMs < GPS_MAX_AGE_MS) return { lat: p.lat, lng: p.lng };
       }
     }
   } catch {}
@@ -154,14 +187,25 @@ export default function Order() {
   // Map picker modal (fallback when GPS denied or always available)
   const [showPicker, setShowPicker] = useState(false);
 
+  // Location lock — true when user confirmed via map picker; GPS won't auto-override
+  // Also pre-set to true on mount if there's a permanently saved manual location
+  const [locationLocked, setLocationLocked] = useState(() => {
+    const saved = getPermanentLocation();
+    return saved?.source === "manual";
+  });
+
   // Refs
   const watchIdRef      = useRef<number | null>(null);
   const debounceRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstFixRef     = useRef(false); // reverse-geocode only once
   const supplierRef     = useRef<Supplier | null>(null);
+  // When true: user confirmed a location via map picker; GPS must NOT auto-override
+  const lockedByUserRef = useRef(false);
 
   // Keep supplierRef in sync so callbacks can always access latest supplier
   useEffect(() => { supplierRef.current = supplier; }, [supplier]);
+  // Keep lockedByUserRef in sync so GPS callbacks (closures) always read latest value
+  useEffect(() => { lockedByUserRef.current = locationLocked; }, [locationLocked]);
 
   // ── Memos ──────────────────────────────────────────────────────────────────
   const cartItems = useMemo(
@@ -208,6 +252,9 @@ export default function Order() {
 
   // ── Apply a confirmed position (GPS or picker) ─────────────────────────────
   const applyPosition = useCallback(async (lat: number, lng: number, accuracy?: number) => {
+    // If user has manually locked a location, GPS callbacks must not override it
+    if (lockedByUserRef.current) return;
+
     setCustomerLat(lat);
     setCustomerLng(lng);
     if (accuracy !== undefined) setGpsAccuracy(accuracy);
@@ -235,19 +282,40 @@ export default function Order() {
     calculateFee(lat, lng);
   }, [lang, setValue, calculateFee]);
 
-  // ── Start GPS: getCurrentPosition first for fast lock, then watchPosition ──
+  // ── Start GPS: handle locked locations first, then full GPS flow ───────────
   const startWatchingGPS = useCallback(() => {
+    // ── Priority 0: Permanent manually-confirmed location (no GPS needed) ───
+    // If the user locked a location via map picker, we respect that decision.
+    // GPS will not run or override until they explicitly tap "Change location".
+    const shared = getSharedGpsCoords();
+    if (shared?.isManual) {
+      setCustomerLat(shared.lat);
+      setCustomerLng(shared.lng);
+      if (shared.address) {
+        setValue("customerAddress", shared.address, { shouldValidate: true });
+        firstFixRef.current = true;
+      }
+      setGpsStatus("ok");
+      calculateFee(shared.lat, shared.lng);
+      return; // no GPS watch needed — location is user-confirmed
+    }
+
     if (!navigator.geolocation) {
+      // Try saved GPS seed as best fallback
+      if (shared) {
+        setCustomerLat(shared.lat);
+        setCustomerLng(shared.lng);
+        if (shared.address) setValue("customerAddress", shared.address, { shouldValidate: true });
+        calculateFee(shared.lat, shared.lng);
+      }
       setGpsStatus("error");
-      setCartDeliveryFee(BASE_FARE);
+      if (!shared) setCartDeliveryFee(BASE_FARE);
       return;
     }
 
     setGpsStatus("watching");
 
-    // ── Step 1: Seed from sessionStorage cache (instant, no network) ────────
-    // Only use cache if it's recent (within last 3 minutes) to avoid stale data.
-    const shared = getSharedGpsCoords();
+    // ── Step 1: Seed from best available cache (instant, no network) ────────
     if (shared) {
       setCustomerLat(shared.lat);
       setCustomerLng(shared.lng);
@@ -257,14 +325,14 @@ export default function Order() {
       calculateFee(shared.lat, shared.lng);
     }
 
-    // ── Step 2: getCurrentPosition for an immediate accurate fix ────────────
-    // maximumAge: 0 ensures a fresh real position, not a browser cache.
-    // This resolves fast (~1s on mobile) and replaces any stale seed coords.
+    // ── Step 2: getCurrentPosition for an immediate accurate fresh fix ───────
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        if (lockedByUserRef.current) return; // user confirmed while we were waiting
         setGpsStatus("ok");
         applyPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
-        // Write fresh position to shared store so home GPS is also up to date
+        // Persist as GPS seed (6-hour expiry) so next session starts faster
+        saveLocationPermanently(pos.coords.latitude, pos.coords.longitude, undefined, "gps");
         try {
           const prev = JSON.parse(sessionStorage.getItem("sanad_gps_v2") ?? "{}");
           sessionStorage.setItem("sanad_gps_v2", JSON.stringify({
@@ -273,29 +341,21 @@ export default function Order() {
           }));
         } catch { /* quota */ }
       },
-      (_err) => {
-        // Quick fix failed — fall through to watchPosition below
-      },
+      (_err) => { /* fall through to watchPosition */ },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
     );
 
     // ── Step 3: watchPosition for ongoing accuracy refinement ───────────────
-    // Clear previous watcher if any
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-    }
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
+        if (lockedByUserRef.current) return; // user confirmed — stop overriding
         setGpsStatus("ok");
         applyPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
       },
       (_err) => {
-        // Keep last known coords if we already have them
-        if (!customerLat) {
-          setGpsStatus("error");
-          setCartDeliveryFee(BASE_FARE);
-        }
+        if (!customerLat) { setGpsStatus("error"); setCartDeliveryFee(BASE_FARE); }
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
@@ -360,12 +420,26 @@ export default function Order() {
 
   // ── Map picker confirm handler ─────────────────────────────────────────────
   const handleMapPickerConfirm = useCallback(({ lat, lng, address }: MapPickerResult) => {
-    firstFixRef.current = true; // prevent reverse-geocode from overwriting the picker address
+    // Stop any running GPS watch immediately — user has chosen their location
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    // Lock the location so future GPS callbacks can't override it
+    lockedByUserRef.current = true;
+    setLocationLocked(true);
+    firstFixRef.current = true;
+
+    // Apply to form
     setGpsStatus("ok");
     setCustomerLat(lat);
     setCustomerLng(lng);
     setValue("customerAddress", address, { shouldValidate: true });
-    try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat, lng })); } catch { /* quota */ }
+
+    // Persist permanently to localStorage — survives tab close and app reopen
+    saveLocationPermanently(lat, lng, address, "manual");
+    try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat, lng, _ts: Date.now() })); } catch { /* quota */ }
+
     calculateFee(lat, lng);
     setShowPicker(false);
   }, [setValue, calculateFee]);
@@ -655,35 +729,74 @@ export default function Order() {
                         </div>
                       )}
 
-                      {/* GPS OK — live tracking badge */}
+                      {/* GPS OK — shows either "Location Confirmed" lock or live GPS badge */}
                       {isGpsOk && customerLat && (
                         <div className="space-y-1.5">
-                          <div className="flex items-center gap-2 p-3 rounded-xl border border-emerald-400/30"
-                            style={{ background: "rgba(52,211,153,0.06)" }}>
-                            <div className="relative flex-shrink-0">
-                              <Navigation size={14} className="text-emerald-500" />
-                              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+
+                          {/* ── LOCKED: user confirmed location from map ── */}
+                          {locationLocked ? (
+                            <div className="flex items-center gap-2 p-3 rounded-xl border border-[#1A4D1F]/25"
+                              style={{ background: "rgba(26,77,31,0.06)" }}>
+                              <div className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
+                                style={{ background: "rgba(26,77,31,0.12)" }}>
+                                <MapPin size={14} className="text-[#1A4D1F]" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-black text-[#1A4D1F]">
+                                  {t("📍 تم تأكيد الموقع", "📍 Emplacement confirmé")}
+                                </p>
+                                <p className="text-[10px] text-[#1A4D1F]/50 mt-0.5 font-mono">
+                                  {customerLat.toFixed(5)}, {customerLng?.toFixed(5)}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // Release lock — restart GPS so user can get a fresh position
+                                  try { localStorage.removeItem(SAVED_LOC_KEY); } catch { /* ignore */ }
+                                  lockedByUserRef.current = false;
+                                  setLocationLocked(false);
+                                  firstFixRef.current = false;
+                                  stopWatching();
+                                  startWatchingGPS();
+                                }}
+                                className="flex-shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-[#1A4D1F]/20 text-[#1A4D1F]/60 hover:text-[#1A4D1F] hover:border-[#FFA500]/50 transition-all"
+                              >
+                                {t("تغيير", "Changer")}
+                              </button>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-black text-emerald-600">
-                                {t("GPS نشط · يتتبع موقعك","GPS actif · Suivi en temps réel")}
-                              </p>
-                              <p className="text-[10px] text-[#1A4D1F]/40 mt-0.5 font-mono">
-                                {customerLat.toFixed(5)}, {customerLng?.toFixed(5)}
-                                {gpsAccuracy !== null && <span className="opacity-60"> ±{Math.round(gpsAccuracy)}m</span>}
-                              </p>
+                          ) : (
+                            /* ── LIVE GPS tracking badge ── */
+                            <div className="flex items-center gap-2 p-3 rounded-xl border border-emerald-400/30"
+                              style={{ background: "rgba(52,211,153,0.06)" }}>
+                              <div className="relative flex-shrink-0">
+                                <Navigation size={14} className="text-emerald-500" />
+                                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-black text-emerald-600">
+                                  {t("GPS نشط · يتتبع موقعك","GPS actif · Suivi en temps réel")}
+                                </p>
+                                <p className="text-[10px] text-[#1A4D1F]/40 mt-0.5 font-mono">
+                                  {customerLat.toFixed(5)}, {customerLng?.toFixed(5)}
+                                  {gpsAccuracy !== null && <span className="opacity-60"> ±{Math.round(gpsAccuracy)}m</span>}
+                                </p>
+                              </div>
+                              <button type="button" onClick={() => { stopWatching(); startWatchingGPS(); }}
+                                className="text-[10px] text-emerald-600/60 underline flex-shrink-0">
+                                {t("تحديث","Actualiser")}
+                              </button>
                             </div>
-                            <button type="button" onClick={() => { stopWatching(); startWatchingGPS(); }}
-                              className="text-[10px] text-emerald-600/60 underline flex-shrink-0">
-                              {t("تحديث","Actualiser")}
-                            </button>
-                          </div>
+                          )}
+
                           {/* Always-visible map button */}
                           <button type="button" onClick={() => setShowPicker(true)}
                             className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border border-[#1A4D1F]/15 text-[#1A4D1F]/60 transition-all hover:border-[#FFA500]/40 hover:text-[#1A4D1F]"
                             style={{ background: "rgba(26,77,31,0.03)" }}>
                             <MapPin size={11} className="text-[#FFA500]" />
-                            {t("ضبط الموقع على الخريطة","Ajuster sur la carte")}
+                            {locationLocked
+                              ? t("تعديل الموقع على الخريطة","Modifier sur la carte")
+                              : t("ضبط الموقع على الخريطة","Ajuster sur la carte")}
                           </button>
                         </div>
                       )}
@@ -1073,15 +1186,21 @@ export default function Order() {
 
       {/* ── Full-screen Leaflet map picker ── */}
       <AnimatePresence>
-        {showPicker && supplier && (
-          <MapPickerModal
-            initialLat={customerLat}
-            initialLng={customerLng}
-            supplierId={supplier.id}
-            onConfirm={handleMapPickerConfirm}
-            onClose={() => setShowPicker(false)}
-          />
-        )}
+        {showPicker && supplier && (() => {
+          // Open at: current position → saved location → Ben Guerdane centre
+          const saved = getPermanentLocation();
+          const initLat = customerLat ?? saved?.lat ?? undefined;
+          const initLng = customerLng ?? saved?.lng ?? undefined;
+          return (
+            <MapPickerModal
+              initialLat={initLat}
+              initialLng={initLng}
+              supplierId={supplier.id}
+              onConfirm={handleMapPickerConfirm}
+              onClose={() => setShowPicker(false)}
+            />
+          );
+        })()}
       </AnimatePresence>
     </Layout>
   );
