@@ -589,6 +589,95 @@ router.delete("/admin/users/:id", requireAdmin, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/google — Google OAuth one-tap / popup sign-in (public)
+// Verifies the Google ID-token, then finds-or-creates a customer account.
+// Strictly prevents duplicates: links by email when an account already exists.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/auth/google", async (req, res) => {
+  const { credential } = req.body as { credential?: string };
+  if (!credential) {
+    res.status(400).json({ message: "Google credential token is required" });
+    return;
+  }
+
+  try {
+    // Verify with Google tokeninfo endpoint (no SDK needed)
+    const gRes = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`,
+    );
+    if (!gRes.ok) {
+      res.status(401).json({ message: "رمز Google غير صالح · Jeton Google invalide" });
+      return;
+    }
+    const gData = await gRes.json() as {
+      sub: string; email?: string; name?: string;
+      picture?: string; email_verified?: string; aud?: string;
+    };
+
+    // Validate the audience matches our client ID (optional but recommended)
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (clientId && gData.aud !== clientId) {
+      res.status(401).json({ message: "Invalid Google token audience" });
+      return;
+    }
+    if (!gData.email) {
+      res.status(400).json({ message: "Google account must have an email" });
+      return;
+    }
+    if (gData.email_verified !== "true") {
+      res.status(400).json({ message: "Google email not verified" });
+      return;
+    }
+
+    const email   = gData.email.toLowerCase();
+    const name    = gData.name ?? email.split("@")[0];
+    const googleSub = gData.sub;
+
+    // ── Find existing user by email ──────────────────────────────────────────
+    let [existingUser] = await db.select().from(usersTable)
+      .where(eq(usersTable.email, email));
+
+    if (existingUser) {
+      // Account mapping: link to existing account, log in directly
+      if (!existingUser.isActive) {
+        res.status(403).json({ message: "الحساب موقوف · Compte suspendu" });
+        return;
+      }
+      const token = await createSession(existingUser.id, existingUser.role, existingUser.username ?? existingUser.name);
+      const { password: _pw, ...safeUser } = existingUser;
+      res.json({ ...safeUser, token, isNewUser: false });
+      return;
+    }
+
+    // ── Create new customer account ──────────────────────────────────────────
+    const syntheticPhone = `g_${googleSub.substring(0, 14)}`;
+    const hashedPw       = await hashPassword(randomBytes(24).toString("hex")); // random, unusable
+
+    const [newUser] = await db.insert(usersTable).values({
+      username:    `google_${googleSub.substring(0, 12)}`,
+      name:        name,
+      email:       email,
+      password:    hashedPw,
+      phone:       syntheticPhone,
+      role:        "customer",
+      isActive:    true,
+      dateOfBirth: "2000-01-01",  // placeholder — Google doesn't expose DOB
+    }).returning();
+
+    const token = await createSession(newUser.id, newUser.role, newUser.username ?? newUser.name);
+    const { password: _pw, ...safeNew } = newUser;
+    res.status(201).json({ ...safeNew, token, isNewUser: true });
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ message: "البريد الإلكتروني مسجل مسبقاً · E-mail déjà utilisé" });
+      return;
+    }
+    req.log.error({ err }, "Error in Google auth");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /auth/forgot-password — generate reset token & send email (public)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/auth/forgot-password", async (req, res) => {

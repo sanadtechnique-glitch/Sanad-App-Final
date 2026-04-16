@@ -1,14 +1,51 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertCircle, Eye, EyeOff, ChevronDown, LogIn,
   UserPlus, Phone, Lock, User, CheckCircle, MapPin, Search,
   Mail, KeyRound, X, Send, ScrollText, ShieldCheck,
+  Fingerprint, Users,
 } from "lucide-react";
 import { setSession, clearSession, type Role } from "@/lib/auth";
 import { requestNotificationPermission } from "@/lib/push-notifications";
 import { cn } from "@/lib/utils";
+import { setGuestMode } from "@/lib/guest";
+import {
+  isBiometricAvailable, hasBiometricRegistered,
+  authenticateWithBiometric,
+} from "@/lib/biometric";
+import { BiometricEnrollPrompt } from "@/components/biometric-prompt";
+
+// ── Google Identity Services dynamic loader ───────────────────────────────────
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (cfg: Record<string, unknown>) => void;
+          prompt: (cb?: (n: { isNotDisplayed: () => boolean }) => void) => void;
+          renderButton: (el: HTMLElement, cfg: Record<string, unknown>) => void;
+          cancel: () => void;
+        };
+      };
+    };
+  }
+}
+
+function loadGIS(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.google?.accounts) { resolve(); return; }
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true; s.defer = true;
+    s.onload  = () => resolve();
+    s.onerror = () => reject(new Error("GIS load failed"));
+    document.head.appendChild(s);
+  });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tunisia Delegations
@@ -348,8 +385,34 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ── Shared post-login session handler (used by all login methods) ─────────────
+function applySession(data: Record<string, unknown>): { role: string; dest: string; sessionJson: string } {
+  const role = data.role as string;
+  let dest = "/";
+
+  if (["super_admin", "manager", "admin"].includes(role)) {
+    setSession({ role: role as Role, name: data.name as string, userId: data.id as number, token: data.token as string });
+    dest = "/admin";
+  } else if (role === "provider") {
+    setSession({ role: "provider", name: (data.displayName ?? data.name) as string, userId: data.id as number, supplierId: data.supplierId as number, token: data.token as string });
+    dest = "/provider";
+  } else if (role === "driver") {
+    setSession({ role: "delivery", name: (data.displayName ?? data.name) as string, userId: data.id as number, staffId: data.staffId as number, token: data.token as string });
+    dest = "/delivery";
+  } else if (role === "customer" || role === "client") {
+    setSession({ role: "client", name: data.name as string, userId: data.id as number, token: data.token as string });
+    dest = "/";
+  } else if (role === "taxi_driver") {
+    setSession({ role: "taxi_driver", name: data.name as string, userId: data.id as number, token: data.token as string });
+    dest = "/taxi-driver";
+  }
+
+  const sessionJson = localStorage.getItem("dc_session") ?? "";
+  return { role, dest, sessionJson };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Login Form — phone + password only
+// Login Form — phone + password, Google, Biometric & Guest buttons
 // ─────────────────────────────────────────────────────────────────────────────
 function LoginForm() {
   const [, navigate] = useLocation();
@@ -357,10 +420,36 @@ function LoginForm() {
   const [password, setPassword]         = useState("");
   const [error, setError]               = useState<string | null>(null);
   const [loading, setLoading]           = useState(false);
+  const [gLoading, setGLoading]         = useState(false);
   const [showForgot, setShowForgot]     = useState(false);
+
+  // Biometric state
+  const [bioAvail, setBioAvail]         = useState(false);
+  const [bioRegistered, setBioRegistered] = useState(false);
+  const [bioLoading, setBioLoading]     = useState(false);
+
+  // Post-login biometric enrollment prompt
+  const [showBioPrompt, setShowBioPrompt] = useState(false);
+  const [pendingSession, setPendingSession] = useState<{ json: string; dest: string }>({ json: "", dest: "/" });
+
+  useEffect(() => {
+    setBioRegistered(hasBiometricRegistered());
+    isBiometricAvailable().then(setBioAvail);
+  }, []);
 
   const canSubmit = phone.trim() !== "" && password.trim() !== "" && !loading;
 
+  // ── Finish login: optionally show biometric prompt then redirect ──────────
+  const finishLogin = (sessionJson: string, dest: string, isCustomer: boolean) => {
+    if (isCustomer && bioAvail && !bioRegistered) {
+      setPendingSession({ json: sessionJson, dest });
+      setShowBioPrompt(true);
+    } else {
+      navigate(dest);
+    }
+  };
+
+  // ── Phone + Password ──────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -374,59 +463,11 @@ function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: phone.trim(), password: password.trim() }),
       });
-
       const data = await res.json();
+      if (!res.ok) { setError(data.message || "خطأ في تسجيل الدخول · Erreur de connexion"); return; }
 
-      if (!res.ok) {
-        setError(data.message || "خطأ في تسجيل الدخول · Erreur de connexion");
-        return;
-      }
-
-      const role: string = data.role;
-
-      if (["super_admin", "manager", "admin"].includes(role)) {
-        setSession({ role: role as Role, name: data.name, userId: data.id, token: data.token });
-        navigate("/admin");
-        return;
-      }
-
-      if (role === "provider") {
-        setSession({
-          role: "provider",
-          name: data.displayName ?? data.name,
-          userId: data.id,
-          supplierId: data.supplierId,
-          token: data.token,
-        });
-        navigate("/provider");
-        return;
-      }
-
-      if (role === "driver") {
-        setSession({
-          role: "delivery",
-          name: data.displayName ?? data.name,
-          userId: data.id,
-          staffId: data.staffId,
-          token: data.token,
-        });
-        navigate("/delivery");
-        return;
-      }
-
-      if (role === "customer" || role === "client") {
-        setSession({ role: "client", name: data.name, userId: data.id, token: data.token });
-        navigate("/");
-        return;
-      }
-
-      if (role === "taxi_driver") {
-        setSession({ role: "taxi_driver", name: data.name, userId: data.id, token: data.token });
-        navigate("/taxi-driver");
-        return;
-      }
-
-      setError("دور المستخدم غير معروف · Rôle utilisateur inconnu");
+      const { role, dest, sessionJson } = applySession(data);
+      finishLogin(sessionJson, dest, role === "customer" || role === "client");
     } catch {
       setError("حدث خطأ في الاتصال · Erreur de connexion");
     } finally {
@@ -434,11 +475,85 @@ function LoginForm() {
     }
   };
 
+  // ── Google One-Tap ────────────────────────────────────────────────────────
+  const handleGoogle = async () => {
+    if (!GOOGLE_CLIENT_ID) return;
+    setGLoading(true);
+    setError(null);
+    try {
+      await loadGIS();
+      window.google!.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (response: { credential: string }) => {
+          try {
+            const res = await fetch("/api/auth/google", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ credential: response.credential }),
+            });
+            const data = await res.json();
+            if (!res.ok) { setError(data.message || "فشل تسجيل الدخول بـ Google"); return; }
+            const { role, dest, sessionJson } = applySession(data);
+            finishLogin(sessionJson, dest, role === "customer" || role === "client");
+          } catch {
+            setError("فشل تسجيل الدخول بـ Google · Échec Google");
+          } finally {
+            setGLoading(false);
+          }
+        },
+        ux_mode: "popup",
+        context: "signin",
+      });
+      window.google!.accounts.id.prompt(n => {
+        if (n.isNotDisplayed()) { setGLoading(false); setError("تعذّر فتح نافذة Google · Fenêtre Google bloquée"); }
+      });
+    } catch {
+      setGLoading(false);
+      setError("تعذّر تحميل Google · Erreur de chargement Google");
+    }
+  };
+
+  // ── Biometric ─────────────────────────────────────────────────────────────
+  const handleBiometric = async () => {
+    setBioLoading(true);
+    setError(null);
+    const sessionJson = await authenticateWithBiometric();
+    setBioLoading(false);
+    if (!sessionJson) {
+      setError("فشلت مصادقة البصمة · Échec biométrique");
+      return;
+    }
+    try {
+      const parsed = JSON.parse(sessionJson);
+      setSession(parsed);
+      navigate(parsed.role === "client" || parsed.role === "customer" ? "/"
+        : parsed.role === "provider" ? "/provider"
+        : parsed.role === "delivery" || parsed.role === "driver" ? "/delivery"
+        : parsed.role === "taxi_driver" ? "/taxi-driver" : "/admin");
+    } catch {
+      setError("جلسة البصمة منتهية · Session biométrique expirée");
+    }
+  };
+
+  // ── Guest mode ────────────────────────────────────────────────────────────
+  const handleGuest = () => {
+    setGuestMode();
+    navigate("/home");
+  };
+
   return (
     <>
       <AnimatePresence>
-        {showForgot && (
-          <ForgotPasswordModal onClose={() => setShowForgot(false)} />
+        {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showBioPrompt && (
+          <BiometricEnrollPrompt
+            visible={showBioPrompt}
+            sessionJson={pendingSession.json}
+            onClose={() => { setShowBioPrompt(false); navigate(pendingSession.dest); }}
+          />
         )}
       </AnimatePresence>
 
@@ -446,32 +561,21 @@ function LoginForm() {
         {/* Phone */}
         <div>
           <FieldLabel>رقم الهاتف · Téléphone</FieldLabel>
-          <PhoneInput
-            value={phone}
-            onChange={v => { setPhone(v); setError(null); }}
-            hasValue={phone.length > 0}
-          />
+          <PhoneInput value={phone} onChange={v => { setPhone(v); setError(null); }} hasValue={phone.length > 0} />
         </div>
 
         {/* Password */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <button
-              type="button"
-              onClick={() => setShowForgot(true)}
-              className="text-[11px] font-bold text-[#FFA500] hover:text-[#e59400] transition-colors underline underline-offset-2"
-            >
+            <button type="button" onClick={() => setShowForgot(true)}
+              className="text-[11px] font-bold text-[#FFA500] hover:text-[#e59400] transition-colors underline underline-offset-2">
               نسيت كلمة السر؟ · Mot de passe oublié ?
             </button>
             <label className="text-[11px] font-black text-[#1A4D1F]/50 uppercase tracking-widest">
               كلمة السر · Mot de passe
             </label>
           </div>
-          <PasswordInput
-            value={password}
-            onChange={v => { setPassword(v); setError(null); }}
-            hasValue={password.length > 0}
-          />
+          <PasswordInput value={password} onChange={v => { setPassword(v); setError(null); }} hasValue={password.length > 0} />
         </div>
 
         {/* Error */}
@@ -479,28 +583,63 @@ function LoginForm() {
           {error && <ErrorBox message={error} />}
         </AnimatePresence>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={!canSubmit}
+        {/* Primary submit */}
+        <button type="submit" disabled={!canSubmit}
           className="w-full flex items-center justify-center gap-3 py-4 rounded-xl font-black text-base transition-all disabled:opacity-30"
-          style={{
-            background: "#1A4D1F",
-            color: "white",
-            boxShadow: canSubmit ? "0 4px 20px rgba(46,125,50,0.45)" : "none",
-          }}
-        >
+          style={{ background: "#1A4D1F", color: "white", boxShadow: canSubmit ? "0 4px 20px rgba(46,125,50,0.45)" : "none" }}>
           {loading ? (
-            <>
-              <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-              <span>جاري التحقق...</span>
-            </>
+            <><span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /><span>جاري التحقق...</span></>
           ) : (
-            <>
-              <LogIn size={18} />
-              <span>تسجيل الدخول · Connexion</span>
-            </>
+            <><LogIn size={18} /><span>تسجيل الدخول · Connexion</span></>
           )}
+        </button>
+
+        {/* ── Divider ── */}
+        <div className="flex items-center gap-3 py-1">
+          <div className="flex-1 h-px" style={{ background: "rgba(26,77,31,0.12)" }} />
+          <span className="text-[11px] font-bold text-[#1A4D1F]/30 uppercase tracking-widest">أو · ou</span>
+          <div className="flex-1 h-px" style={{ background: "rgba(26,77,31,0.12)" }} />
+        </div>
+
+        {/* ── Google Sign-In (shown only when VITE_GOOGLE_CLIENT_ID is set) ── */}
+        {GOOGLE_CLIENT_ID && (
+          <button type="button" onClick={handleGoogle} disabled={gLoading}
+            className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl font-black text-sm border transition-all hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50"
+            style={{ background: "#FFFFFF", borderColor: "rgba(26,77,31,0.2)", color: "#1A4D1F" }}>
+            {gLoading ? (
+              <span className="w-4 h-4 rounded-full border-2 border-[#1A4D1F]/30 border-t-[#1A4D1F] animate-spin" />
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.6 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.2 6.5 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
+                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.2 6.5 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.5 26.7 36 24 36c-5.3 0-9.6-3.4-11.3-8H6.4C9.7 36.9 16.3 44 24 44z"/>
+                <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3C34.6 30.9 32.1 33 29.2 34.8l6.2 5.2C35 40.3 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/>
+              </svg>
+            )}
+            <span>الدخول بـ Google · Se connecter avec Google</span>
+          </button>
+        )}
+
+        {/* ── Biometric login (shown only if registered) ── */}
+        {bioAvail && bioRegistered && (
+          <button type="button" onClick={handleBiometric} disabled={bioLoading}
+            className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl font-black text-sm border transition-all active:scale-[0.98] disabled:opacity-50"
+            style={{ background: "rgba(26,77,31,0.06)", borderColor: "rgba(26,77,31,0.2)", color: "#1A4D1F" }}>
+            {bioLoading ? (
+              <span className="w-4 h-4 rounded-full border-2 border-[#1A4D1F]/30 border-t-[#1A4D1F] animate-spin" />
+            ) : (
+              <Fingerprint size={18} className="text-[#1A4D1F]" />
+            )}
+            <span>الدخول بالبصمة · Connexion biométrique</span>
+          </button>
+        )}
+
+        {/* ── Guest browsing ── */}
+        <button type="button" onClick={handleGuest}
+          className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-bold text-sm transition-all active:scale-[0.98]"
+          style={{ background: "rgba(255,165,0,0.1)", color: "#1A4D1F", border: "1px solid rgba(255,165,0,0.25)" }}>
+          <Users size={16} className="text-[#FFA500]" />
+          <span>تصفح كضيف · Parcourir en tant qu'invité</span>
         </button>
       </form>
     </>

@@ -5,11 +5,13 @@ import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
 import { getSession, clearSession } from "@/lib/auth";
+import { isGuestMode } from "@/lib/guest";
 import { useNotifications } from "@/lib/notifications";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdBanner } from "@/components/ad-banner";
 import { PhotoAdGallery } from "@/components/PhotoAdGallery";
 import { useAppLogo } from "@/lib/useAppLogo";
+import { LoginGateModal } from "@/components/login-gate";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ROLE BADGE HELPER
@@ -229,6 +231,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { cart, removeItem, updateQty, clearCart, itemCount } = useCart();
   const [, navigate] = useLocation();
   const session = getSession();
+  const [showLoginGate, setShowLoginGate] = useState(false);
 
   const subTotal    = cart.items.reduce((s, i) => s + i.price * i.qty, 0);
   const deliveryFee = cart.deliveryFee ?? 0;
@@ -236,6 +239,13 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   const placeOrder = () => {
     if (!cart.supplierId || cart.items.length === 0) return;
+
+    // Guest users cannot place orders — show login gate
+    if (!session && isGuestMode()) {
+      setShowLoginGate(true);
+      return;
+    }
+
     const lines = cart.items
       .map(i => `${lang === "ar" ? i.nameAr : i.name} x${i.qty} — ${(i.price * i.qty).toFixed(2)} DT`)
       .join("\n");
@@ -247,6 +257,13 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   };
 
   return (
+    <>
+      <LoginGateModal
+        visible={showLoginGate}
+        onClose={() => setShowLoginGate(false)}
+        reason="يجب تسجيل الدخول لتأكيد طلبك"
+        reasonFr="Connectez-vous pour confirmer votre commande"
+      />
     <AnimatePresence>
       {open && (
         <>
@@ -399,6 +416,7 @@ function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
         </>
       )}
     </AnimatePresence>
+    </>
   );
 }
 

@@ -5,6 +5,7 @@ import { LanguageProvider } from "@/lib/language";
 import { CartProvider } from "@/lib/cart";
 import { NotificationsProvider } from "@/lib/notifications";
 import { getSession, type Role } from "@/lib/auth";
+import { isGuestMode } from "@/lib/guest";
 import { Splash } from "@/components/splash";
 
 import Home         from "./pages/home";
@@ -70,22 +71,29 @@ function SplashRoute() {
 function ProtectedRoute({
   component: Comp,
   roles,
+  guestAllowed = false,
 }: {
   component: React.ComponentType;
   roles: Role[];
+  guestAllowed?: boolean;
 }) {
   const [, navigate] = useLocation();
   const session = getSession();
+  const guest   = isGuestMode();
 
   useEffect(() => {
-    if (!session) {
+    if (!session && !guest) {
       navigate("/auth");
-    } else if (!roles.includes(session.role)) {
+    } else if (!session && guest && !guestAllowed) {
+      navigate("/auth");
+    } else if (session && !roles.includes(session.role)) {
       navigate(ROLE_HOME[session.role]);
     }
   }, []);
 
-  if (!session || !roles.includes(session.role)) return null;
+  if (!session && !guest)              return null;
+  if (!session && guest && !guestAllowed) return null;
+  if (session && !roles.includes(session.role)) return null;
   return <Comp />;
 }
 
@@ -142,15 +150,15 @@ function Router() {
       <Route path="/auth"  component={LoginRoute} />
       <Route path="/login" component={LoginRoute} />
 
-      {/* ── Client protected pages ── */}
+      {/* ── Client protected pages (Services & stores are guest-browsable) ── */}
       <Route path="/services">
-        {() => <ProtectedRoute component={Services}      roles={["client", "customer"]} />}
+        {() => <ProtectedRoute component={Services}      roles={["client", "customer"]} guestAllowed />}
       </Route>
       <Route path="/order/:id">
         {() => <ProtectedRoute component={Order}         roles={["client", "customer"]} />}
       </Route>
       <Route path="/store/:id">
-        {() => <ProtectedRoute component={ProviderStore} roles={["client", "customer"]} />}
+        {() => <ProtectedRoute component={ProviderStore} roles={["client", "customer"]} guestAllowed />}
       </Route>
       <Route path="/hotel/:id">
         {() => <ProtectedRoute component={HotelBooking}  roles={["client", "customer"]} />}
