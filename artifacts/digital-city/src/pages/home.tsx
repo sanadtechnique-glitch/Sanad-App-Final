@@ -438,14 +438,18 @@ function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: stri
         // Also write to localStorage as a 6-hour GPS seed — order page reads this
         // so the delivery fee populates immediately on next session (no GPS wait).
         // Manual locations (source="manual") override this so we only write source="gps" here.
-        try {
-          const existing = JSON.parse(localStorage.getItem("sanad_location_v1") ?? "null");
-          if (!existing || existing.source !== "manual") {
-            localStorage.setItem("sanad_location_v1", JSON.stringify({
-              lat, lng, address, source: "gps", savedAt: Date.now(),
-            }));
-          }
-        } catch { /* quota — ignore */ }
+        // Only persist GPS seed if accuracy is good (< 2000 m = real GPS, not IP-based).
+        // IP-based positions can be 20+ km off and generate absurd delivery fees.
+        if (accuracy < 2000) {
+          try {
+            const existing = JSON.parse(localStorage.getItem("sanad_location_v1") ?? "null");
+            if (!existing || existing.source !== "manual") {
+              localStorage.setItem("sanad_location_v1", JSON.stringify({
+                lat, lng, address, accuracy, source: "gps", savedAt: Date.now(),
+              }));
+            }
+          } catch { /* quota — ignore */ }
+        }
         setStatus("granted");
 
         // Accuracy toast: warn if circle > 1000 m

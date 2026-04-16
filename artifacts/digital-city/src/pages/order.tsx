@@ -42,30 +42,44 @@ const SAVED_LOC_KEY    = "sanad_location_v1"; // localStorage: permanent manual/
 interface SavedLocation {
   lat: number; lng: number; address?: string;
   source: "manual" | "gps"; // manual = user confirmed via map; gps = device GPS seed
+  accuracy?: number;         // metres — stored so stale/inaccurate GPS seeds can be rejected
   savedAt: number;
 }
 
+// GPS accuracy threshold: reject anything worse than this as an IP-based fake fix
+const GPS_ACCURACY_THRESHOLD_M = 2000; // 2 km — real GPS is usually < 50 m
+
 // ─── Persist a confirmed location to localStorage ─────────────────────────────
-function saveLocationPermanently(lat: number, lng: number, address?: string, source: SavedLocation["source"] = "gps"): void {
+// For GPS seeds: only saves if accuracy is good (< 2000 m). IP-based fixes
+// (accuracy ~20 000 m) are discarded to prevent wrong-city fee calculations.
+function saveLocationPermanently(lat: number, lng: number, address?: string, source: SavedLocation["source"] = "gps", accuracy?: number): void {
+  // Skip saving GPS seeds with poor accuracy — they're IP-based, not real GPS
+  if (source === "gps" && accuracy !== undefined && accuracy > GPS_ACCURACY_THRESHOLD_M) return;
   try {
-    const payload: SavedLocation = { lat, lng, address, source, savedAt: Date.now() };
+    const payload: SavedLocation = { lat, lng, address, source, accuracy, savedAt: Date.now() };
     localStorage.setItem(SAVED_LOC_KEY, JSON.stringify(payload));
   } catch { /* quota — ignore */ }
 }
 
 // ─── Read the permanently saved location ─────────────────────────────────────
-// "manual" picks are returned with no age check.
-// "gps" picks are only returned if saved within the last 6 hours.
+// "manual" picks are returned with no age check — they never expire.
+// "gps" seeds are ONLY returned if saved within the last 6 hours AND
+//   have good accuracy (< 2000 m) to avoid IP-based wrong-city fallbacks.
 function getPermanentLocation(): SavedLocation | null {
   try {
     const raw = localStorage.getItem(SAVED_LOC_KEY);
     if (!raw) return null;
-    const p = JSON.parse(raw) as SavedLocation;
+    const p = JSON.parse(raw) as SavedLocation & { accuracy?: number };
     if (typeof p.lat !== "number" || typeof p.lng !== "number") return null;
+
     if (p.source === "manual") return p; // manual picks never expire
+
+    // GPS seed: reject if stale OR if accuracy was poor (IP-based location)
     const ageMs = Date.now() - (p.savedAt ?? 0);
-    if (ageMs < 6 * 60 * 60 * 1000) return p; // gps seeds expire after 6 hours
-    // stale GPS seed — clear it
+    const accuracyOk = !p.accuracy || p.accuracy < 2000; // undefined accuracy = legacy = allow
+    if (ageMs < 6 * 60 * 60 * 1000 && accuracyOk) return p;
+
+    // Stale or inaccurate GPS seed — clear it so it doesn't pollute future sessions
     try { localStorage.removeItem(SAVED_LOC_KEY); } catch { /* ignore */ }
   } catch {}
   return null;
@@ -207,6 +221,20 @@ export default function Order() {
   // Keep lockedByUserRef in sync so GPS callbacks (closures) always read latest value
   useEffect(() => { lockedByUserRef.current = locationLocked; }, [locationLocked]);
 
+  // ── One-time startup: purge bad GPS seeds saved before this accuracy fix ────
+  // Any localStorage GPS seed with accuracy > 2000 m is IP-based and must be deleted.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SAVED_LOC_KEY);
+      if (raw) {
+        const p = JSON.parse(raw) as SavedLocation & { accuracy?: number };
+        if (p.source === "gps" && p.accuracy !== undefined && p.accuracy > GPS_ACCURACY_THRESHOLD_M) {
+          localStorage.removeItem(SAVED_LOC_KEY);
+        }
+      }
+    } catch { /* ignore */ }
+  }, []); // eslint-disable-line
+
   // ── Memos ──────────────────────────────────────────────────────────────────
   const cartItems = useMemo(
     () => (cart.supplierId === parseInt(id || "0") ? cart.items : []),
@@ -216,12 +244,16 @@ export default function Order() {
     () => cartItems.reduce((s, i) => s + (parseFloat(String(i.price)) || 0) * (parseInt(String(i.qty)) || 1), 0),
     [cartItems],
   );
-  // GPS-calculated fee takes priority; base fare is shown until GPS resolves
+  // Fee is null while GPS is still acquiring — shows "Calculating..." in UI
+  // Once GPS is confirmed OR user picks from map, distInfo is set and fee is real.
   const deliveryFee = useMemo(
-    () => distInfo?.deliveryFee ?? BASE_FARE,
+    () => distInfo?.deliveryFee ?? null,
     [distInfo],
   );
-  const finalTotal = useMemo(() => subtotal + deliveryFee, [subtotal, deliveryFee]);
+  const finalTotal = useMemo(
+    () => distInfo ? subtotal + distInfo.deliveryFee : null,
+    [subtotal, distInfo],
+  );
 
   const prefilledNotes = decodeURIComponent(new URLSearchParams(window.location.search).get("notes") || "");
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormValues>({
@@ -254,6 +286,17 @@ export default function Order() {
   const applyPosition = useCallback(async (lat: number, lng: number, accuracy?: number) => {
     // If user has manually locked a location, GPS callbacks must not override it
     if (lockedByUserRef.current) return;
+
+    // Reject IP-based GPS fixes — they can be 20+ km off and generate absurd fees.
+    // Real GPS accuracy is typically 5–50 m. Network-based is often > 5000 m.
+    // If we have no existing coords, accept anything to show something; otherwise
+    // only accept positions at least as accurate as what we already have.
+    if (accuracy !== undefined && accuracy > GPS_ACCURACY_THRESHOLD_M) {
+      // Only use if we have absolutely nothing yet (first-time fallback)
+      // But do NOT trigger fee calculation — show "Calculating..." until better fix
+      setGpsStatus("watching"); // keep in "waiting" state
+      return;
+    }
 
     setCustomerLat(lat);
     setCustomerLng(lng);
@@ -301,48 +344,54 @@ export default function Order() {
     }
 
     if (!navigator.geolocation) {
-      // Try saved GPS seed as best fallback
-      if (shared) {
+      // GPS not available — use manual confirmed location only (never GPS seeds)
+      if (shared?.isManual) {
         setCustomerLat(shared.lat);
         setCustomerLng(shared.lng);
         if (shared.address) setValue("customerAddress", shared.address, { shouldValidate: true });
         calculateFee(shared.lat, shared.lng);
       }
       setGpsStatus("error");
-      if (!shared) setCartDeliveryFee(BASE_FARE);
       return;
     }
 
     setGpsStatus("watching");
 
-    // ── Step 1: Seed from best available cache (instant, no network) ────────
+    // ── Step 1: Seed UI from cache (instant) — but NO fee calculation yet ───
+    // GPS seeds from localStorage/sessionStorage may be IP-based (wrong city).
+    // We use them ONLY to pre-fill the address field if available; fee stays
+    // at "Calculating..." until a real GPS fix arrives with good accuracy.
     if (shared) {
-      setCustomerLat(shared.lat);
-      setCustomerLng(shared.lng);
+      // Pre-fill address from cache (cosmetic only — not used for fee)
       if (shared.address && !firstFixRef.current) {
         setValue("customerAddress", shared.address, { shouldValidate: true });
       }
-      calculateFee(shared.lat, shared.lng);
+      // Do NOT call calculateFee() here — coordinates might be IP-based garbage.
+      // The fee will calculate once a real GPS fix arrives in Step 2/3 below.
     }
 
     // ── Step 2: getCurrentPosition for an immediate accurate fresh fix ───────
+    // maximumAge: 0 — never serve a cached position, always request fresh.
+    // Only saves & uses the position if accuracy is good (< 2000 m).
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        if (lockedByUserRef.current) return; // user confirmed while we were waiting
+        if (lockedByUserRef.current) return;
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        // Reject IP-based fixes silently — watchPosition will try again
+        if (accuracy > GPS_ACCURACY_THRESHOLD_M) return;
         setGpsStatus("ok");
-        applyPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
-        // Persist as GPS seed (6-hour expiry) so next session starts faster
-        saveLocationPermanently(pos.coords.latitude, pos.coords.longitude, undefined, "gps");
+        applyPosition(lat, lng, accuracy);
+        // Save accurate GPS seed (rejects inaccurate ones inside saveLocationPermanently)
+        saveLocationPermanently(lat, lng, undefined, "gps", accuracy);
         try {
           const prev = JSON.parse(sessionStorage.getItem("sanad_gps_v2") ?? "{}");
           sessionStorage.setItem("sanad_gps_v2", JSON.stringify({
-            ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy, source: "gps", _ts: Date.now(),
+            ...prev, lat, lng, accuracy, source: "gps", _ts: Date.now(),
           }));
         } catch { /* quota */ }
       },
       (_err) => { /* fall through to watchPosition */ },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
 
     // ── Step 3: watchPosition for ongoing accuracy refinement ───────────────
@@ -350,14 +399,18 @@ export default function Order() {
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
-        if (lockedByUserRef.current) return; // user confirmed — stop overriding
+        if (lockedByUserRef.current) return;
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        // Same accuracy guard as Step 2 — ignore IP-based positions
+        if (accuracy > GPS_ACCURACY_THRESHOLD_M) return;
         setGpsStatus("ok");
-        applyPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+        applyPosition(lat, lng, accuracy);
       },
       (_err) => {
-        if (!customerLat) { setGpsStatus("error"); setCartDeliveryFee(BASE_FARE); }
+        // Only show error if we have no confirmed coords yet
+        if (!customerLat && !lockedByUserRef.current) setGpsStatus("error");
       },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   }, [applyPosition, calculateFee, setCartDeliveryFee, customerLat, setValue]);
 
@@ -513,8 +566,8 @@ export default function Order() {
         customerId:        session?.userId ?? null,
         customerLat:       customerLat ?? undefined,
         customerLng:       customerLng ?? undefined,
-        deliveryFee,
-        totalAmount:       finalTotal,
+        deliveryFee:       deliveryFee ?? 0,
+        totalAmount:       finalTotal ?? subtotal,
         items:             orderItems,
         userDelegation:    userDelegation,
         paymentMethod,
@@ -543,6 +596,8 @@ export default function Order() {
   const zoneMismatch = Boolean(normDel(vendorDelegation)) && normDel(vendorDelegation) !== normDel(userDelegation);
   // Block if GPS-calculated fee exceeds the hard cap
   const feeBlocked   = distInfo !== null && distInfo.deliveryFee > MAX_DELIVERY_FEE;
+  // Block the order if we still don't have a valid fee calculation (GPS not yet confirmed)
+  const feeNotReady  = distInfo === null && gpsStatus !== "error" && addressMode === "gps";
   const orderBlocked = zoneMismatch || feeBlocked;
 
   // ── Render: loading / not found ───────────────────────────────────────────
@@ -1126,15 +1181,27 @@ export default function Order() {
                             </span>
                           )}
                           {!distInfo && !distLoading && (
-                            <span className="text-[9px] opacity-50">({t("أجرة أساسية","de base")})</span>
+                            <span className="text-[9px] opacity-50">
+                              ({t("جاري التحديد…","calcul en cours…")})
+                            </span>
                           )}
                         </span>
-                        <span className="text-xs font-black text-[#FFA500]">{deliveryFee.toFixed(3)} DT</span>
+                        {/* Fee: show "---" while GPS is acquiring (distInfo null) */}
+                        {deliveryFee !== null ? (
+                          <span className="text-xs font-black text-[#FFA500]">{deliveryFee.toFixed(3)} DT</span>
+                        ) : (
+                          <span className="text-xs font-black text-[#1A4D1F]/40 animate-pulse">
+                            {distLoading ? "…" : "---"}
+                          </span>
+                        )}
                       </div>
                       <div className="border-t border-[#1A4D1F]/10 pt-1.5 flex items-center justify-between">
                         <span className="text-sm font-black text-[#1A4D1F]">{t("الإجمالي","Total")}</span>
                         <span className="text-base font-black text-[#1A4D1F]">
-                          {finalTotal.toFixed(3)} <span className="text-xs">DT</span>
+                          {finalTotal !== null
+                            ? <>{finalTotal.toFixed(3)} <span className="text-xs">DT</span></>
+                            : <span className="text-sm opacity-40 animate-pulse">---</span>
+                          }
                         </span>
                       </div>
                     </div>
@@ -1166,16 +1233,30 @@ export default function Order() {
                   </div>
                 )}
 
+                {/* Calculating notice — shown while GPS is still acquiring */}
+                {feeNotReady && (
+                  <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-[#FFA500]/30"
+                    style={{ background: "rgba(255,165,0,0.05)" }}>
+                    <Loader2 size={13} className="animate-spin text-[#FFA500] flex-shrink-0" />
+                    <p className="text-xs font-bold text-[#1A4D1F]/60">
+                      {t("جاري تحديد رسوم التوصيل… فضلاً انتظر أو اختر موقعك على الخريطة",
+                         "Calcul des frais en cours… Veuillez patienter ou choisir votre position sur la carte")}
+                    </p>
+                  </div>
+                )}
+
                 {/* Submit */}
-                <motion.button type="submit" disabled={submitting || orderBlocked}
-                  whileTap={orderBlocked ? {} : { scale: 0.98 }}
+                <motion.button type="submit" disabled={submitting || orderBlocked || feeNotReady}
+                  whileTap={(orderBlocked || feeNotReady) ? {} : { scale: 0.98 }}
                   className="w-full py-4 rounded-2xl font-black text-base text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: (submitting || orderBlocked) ? "#9ca3af" : "linear-gradient(135deg,#1A4D1F,#2E7D32)" }}>
+                  style={{ background: (submitting || orderBlocked || feeNotReady) ? "#9ca3af" : "linear-gradient(135deg,#1A4D1F,#2E7D32)" }}>
                   {submitting
                     ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" />{t("جاري الإرسال...","Envoi...")}</span>
-                    : orderBlocked
-                      ? t("⛔ الطلب محظور", "⛔ Commande bloquée")
-                      : t("تأكيد الطلب →","Confirmer la commande →")}
+                    : feeNotReady
+                      ? <span className="flex items-center justify-center gap-2"><Loader2 size={14} className="animate-spin" />{t("تحديد الموقع...","Localisation...")}</span>
+                      : orderBlocked
+                        ? t("⛔ الطلب محظور", "⛔ Commande bloquée")
+                        : t("تأكيد الطلب →","Confirmer la commande →")}
                 </motion.button>
 
               </form>
