@@ -131,6 +131,78 @@ function buildResetEmailHtml(resetUrl: string): string {
 </html>`;
 }
 
+function buildSecurityAlertHtml(type: "password_changed" | "google_linked", userName: string): string {
+  const isPasswordChange = type === "password_changed";
+  const arTitle = isPasswordChange ? "تم تغيير كلمة المرور" : "تم ربط حساب Google";
+  const frTitle = isPasswordChange ? "Mot de passe modifié" : "Compte Google lié";
+  const arBody  = isPasswordChange
+    ? `مرحباً ${userName}،\n\nتم تغيير كلمة المرور لحسابك على سند بنجاح. إذا لم تقم بهذا الإجراء، يرجى التواصل معنا فوراً.`
+    : `مرحباً ${userName}،\n\nتم ربط حساب Google بحسابك على سند. يمكنك الآن تسجيل الدخول باستخدام Google.`;
+  const frBody  = isPasswordChange
+    ? `Bonjour ${userName},\n\nVotre mot de passe Sanad a été modifié avec succès. Si vous n'êtes pas à l'origine de cette action, contactez-nous immédiatement.`
+    : `Bonjour ${userName},\n\nVotre compte Google a été lié à votre compte Sanad. Vous pouvez désormais vous connecter avec Google.`;
+  const icon = isPasswordChange ? "🔐" : "🔗";
+  return `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>${arTitle}</title></head>
+<body style="margin:0;padding:0;background:#FFF3E0;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FFF3E0;padding:40px 0;">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0"
+             style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 40px rgba(26,77,31,0.12);border:1px solid rgba(255,165,0,0.2);">
+        <tr>
+          <td align="center" style="background:#1A4D1F;padding:32px 40px 28px;">
+            <div style="font-size:48px;margin-bottom:8px;">${icon}</div>
+            <p style="margin:0;color:#FFA500;font-size:22px;font-weight:900;letter-spacing:1px;">سند · Sanad</p>
+            <p style="margin:4px 0 0;color:rgba(255,255,255,0.6);font-size:13px;">إشعار أمني · Alerte de sécurité</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 40px 32px;">
+            <p style="color:#1A4D1F;font-size:18px;font-weight:900;margin:0 0 12px;text-align:right;">${arTitle}</p>
+            <p style="color:#555;font-size:14px;line-height:1.8;margin:0 0 28px;text-align:right;white-space:pre-line;">${arBody}</p>
+            <hr style="border:none;border-top:1px solid rgba(255,165,0,0.2);margin:0 0 24px;"/>
+            <p style="color:#1A4D1F;font-size:16px;font-weight:900;margin:0 0 8px;text-align:left;">${frTitle}</p>
+            <p style="color:#555;font-size:13px;line-height:1.8;margin:0 0 20px;text-align:left;white-space:pre-line;">${frBody}</p>
+            <p style="color:#999;font-size:11px;text-align:center;margin:0;">
+              إذا لم تقم بهذا الإجراء، تواصل معنا فوراً · Si ce n'était pas vous, contactez-nous immédiatement.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="background:#FFF3E0;padding:20px 40px;border-top:1px solid rgba(255,165,0,0.2);">
+            <p style="margin:0;color:#1A4D1F;font-size:12px;font-weight:700;">© 2025 سند · Sanad — بن قردان، تونس</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+export async function sendSecurityAlertEmail(
+  to: string,
+  type: "password_changed" | "google_linked",
+  userName: string,
+): Promise<void> {
+  if (!SMTP_ENABLED) {
+    console.log(`[MAILER] SMTP not configured. Security alert (${type}) would be sent to ${to}`);
+    return;
+  }
+  const subjectMap = {
+    password_changed: "تم تغيير كلمة المرور · Mot de passe modifié — Sanad",
+    google_linked:    "تم ربط حساب Google · Compte Google lié — Sanad",
+  };
+  await transporter!.sendMail({
+    from: SMTP_FROM,
+    to,
+    subject: subjectMap[type],
+    html: buildSecurityAlertHtml(type, userName),
+  });
+}
+
 export async function sendPasswordResetEmail(
   to: string,
   resetUrl: string,

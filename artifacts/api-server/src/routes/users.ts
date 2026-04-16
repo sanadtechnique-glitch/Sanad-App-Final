@@ -11,7 +11,7 @@ import { createSession } from "../lib/sessionStore";
 import { requireAdmin, requireAuth } from "../lib/authMiddleware";
 import { isValidPhone, isValidPassword, isValidRole } from "../lib/validate";
 import { hashPassword, verifyPassword } from "../lib/crypto";
-import { sendPasswordResetEmail } from "../lib/mailer";
+import { sendPasswordResetEmail, sendSecurityAlertEmail } from "../lib/mailer";
 
 const router: IRouter = Router();
 
@@ -769,6 +769,7 @@ router.post("/auth/google", async (req, res) => {
       role:        "customer",
       isActive:    true,
       dateOfBirth: "2000-01-01",  // placeholder — Google doesn't expose DOB
+      googleId:    googleSub,
     }).returning();
 
     const token = await createSession(newUser.id, newUser.role, newUser.username ?? newUser.name);
@@ -929,6 +930,176 @@ router.get("/auth/validate-reset-token", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Error validating reset token");
     res.status(500).json({ valid: false });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /auth/change-password — change password (requires current password) [AUTH]
+// Sends a security confirmation email after success.
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch("/auth/change-password", requireAuth, async (req, res) => {
+  const session = (req as any).authSession as { userId: number };
+  const { currentPassword, newPassword } = req.body as {
+    currentPassword?: string;
+    newPassword?: string;
+  };
+
+  if (!currentPassword?.trim() || !newPassword?.trim()) {
+    res.status(400).json({ message: "كلمة المرور الحالية والجديدة مطلوبتان · Les deux mots de passe sont requis" });
+    return;
+  }
+
+  if (!isValidPassword(newPassword.trim())) {
+    res.status(400).json({ message: "كلمة المرور الجديدة قصيرة جداً (6 أحرف على الأقل) · Nouveau mot de passe trop court (min. 6 caractères)" });
+    return;
+  }
+
+  if (currentPassword.trim() === newPassword.trim()) {
+    res.status(400).json({ message: "كلمة المرور الجديدة يجب أن تختلف عن الحالية · Le nouveau mot de passe doit être différent" });
+    return;
+  }
+
+  try {
+    const [user] = await db
+      .select({ id: usersTable.id, password: usersTable.password, email: usersTable.email, name: usersTable.name })
+      .from(usersTable)
+      .where(eq(usersTable.id, session.userId));
+
+    if (!user) {
+      res.status(404).json({ message: "المستخدم غير موجود · Utilisateur introuvable" });
+      return;
+    }
+
+    const passwordOk = await verifyPassword(currentPassword.trim(), user.password);
+    if (!passwordOk) {
+      res.status(401).json({ message: "كلمة المرور الحالية غير صحيحة · Mot de passe actuel incorrect" });
+      return;
+    }
+
+    const hashedNew = await hashPassword(newPassword.trim());
+    await db.update(usersTable).set({ password: hashedNew }).where(eq(usersTable.id, session.userId));
+
+    // Fire-and-forget security confirmation email
+    if (user.email) {
+      sendSecurityAlertEmail(user.email, "password_changed", user.name).catch(err =>
+        req.log.warn({ err }, "Failed to send password-change security alert")
+      );
+    }
+
+    res.json({ message: "تم تغيير كلمة المرور بنجاح · Mot de passe modifié avec succès" });
+  } catch (err) {
+    req.log.error({ err }, "Error in change-password");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/link-google — link a Google account to an existing phone account [AUTH]
+// Verifies the Google ID-token, then links the googleId + email to the current user.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/auth/link-google", requireAuth, async (req, res) => {
+  const session = (req as any).authSession as { userId: number };
+  const { credential } = req.body as { credential?: string };
+
+  if (!credential) {
+    res.status(400).json({ message: "Google credential token is required" });
+    return;
+  }
+
+  try {
+    const gRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+    if (!gRes.ok) {
+      res.status(401).json({ message: "رمز Google غير صالح · Jeton Google invalide" });
+      return;
+    }
+    const gData = await gRes.json() as {
+      sub: string; email?: string; name?: string; email_verified?: string; aud?: string;
+    };
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (clientId && gData.aud !== clientId) {
+      res.status(401).json({ message: "Invalid Google token audience" });
+      return;
+    }
+    if (!gData.email || gData.email_verified !== "true") {
+      res.status(400).json({ message: "البريد الإلكتروني من Google غير موثوق · E-mail Google non vérifié" });
+      return;
+    }
+
+    const googleSub   = gData.sub;
+    const googleEmail = gData.email.toLowerCase();
+
+    // Check if this Google account is already linked to another user
+    const [existingLink] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.googleId, googleSub));
+    if (existingLink && existingLink.id !== session.userId) {
+      res.status(409).json({ message: "حساب Google هذا مرتبط بمستخدم آخر · Ce compte Google est déjà lié à un autre utilisateur" });
+      return;
+    }
+
+    // Get current user data for email sending
+    const [user] = await db
+      .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name, googleId: usersTable.googleId })
+      .from(usersTable)
+      .where(eq(usersTable.id, session.userId));
+
+    if (!user) {
+      res.status(404).json({ message: "المستخدم غير موجود · Utilisateur introuvable" });
+      return;
+    }
+
+    if (user.googleId) {
+      res.status(409).json({ message: "حسابك مرتبط بـ Google بالفعل · Votre compte est déjà lié à Google" });
+      return;
+    }
+
+    // Link googleId and update email if not set
+    const updates: Record<string, unknown> = { googleId: googleSub };
+    if (!user.email) updates.email = googleEmail;
+
+    await db.update(usersTable).set(updates).where(eq(usersTable.id, session.userId));
+
+    // Fire-and-forget security alert
+    const emailToAlert = user.email ?? googleEmail;
+    sendSecurityAlertEmail(emailToAlert, "google_linked", user.name).catch(err =>
+      req.log.warn({ err }, "Failed to send google-link security alert")
+    );
+
+    res.json({ message: "تم ربط حساب Google بنجاح · Compte Google lié avec succès", googleLinked: true });
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ message: "حساب Google هذا مرتبط بمستخدم آخر · Ce compte Google est déjà lié" });
+      return;
+    }
+    req.log.error({ err }, "Error in link-google");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /auth/security-status — get current security status for the logged-in user
+// Returns googleLinked, hasEmail (for UI state management)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/auth/security-status", requireAuth, async (req, res) => {
+  const session = (req as any).authSession as { userId: number };
+  try {
+    const [user] = await db
+      .select({ email: usersTable.email, googleId: usersTable.googleId, name: usersTable.name })
+      .from(usersTable)
+      .where(eq(usersTable.id, session.userId));
+
+    if (!user) { res.status(404).json({ message: "User not found" }); return; }
+
+    res.json({
+      googleLinked: !!user.googleId,
+      hasEmail: !!user.email,
+      maskedEmail: user.email ? user.email.replace(/(.{2})(.*)(@.*)/, "$1***$3") : null,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Error in security-status");
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 

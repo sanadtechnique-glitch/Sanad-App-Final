@@ -19,6 +19,7 @@ export const usersTable = pgTable("users", {
   linkedStaffId: integer("linked_staff_id"),
   dateOfBirth: date("date_of_birth"),
   defaultAddress: text("default_address"),
+  googleId: text("google_id").unique(),
 }, (t) => [
   index("idx_users_phone").on(t.phone),
   index("idx_users_role").on(t.role),
