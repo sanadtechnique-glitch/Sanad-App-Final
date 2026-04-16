@@ -6354,6 +6354,217 @@ function StatsSection({ t, lang }: { t: (ar: string, fr: string) => string; lang
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ── Section: Reviews & Ratings (إدارة التقييمات) ───────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+interface AdminReview {
+  id: number;
+  articleId: number | null;
+  providerId: number | null;
+  userId: number | null;
+  reviewerName: string | null;
+  rating: number;
+  comment: string | null;
+  isVerifiedBuyer: boolean;
+  isApproved: boolean;
+  createdAt: string;
+}
+
+function ReviewsSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const session = getSession();
+  const lang    = (session as any)?.lang ?? "ar";
+
+  const [reviews, setReviews]   = useState<AdminReview[]>([]);
+  const [status,  setStatus]    = useState<"all" | "pending" | "approved">("pending");
+  const [loading, setLoading]   = useState(true);
+  const [actingId, setActingId] = useState<number | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    get<AdminReview[]>(`/admin/reviews?status=${status}`)
+      .then(setReviews)
+      .catch(() => setReviews([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [status]);
+
+  const approve = async (id: number, value: boolean) => {
+    setActingId(id);
+    await patch(`/admin/reviews/${id}`, { isApproved: value }).catch(() => null);
+    setActingId(null);
+    load();
+  };
+
+  const remove = async (id: number) => {
+    if (!confirm(t("هل تريد حذف هذا التقييم؟", "Supprimer cet avis ?"))) return;
+    setActingId(id);
+    await del(`/admin/reviews/${id}`).catch(() => null);
+    setActingId(null);
+    load();
+  };
+
+  const tabBtns: { key: typeof status; ar: string; fr: string }[] = [
+    { key: "pending",  ar: "بانتظار الموافقة", fr: "En attente" },
+    { key: "approved", ar: "معتمدة",           fr: "Approuvés"  },
+    { key: "all",      ar: "الكل",             fr: "Tous"       },
+  ];
+
+  const pendingCount = reviews.filter(r => !r.isApproved).length;
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Star size={22} className="text-[#FFA500]" />
+          <h2 className="text-2xl font-black text-[#1A4D1F]">{t("إدارة التقييمات", "Gestion des avis")}</h2>
+          {pendingCount > 0 && status !== "approved" && (
+            <span className="text-xs font-black px-2 py-0.5 rounded-full text-white" style={{ background: "#FFA500" }}>
+              {pendingCount}
+            </span>
+          )}
+        </div>
+        <button onClick={load} className="p-2 rounded-xl text-[#1A4D1F]/50 hover:bg-[#1A4D1F]/5 transition-all">
+          <RefreshCw size={16} />
+        </button>
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex gap-2 p-1 rounded-2xl" style={{ background: "#1A4D1F10" }} dir="rtl">
+        {tabBtns.map(tb => (
+          <button key={tb.key} onClick={() => setStatus(tb.key)}
+            className="flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all"
+            style={{
+              background: status === tb.key ? "#1A4D1F" : "transparent",
+              color: status === tb.key ? "#FFA500" : "#1A4D1F",
+              opacity: status === tb.key ? 1 : 0.5,
+            }}>
+            {lang === "ar" ? tb.ar : tb.fr}
+          </button>
+        ))}
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex justify-center py-10">
+          <div className="w-8 h-8 border-2 border-[#1A4D1F] border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* Empty */}
+      {!loading && reviews.length === 0 && (
+        <div className="text-center py-16 space-y-2" dir="rtl">
+          <Star size={36} className="mx-auto text-[#1A4D1F]/15" />
+          <p className="font-black text-[#1A4D1F]/30 text-sm">
+            {t("لا توجد تقييمات", "Aucun avis disponible")}
+          </p>
+        </div>
+      )}
+
+      {/* Reviews list */}
+      {!loading && reviews.length > 0 && (
+        <div className="space-y-3">
+          {reviews.map(review => (
+            <motion.div
+              key={review.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border p-4 space-y-2"
+              style={{
+                background: review.isApproved ? "#FAFEF5" : "#FFFBEB",
+                borderColor: review.isApproved ? "rgba(26,77,31,0.12)" : "rgba(255,165,0,0.25)",
+              }}
+              dir="rtl"
+            >
+              {/* Row 1: Name + status + date */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-black text-[#1A4D1F] text-sm">
+                    {review.reviewerName ?? t("مجهول", "Anonyme")}
+                  </span>
+                  {review.isVerifiedBuyer && (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "rgba(26,77,31,0.1)", color: "#1A4D1F" }}>
+                      {t("مشترٍ موثوق", "Acheteur vérifié")}
+                    </span>
+                  )}
+                  {review.isApproved ? (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "#1A4D1F" }}>
+                      {t("معتمد", "Approuvé")}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "rgba(255,165,0,0.2)", color: "#B45309" }}>
+                      {t("بانتظار الموافقة", "En attente")}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] text-gray-400 whitespace-nowrap font-medium">
+                  {new Date(review.createdAt).toLocaleDateString(lang === "ar" ? "ar-TN" : "fr-TN", { year: "numeric", month: "short", day: "numeric" })}
+                </span>
+              </div>
+
+              {/* Stars */}
+              <div className="flex gap-1" dir="ltr">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <Star key={n} size={14}
+                    fill={review.rating >= n ? "#FFA500" : "none"}
+                    stroke={review.rating >= n ? "#FFA500" : "#e5e7eb"}
+                  />
+                ))}
+              </div>
+
+              {/* Comment */}
+              {review.comment && (
+                <p className="text-sm text-gray-600 leading-relaxed">{review.comment}</p>
+              )}
+
+              {/* Meta */}
+              <div className="flex gap-3 text-[10px] text-gray-400 font-medium flex-wrap">
+                {review.articleId && <span>{t("المنتج رقم", "Article #")}{review.articleId}</span>}
+                {review.providerId && <span>{t("المتجر رقم", "Fournisseur #")}{review.providerId}</span>}
+                {review.userId && <span>{t("المستخدم رقم", "Utilisateur #")}{review.userId}</span>}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 pt-1">
+                {!review.isApproved ? (
+                  <button
+                    onClick={() => approve(review.id, true)}
+                    disabled={actingId === review.id}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-black text-white transition-all disabled:opacity-40"
+                    style={{ background: "#1A4D1F" }}
+                  >
+                    <CheckCircle size={13} />
+                    {t("قبول", "Approuver")}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => approve(review.id, false)}
+                    disabled={actingId === review.id}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-black transition-all disabled:opacity-40"
+                    style={{ background: "rgba(255,165,0,0.15)", color: "#B45309" }}
+                  >
+                    <XCircle size={13} />
+                    {t("إلغاء الموافقة", "Désapprouver")}
+                  </button>
+                )}
+                <button
+                  onClick={() => remove(review.id)}
+                  disabled={actingId === review.id}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-black text-red-400 transition-all hover:bg-red-50 disabled:opacity-40"
+                >
+                  <Trash2 size={13} />
+                  {t("حذف", "Supprimer")}
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Section: Messages (مراسلة الموردين) ────────────────────────────────────
 function MessagesSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
   const [summaryList, setSummaryList]   = useState<any[]>([]);
@@ -6557,7 +6768,7 @@ function MessagesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
   );
 }
 
-type Section = "overview" | "orders" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests" | "partners" | "statistics" | "messages";
+type Section = "overview" | "orders" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests" | "partners" | "statistics" | "messages" | "reviews";
 
 type NavItem = { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean };
 type NavGroup = { id: string; icon: React.FC<any>; ar: string; fr: string; color: string; items: NavItem[] };
@@ -6575,6 +6786,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "statistics",  icon: TrendingUp,       ar: "الإحصائيات",       fr: "Statistiques" },
       { id: "live_map",    icon: Map,              ar: "الخريطة المباشرة", fr: "Carte live" },
       { id: "messages",    icon: MessageCircle,    ar: "الرسائل",          fr: "Messages" },
+      { id: "reviews",     icon: Star,             ar: "التقييمات",        fr: "Avis clients" },
       { id: "users",       icon: UserCog,          ar: "المستخدمون",       fr: "Utilisateurs",  superOnly: true },
     ],
   },
@@ -6934,6 +7146,7 @@ export default function Admin() {
             {active === "lawyer_requests" && isSuper && <LawyerRequestsSection t={t} lang={lang} />}
             {active === "statistics"     && <StatsSection t={t} lang={lang} />}
             {active === "messages"       && <MessagesSection t={t} lang={lang} />}
+            {active === "reviews"        && <ReviewsSection t={t} />}
           </motion.div>
         </AnimatePresence>
       </main>

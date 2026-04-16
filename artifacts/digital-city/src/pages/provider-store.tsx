@@ -6,6 +6,7 @@ import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
 import { get } from "@/lib/admin-api";
 import { Plus, Minus, Package, Star, ChevronLeft, ChevronRight, ArrowRight, Search, X, ShoppingCart } from "lucide-react";
+import { ProductReviews } from "@/components/product-reviews";
 import { AdCarousel } from "@/components/AdCarousel";
 
 const CATEGORY_REDIRECT: Record<string, string> = {
@@ -621,6 +622,13 @@ export default function ProviderStore() {
                     </div>
                   )}
                 </div>
+
+                {/* ── Reviews section ── */}
+                <ProductReviews
+                  articleId={detailArticle.id}
+                  supplierId={detailArticle.supplierId}
+                  lang={lang}
+                />
               </motion.div>
             </>
           );
