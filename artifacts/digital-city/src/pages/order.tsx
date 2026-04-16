@@ -34,8 +34,8 @@ interface DistanceResult {
 // ─── Constants ────────────────────────────────────────────────────────────────
 const BASE_FARE        = 4.800; // DT — shown when GPS is unavailable
 const MAX_DELIVERY_FEE = 15;    // DT — hard cap; orders above this are blocked
-const GPS_SESSION_KEY  = "sanad_gps_coords"; // sessionStorage key for coord caching
-const GPS_STORE_KEY    = "sanad_gps_v2";     // delegation store key
+const GPS_SESSION_KEY  = "sanad_gps_coords"; // sessionStorage key for coord caching (own)
+const GPS_STORE_KEY    = "sanad_gps_v2";     // shared store written by home.tsx
 
 // Read user's current delegation (written by gpsStore in home.tsx)
 function getUserDelegation(): string {
@@ -44,6 +44,32 @@ function getUserDelegation(): string {
     if (raw) { const p = JSON.parse(raw); if (p?.delegation) return p.delegation; }
   } catch {}
   return "بن قردان";
+}
+
+// ── Read shared GPS coords from home page ────────────────────────────────────
+// home.tsx writes { lat, lng, address, ... } to sanad_gps_v2 when GPS is obtained.
+// order.tsx seeds from this so fee calculation starts immediately.
+function getSharedGpsCoords(): { lat: number; lng: number; address?: string } | null {
+  try {
+    const raw = sessionStorage.getItem(GPS_STORE_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as { lat?: number; lng?: number; address?: string; source?: string };
+      if (typeof p.lat === "number" && typeof p.lng === "number") {
+        return { lat: p.lat, lng: p.lng, address: p.address };
+      }
+    }
+  } catch {}
+  // Fallback: check own GPS cache
+  try {
+    const raw = sessionStorage.getItem(GPS_SESSION_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as { lat?: number; lng?: number };
+      if (typeof p.lat === "number" && typeof p.lng === "number") {
+        return { lat: p.lat, lng: p.lng };
+      }
+    }
+  } catch {}
+  return null;
 }
 
 // ─── Zod schema ───────────────────────────────────────────────────────────────
@@ -206,16 +232,21 @@ export default function Order() {
       return;
     }
 
-    // Restore last known coords immediately so fee doesn't jump back to 2.500
-    try {
-      const cached = sessionStorage.getItem(GPS_SESSION_KEY);
-      if (cached) {
-        const { lat, lng } = JSON.parse(cached) as { lat: number; lng: number };
-        setCustomerLat(lat);
-        setCustomerLng(lng);
-        calculateFee(lat, lng); // refresh fee with cached position
+    // ── Priority 1: shared GPS from home page (sanad_gps_v2 with lat/lng) ──
+    // ── Priority 2: own session cache (sanad_gps_coords) ───────────────────
+    const shared = getSharedGpsCoords();
+    if (shared) {
+      setCustomerLat(shared.lat);
+      setCustomerLng(shared.lng);
+      // Also write to own cache so it's available even if shared store is updated
+      try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat: shared.lat, lng: shared.lng })); } catch { /* quota */ }
+      // Pre-fill address from shared GPS label if not already set
+      if (shared.address) {
+        setValue("customerAddress", shared.address, { shouldValidate: true });
+        firstFixRef.current = true; // mark as done so watchPosition won't overwrite
       }
-    } catch { /* invalid cache — ignore */ }
+      calculateFee(shared.lat, shared.lng);
+    }
 
     setGpsStatus("watching");
 
@@ -256,6 +287,29 @@ export default function Order() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [stopWatching]);
+
+  // ── React to home-page GPS updates (sanad:zoneChange) ──────────────────────
+  // If home.tsx obtains GPS while user is on order page, immediately seed coords.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { lat?: number; lng?: number; address?: string };
+      if (typeof detail.lat === "number" && typeof detail.lng === "number") {
+        // Only update if we don't have a precise live GPS on this page
+        if (gpsStatus !== "ok") {
+          setCustomerLat(detail.lat);
+          setCustomerLng(detail.lng);
+          try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat: detail.lat, lng: detail.lng })); } catch { /* quota */ }
+          if (detail.address && !firstFixRef.current) {
+            setValue("customerAddress", detail.address, { shouldValidate: true });
+            firstFixRef.current = true;
+          }
+          calculateFee(detail.lat, detail.lng);
+        }
+      }
+    };
+    window.addEventListener("sanad:zoneChange", handler);
+    return () => window.removeEventListener("sanad:zoneChange", handler);
+  }, [gpsStatus, calculateFee, setValue]);
 
   // ── Load supplier, then auto-start GPS ────────────────────────────────────
   useEffect(() => {
@@ -658,6 +712,35 @@ export default function Order() {
                         )} />
                     </div>
                   </InputBase>
+
+                  {/* Manual mode: map-picker CTA + optional recalculate if we have coords */}
+                  {addressMode === "manual" && (
+                    <div className="space-y-2 pt-1">
+                      {/* If we have GPS coords from previous session/home, show recalculate chip */}
+                      {customerLat && customerLng && (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-300/50"
+                          style={{ background: "rgba(52,211,153,0.06)" }}>
+                          <Navigation size={12} className="text-emerald-500 shrink-0" />
+                          <p className="text-[11px] font-bold text-emerald-700 flex-1">
+                            {t("الموقع محدد · الرسوم محسوبة من موقعك الحالي","Position connue · Frais calculés depuis votre position")}
+                          </p>
+                          <button type="button" onClick={() => calculateFee(customerLat!, customerLng!)}
+                            className="text-[10px] font-black text-emerald-600 underline shrink-0">
+                            {t("إعادة حساب","Recalculer")}
+                          </button>
+                        </div>
+                      )}
+                      {/* Map picker button — always visible in manual mode */}
+                      <button type="button" onClick={() => setShowPicker(true)}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-xs border transition-all hover:bg-[#1A4D1F]/5"
+                        style={{ borderColor: "rgba(255,165,0,0.5)", background: "rgba(255,165,0,0.05)", color: "#1A4D1F" }}>
+                        <MapPin size={13} className="text-[#FFA500]" />
+                        {customerLat
+                          ? t("📍 تعديل الموقع على الخريطة (يُعيد حساب الرسوم)","📍 Modifier sur la carte (recalcule les frais)")
+                          : t("📍 حدد موقعك على الخريطة لحساب الرسوم","📍 Choisir sur la carte pour calculer les frais")}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Notes */}

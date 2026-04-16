@@ -352,6 +352,9 @@ interface GpsState {
   gov_fr: string;      // French governorate
   source: "default" | "gps" | "manual";
   accuracy: number;    // metres (0 = unknown)
+  lat?: number;        // latitude  — set when source="gps", used by order page
+  lng?: number;        // longitude — set when source="gps", used by order page
+  address?: string;    // reverse-geocoded label — displayed in order form
 }
 
 const gpsStore = (() => {
@@ -426,7 +429,9 @@ function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: stri
         const governorate = geo?.governorate ?? "مدنين";
         const gov_fr      = geo?.gov_fr      ?? "Médenine";
 
-        gpsStore.update({ delegation, governorate, gov_fr, source: "gps", accuracy });
+        // ── KEY FIX: save lat/lng so order page can seed fee calculation ──
+        const address = geo ? `${geo.delegation}، ${geo.governorate}` : undefined;
+        gpsStore.update({ delegation, governorate, gov_fr, source: "gps", accuracy, lat, lng, address });
         setStatus("granted");
 
         // Accuracy toast: warn if circle > 1000 m
