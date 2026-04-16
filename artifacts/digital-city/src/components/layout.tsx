@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut, Bell, CheckCheck, Bike, History, UserCircle, LogIn, Phone, Menu } from "lucide-react";
+import { Home, Grid, ShoppingCart, Plus, Minus, Trash2, X, LogOut, Bell, CheckCheck, Bike, History, UserCircle, LogIn, Phone, Menu, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
 import { useCart } from "@/lib/cart";
@@ -650,25 +650,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
 
-              {/* User info */}
+              {/* User info — tapping opens profile page */}
               {session ? (
-                <div className="flex items-center gap-3 p-3 rounded-2xl mb-6" style={{ background: "#f4f7f4" }}>
-                  <div
-                    className="w-11 h-11 rounded-full flex items-center justify-center font-black text-white text-base flex-shrink-0 shadow"
-                    style={{ background: getRoleBadge(session.role).bg }}
-                  >
-                    {session.name?.charAt(0)?.toUpperCase() ?? "؟"}
-                  </div>
-                  <div className="flex flex-col items-end min-w-0">
-                    <span className="text-[#1A4D1F] font-black text-sm truncate">{session.name}</span>
-                    <span
-                      className="text-[9px] font-black px-2 py-0.5 rounded-full mt-1 text-white"
+                <Link href="/profile" onClick={() => setDrawerOpen(false)}>
+                  <div className="flex items-center gap-3 p-3 rounded-2xl mb-6 cursor-pointer hover:bg-[#1A4D1F]/5 transition-all" style={{ background: "#f4f7f4" }}>
+                    <div
+                      className="w-11 h-11 rounded-full flex items-center justify-center font-black text-white text-base flex-shrink-0 shadow"
                       style={{ background: getRoleBadge(session.role).bg }}
                     >
-                      {lang === "ar" ? getRoleBadge(session.role).ar : getRoleBadge(session.role).fr}
-                    </span>
+                      {session.name?.charAt(0)?.toUpperCase() ?? "؟"}
+                    </div>
+                    <div className="flex flex-col items-end min-w-0 flex-1">
+                      <span className="text-[#1A4D1F] font-black text-sm truncate">{session.name}</span>
+                      <span
+                        className="text-[9px] font-black px-2 py-0.5 rounded-full mt-1 text-white"
+                        style={{ background: getRoleBadge(session.role).bg }}
+                      >
+                        {lang === "ar" ? getRoleBadge(session.role).ar : getRoleBadge(session.role).fr}
+                      </span>
+                    </div>
+                    <Settings size={15} className="text-[#1A4D1F]/30 flex-shrink-0" />
                   </div>
-                </div>
+                </Link>
               ) : (
                 <Link href="/auth" onClick={() => setDrawerOpen(false)}>
                   <div className="flex items-center gap-3 p-3 rounded-2xl mb-6 border border-[#1A4D1F]/20 cursor-pointer hover:bg-[#1A4D1F]/5 transition-all">

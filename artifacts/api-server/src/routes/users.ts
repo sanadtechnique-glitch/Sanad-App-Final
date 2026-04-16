@@ -8,7 +8,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, ne, and, gt } from "drizzle-orm";
 import { createSession } from "../lib/sessionStore";
-import { requireAdmin } from "../lib/authMiddleware";
+import { requireAdmin, requireAuth } from "../lib/authMiddleware";
 import { isValidPhone, isValidPassword, isValidRole } from "../lib/validate";
 import { hashPassword, verifyPassword } from "../lib/crypto";
 import { sendPasswordResetEmail } from "../lib/mailer";
@@ -338,6 +338,113 @@ router.post("/auth/client-login", async (req, res) => {
     res.json({ ...safeUser, token });
   } catch (err) {
     req.log.error({ err }, "Error in client-login");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /me — fetch own profile (any authenticated user)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/me", requireAuth, async (req, res) => {
+  const session = (req as any).authSession as { userId: number };
+  try {
+    const [user] = await db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        phone: usersTable.phone,
+        role: usersTable.role,
+        username: usersTable.username,
+        dateOfBirth: usersTable.dateOfBirth,
+        defaultAddress: usersTable.defaultAddress,
+        createdAt: usersTable.createdAt,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, session.userId));
+
+    if (!user) { res.status(404).json({ message: "User not found" }); return; }
+    res.json(user);
+  } catch (err) {
+    req.log.error({ err }, "Error fetching /me");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /me — update own profile (name, phone, defaultAddress)
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch("/me", requireAuth, async (req, res) => {
+  const session = (req as any).authSession as { userId: number };
+  const { name, phone, defaultAddress } = req.body as {
+    name?: string; phone?: string; defaultAddress?: string;
+  };
+
+  const updates: Record<string, unknown> = {};
+
+  if (name !== undefined) {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length < 2) {
+      res.status(400).json({ message: "الاسم يجب أن يكون حرفين على الأقل · Nom trop court" });
+      return;
+    }
+    updates.name = trimmed;
+  }
+
+  if (phone !== undefined) {
+    const trimmed = phone.trim();
+    if (trimmed && !isValidPhone(trimmed)) {
+      res.status(400).json({ message: "رقم هاتف غير صالح · Numéro de téléphone invalide" });
+      return;
+    }
+    if (trimmed) {
+      // Check uniqueness (exclude self)
+      const [conflict] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(and(eq(usersTable.phone, trimmed), ne(usersTable.id, session.userId)));
+      if (conflict) {
+        res.status(409).json({ message: "رقم الهاتف مستخدم بالفعل · Numéro déjà utilisé" });
+        return;
+      }
+      updates.phone = trimmed;
+    }
+  }
+
+  if (defaultAddress !== undefined) {
+    updates.defaultAddress = defaultAddress.trim() || null;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ message: "لا توجد تغييرات للحفظ · Aucune modification" });
+    return;
+  }
+
+  try {
+    const [updated] = await db
+      .update(usersTable)
+      .set(updates)
+      .where(eq(usersTable.id, session.userId))
+      .returning({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        phone: usersTable.phone,
+        role: usersTable.role,
+        username: usersTable.username,
+        defaultAddress: usersTable.defaultAddress,
+        dateOfBirth: usersTable.dateOfBirth,
+        createdAt: usersTable.createdAt,
+      });
+
+    if (!updated) { res.status(404).json({ message: "User not found" }); return; }
+    res.json(updated);
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ message: "رقم الهاتف مستخدم بالفعل · Numéro déjà utilisé" });
+      return;
+    }
+    req.log.error({ err }, "Error patching /me");
     res.status(500).json({ message: "Internal server error" });
   }
 });

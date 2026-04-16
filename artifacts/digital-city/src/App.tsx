@@ -25,6 +25,7 @@ import CarRental    from "./pages/car-rental";
 import SosPage      from "./pages/sos";
 import LawyerPage     from "./pages/lawyer";
 import ResetPassword  from "./pages/reset-password";
+import Profile        from "./pages/profile";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -167,6 +168,11 @@ function Router() {
       {/* ── Order history (multi-role) ── */}
       <Route path="/orders/history">
         {() => <ProtectedRoute component={OrderHistory} roles={["client", "customer", "provider", "delivery", "driver", "admin", "super_admin", "manager"]} />}
+      </Route>
+
+      {/* ── User profile (all authenticated roles) ── */}
+      <Route path="/profile">
+        {() => <ProtectedRoute component={Profile} roles={["client", "customer", "provider", "delivery", "driver", "admin", "super_admin", "manager", "taxi_driver"]} />}
       </Route>
 
       {/* ── Deals / promotions (public) ── */}
