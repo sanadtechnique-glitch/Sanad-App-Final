@@ -74,12 +74,15 @@ function getPermanentLocation(): SavedLocation | null {
 
     if (p.source === "manual") return p; // manual picks never expire
 
-    // GPS seed: reject if stale OR if accuracy was poor (IP-based location)
+    // GPS seed: reject if:
+    //   - stale (> 6 hours)
+    //   - has no accuracy field (legacy = unverified, may be IP-based)
+    //   - accuracy ≥ 2000 m (IP-based location — real GPS is < 50 m)
     const ageMs = Date.now() - (p.savedAt ?? 0);
-    const accuracyOk = !p.accuracy || p.accuracy < 2000; // undefined accuracy = legacy = allow
+    const accuracyOk = typeof p.accuracy === "number" && p.accuracy < GPS_ACCURACY_THRESHOLD_M;
     if (ageMs < 6 * 60 * 60 * 1000 && accuracyOk) return p;
 
-    // Stale or inaccurate GPS seed — clear it so it doesn't pollute future sessions
+    // Stale, legacy (no accuracy), or inaccurate — purge it now
     try { localStorage.removeItem(SAVED_LOC_KEY); } catch { /* ignore */ }
   } catch {}
   return null;
@@ -99,31 +102,37 @@ function getUserDelegation(): string {
 const GPS_MAX_AGE_MS = 3 * 60 * 1000; // 3 minutes
 
 function getSharedGpsCoords(): { lat: number; lng: number; address?: string; isManual?: boolean } | null {
-  // 1. Permanent localStorage (manual picks have no expiry)
+  // 1. Permanent localStorage (manual picks have no expiry; GPS seeds need good accuracy)
   const saved = getPermanentLocation();
   if (saved) return { lat: saved.lat, lng: saved.lng, address: saved.address, isManual: saved.source === "manual" };
 
-  // 2. Session GPS store from home page (ephemeral, max 3 min old)
+  // 2. Session GPS store written by home.tsx (ephemeral, max 3 min old)
+  // MUST check accuracy — home.tsx writes even IP-based positions here before the real GPS arrives
   try {
     const raw = sessionStorage.getItem(GPS_STORE_KEY);
     if (raw) {
-      const p = JSON.parse(raw) as { lat?: number; lng?: number; address?: string; _ts?: number };
+      const p = JSON.parse(raw) as { lat?: number; lng?: number; address?: string; accuracy?: number; _ts?: number };
       if (typeof p.lat === "number" && typeof p.lng === "number") {
         const ageMs = p._ts ? Date.now() - p._ts : 0;
-        if (ageMs < GPS_MAX_AGE_MS) return { lat: p.lat, lng: p.lng, address: p.address };
-        try { sessionStorage.removeItem(GPS_STORE_KEY); } catch { /* ignore */ }
+        const accuracyOk = typeof p.accuracy === "number" && p.accuracy < GPS_ACCURACY_THRESHOLD_M;
+        if (ageMs < GPS_MAX_AGE_MS && accuracyOk) return { lat: p.lat, lng: p.lng, address: p.address };
+        // Stale or inaccurate — clean up so next read starts fresh
+        if (!accuracyOk || ageMs >= GPS_MAX_AGE_MS) try { sessionStorage.removeItem(GPS_STORE_KEY); } catch { /* ignore */ }
       }
     }
   } catch {}
 
-  // 3. Own session GPS cache
+  // 3. Own session GPS cache (written by order page after a successful GPS lock)
+  // Also check accuracy here in case it was written before the accuracy guard existed
   try {
     const raw = sessionStorage.getItem(GPS_SESSION_KEY);
     if (raw) {
-      const p = JSON.parse(raw) as { lat?: number; lng?: number; _ts?: number };
+      const p = JSON.parse(raw) as { lat?: number; lng?: number; accuracy?: number; _ts?: number };
       if (typeof p.lat === "number" && typeof p.lng === "number") {
         const ageMs = p._ts ? Date.now() - p._ts : 0;
-        if (ageMs < GPS_MAX_AGE_MS) return { lat: p.lat, lng: p.lng };
+        const accuracyOk = typeof p.accuracy === "number" && p.accuracy < GPS_ACCURACY_THRESHOLD_M;
+        if (ageMs < GPS_MAX_AGE_MS && accuracyOk) return { lat: p.lat, lng: p.lng };
+        if (!accuracyOk || ageMs >= GPS_MAX_AGE_MS) try { sessionStorage.removeItem(GPS_SESSION_KEY); } catch { /* ignore */ }
       }
     }
   } catch {}
@@ -221,16 +230,39 @@ export default function Order() {
   // Keep lockedByUserRef in sync so GPS callbacks (closures) always read latest value
   useEffect(() => { lockedByUserRef.current = locationLocked; }, [locationLocked]);
 
-  // ── One-time startup: purge bad GPS seeds saved before this accuracy fix ────
-  // Any localStorage GPS seed with accuracy > 2000 m is IP-based and must be deleted.
+  // ── One-time startup: purge ALL unverifiable GPS seeds ─────────────────────
+  // Removes any localStorage GPS seed that:
+  //   • has accuracy ≥ 2000 m  (IP-based position, not real GPS)
+  //   • has no accuracy field   (legacy entry saved before the accuracy guard existed)
+  // Also clears sessionStorage caches that might hold pre-fix bad coordinates.
   useEffect(() => {
+    // --- localStorage ---
     try {
       const raw = localStorage.getItem(SAVED_LOC_KEY);
       if (raw) {
         const p = JSON.parse(raw) as SavedLocation & { accuracy?: number };
-        if (p.source === "gps" && p.accuracy !== undefined && p.accuracy > GPS_ACCURACY_THRESHOLD_M) {
-          localStorage.removeItem(SAVED_LOC_KEY);
+        if (p.source === "gps") {
+          const isLegacy   = typeof p.accuracy !== "number"; // no accuracy field = unverified
+          const isBadAccuracy = !isLegacy && p.accuracy! >= GPS_ACCURACY_THRESHOLD_M;
+          if (isLegacy || isBadAccuracy) localStorage.removeItem(SAVED_LOC_KEY);
         }
+      }
+    } catch { /* ignore */ }
+    // --- sessionStorage: purge caches without accuracy info ---
+    try {
+      const raw2 = sessionStorage.getItem(GPS_STORE_KEY);
+      if (raw2) {
+        const p2 = JSON.parse(raw2) as { accuracy?: number };
+        const bad = typeof p2.accuracy !== "number" || p2.accuracy >= GPS_ACCURACY_THRESHOLD_M;
+        if (bad) sessionStorage.removeItem(GPS_STORE_KEY);
+      }
+    } catch { /* ignore */ }
+    try {
+      const raw3 = sessionStorage.getItem(GPS_SESSION_KEY);
+      if (raw3) {
+        const p3 = JSON.parse(raw3) as { accuracy?: number };
+        const bad = typeof p3.accuracy !== "number" || p3.accuracy >= GPS_ACCURACY_THRESHOLD_M;
+        if (bad) sessionStorage.removeItem(GPS_SESSION_KEY);
       }
     } catch { /* ignore */ }
   }, []); // eslint-disable-line
@@ -302,8 +334,9 @@ export default function Order() {
     setCustomerLng(lng);
     if (accuracy !== undefined) setGpsAccuracy(accuracy);
 
-    // Persist to sessionStorage so fee survives brief signal drops
-    try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat, lng, _ts: Date.now() })); } catch { /* quota */ }
+    // Persist to sessionStorage so fee survives brief signal drops.
+    // Always include accuracy so the cleanup guard can validate it on the next read.
+    try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat, lng, accuracy: accuracy ?? 0, _ts: Date.now() })); } catch { /* quota */ }
 
     // Reverse-geocode only on the first GPS fix (not every watchPosition tick)
     if (!firstFixRef.current) {
@@ -434,13 +467,16 @@ export default function Order() {
   // If home.tsx obtains GPS while user is on order page, immediately seed coords.
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { lat?: number; lng?: number; address?: string };
+      const detail = (e as CustomEvent).detail as { lat?: number; lng?: number; address?: string; accuracy?: number };
       if (typeof detail.lat === "number" && typeof detail.lng === "number") {
+        // Reject IP-based positions — real GPS accuracy is < 50 m, IP is often > 5000 m
+        if (typeof detail.accuracy === "number" && detail.accuracy >= GPS_ACCURACY_THRESHOLD_M) return;
         // Only update if we don't have a precise live GPS on this page
         if (gpsStatus !== "ok") {
           setCustomerLat(detail.lat);
           setCustomerLng(detail.lng);
-          try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat: detail.lat, lng: detail.lng })); } catch { /* quota */ }
+          const acc = detail.accuracy ?? 0;
+          try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat: detail.lat, lng: detail.lng, accuracy: acc, _ts: Date.now() })); } catch { /* quota */ }
           if (detail.address && !firstFixRef.current) {
             setValue("customerAddress", detail.address, { shouldValidate: true });
             firstFixRef.current = true;
@@ -489,9 +525,10 @@ export default function Order() {
     setCustomerLng(lng);
     setValue("customerAddress", address, { shouldValidate: true });
 
-    // Persist permanently to localStorage — survives tab close and app reopen
+    // Persist permanently to localStorage — survives tab close and app reopen.
+    // Manual picks get accuracy=1 (a sentinel for "user-confirmed", always valid).
     saveLocationPermanently(lat, lng, address, "manual");
-    try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat, lng, _ts: Date.now() })); } catch { /* quota */ }
+    try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat, lng, accuracy: 1, _ts: Date.now() })); } catch { /* quota */ }
 
     calculateFee(lat, lng);
     setShowPicker(false);
