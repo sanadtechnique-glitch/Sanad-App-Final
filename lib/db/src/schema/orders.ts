@@ -26,6 +26,9 @@ export const ordersTable = pgTable("orders", {
   distanceKm: real("distance_km"),
   etaMinutes: integer("eta_minutes"),
   photoUrl: text("photo_url"),
+  paymentMethod: text("payment_method").default("cod").notNull(),
+  paymentStatus: text("payment_status").default("paid").notNull(),
+  paymentReceiptUrl: text("payment_receipt_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [

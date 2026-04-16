@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { ordersTable, serviceProvidersTable, deliveryStaffTable, orderItemsTable, articlesTable, usersTable } from "@workspace/db/schema";
+import { ordersTable, serviceProvidersTable, deliveryStaffTable, orderItemsTable, articlesTable, usersTable, appSettingsTable } from "@workspace/db/schema";
 import { eq, inArray, and, ilike, desc } from "drizzle-orm";
 import { emitNewOrder, emitOrderTaken, emitOrderStatus } from "../lib/socket";
 import { requireStaff, requireAdmin, requireAuth } from "../lib/authMiddleware";
@@ -275,6 +275,16 @@ router.post("/orders", async (req, res) => {
     const subtotal   = verifiedItems.length > 0 ? serverSubtotal : (totalAmount ? parseFloat(String(totalAmount)) : 0);
     const savedTotal = Math.round((subtotal > 0 ? subtotal + savedFee : savedFee) * 1000) / 1000;
 
+    // Payment method handling
+    const rawPaymentMethod = (req.body.paymentMethod as string) || "cod";
+    const allowedMethods = ["cod", "d17", "card_placeholder"];
+    const paymentMethod = allowedMethods.includes(rawPaymentMethod) ? rawPaymentMethod : "cod";
+    const paymentReceiptUrl = paymentMethod === "d17" ? ((req.body.paymentReceiptUrl as string) || null) : null;
+    // COD is immediately "paid"; D17 needs admin verification; card placeholder is pending
+    const paymentStatus = paymentMethod === "cod" ? "paid"
+      : paymentMethod === "d17" ? "pending_verification"
+      : "pending";
+
     const [order] = await db.insert(ordersTable).values({
       customerName, customerPhone, customerAddress,
       customerLat: cLat,
@@ -291,6 +301,9 @@ router.post("/orders", async (req, res) => {
       totalAmount: savedTotal,
       distanceKm,
       etaMinutes,
+      paymentMethod,
+      paymentStatus,
+      paymentReceiptUrl,
     }).returning();
 
     // Save verified items
@@ -472,6 +485,46 @@ router.get("/provider/:providerId/pending-count", requireStaff, async (req, res)
         inArray(ordersTable.status as any, ["searching_for_driver", "pending"])
       ));
     res.json({ count: orders.length });
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ── Admin: verify D17 payment receipt ─────────────────────────────────────────
+// PATCH /admin/orders/:id/verify-payment  { action: "approve" | "reject" }
+router.patch("/admin/orders/:id/verify-payment", requireAdmin, async (req, res) => {
+  const id     = parseInt(req.params.id);
+  const action = req.body.action as "approve" | "reject";
+  if (isNaN(id) || !["approve", "reject"].includes(action)) {
+    res.status(400).json({ message: "Invalid id or action (approve|reject)" });
+    return;
+  }
+  try {
+    const paymentStatus = action === "approve" ? "verified" : "rejected";
+    const [updated] = await db.update(ordersTable)
+      .set({ paymentStatus, updatedAt: new Date() })
+      .where(eq(ordersTable.id, id))
+      .returning();
+    if (!updated) { res.status(404).json({ message: "Order not found" }); return; }
+    res.json(updated);
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ── Public: get D17 wallet number from appSettings ────────────────────────────
+router.get("/payment-info", async (_req, res) => {
+  try {
+    const rows = await db.select()
+      .from(appSettingsTable)
+      .where(inArray(appSettingsTable.key as any, ["d17_wallet_number", "d17_instructions_ar", "d17_instructions_fr"]));
+    const result: Record<string, string> = {};
+    for (const r of rows) { if (r.value) result[r.key] = r.value; }
+    res.json({
+      d17WalletNumber:    result.d17_wallet_number    ?? "",
+      d17InstructionsAr:  result.d17_instructions_ar  ?? "حوّل المبلغ الإجمالي ثم ارفع صورة الإيصال",
+      d17InstructionsFr:  result.d17_instructions_fr  ?? "Transférez le montant et uploadez la capture du reçu",
+    });
   } catch (err) {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
   }

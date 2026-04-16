@@ -333,3 +333,38 @@ Email service: `artifacts/api-server/src/lib/mailer.ts` using `nodemailer`.
 ### SMTP Configuration (to enable real emails)
 Set environment variables: `SMTP_HOST`, `SMTP_PORT` (default 587), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
 Optional: `FRONTEND_URL` for the reset link base URL (defaults to REPLIT_DOMAINS)
+
+## Payment Methods System (Complete)
+
+### Overview
+Three payment modes: COD (Cash on Delivery), D17 wallet transfer, and Card (placeholder for future).
+
+### DB Schema (`lib/db/src/schema/orders.ts`)
+- `paymentMethod` — text, default `'cod'` (`cod` | `d17` | `card_placeholder`)
+- `paymentStatus` — text, default `'paid'` (`paid` | `pending_verification` | `verified` | `rejected` | `pending`)
+- `paymentReceiptUrl` — text, nullable (screenshot uploaded by customer for D17)
+
+### Payment Status Logic
+- `cod` → paymentStatus `'paid'` (immediate, no action needed)
+- `d17` → paymentStatus `'pending_verification'` (admin must verify receipt)
+- `card_placeholder` → paymentStatus `'pending'` (future feature)
+
+### API Endpoints
+- `GET /api/payment-info` — public, returns `{ d17WalletNumber, d17InstructionsAr, d17InstructionsFr }` from `appSettings`
+- `PATCH /api/admin/orders/:id/verify-payment` — requireAdmin, `{ action: "approve"|"reject" }` → updates `paymentStatus`
+- `PATCH /api/admin/app-settings/bulk` — requireAdmin, `{ settings: [{ key, value }] }` → bulk upsert app settings
+
+### Frontend: Customer (`order.tsx`)
+- Payment method selector (3 cards: Cash / D17 / Card placeholder)
+- D17: shows wallet number + instructions from API; receipt upload required (blocks submit if missing)
+- COD: green confirmation chip
+- Card: coming soon notice
+
+### Admin Dashboard: `OrdersSection`
+- Payment method + payment status badges on each order card
+- D17 orders show receipt image thumbnail with approve ✓ / reject ✗ buttons
+- "D17 à vérifier" quick-filter button with pending count badge
+
+### Admin Config: `DeliveryConfigSection`
+- D17 wallet number input + bilingual instructions textarea
+- Saved to `appSettings` table keys: `d17_wallet_number`, `d17_instructions_ar`, `d17_instructions_fr`

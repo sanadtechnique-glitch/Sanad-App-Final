@@ -13,6 +13,7 @@ import {
   Image, ImageIcon, Calendar, MousePointer, ToggleLeft, ToggleRight, Database, Wifi, WifiOff,
   Settings, Sliders, DollarSign, Zap, TrendingUp, Upload, AlertTriangle, KeyRound, Stethoscope, Scale, FileText, Phone,
   Camera, Bed, Wrench, Menu, MapPin,
+  Banknote, Smartphone, CreditCard,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ interface Order {
   customerAddress: string; serviceProviderName: string; serviceType: string;
   status: OrderStatus; deliveryFee?: number; totalAmount?: number; deliveryStaffId?: number;
   createdAt: string; notes?: string; delegationId?: number;
+  paymentMethod?: string; paymentStatus?: string; paymentReceiptUrl?: string | null;
 }
 interface Supplier { id: number; name: string; nameAr: string; category: string; description: string; descriptionAr: string; address: string; phone?: string; photoUrl?: string; shift?: string; rating?: number; isAvailable: boolean; latitude?: number | null; longitude?: number | null; deliveryFee?: number | null; subscriptionFee?: number | null; subscriptionActive?: boolean; subscriptionRenewalDate?: string | null; delegationAr?: string | null; delegationFr?: string | null; }
 interface Article { id: number; supplierId: number; nameAr: string; nameFr: string; descriptionAr: string; descriptionFr: string; price: number; originalPrice?: number; discountedPrice?: number; photoUrl?: string | null; images?: string | null; isAvailable: boolean; supplierName?: string; }
@@ -483,11 +485,38 @@ function OrdersSection({ t, lang }: { t: (ar: string, fr: string) => string; lan
     window.open(`https://wa.me/${phone.replace(/\D/g,"")}?text=${msg}`, "_blank");
   };
 
+  const verifyPayment = async (id: number, action: "approve" | "reject") => {
+    await patch(`/admin/orders/${id}/verify-payment`, { action });
+    setOrders(prev => prev.map(o => o.id === id
+      ? { ...o, paymentStatus: action === "approve" ? "verified" : "rejected" }
+      : o));
+  };
+
+  const PAYMENT_LABELS: Record<string, { ar: string; fr: string; badge: string }> = {
+    cod:              { ar: "نقداً",      fr: "Espèces",   badge: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+    d17:              { ar: "D17",        fr: "D17",        badge: "bg-amber-100 text-amber-700 border-amber-200" },
+    card_placeholder: { ar: "بطاقة",     fr: "Carte",      badge: "bg-gray-100 text-gray-500 border-gray-200" },
+  };
+  const PSTATUS_LABELS: Record<string, { ar: string; fr: string; badge: string }> = {
+    paid:                 { ar: "مدفوع",         fr: "Payé",              badge: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+    pending_verification: { ar: "في الانتظار ✓?", fr: "Vérif. en attente", badge: "bg-amber-100 text-amber-700 border-amber-200" },
+    verified:             { ar: "موثّق ✓",         fr: "Vérifié ✓",         badge: "bg-blue-100 text-blue-700 border-blue-200" },
+    rejected:             { ar: "مرفوض ✗",         fr: "Rejeté ✗",          badge: "bg-red-100 text-red-700 border-red-200" },
+    pending:              { ar: "معلّق",            fr: "En attente",        badge: "bg-gray-100 text-gray-500 border-gray-200" },
+  };
+
+  const pendingD17Count = orders.filter(o => o.paymentMethod === "d17" && o.paymentStatus === "pending_verification").length;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 justify-between">
         <h2 className="text-2xl font-black text-[#1A4D1F]">{t("الطلبات", "Commandes")}</h2>
         <div className="flex items-center gap-2">
+          {pendingD17Count > 0 && (
+            <span className="px-2 py-1 rounded-lg text-xs font-black bg-amber-100 text-amber-700 border border-amber-300">
+              {pendingD17Count} D17 {t("ينتظر","en attente")}
+            </span>
+          )}
           <GoldBtn onClick={load} variant="ghost"><RefreshCw size={14} /></GoldBtn>
         </div>
       </div>
@@ -499,58 +528,116 @@ function OrdersSection({ t, lang }: { t: (ar: string, fr: string) => string; lan
             {s === "all" ? t("الكل","Tous") : t(STATUS[s]?.ar, STATUS[s]?.fr)}
           </button>
         ))}
+        <button onClick={() => setFilter("d17_pending")}
+          className={cn("px-3 py-1.5 rounded-xl text-xs font-bold border transition-all",
+            filter === "d17_pending" ? "bg-amber-500 text-white border-amber-500" : "border-amber-300/50 text-amber-600 hover:border-amber-400")}>
+          D17 {t("ينتظر التحقق","à vérifier")} {pendingD17Count > 0 && `(${pendingD17Count})`}
+        </button>
       </div>
       {loading ? (
         <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-[#1A4D1F] border-t-transparent rounded-full animate-spin" /></div>
       ) : (
         <div className="space-y-3">
-          {filtered.length === 0 && <p className="text-center text-[#1A4D1F]/30 py-16">{t("لا توجد طلبات","Aucune commande")}</p>}
-          {filtered.map(order => {
-            const s = STATUS[order.status];
-            const Icon = s?.icon ?? Clock;
-            return (
-              <motion.div key={order.id} layout className="glass-panel rounded-2xl p-4 space-y-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <span className="font-mono text-xs text-[#1A4D1F]/30 block">#{order.id.toString().padStart(5,"0")}</span>
-                    <p className="font-bold text-[#1A4D1F]">{order.customerName}</p>
-                    {order.customerPhone && (
-                      <span className="text-xs text-[#1A4D1F]/40">{order.customerPhone}</span>
+          {(() => {
+            const shown = filter === "d17_pending"
+              ? orders.filter(o => o.paymentMethod === "d17" && o.paymentStatus === "pending_verification")
+              : filtered;
+            if (shown.length === 0) return <p className="text-center text-[#1A4D1F]/30 py-16">{t("لا توجد طلبات","Aucune commande")}</p>;
+            return shown.map(order => {
+              const s = STATUS[order.status];
+              const Icon = s?.icon ?? Clock;
+              const pMethod = PAYMENT_LABELS[order.paymentMethod ?? "cod"];
+              const pStatus = PSTATUS_LABELS[order.paymentStatus ?? "paid"];
+              const needsVerify = order.paymentMethod === "d17" && order.paymentStatus === "pending_verification";
+              return (
+                <motion.div key={order.id} layout className={cn("glass-panel rounded-2xl p-4 space-y-3", needsVerify && "ring-2 ring-amber-400/40")}>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <span className="font-mono text-xs text-[#1A4D1F]/30 block">#{order.id.toString().padStart(5,"0")}</span>
+                      <p className="font-bold text-[#1A4D1F]">{order.customerName}</p>
+                      {order.customerPhone && (
+                        <span className="text-xs text-[#1A4D1F]/40">{order.customerPhone}</span>
+                      )}
+                      <p className="text-xs text-[#1A4D1F]/30 mt-0.5">{order.customerAddress}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={cn("inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border", s?.color)}>
+                        <Icon size={12} /> {t(s?.ar, s?.fr)}
+                      </span>
+                      {order.customerPhone && (
+                        <button onClick={() => whatsapp(order.customerPhone, order.customerName, order.id)}
+                          className="p-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 transition-colors">
+                          <MessageCircle size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Payment badges */}
+                  <div className="flex flex-wrap gap-2">
+                    {pMethod && (
+                      <span className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border", pMethod.badge)}>
+                        {order.paymentMethod === "d17" ? <Smartphone size={11} /> : order.paymentMethod === "cod" ? <Banknote size={11} /> : <CreditCard size={11} />}
+                        {lang === "ar" ? pMethod.ar : pMethod.fr}
+                      </span>
                     )}
-                    <p className="text-xs text-[#1A4D1F]/30 mt-0.5">{order.customerAddress}</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={cn("inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border", s?.color)}>
-                      <Icon size={12} /> {t(s?.ar, s?.fr)}
-                    </span>
-                    {order.customerPhone && (
-                      <button onClick={() => whatsapp(order.customerPhone, order.customerName, order.id)}
-                        className="p-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 transition-colors">
-                        <MessageCircle size={14} />
-                      </button>
+                    {pStatus && (
+                      <span className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border", pStatus.badge)}>
+                        {lang === "ar" ? pStatus.ar : pStatus.fr}
+                      </span>
                     )}
                   </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#1A4D1F]/5">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-[#1A4D1F] font-bold">{order.serviceProviderName}</p>
-                    <p className="text-xs text-[#1A4D1F]/30">{order.serviceType} {order.deliveryFee ? `· ${order.deliveryFee} TND` : ""}</p>
+
+                  {/* D17 receipt viewer + approve/reject */}
+                  {order.paymentMethod === "d17" && (
+                    <div className="rounded-xl border border-amber-200/60 p-3 space-y-2" style={{ background: "rgba(255,165,0,0.04)" }}>
+                      {order.paymentReceiptUrl ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-black text-amber-700">{t("إيصال D17","Reçu D17")}</p>
+                          <a href={order.paymentReceiptUrl} target="_blank" rel="noopener noreferrer"
+                            className="block rounded-lg overflow-hidden border border-amber-200/50 hover:opacity-90 transition-opacity">
+                            <img src={order.paymentReceiptUrl} alt="D17 receipt" className="w-full max-h-40 object-cover" />
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-amber-600 italic">{t("لا يوجد إيصال مرفق","Pas de reçu joint")}</p>
+                      )}
+                      {needsVerify && (
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={() => verifyPayment(order.id, "approve")}
+                            className="flex-1 py-2 rounded-lg text-xs font-black bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+                            {t("✓ قبول الدفع","✓ Approuver")}
+                          </button>
+                          <button onClick={() => verifyPayment(order.id, "reject")}
+                            className="flex-1 py-2 rounded-lg text-xs font-black bg-red-500 text-white hover:bg-red-600 transition-colors">
+                            {t("✗ رفض","✗ Rejeter")}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#1A4D1F]/5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-[#1A4D1F] font-bold">{order.serviceProviderName}</p>
+                      <p className="text-xs text-[#1A4D1F]/30">{order.serviceType} {order.deliveryFee ? `· ${order.deliveryFee} TND` : ""}</p>
+                    </div>
+                    <select value={order.status} onChange={e => updateStatus(order.id, e.target.value)}
+                      className="bg-[#FFA500]/50 border border-[#1A4D1F]/10 text-[#1A4D1F] text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#1A4D1F]/50">
+                      {Object.entries(STATUS).slice(0,5).map(([v, c]) => (
+                        <option key={v} value={v} className="bg-zinc-900">{t(c.ar, c.fr)}</option>
+                      ))}
+                    </select>
+                    <select value={order.deliveryStaffId?.toString() || ""} onChange={e => assignStaff(order.id, e.target.value)}
+                      className="bg-[#FFA500]/50 border border-[#1A4D1F]/10 text-[#1A4D1F] text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#1A4D1F]/50">
+                      <option value="" className="bg-zinc-900">{t("اختر سائق","Choisir livreur")}</option>
+                      {staff.map(s => <option key={s.id} value={s.id} className="bg-zinc-900">{s.nameAr}</option>)}
+                    </select>
                   </div>
-                  <select value={order.status} onChange={e => updateStatus(order.id, e.target.value)}
-                    className="bg-[#FFA500]/50 border border-[#1A4D1F]/10 text-[#1A4D1F] text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#1A4D1F]/50">
-                    {Object.entries(STATUS).slice(0,5).map(([v, c]) => (
-                      <option key={v} value={v} className="bg-zinc-900">{t(c.ar, c.fr)}</option>
-                    ))}
-                  </select>
-                  <select value={order.deliveryStaffId?.toString() || ""} onChange={e => assignStaff(order.id, e.target.value)}
-                    className="bg-[#FFA500]/50 border border-[#1A4D1F]/10 text-[#1A4D1F] text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#1A4D1F]/50">
-                    <option value="" className="bg-zinc-900">{t("اختر سائق","Choisir livreur")}</option>
-                    {staff.map(s => <option key={s.id} value={s.id} className="bg-zinc-900">{s.nameAr}</option>)}
-                  </select>
-                </div>
-              </motion.div>
-            );
-          })}
+                </motion.div>
+              );
+            });
+          })()}
         </div>
       )}
     </div>
@@ -4798,15 +4885,41 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
   const [previewExpress, setPreviewExpress] = useState(false);
   const [autoCtxResp, setAutoCtxResp] = useState<AutoContextResp | null>(null);
 
+  // D17 wallet config
+  const [d17Wallet, setD17Wallet] = useState("");
+  const [d17InstrAr, setD17InstrAr] = useState("");
+  const [d17InstrFr, setD17InstrFr] = useState("");
+  const [d17Saving, setD17Saving] = useState(false);
+  const [d17Saved, setD17Saved] = useState(false);
+
+  const saveD17 = async () => {
+    setD17Saving(true);
+    try {
+      await patch("/admin/app-settings/bulk", {
+        settings: [
+          { key: "d17_wallet_number",   value: d17Wallet  },
+          { key: "d17_instructions_ar", value: d17InstrAr },
+          { key: "d17_instructions_fr", value: d17InstrFr },
+        ],
+      });
+      setD17Saved(true);
+      setTimeout(() => setD17Saved(false), 2500);
+    } catch {} finally { setD17Saving(false); }
+  };
+
   const load = async () => {
     try {
-      const [data, autoData] = await Promise.all([
+      const [data, autoData, payInfo] = await Promise.all([
         get<DeliveryConfig>("/delivery-config"),
         get<AutoContextResp>("/auto-context"),
+        get<{ d17WalletNumber: string; d17InstructionsAr: string; d17InstructionsFr: string }>("/payment-info"),
       ]);
       setCfg(data);
       setForm(data);
       setAutoCtxResp(autoData);
+      setD17Wallet(payInfo.d17WalletNumber ?? "");
+      setD17InstrAr(payInfo.d17InstructionsAr ?? "");
+      setD17InstrFr(payInfo.d17InstructionsFr ?? "");
     } catch {}
     finally { setLoading(false); }
   };
@@ -5240,6 +5353,45 @@ function DeliveryConfigSection({ t }: { t: (ar: string, fr: string) => string })
             {saving ? t("جارٍ الحفظ...","Enregistrement...") : saved ? t("✓ تم الحفظ","✓ Enregistré") : t("حفظ الإعدادات","Enregistrer")}
           </button>
         </div>
+      </div>
+
+      {/* ── D17 Wallet Configuration ── */}
+      <div className="rounded-2xl border-2 border-amber-200/60 p-5 mt-4 space-y-4" style={{ background: "rgba(255,165,0,0.04)" }}>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+            <Smartphone size={15} className="text-amber-600" />
+          </div>
+          <div>
+            <p className="font-black text-[#1A4D1F] text-sm">{t("إعداد الدفع عبر D17","Configuration paiement D17")}</p>
+            <p className="text-xs text-[#1A4D1F]/40">{t("رقم المحفظة والتعليمات التي تظهر للعميل","Numéro de portefeuille et instructions affichés au client")}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("رقم محفظة D17","Numéro de portefeuille D17")}</label>
+            <input type="text" value={d17Wallet} onChange={e => setD17Wallet(e.target.value)}
+              placeholder="e.g. 21612345678"
+              className="w-full rounded-xl border border-amber-300/60 px-4 py-2.5 text-sm font-mono font-bold text-[#1A4D1F] bg-white focus:outline-none focus:ring-2 focus:ring-amber-300/40" />
+          </div>
+          <div>
+            <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("التعليمات (عربي)","Instructions (Arabe)")}</label>
+            <textarea rows={2} value={d17InstrAr} onChange={e => setD17InstrAr(e.target.value)}
+              placeholder="حوّل المبلغ الإجمالي ثم ارفع صورة الإيصال"
+              className="w-full rounded-xl border border-amber-300/40 px-3 py-2 text-xs text-[#1A4D1F] bg-white focus:outline-none resize-none" dir="rtl" />
+          </div>
+          <div>
+            <label className="block text-xs font-black text-[#1A4D1F]/60 mb-1">{t("التعليمات (فرنسي)","Instructions (Français)")}</label>
+            <textarea rows={2} value={d17InstrFr} onChange={e => setD17InstrFr(e.target.value)}
+              placeholder="Transférez le montant et uploadez la capture du reçu"
+              className="w-full rounded-xl border border-amber-300/40 px-3 py-2 text-xs text-[#1A4D1F] bg-white focus:outline-none resize-none" />
+          </div>
+        </div>
+        <button onClick={saveD17} disabled={d17Saving}
+          className="w-full py-2.5 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2"
+          style={{ background: d17Saved ? "#1A4D1F" : "#FFA500", color: d17Saved ? "#FFF3E0" : "#1A4D1F" }}>
+          {d17Saving ? <RefreshCw size={14} className="animate-spin" /> : d17Saved ? <Check size={14} /> : <Smartphone size={14} />}
+          {d17Saving ? t("جارٍ الحفظ...","Enregistrement...") : d17Saved ? t("✓ تم الحفظ","✓ Enregistré") : t("حفظ إعداد D17","Sauvegarder D17")}
+        </button>
       </div>
     </div>
   );

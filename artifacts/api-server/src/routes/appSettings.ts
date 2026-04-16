@@ -51,4 +51,27 @@ router.put("/admin/app-settings/:key", requireAdmin, async (req, res) => {
   }
 });
 
+// PATCH /admin/app-settings/bulk — upsert multiple settings at once
+router.patch("/admin/app-settings/bulk", requireAdmin, async (req, res) => {
+  const { settings } = req.body as { settings: Array<{ key: string; value: string }> };
+  if (!Array.isArray(settings) || settings.length === 0) {
+    res.status(400).json({ message: "settings must be a non-empty array" }); return;
+  }
+  try {
+    for (const { key, value } of settings) {
+      if (!key) continue;
+      const [existing] = await db.select().from(appSettingsTable).where(eq(appSettingsTable.key, key));
+      if (existing) {
+        await db.update(appSettingsTable).set({ value: value ?? null, updatedAt: new Date() }).where(eq(appSettingsTable.key, key));
+      } else {
+        await db.insert(appSettingsTable).values({ key, value: value ?? null });
+      }
+    }
+    cacheDelete("app-settings:all");
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 export default router;

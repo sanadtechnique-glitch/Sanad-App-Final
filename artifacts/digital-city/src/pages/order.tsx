@@ -12,7 +12,8 @@ import { getSession } from "@/lib/auth";
 import {
   ChevronRight, CheckCircle2, MapPin, User, StickyNote,
   Phone, Loader2, AlertTriangle, Star, Building2, Hash,
-  Camera, X, Navigation, Zap,
+  Camera, X, Navigation, Zap, Banknote, Smartphone, CreditCard,
+  Upload, CheckCircle, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MapPickerModal, type MapPickerResult } from "@/components/MapPickerModal";
@@ -91,6 +92,14 @@ export default function Order() {
   const [prescriptionPhoto, setPrescriptionPhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto]       = useState(false);
   const [uploadError, setUploadError]             = useState<string | null>(null);
+
+  // Payment method
+  const [paymentMethod, setPaymentMethod]         = useState<"cod" | "d17" | "card_placeholder">("cod");
+  const [receiptUrl, setReceiptUrl]               = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt]   = useState(false);
+  const [paymentInfo, setPaymentInfo]             = useState<{
+    d17WalletNumber: string; d17InstructionsAr: string; d17InstructionsFr: string;
+  } | null>(null);
 
   // Address mode
   const [addressMode, setAddressMode]     = useState<"gps" | "manual">("gps");
@@ -278,6 +287,30 @@ export default function Order() {
     setShowPicker(false);
   }, [setValue, calculateFee]);
 
+  // ── Fetch D17 payment info ────────────────────────────────────────────────
+  useEffect(() => {
+    get<{ d17WalletNumber: string; d17InstructionsAr: string; d17InstructionsFr: string }>("/payment-info")
+      .then(setPaymentInfo)
+      .catch(() => {});
+  }, []);
+
+  // ── Receipt upload (D17) ──────────────────────────────────────────────────
+  const handleReceiptChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingReceipt(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch("/api/upload/image", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("upload_failed");
+      const { url } = await res.json() as { url: string };
+      setReceiptUrl(url);
+    } catch {
+      setReceiptUrl(null);
+    } finally { setUploadingReceipt(false); }
+  };
+
   // ── Prescription photo upload ─────────────────────────────────────────────
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -302,6 +335,11 @@ export default function Order() {
   // ── Order submit ──────────────────────────────────────────────────────────
   const onSubmit = async (data: FormValues) => {
     if (!supplier) return;
+    // D17: receipt is required
+    if (paymentMethod === "d17" && !receiptUrl) {
+      alert(lang === "ar" ? "يرجى رفع صورة إيصال D17 أولاً" : "Veuillez uploader la capture du reçu D17 d'abord");
+      return;
+    }
     setSubmitting(true);
     try {
       const orderItems = cartItems.map(i => ({
@@ -321,8 +359,9 @@ export default function Order() {
         deliveryFee,
         totalAmount:       finalTotal,
         items:             orderItems,
-        // [H-2] Send user's zone so server can enforce delegation match
         userDelegation:    userDelegation,
+        paymentMethod,
+        paymentReceiptUrl: receiptUrl || null,
       }).then(res => {
         setOrderId(res.id);
         setSuccess(true);
@@ -680,6 +719,115 @@ export default function Order() {
                     )}
                   </div>
                 )}
+
+                {/* ── Payment Method ── */}
+                <div className="rounded-2xl border border-[#1A4D1F]/15 overflow-hidden" style={{ background: "rgba(26,77,31,0.03)" }}>
+                  <div className="px-4 py-3 border-b border-[#1A4D1F]/10 flex items-center gap-2" style={{ background: "rgba(26,77,31,0.05)" }}>
+                    <Banknote size={13} className="text-[#FFA500]" />
+                    <p className="text-xs font-black text-[#1A4D1F] uppercase tracking-widest">{t("طريقة الدفع","Mode de paiement")}</p>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {/* Method selector buttons */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {/* Cash on delivery */}
+                      <button type="button" onClick={() => setPaymentMethod("cod")}
+                        className={cn("flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
+                          paymentMethod === "cod" ? "border-[#1A4D1F] bg-[#1A4D1F]/5" : "border-[#1A4D1F]/15 hover:border-[#1A4D1F]/30")}>
+                        <Banknote size={20} className={paymentMethod === "cod" ? "text-[#1A4D1F]" : "text-[#1A4D1F]/40"} />
+                        <span className={cn("text-[10px] font-black leading-tight text-center",
+                          paymentMethod === "cod" ? "text-[#1A4D1F]" : "text-[#1A4D1F]/50")}>
+                          {t("نقدًا","Espèces")}
+                        </span>
+                      </button>
+
+                      {/* D17 wallet */}
+                      <button type="button" onClick={() => setPaymentMethod("d17")}
+                        className={cn("flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
+                          paymentMethod === "d17" ? "border-[#FFA500] bg-[#FFA500]/5" : "border-[#1A4D1F]/15 hover:border-[#1A4D1F]/30")}>
+                        <Smartphone size={20} className={paymentMethod === "d17" ? "text-[#FFA500]" : "text-[#1A4D1F]/40"} />
+                        <span className={cn("text-[10px] font-black leading-tight text-center",
+                          paymentMethod === "d17" ? "text-[#FFA500]" : "text-[#1A4D1F]/50")}>D17</span>
+                      </button>
+
+                      {/* Card placeholder */}
+                      <button type="button" onClick={() => setPaymentMethod("card_placeholder")}
+                        className={cn("flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all relative",
+                          paymentMethod === "card_placeholder" ? "border-gray-400 bg-gray-50" : "border-[#1A4D1F]/15 hover:border-[#1A4D1F]/30")}>
+                        <CreditCard size={20} className="text-[#1A4D1F]/30" />
+                        <span className="text-[10px] font-black leading-tight text-center text-[#1A4D1F]/30">{t("بطاقة","Carte")}</span>
+                        <span className="absolute -top-1 -right-1 text-[8px] font-black px-1 py-0.5 rounded-full bg-gray-200 text-gray-500">{t("قريبًا","Bientôt")}</span>
+                      </button>
+                    </div>
+
+                    {/* COD info chip */}
+                    {paymentMethod === "cod" && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                        <CheckCircle size={14} className="text-emerald-600 shrink-0" />
+                        <p className="text-xs font-bold text-emerald-700">{t("ادفع عند الاستلام — الدفع فوري عند وصول السائق","Paiement à la livraison — payez à la réception")}</p>
+                      </div>
+                    )}
+
+                    {/* D17 instructions + receipt upload */}
+                    {paymentMethod === "d17" && (
+                      <div className="space-y-3">
+                        {paymentInfo?.d17WalletNumber ? (
+                          <div className="rounded-xl border border-[#FFA500]/30 p-3 space-y-1" style={{ background: "rgba(255,165,0,0.04)" }}>
+                            <p className="text-[10px] font-black text-[#1A4D1F]/50 uppercase tracking-widest">{t("رقم محفظة D17","N° portefeuille D17")}</p>
+                            <p className="text-lg font-black text-[#FFA500] tracking-wider">{paymentInfo.d17WalletNumber}</p>
+                            <p className="text-[11px] text-[#1A4D1F]/60 leading-snug">
+                              {lang === "ar" ? paymentInfo.d17InstructionsAr : paymentInfo.d17InstructionsFr}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-[#FFA500]/20 p-3 bg-amber-50/40">
+                            <p className="text-xs font-bold text-amber-700">{t("رقم D17 سيظهر هنا بعد إعداده من المسؤول","Le numéro D17 sera affiché après configuration par l'admin")}</p>
+                          </div>
+                        )}
+
+                        {/* Receipt upload */}
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-black text-[#1A4D1F]">{t("ارفع صورة إيصال التحويل *","Uploader la capture du reçu *")}</p>
+                          {receiptUrl ? (
+                            <div className="relative rounded-xl overflow-hidden border border-[#FFA500]/40">
+                              <img src={receiptUrl} alt="receipt" className="w-full h-36 object-cover" />
+                              <button type="button" onClick={() => setReceiptUrl(null)}
+                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:bg-red-600 transition-colors">
+                                <X size={13} />
+                              </button>
+                              <div className="absolute bottom-2 left-2 text-xs px-2 py-1 rounded-lg font-black"
+                                style={{ background: "rgba(255,165,0,0.85)", color: "#1A4D1F" }}>
+                                {t("✓ تم رفع الإيصال","✓ Reçu joint")}
+                              </div>
+                            </div>
+                          ) : (
+                            <label className={cn(
+                              "flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-dashed transition-all cursor-pointer",
+                              uploadingReceipt ? "border-[#FFA500]/40 cursor-wait" : "border-[#FFA500]/25 hover:border-[#FFA500]/50",
+                            )}>
+                              <input type="file" accept="image/*" className="hidden" onChange={handleReceiptChange} disabled={uploadingReceipt} />
+                              {uploadingReceipt
+                                ? <Loader2 size={22} className="animate-spin text-[#FFA500]" />
+                                : <Upload size={22} className="text-[#FFA500]/50" />}
+                              <span className="text-xs font-bold text-[#1A4D1F]/50">
+                                {uploadingReceipt
+                                  ? t("جارٍ الرفع...","Envoi en cours...")
+                                  : t("اضغط لرفع الإيصال","Cliquer pour uploader")}
+                              </span>
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Card placeholder notice */}
+                    {paymentMethod === "card_placeholder" && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 border border-gray-200">
+                        <Clock size={14} className="text-gray-400 shrink-0" />
+                        <p className="text-xs font-bold text-gray-500">{t("الدفع بالبطاقة قيد التطوير — سيتوفر قريبًا","Paiement par carte en cours de développement — bientôt disponible")}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 {/* ── Order Summary ── */}
                 <div className="rounded-2xl border border-[#1A4D1F]/15 overflow-hidden" style={{ background: "rgba(26,77,31,0.03)" }}>
