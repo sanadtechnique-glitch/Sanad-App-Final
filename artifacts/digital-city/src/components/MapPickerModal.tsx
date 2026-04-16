@@ -1,10 +1,10 @@
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import { motion } from "framer-motion";
 import { get } from "@/lib/admin-api";
-import { MapPin, Loader2, X, CheckCircle2, Navigation } from "lucide-react";
+import { MapPin, Loader2, X, CheckCircle2, LocateFixed } from "lucide-react";
 import { useLang } from "@/lib/language";
 
 // ─── Sanad pin icon (SVG — no PNG import issues with Vite) ────────────────────
@@ -53,6 +53,15 @@ function TapHandler({ onTap }: { onTap: (lat: number, lng: number) => void }) {
   return null;
 }
 
+// ─── Inner component: flies the map view to a target position ─────────────────
+function MapFlyTo({ target }: { target: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo(target, 17, { animate: true, duration: 0.8 });
+  }, [target, map]); // eslint-disable-line
+  return null;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export function MapPickerModal({ initialLat, initialLng, supplierId, onConfirm, onClose }: Props) {
   const { lang, t } = useLang();
@@ -65,6 +74,8 @@ export function MapPickerModal({ initialLat, initialLng, supplierId, onConfirm, 
   const [distInfo, setDistInfo]     = useState<DistanceResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const [geocoding, setGeocoding]   = useState(false);
+  const [locating, setLocating]     = useState(false); // true while requesting device GPS
+  const [flyTarget, setFlyTarget]   = useState<[number, number] | null>(null); // triggers MapFlyTo
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const markerRef   = useRef<L.Marker | null>(null);
@@ -114,6 +125,22 @@ export function MapPickerModal({ initialLat, initialLng, supplierId, onConfirm, 
     processPosition(lat, lng);
   }, [processPosition]);
 
+  // ─── Ask device GPS and fly the map to the real position ─────────────────
+  const locateMe = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        setFlyTarget([lat, lng]);
+        processPosition(lat, lng);
+        setLocating(false);
+      },
+      () => { setLocating(false); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  }, [processPosition]);
+
   const handleConfirm = () => {
     onConfirm({
       lat:     markerPos[0],
@@ -145,14 +172,19 @@ export function MapPickerModal({ initialLat, initialLng, supplierId, onConfirm, 
             {t("اسحب الدبوس أو اضغط على الخريطة", "Glissez l'épingle ou tapez sur la carte")}
           </p>
         </div>
-        {/* Re-center button */}
-        {(initialLat && initialLng) ? (
-          <button onClick={() => processPosition(initialLat!, initialLng!)}
-            className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(255,165,0,0.25)" }}>
-            <Navigation size={15} className="text-[#FFA500]" />
-          </button>
-        ) : <div className="w-9" />}
+        {/* Locate Me button — calls device GPS, moves pin to real position */}
+        <button
+          onClick={locateMe}
+          disabled={locating}
+          className="w-9 h-9 rounded-full flex items-center justify-center transition-opacity"
+          style={{ background: "rgba(255,165,0,0.25)", opacity: locating ? 0.6 : 1 }}
+          title={lang === "ar" ? "موقعي الحالي" : "Ma position actuelle"}
+        >
+          {locating
+            ? <Loader2 size={15} className="text-[#FFA500] animate-spin" />
+            : <LocateFixed size={15} className="text-[#FFA500]" />
+          }
+        </button>
       </div>
 
       {/* ── Leaflet map ── */}
@@ -168,6 +200,7 @@ export function MapPickerModal({ initialLat, initialLng, supplierId, onConfirm, 
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <TapHandler onTap={processPosition} />
+          <MapFlyTo target={flyTarget} />
           <Marker
             position={markerPos}
             icon={SANAD_ICON}

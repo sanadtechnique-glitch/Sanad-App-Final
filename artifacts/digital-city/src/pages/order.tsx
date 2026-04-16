@@ -47,25 +47,36 @@ function getUserDelegation(): string {
 }
 
 // ── Read shared GPS coords from home page ────────────────────────────────────
-// home.tsx writes { lat, lng, address, ... } to sanad_gps_v2 when GPS is obtained.
-// order.tsx seeds from this so fee calculation starts immediately.
+// home.tsx writes { lat, lng, address, _ts, ... } to sanad_gps_v2.
+// We reject anything older than 3 minutes to avoid stale positions.
+const GPS_MAX_AGE_MS = 3 * 60 * 1000; // 3 minutes
+
 function getSharedGpsCoords(): { lat: number; lng: number; address?: string } | null {
   try {
     const raw = sessionStorage.getItem(GPS_STORE_KEY);
     if (raw) {
-      const p = JSON.parse(raw) as { lat?: number; lng?: number; address?: string; source?: string };
+      const p = JSON.parse(raw) as { lat?: number; lng?: number; address?: string; source?: string; _ts?: number };
       if (typeof p.lat === "number" && typeof p.lng === "number") {
-        return { lat: p.lat, lng: p.lng, address: p.address };
+        // Only accept if the GPS fix is recent, OR if no timestamp (legacy — accept it)
+        const ageMs = p._ts ? Date.now() - p._ts : 0;
+        if (ageMs < GPS_MAX_AGE_MS) {
+          return { lat: p.lat, lng: p.lng, address: p.address };
+        }
+        // Stale: clear it so we don't keep serving wrong coords
+        try { sessionStorage.removeItem(GPS_STORE_KEY); } catch { /* ignore */ }
       }
     }
   } catch {}
-  // Fallback: check own GPS cache
+  // Fallback: check own GPS cache (also with age check)
   try {
     const raw = sessionStorage.getItem(GPS_SESSION_KEY);
     if (raw) {
-      const p = JSON.parse(raw) as { lat?: number; lng?: number };
+      const p = JSON.parse(raw) as { lat?: number; lng?: number; _ts?: number };
       if (typeof p.lat === "number" && typeof p.lng === "number") {
-        return { lat: p.lat, lng: p.lng };
+        const ageMs = p._ts ? Date.now() - p._ts : 0;
+        if (ageMs < GPS_MAX_AGE_MS) {
+          return { lat: p.lat, lng: p.lng };
+        }
       }
     }
   } catch {}
@@ -202,7 +213,7 @@ export default function Order() {
     if (accuracy !== undefined) setGpsAccuracy(accuracy);
 
     // Persist to sessionStorage so fee survives brief signal drops
-    try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat, lng })); } catch { /* quota */ }
+    try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat, lng, _ts: Date.now() })); } catch { /* quota */ }
 
     // Reverse-geocode only on the first GPS fix (not every watchPosition tick)
     if (!firstFixRef.current) {
@@ -224,7 +235,7 @@ export default function Order() {
     calculateFee(lat, lng);
   }, [lang, setValue, calculateFee]);
 
-  // ── Start watchPosition ────────────────────────────────────────────────────
+  // ── Start GPS: getCurrentPosition first for fast lock, then watchPosition ──
   const startWatchingGPS = useCallback(() => {
     if (!navigator.geolocation) {
       setGpsStatus("error");
@@ -232,24 +243,43 @@ export default function Order() {
       return;
     }
 
-    // ── Priority 1: shared GPS from home page (sanad_gps_v2 with lat/lng) ──
-    // ── Priority 2: own session cache (sanad_gps_coords) ───────────────────
+    setGpsStatus("watching");
+
+    // ── Step 1: Seed from sessionStorage cache (instant, no network) ────────
+    // Only use cache if it's recent (within last 3 minutes) to avoid stale data.
     const shared = getSharedGpsCoords();
     if (shared) {
       setCustomerLat(shared.lat);
       setCustomerLng(shared.lng);
-      // Also write to own cache so it's available even if shared store is updated
-      try { sessionStorage.setItem(GPS_SESSION_KEY, JSON.stringify({ lat: shared.lat, lng: shared.lng })); } catch { /* quota */ }
-      // Pre-fill address from shared GPS label if not already set
-      if (shared.address) {
+      if (shared.address && !firstFixRef.current) {
         setValue("customerAddress", shared.address, { shouldValidate: true });
-        firstFixRef.current = true; // mark as done so watchPosition won't overwrite
       }
       calculateFee(shared.lat, shared.lng);
     }
 
-    setGpsStatus("watching");
+    // ── Step 2: getCurrentPosition for an immediate accurate fix ────────────
+    // maximumAge: 0 ensures a fresh real position, not a browser cache.
+    // This resolves fast (~1s on mobile) and replaces any stale seed coords.
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsStatus("ok");
+        applyPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+        // Write fresh position to shared store so home GPS is also up to date
+        try {
+          const prev = JSON.parse(sessionStorage.getItem("sanad_gps_v2") ?? "{}");
+          sessionStorage.setItem("sanad_gps_v2", JSON.stringify({
+            ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy, source: "gps", _ts: Date.now(),
+          }));
+        } catch { /* quota */ }
+      },
+      (_err) => {
+        // Quick fix failed — fall through to watchPosition below
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
+    );
 
+    // ── Step 3: watchPosition for ongoing accuracy refinement ───────────────
     // Clear previous watcher if any
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
@@ -261,16 +291,15 @@ export default function Order() {
         applyPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
       },
       (_err) => {
-        // Error callback — keep last known coords, show fallback
-        setGpsStatus("error");
-        // If we already have coords (from cache or previous fix), keep them
+        // Keep last known coords if we already have them
         if (!customerLat) {
+          setGpsStatus("error");
           setCartDeliveryFee(BASE_FARE);
         }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
-  }, [applyPosition, calculateFee, setCartDeliveryFee, customerLat]);
+  }, [applyPosition, calculateFee, setCartDeliveryFee, customerLat, setValue]);
 
   // ── Stop watcher ───────────────────────────────────────────────────────────
   const stopWatching = useCallback(() => {

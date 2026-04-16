@@ -355,6 +355,7 @@ interface GpsState {
   lat?: number;        // latitude  — set when source="gps", used by order page
   lng?: number;        // longitude — set when source="gps", used by order page
   address?: string;    // reverse-geocoded label — displayed in order form
+  _ts?: number;        // Unix timestamp (ms) of when GPS was acquired — used to reject stale coords
 }
 
 const gpsStore = (() => {
@@ -429,9 +430,10 @@ function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: stri
         const governorate = geo?.governorate ?? "مدنين";
         const gov_fr      = geo?.gov_fr      ?? "Médenine";
 
-        // ── KEY FIX: save lat/lng so order page can seed fee calculation ──
+        // Save lat/lng + timestamp so order page can seed fee calculation immediately
+        // _ts is checked by order.tsx to reject stale positions (> 3 min)
         const address = geo ? `${geo.delegation}، ${geo.governorate}` : undefined;
-        gpsStore.update({ delegation, governorate, gov_fr, source: "gps", accuracy, lat, lng, address });
+        gpsStore.update({ delegation, governorate, gov_fr, source: "gps", accuracy, lat, lng, address, _ts: Date.now() });
         setStatus("granted");
 
         // Accuracy toast: warn if circle > 1000 m
@@ -441,7 +443,9 @@ function LocationPickerBar({ lang, t }: { lang: string; t: (ar: string, fr: stri
         }
       },
       () => { if (!silent) setStatus("denied"); },
-      { timeout: 9000, enableHighAccuracy: false, maximumAge: 60000 }
+      // maximumAge: 0  → always request a fresh GPS fix (no stale cache)
+      // enableHighAccuracy: true → use the GPS chip, not network/IP triangulation
+      { timeout: 12000, enableHighAccuracy: true, maximumAge: 0 }
     );
   }, []);
 
