@@ -29,6 +29,34 @@
     />
   </head>
   <body>
+    <!-- Inline splash: shows instantly before any JS loads — eliminates white screen -->
+    <div id="inline-splash" style="
+      position:fixed;inset:0;z-index:99999;
+      background:#FFF3E0;
+      display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      transition:opacity 0.4s ease;
+    ">
+      <img src="/sanad-logo-master.png" alt="سند"
+           style="width:180px;height:auto;margin-bottom:24px;"
+           onerror="this.style.display='none'" />
+      <div style="
+        width:48px;height:4px;border-radius:2px;
+        background:#FFA500;opacity:0.7;
+        animation:sanad-pulse 1.2s ease-in-out infinite alternate;
+      "></div>
+      <style>
+        @keyframes sanad-pulse { from{opacity:0.3;transform:scaleX(0.7)} to{opacity:1;transform:scaleX(1)} }
+      </style>
+    </div>
+    <script>
+      /* Remove inline splash once React has mounted */
+      window.__removeSplash = function() {
+        var el = document.getElementById('inline-splash');
+        if (el) { el.style.opacity='0'; setTimeout(function(){ el.remove(); }, 420); }
+      };
+    </script>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

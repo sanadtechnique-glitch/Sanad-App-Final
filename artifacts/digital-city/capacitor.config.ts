@@ -1,18 +1,23 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.sanad.benguerdane",
-  appName: "Sanad",
+  appId: "com.sanad.app",
+  appName: "Sanad - سند",
   webDir: "dist/public",
-  server: {
-    androidScheme: "https",
-    cleartext: true,
-    allowNavigation: ["*"],
-  },
   android: {
-    allowMixedContent: true,
+    allowMixedContent: false,
     captureInput: true,
     webContentsDebuggingEnabled: false,
+    backgroundColor: "#FFF3E0",
+  },
+  ios: {
+    backgroundColor: "#FFF3E0",
+    contentInset: "always",
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 0,
+    },
   },
 };
 

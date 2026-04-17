@@ -39,6 +39,12 @@ if (container) {
       <App />
     </ErrorBoundary>
   );
+  /* Remove the inline HTML splash screen once React has painted */
+  requestAnimationFrame(() => {
+    if (typeof (window as any).__removeSplash === "function") {
+      (window as any).__removeSplash();
+    }
+  });
 } else {
   document.body.innerHTML = '<div style="color:red;padding:2rem">ERROR: #root element not found in index.html</div>';
 }

@@ -12,8 +12,10 @@ let buildStatus: {
   state: "idle" | "building" | "done" | "error";
   message: string;
   apkUrl?: string;
+  baseUrl?: string;
   startedAt?: number;
-} = { state: "idle", message: "No build started yet." };
+  zipContents?: string;
+} = { state: "idle", message: "لم يبدأ أي بناء بعد." };
 
 router.get("/status", (_req: Request, res: Response) => {
   res.json(buildStatus);
@@ -25,29 +27,30 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const host =
-    req.body?.host ||
-    (req.headers["x-forwarded-host"] as string) ||
-    req.headers.host ||
-    "";
-
-  const scheme =
-    req.body?.scheme ||
-    (req.headers["x-forwarded-proto"] as string) ||
-    (host.startsWith("localhost") ? "http" : "https");
-
-  const baseUrl = `${scheme}://${host}`;
+  /* ── Resolve production URL ──────────────────────────────────────────────
+     Priority:
+     1. Explicit body.url (user-provided in the form)
+     2. x-forwarded-host + x-forwarded-proto (set by Replit's reverse proxy)
+     3. Host header fallback
+  */
+  let baseUrl: string;
+  if (req.body?.url && req.body.url.startsWith("http")) {
+    baseUrl = req.body.url.replace(/\/+$/, "");
+  } else {
+    const forwardedProto = (req.headers["x-forwarded-proto"] as string) || "https";
+    const forwardedHost  = (req.headers["x-forwarded-host"] as string) || req.headers.host || "";
+    const scheme = forwardedHost.includes("localhost") ? "http" : forwardedProto;
+    baseUrl = `${scheme}://${forwardedHost}`;
+  }
 
   buildStatus = {
     state: "building",
-    message: "Calling PWABuilder cloud API…",
+    message: `🔨 جارٍ البناء للرابط: ${baseUrl}`,
+    baseUrl,
     startedAt: Date.now(),
   };
 
-  res.json({
-    message: "APK build started. Poll /api/generate-apk/status for updates.",
-    baseUrl,
-  });
+  res.json({ message: "APK build started.", baseUrl });
 
   buildApk(baseUrl).catch((err) => {
     buildStatus = { state: "error", message: String(err) };
@@ -58,9 +61,11 @@ async function buildApk(baseUrl: string) {
   try {
     fs.mkdirSync(downloadsDir, { recursive: true });
 
-    const iconUrl          = `${baseUrl}/icon-512.png`;
-    const maskableIconUrl  = `${baseUrl}/icon-512-maskable.png`;
-    const webManifestUrl   = `${baseUrl}/manifest.json`;
+    const iconUrl         = `${baseUrl}/icon-512.png`;
+    const maskableIconUrl = `${baseUrl}/icon-512-maskable.png`;
+    const webManifestUrl  = `${baseUrl}/manifest.json`;
+
+    buildStatus.message = `📡 إرسال الطلب إلى PWABuilder…\n${baseUrl}`;
 
     const payload = {
       packageId: "com.sanad.app",
@@ -81,7 +86,7 @@ async function buildApk(baseUrl: string) {
       iconUrl,
       maskableIconUrl,
       monochromeIconUrl: null,
-      splashScreenFadeOutDuration: 300,
+      splashScreenFadeOutDuration: 600,
       fallbackType: "customtabs",
       features: {
         locationDelegation: { enabled: false },
@@ -91,13 +96,8 @@ async function buildApk(baseUrl: string) {
       webManifestUrl,
       signingMode: "none",
       host: baseUrl,
-      generatorInfo: {
-        platform: "PWABuilder",
-        platformVersion: "4.0.0",
-      },
+      generatorInfo: { platform: "PWABuilder", platformVersion: "4.0.0" },
     };
-
-    buildStatus.message = `Sending request to PWABuilder for ${baseUrl}…`;
 
     const response = await fetch(
       "https://pwabuilder-cloudapk.azurewebsites.net/generateApkZip",
@@ -111,41 +111,51 @@ async function buildApk(baseUrl: string) {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`PWABuilder API error ${response.status}: ${errText.slice(0, 400)}`);
+      throw new Error(`PWABuilder API ${response.status}: ${errText.slice(0, 600)}`);
     }
 
-    buildStatus.message = "Downloading APK zip from PWABuilder…";
+    buildStatus.message = "⬇️ تنزيل الملف المضغوط…";
 
     const zipBuffer = Buffer.from(await response.arrayBuffer());
-    const zipPath = path.join(downloadsDir, "sanad-pwabuilder.zip");
+    const zipPath   = path.join(downloadsDir, "sanad-pwabuilder.zip");
     fs.writeFileSync(zipPath, zipBuffer);
 
-    buildStatus.message = "Extracting APK from zip…";
+    buildStatus.message = "📦 استخراج APK…";
 
     const { default: AdmZip } = await import("adm-zip");
-    const zip = new AdmZip(zipPath);
+    const zip     = new AdmZip(zipPath);
     const entries = zip.getEntries();
+    const names   = entries.map((e) => e.entryName);
 
-    let apkEntry = entries.find(
+    const apkEntry = entries.find(
       (e) => e.entryName.toLowerCase().endsWith(".apk") && !e.isDirectory
     );
 
     if (!apkEntry) {
-      const names = entries.map((e) => e.entryName).join(", ");
-      throw new Error(`No .apk found in zip. Contents: ${names}`);
+      throw new Error(
+        `لم يتم إيجاد ملف APK في الأرشيف. المحتويات:\n${names.join("\n")}`
+      );
     }
 
     const apkOut = path.join(downloadsDir, "Sanad.apk");
     fs.writeFileSync(apkOut, apkEntry.getData());
     fs.unlinkSync(zipPath);
 
+    const sizeMb = (fs.statSync(apkOut).size / 1048576).toFixed(1);
+
     buildStatus = {
       state: "done",
-      message: "✅ APK ready!",
+      message: `✅ APK جاهز! (${sizeMb} MB)`,
       apkUrl: "/downloads/Sanad.apk",
+      baseUrl,
+      zipContents: names.join(", "),
     };
   } catch (err) {
-    buildStatus = { state: "error", message: String(err) };
+    buildStatus = {
+      state: "error",
+      message: String(err),
+      baseUrl,
+    };
   }
 }
 
