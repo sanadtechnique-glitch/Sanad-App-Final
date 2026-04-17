@@ -7,7 +7,7 @@ import {
   Power, Clock, Truck, Star, RefreshCw, MessageCircle, ChevronRight,
   Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon, History,
   Plus, Trash2, Pencil, ToggleLeft, ToggleRight, AlertTriangle, KeyRound, Calendar, Phone, Scale, FileText, Hotel,
-  Camera, LocateFixed, Navigation, CheckCircle2, Loader2,
+  Camera, LocateFixed, Navigation, CheckCircle2, Loader2, CreditCard, Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -23,7 +23,7 @@ function playRoleSound(category: string) {
   playProviderChime();
 }
 
-interface Supplier { id: number; name: string; nameAr: string; category: string; isAvailable: boolean; shift?: string; rating?: number; phone?: string; photoUrl?: string | null; latitude?: number | null; longitude?: number | null; address?: string | null; }
+interface Supplier { id: number; name: string; nameAr: string; category: string; isAvailable: boolean; shift?: string; rating?: number; phone?: string; photoUrl?: string | null; latitude?: number | null; longitude?: number | null; address?: string | null; subscriptionActive?: boolean; subscriptionRenewalDate?: string | null; subscriptionFee?: number | null; }
 interface Order { id: number; customerName: string; customerPhone?: string; customerAddress: string; notes?: string; status: string; createdAt: string; deliveryFee?: number; photoUrl?: string; }
 interface OrderItem { id: number; orderId: number; articleId?: number | null; nameAr: string; nameFr: string; price: number; qty: number; subtotal: number; }
 
@@ -1205,6 +1205,227 @@ function RoomManager({ providerId, t, lang }: { providerId: number; t: (ar: stri
   );
 }
 
+// ── D17 Subscription Renewal Panel ─────────────────────────────────────────
+interface D17Receipt {
+  id: number; supplierId: number; imageUrl: string; transactionId: string | null;
+  amount: number | null; receiptDate: string | null; extractedText: string | null;
+  status: "pending" | "approved" | "rejected" | "manual_review"; rejectionReason: string | null;
+  createdAt: string;
+}
+interface D17RenewalPanelProps {
+  provider: { id: number; subscriptionActive?: boolean; subscriptionRenewalDate?: string | null; subscriptionFee?: number | null; nameAr: string };
+  t: (ar: string, fr: string) => string;
+  lang: string;
+  onSubUpdated?: () => void;
+}
+function D17RenewalPanel({ provider, t, onSubUpdated }: D17RenewalPanelProps) {
+  const [file, setFile]             = useState<File | null>(null);
+  const [preview, setPreview]       = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult]         = useState<{ status: string; message: string; reason?: string; newEndDate?: string } | null>(null);
+  const [history, setHistory]       = useState<D17Receipt[]>([]);
+  const [histLoading, setHistLoading] = useState(true);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const isActive = provider.subscriptionActive;
+  const endDate  = provider.subscriptionRenewalDate ? new Date(provider.subscriptionRenewalDate) : null;
+  const expired  = endDate ? endDate < new Date() : true;
+  const daysLeft = endDate ? Math.ceil((endDate.getTime() - Date.now()) / 86400000) : 0;
+
+  useEffect(() => {
+    setHistLoading(true);
+    get<D17Receipt[]>(`/provider/${provider.id}/subscription/d17-history`)
+      .then(setHistory).catch(() => {}).finally(() => setHistLoading(false));
+  }, [provider.id]);
+
+  function handleFile(f: File) {
+    setFile(f); setResult(null);
+    const reader = new FileReader();
+    reader.onload = e => setPreview(e.target?.result as string);
+    reader.readAsDataURL(f);
+  }
+
+  async function submit() {
+    if (!file) return;
+    setSubmitting(true); setResult(null);
+    try {
+      const session = getSession();
+      const fd = new FormData();
+      fd.append("receipt", file);
+      const res = await fetch(`/api/provider/${provider.id}/subscription/d17-renew`, {
+        method: "POST",
+        headers: { "X-Session-Token": session?.token || "" },
+        body: fd,
+      });
+      const data = await res.json();
+      setResult({ status: data.status, message: data.message, reason: data.reason, newEndDate: data.newEndDate });
+      if (data.status === "approved") {
+        setFile(null); setPreview(null);
+        // reload history
+        get<D17Receipt[]>(`/provider/${provider.id}/subscription/d17-history`).then(setHistory).catch(() => {});
+        onSubUpdated?.();
+      }
+    } catch {
+      setResult({ status: "error", message: t("حدث خطأ غير متوقع، حاول مجدداً", "Erreur inattendue, réessayez") });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const statusLabel: Record<string, { icon: string; ar: string; fr: string; color: string }> = {
+    approved:      { icon: "✅", ar: "مقبول",         fr: "Approuvé",       color: "#065f46" },
+    rejected:      { icon: "❌", ar: "مرفوض",          fr: "Rejeté",         color: "#991b1b" },
+    manual_review: { icon: "🔍", ar: "قيد المراجعة",   fr: "En révision",    color: "#92400e" },
+    pending:       { icon: "⏳", ar: "قيد الانتظار",   fr: "En attente",     color: "#1e40af" },
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4" dir="rtl">
+      {/* Header */}
+      <div className="flex items-center gap-2 pb-2 border-b border-[#1A4D1F]/8">
+        <CreditCard size={15} className="text-[#1A4D1F]" />
+        <p className="text-sm font-black text-[#1A4D1F]">
+          {t("الاشتراك الشهري · D17", "Abonnement mensuel · D17")}
+        </p>
+      </div>
+
+      {/* Subscription status card */}
+      <div className={`rounded-2xl p-4 border ${isActive && !expired ? "bg-[#f0fdf4] border-[#1A4D1F]/20" : "bg-[#fff8e1] border-[#FFA500]"}`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive && !expired ? "bg-[#1A4D1F]" : "bg-[#FFA500]"}`}>
+            <CreditCard size={18} className="text-white" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-black text-[#1A4D1F]">
+              {isActive && !expired
+                ? t(`✓ الاشتراك نشط · متبقي ${daysLeft} يوم`, `✓ Actif · encore ${daysLeft} jours`)
+                : t("⚠ الاشتراك منتهٍ أو غير نشط", "⚠ Abonnement expiré ou inactif")}
+            </p>
+            {endDate && (
+              <p className="text-xs font-bold text-[#1A4D1F]/60 mt-0.5">
+                {t("ينتهي في", "Expire le")} {endDate.toLocaleDateString("fr-TN")}
+              </p>
+            )}
+            {provider.subscriptionFee != null && (
+              <p className="text-xs font-bold text-[#1A4D1F]/40 mt-0.5">
+                {t("رسوم الاشتراك", "Frais d'abonnement")}: <span className="text-[#1A4D1F]/70">{provider.subscriptionFee.toFixed(3)} DT</span>
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Upload zone */}
+      <div className="rounded-2xl border-2 border-dashed border-[#1A4D1F]/20 p-4 space-y-3">
+        <p className="text-sm font-black text-[#1A4D1F] text-center">
+          {t("رفع وصل D17 لتجديد الاشتراك", "Téléverser un reçu D17 pour renouveler")}
+        </p>
+        <p className="text-xs font-bold text-[#1A4D1F]/50 text-center leading-relaxed">
+          {t(
+            `قم بالدفع عبر D17 بمبلغ ${provider.subscriptionFee?.toFixed(3) ?? "..."} DT ثم ارفع صورة الوصل هنا`,
+            `Payez ${provider.subscriptionFee?.toFixed(3) ?? "..."} DT via D17 puis téléversez le reçu ici`
+          )}
+        </p>
+
+        {/* Preview */}
+        {preview && (
+          <div className="relative">
+            <img src={preview} alt="receipt" className="w-full max-h-48 object-contain rounded-xl border border-[#1A4D1F]/10" />
+            <button onClick={() => { setFile(null); setPreview(null); setResult(null); }}
+              className="absolute top-2 end-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* File input */}
+        <input ref={inputRef} type="file" accept="image/*" capture="environment" className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+
+        {!preview && (
+          <button onClick={() => inputRef.current?.click()}
+            className="w-full flex items-center justify-center gap-2.5 py-3 rounded-2xl font-black text-sm border-2 border-[#1A4D1F]/20 text-[#1A4D1F]/60 hover:border-[#1A4D1F]/40 hover:text-[#1A4D1F] transition-all">
+            <Upload size={16} />
+            {t("اختر صورة أو التقط بالكاميرا", "Choisir une image ou prendre une photo")}
+          </button>
+        )}
+
+        {/* Submit */}
+        {file && !result && (
+          <button onClick={submit} disabled={submitting}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black text-sm text-white transition-all active:scale-95"
+            style={{ background: submitting ? "#ccc" : "linear-gradient(135deg, #1A4D1F, #2E7D32)" }}>
+            {submitting
+              ? <><Loader2 size={16} className="animate-spin" />{t("جارٍ التحليل بالذكاء الاصطناعي...","Analyse IA en cours...")}</>
+              : <><Check size={16} />{t("إرسال وصل D17","Envoyer le reçu D17")}</>}
+          </button>
+        )}
+      </div>
+
+      {/* Result banner */}
+      <AnimatePresence>
+        {result && (
+          <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className={`rounded-2xl p-4 border text-sm font-bold space-y-1 ${
+              result.status === "approved" ? "bg-[#f0fdf4] border-[#1A4D1F]/20 text-[#065f46]"
+              : result.status === "rejected" ? "bg-[#fef2f2] border-red-200 text-red-800"
+              : "bg-[#fffbeb] border-amber-200 text-amber-800"
+            }`}>
+            <p>{result.status === "approved" ? "✅" : result.status === "rejected" ? "❌" : "🔍"} {result.message}</p>
+            {result.reason && <p className="text-xs opacity-70">{result.reason}</p>}
+            {result.newEndDate && (
+              <p className="text-xs font-black">
+                {t("تاريخ الانتهاء الجديد", "Nouvelle date d'expiration")}: {new Date(result.newEndDate).toLocaleDateString("fr-TN")}
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* History */}
+      <div>
+        <p className="text-xs font-black text-[#1A4D1F]/50 mb-2 flex items-center gap-1">
+          <History size={12} />{t("سجل الإيصالات", "Historique des reçus")}
+        </p>
+        {histLoading ? (
+          <Loader2 size={18} className="animate-spin text-[#1A4D1F]/30 mx-auto" />
+        ) : history.length === 0 ? (
+          <p className="text-xs font-bold text-[#1A4D1F]/30 text-center py-4">{t("لا توجد إيصالات سابقة","Aucun reçu précédent")}</p>
+        ) : (
+          <div className="space-y-2">
+            {history.slice(0, 5).map(r => {
+              const sl = statusLabel[r.status] ?? statusLabel["pending"];
+              return (
+                <div key={r.id} className="rounded-xl border border-[#1A4D1F]/8 p-3 flex items-center gap-3">
+                  {r.imageUrl ? (
+                    <img src={r.imageUrl} alt="receipt" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-[#1A4D1F]/5 flex items-center justify-center flex-shrink-0">
+                      <CreditCard size={16} className="text-[#1A4D1F]/30" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black" style={{ color: sl.color }}>{sl.icon} {sl.ar}</span>
+                    </div>
+                    {r.amount != null && (
+                      <p className="text-[11px] font-bold text-[#1A4D1F]/60">{r.amount.toFixed(3)} DT</p>
+                    )}
+                    {r.rejectionReason && (
+                      <p className="text-[10px] text-red-500/70 font-medium truncate">{r.rejectionReason}</p>
+                    )}
+                    <p className="text-[10px] text-[#1A4D1F]/30">{new Date(r.createdAt).toLocaleDateString("fr-TN")}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function ProviderDashboard() {
   const { lang, t, isRTL } = useLang();
   const [providers, setProviders] = useState<Supplier[]>([]);
@@ -1215,7 +1436,7 @@ export default function ProviderDashboard() {
   const [pendingCount, setPendingCount] = useState(0);
   const [hasNewOrder, setHasNewOrder] = useState(false);
   const [photoModal, setPhotoModal] = useState<string | null>(null);
-  const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos" | "lawyer" | "cars" | "chat" | "location">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos" | "lawyer" | "cars" | "chat" | "location" | "subscription">("pending");
   const [showVendorMap, setShowVendorMap] = useState(false);
   const [locSaving, setLocSaving]         = useState(false);
   const [locSaved, setLocSaved]           = useState(false);
@@ -1768,6 +1989,7 @@ export default function ProviderDashboard() {
                 { id: "products", label: t("تخصصاتي","Spécialités"), icon: <FileText size={10} /> },
                 { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
                 { id: "location", label: t("موقع","Lieu"),          icon: <MapPin size={10} />, warn: !selected.latitude || !selected.longitude },
+                { id: "subscription", label: t("اشتراك","Abonn."), icon: <CreditCard size={10} />, warn: !selected.subscriptionActive || (selected.subscriptionRenewalDate != null && new Date(selected.subscriptionRenewalDate) < new Date()) },
               ]
             : selected.category === "car_rental"
             ? [
@@ -1775,6 +1997,7 @@ export default function ProviderDashboard() {
                 { id: "bookings", label: t("الحجوزات","Réserv."),  icon: <KeyRound size={10} />, badge: carBookings.filter((b:any)=>b.status==="pending").length },
                 { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
                 { id: "location", label: t("موقع","Lieu"),          icon: <MapPin size={10} />, warn: !selected.latitude || !selected.longitude },
+                { id: "subscription", label: t("اشتراك","Abonn."), icon: <CreditCard size={10} />, warn: !selected.subscriptionActive || (selected.subscriptionRenewalDate != null && new Date(selected.subscriptionRenewalDate) < new Date()) },
               ]
             : [
                 { id: "pending",  label: t("جديد","Nouv."),       badge: pendingOrders.length },
@@ -1794,6 +2017,7 @@ export default function ProviderDashboard() {
                 }] : []),
                 { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
                 { id: "location", label: t("موقع","Lieu"),          icon: <MapPin size={10} />, warn: !selected.latitude || !selected.longitude },
+                { id: "subscription", label: t("اشتراك","Abonn."), icon: <CreditCard size={10} />, warn: !selected.subscriptionActive || (selected.subscriptionRenewalDate != null && new Date(selected.subscriptionRenewalDate) < new Date()) },
               ]
           ).map((tb: any) => (
             <button key={tb.id} onClick={() => setTab(tb.id as any)}
@@ -2539,6 +2763,22 @@ export default function ProviderDashboard() {
               )}
             </p>
           </motion.div>
+        )}
+
+        {/* ── Subscription / D17 Renewal Tab ───────────────────────────── */}
+        {tab === "subscription" && selected && (
+          <D17RenewalPanel
+            provider={selected}
+            t={t}
+            lang={lang}
+            onSubUpdated={() => {
+              // reload providers to refresh subscription status
+              get<Supplier[]>("/suppliers").then(list => {
+                const updated = list.find(s => s.id === selected.id);
+                if (updated) selectProvider(updated);
+              }).catch(() => {});
+            }}
+          />
         )}
 
       </div>

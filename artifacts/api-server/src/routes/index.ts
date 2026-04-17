@@ -26,6 +26,7 @@ import partnersRouter from "./partners";
 import searchRouter from "./search";
 import messagesRouter from "./messages";
 import resetRouter from "./reset";
+import d17RenewalRouter from "./d17Renewal";
 
 const router: IRouter = Router();
 
@@ -56,5 +57,6 @@ router.use(partnersRouter);
 router.use(searchRouter);
 router.use(messagesRouter);
 router.use(resetRouter);
+router.use(d17RenewalRouter);
 
 export default router;

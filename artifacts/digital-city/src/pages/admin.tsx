@@ -6947,7 +6947,154 @@ function MessagesSection({ t, lang }: { t: (ar: string, fr: string) => string; l
   );
 }
 
-type Section = "overview" | "orders" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests" | "partners" | "statistics" | "messages" | "reviews";
+// ── D17 Receipts Admin Section ────────────────────────────────────────────────
+interface D17ReceiptAdmin {
+  id: number; supplierId: number; supplierName: string | null;
+  imageUrl: string; transactionId: string | null; amount: number | null;
+  receiptDate: string | null; status: "pending" | "approved" | "rejected" | "manual_review";
+  rejectionReason: string | null; createdAt: string;
+}
+function D17ReceiptsSection({ t }: { t: (ar: string, fr: string) => string }) {
+  const [receipts, setReceipts] = useState<D17ReceiptAdmin[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [filter, setFilter]     = useState<"all" | "manual_review" | "approved" | "rejected">("all");
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    get<D17ReceiptAdmin[]>("/admin/d17-receipts").then(setReceipts).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const shown = filter === "all" ? receipts : receipts.filter(r => r.status === filter);
+  const pendingCount = receipts.filter(r => r.status === "manual_review").length;
+
+  async function approve(id: number) {
+    setBusyId(id);
+    try { await patch(`/admin/d17-receipts/${id}/approve`, {}); load(); }
+    catch { /* ignore */ } finally { setBusyId(null); }
+  }
+  async function reject(id: number) {
+    setBusyId(id);
+    try { await patch(`/admin/d17-receipts/${id}/reject`, { reason: rejectReason || "Rejected by admin" }); setRejectingId(null); setRejectReason(""); load(); }
+    catch { /* ignore */ } finally { setBusyId(null); }
+  }
+
+  const statusStyle: Record<string, { icon: string; color: string; bg: string }> = {
+    approved:      { icon: "✅", color: "#065f46", bg: "#d1fae5" },
+    rejected:      { icon: "❌", color: "#991b1b", bg: "#fee2e2" },
+    manual_review: { icon: "🔍", color: "#92400e", bg: "#fef3c7" },
+    pending:       { icon: "⏳", color: "#1e40af", bg: "#dbeafe" },
+  };
+
+  return (
+    <div className="space-y-4" dir="rtl">
+      <div className="flex items-center gap-2 pb-3 border-b border-[#1A4D1F]/10">
+        <CreditCard size={18} className="text-[#1A4D1F]" />
+        <h2 className="text-lg font-black text-[#1A4D1F]">{t("وصولات D17 للاشتراكات", "Reçus D17 — Abonnements")}</h2>
+        {pendingCount > 0 && (
+          <span className="px-2.5 py-1 rounded-full text-xs font-black bg-amber-400/20 text-amber-700">{pendingCount} {t("بانتظار المراجعة","en attente")}</span>
+        )}
+        <button onClick={load} className="ms-auto p-2 rounded-xl hover:bg-[#1A4D1F]/5 text-[#1A4D1F]/40">
+          <RefreshCw size={15} />
+        </button>
+      </div>
+
+      {/* Filter */}
+      <div className="flex gap-1 flex-wrap">
+        {(["all", "manual_review", "approved", "rejected"] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            className="px-3 py-1.5 rounded-xl text-xs font-black transition-all"
+            style={{ background: filter === f ? "#1A4D1F" : "#1A4D1F10", color: filter === f ? "#fff" : "#1A4D1F" }}>
+            {f === "all" ? t("الكل","Tous") : f === "manual_review" ? `🔍 ${t("يحتاج مراجعة","À réviser")}` : f === "approved" ? `✅ ${t("مقبول","Approuvé")}` : `❌ ${t("مرفوض","Rejeté")}`}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><RefreshCw size={24} className="animate-spin text-[#1A4D1F]/30" /></div>
+      ) : shown.length === 0 ? (
+        <div className="text-center py-12 text-sm font-bold text-[#1A4D1F]/30">{t("لا توجد وصولات","Aucun reçu")}</div>
+      ) : (
+        <div className="space-y-3">
+          {shown.map(r => {
+            const s = statusStyle[r.status] ?? statusStyle["pending"];
+            return (
+              <div key={r.id} className="rounded-2xl border border-[#1A4D1F]/10 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  {/* Receipt image */}
+                  {r.imageUrl ? (
+                    <a href={r.imageUrl} target="_blank" rel="noopener noreferrer">
+                      <img src={r.imageUrl} alt="receipt" className="w-16 h-16 rounded-xl object-cover border flex-shrink-0 hover:opacity-80 transition-opacity" />
+                    </a>
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-[#1A4D1F]/5 flex items-center justify-center flex-shrink-0">
+                      <CreditCard size={24} className="text-[#1A4D1F]/30" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="text-sm font-black text-[#1A4D1F]">{r.supplierName ?? `#${r.supplierId}`}</p>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black"
+                      style={{ background: s.bg, color: s.color }}>
+                      {s.icon} {r.status === "manual_review" ? t("يحتاج مراجعة","À réviser") : r.status === "approved" ? t("مقبول","Approuvé") : t("مرفوض","Rejeté")}
+                    </span>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] font-bold text-[#1A4D1F]/60">
+                      {r.amount != null && <span>💰 {r.amount.toFixed(3)} DT</span>}
+                      {r.receiptDate && <span>📅 {r.receiptDate}</span>}
+                      {r.transactionId && <span className="font-mono">🔖 {r.transactionId}</span>}
+                    </div>
+                    {r.rejectionReason && (
+                      <p className="text-[11px] text-red-500/70">{r.rejectionReason}</p>
+                    )}
+                    <p className="text-[10px] text-[#1A4D1F]/30">{new Date(r.createdAt).toLocaleString("fr-TN")}</p>
+                  </div>
+                </div>
+
+                {/* Actions for manual_review */}
+                {r.status === "manual_review" && (
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => approve(r.id)} disabled={busyId === r.id}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-black text-white transition-all active:scale-95"
+                      style={{ background: "#1A4D1F" }}>
+                      {busyId === r.id ? "..." : `✅ ${t("قبول","Approuver")}`}
+                    </button>
+                    {rejectingId === r.id ? (
+                      <div className="flex-1 space-y-1.5">
+                        <input value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                          placeholder={t("سبب الرفض...","Raison du rejet...")}
+                          className="w-full px-3 py-2 rounded-xl border border-red-200 text-xs font-bold focus:outline-none focus:border-red-400" />
+                        <div className="flex gap-1">
+                          <button onClick={() => reject(r.id)} disabled={busyId === r.id}
+                            className="flex-1 py-2 rounded-xl text-xs font-black text-white bg-red-500">
+                            {busyId === r.id ? "..." : t("تأكيد الرفض","Confirmer")}
+                          </button>
+                          <button onClick={() => { setRejectingId(null); setRejectReason(""); }}
+                            className="px-3 py-2 rounded-xl text-xs font-black bg-gray-100 text-gray-500">
+                            {t("إلغاء","Annuler")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => setRejectingId(r.id)}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-black text-red-600 bg-red-50 border border-red-200">
+                        ❌ {t("رفض","Rejeter")}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type Section = "overview" | "orders" | "suppliers" | "articles" | "staff" | "taxi_drivers" | "delegations" | "banners" | "hotelBookings" | "users" | "broadcast" | "ads" | "live_map" | "delivery_config" | "ticker" | "appearance" | "car_rental" | "sos_requests" | "lawyer_requests" | "partners" | "statistics" | "messages" | "reviews" | "d17_receipts";
 
 type NavItem = { id: Section; icon: React.FC<any>; ar: string; fr: string; superOnly?: boolean };
 type NavGroup = { id: string; icon: React.FC<any>; ar: string; fr: string; color: string; items: NavItem[] };
@@ -6976,11 +7123,12 @@ const NAV_GROUPS: NavGroup[] = [
     fr: "Produits & Livraison",
     color: "#B45309",
     items: [
-      { id: "suppliers",      icon: Users,     ar: "المزودون",        fr: "Fournisseurs",  superOnly: true },
-      { id: "articles",       icon: ShoppingBag, ar: "المنتجات",      fr: "Articles",      superOnly: true },
-      { id: "staff",          icon: Truck,     ar: "السائقون",        fr: "Livreurs",      superOnly: true },
-      { id: "delegations",    icon: Map,       ar: "المعتمديات",      fr: "Délégations",   superOnly: true },
-      { id: "delivery_config",icon: Settings,  ar: "عمولة التوصيل",  fr: "Commission",    superOnly: true },
+      { id: "suppliers",      icon: Users,       ar: "المزودون",        fr: "Fournisseurs",  superOnly: true },
+      { id: "articles",       icon: ShoppingBag, ar: "المنتجات",        fr: "Articles",      superOnly: true },
+      { id: "staff",          icon: Truck,       ar: "السائقون",        fr: "Livreurs",      superOnly: true },
+      { id: "delegations",    icon: Map,         ar: "المعتمديات",      fr: "Délégations",   superOnly: true },
+      { id: "delivery_config",icon: Settings,    ar: "عمولة التوصيل",  fr: "Commission",    superOnly: true },
+      { id: "d17_receipts",   icon: CreditCard,  ar: "وصولات D17",      fr: "Reçus D17",     superOnly: true },
     ],
   },
   {
@@ -7363,6 +7511,7 @@ export default function Admin() {
             {active === "statistics"     && <StatsSection t={t} lang={lang} />}
             {active === "messages"       && <MessagesSection t={t} lang={lang} />}
             {active === "reviews"        && <ReviewsSection t={t} />}
+            {active === "d17_receipts"   && isSuper && <D17ReceiptsSection t={t} />}
           </motion.div>
         </AnimatePresence>
       </main>

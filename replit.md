@@ -368,3 +368,45 @@ Three payment modes: COD (Cash on Delivery), D17 wallet transfer, and Card (plac
 ### Admin Config: `DeliveryConfigSection`
 - D17 wallet number input + bilingual instructions textarea
 - Saved to `appSettings` table keys: `d17_wallet_number`, `d17_instructions_ar`, `d17_instructions_fr`
+
+---
+
+## D17 Receipt OCR — Automatic Subscription Renewal
+
+### Overview
+Vendors can renew their monthly subscription by uploading a D17 payment receipt screenshot. Gemini Vision AI automatically extracts and validates the receipt details.
+
+### New Database Table (`lib/db/src/schema/d17Receipts.ts`)
+- `d17_receipts` — tracks uploaded receipts and their validation status
+- Fields: `supplierId`, `imageUrl`, `transactionId`, `amount`, `receiptDate`, `extractedText`, `status`, `rejectionReason`, `createdAt`
+- Status values: `pending` | `approved` | `rejected` | `manual_review`
+
+### Gemini AI Integration
+- Package: `@workspace/integrations-gemini-ai` (lib/integrations-gemini-ai)
+- Model: `gemini-2.5-flash` with vision capability (inline base64 image)
+- Env vars: `AI_INTEGRATIONS_GEMINI_BASE_URL`, `AI_INTEGRATIONS_GEMINI_API_KEY` (auto-provisioned)
+
+### Validation Rules
+- Amount must match `provider.subscriptionFee` (±0.02 DT tolerance)
+- Date must be today (Tunisia timezone UTC+1)
+- Transaction ID must be unique (no previously approved receipt with same ID)
+- If OCR not confident → `manual_review` status (admin notified via push)
+
+### API Endpoints (`artifacts/api-server/src/routes/d17Renewal.ts`)
+- `POST /api/provider/:id/subscription/d17-renew` — multer image upload, OCR, validate, approve/flag
+- `GET /api/provider/:id/subscription/d17-history` — provider's receipt history
+- `GET /api/admin/d17-receipts` — all receipts (admin only)
+- `PATCH /api/admin/d17-receipts/:id/approve` — manual approval (extends +30 days)
+- `PATCH /api/admin/d17-receipts/:id/reject` — rejection with reason
+
+### Provider UI (`artifacts/digital-city/src/pages/provider.tsx`)
+- New "اشتراك · Abonn." tab with `CreditCard` icon (orange warning dot if expired)
+- `D17RenewalPanel` component: subscription status card, upload zone, history list
+- Camera-first file input (`capture="environment"`)
+- Submit triggers Gemini OCR; shows result banner (approved/rejected/manual_review)
+
+### Admin UI (`artifacts/digital-city/src/pages/admin.tsx`)
+- New "وصولات D17 · Reçus D17" section in "Produits & Livraison" nav group (super_admin only)
+- `D17ReceiptsSection` component with filter (all/manual_review/approved/rejected)
+- Approve button → extends subscription +30 days, notifies vendor via push
+- Reject button → shows reason input, updates status
