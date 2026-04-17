@@ -53,7 +53,7 @@ title = "Play Store Icon 512×512"
 id = "dDHmowg5sQarg3hLv0hLM"
 uri = "file://artifacts/digital-city/public/icon-512.png"
 type = "image"
-title = "Master Icon 512×512 (PWA + Play Store)"
+title = "PWA Icon 512×512 (full-size)"
 
 [[outputs]]
 id = "RREaH5Y5ncoEfBpnDkbvR"
@@ -66,3 +66,15 @@ id = "diw8i9u6XHMk5wlEJq558"
 uri = "file://artifacts/digital-city/public/icon-192.png"
 type = "image"
 title = "PWA Icon 192×192"
+
+[[outputs]]
+id = "COvW69Ewm5yrU71PPiTIw"
+uri = "file://artifacts/digital-city/public/sanad-logo-master.png"
+type = "image"
+title = "Master Logo (1024×1024)"
+
+[[outputs]]
+id = "i31fsHKgl0P52m5khWtKR"
+uri = "file://artifacts/digital-city/public/icon-512-maskable.png"
+type = "image"
+title = "Maskable Icon 512×512 (Android safe-zone)"
