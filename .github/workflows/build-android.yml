@@ -18,7 +18,7 @@ jobs:
 
       # ── 2. Java 17 ─────────────────────────────────────────────────────────
       - name: Setup Java 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "17"
@@ -36,47 +36,79 @@ jobs:
           version: 9
           run_install: false
 
-      # ── 5. Install all dependencies ─────────────────────────────────────────
+      # ── 5. Install all workspace dependencies ───────────────────────────────
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      # ── 6. Android SDK 34 (stable) ──────────────────────────────────────────
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK 34
-        run: |
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
-          yes | sdkmanager --licenses 2>/dev/null || true
-
-      # ── 7. Build Vite web assets ────────────────────────────────────────────
+      # ── 6. Build Vite web assets ────────────────────────────────────────────
       - name: Build Vite frontend
         working-directory: artifacts/digital-city
         run: pnpm run build
         env:
           NODE_ENV: production
 
-      # ── 8. Capacitor sync (embed web assets into Android) ───────────────────
-      - name: Capacitor sync
-        working-directory: artifacts/digital-city
-        run: npx cap sync android
+      # ── 7. Android SDK 34 ───────────────────────────────────────────────────
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      # ── 9. Make gradlew executable ──────────────────────────────────────────
+      - name: Install Android SDK 34
+        run: |
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;27.2.12479018"
+          yes | sdkmanager --licenses 2>/dev/null || true
+          echo "ANDROID_HOME=$ANDROID_HOME"
+
+      # ── 8. Fresh Android project via Capacitor ──────────────────────────────
+      - name: Remove old Android folder and regenerate fresh
+        working-directory: artifacts/digital-city
+        run: |
+          rm -rf android
+          ./node_modules/.bin/cap add android 2>&1
+          echo "Android project created. Contents:"
+          ls android/
+
+      # ── 9. Patch compileSdk to 34 (Capacitor defaults to 36) ───────────────
+      - name: Patch variables.gradle to SDK 34
+        working-directory: artifacts/digital-city/android
+        run: |
+          sed -i 's/compileSdkVersion = [0-9]*/compileSdkVersion = 34/' variables.gradle
+          sed -i 's/targetSdkVersion = [0-9]*/targetSdkVersion = 34/' variables.gradle
+          grep "compileSdkVersion\|targetSdkVersion" variables.gradle
+
+      # ── 10. Copy Yellow Logo icons to all mipmap folders ────────────────────
+      - name: Copy Yellow Logo to mipmap folders
+        working-directory: artifacts/digital-city
+        run: |
+          RES="android/app/src/main/res"
+          ICONS="public/android-icons"
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            cp "$ICONS/$density/ic_launcher.png"            "$RES/mipmap-$density/ic_launcher.png"
+            cp "$ICONS/$density/ic_launcher_round.png"      "$RES/mipmap-$density/ic_launcher_round.png"
+            cp "$ICONS/$density/ic_launcher_foreground.png" "$RES/mipmap-$density/ic_launcher_foreground.png"
+          done
+          echo "Icons copied:"
+          ls -lh android/app/src/main/res/mipmap-xxxhdpi/
+
+      # ── 11. Make gradlew executable ─────────────────────────────────────────
       - name: Make Gradle wrapper executable
         working-directory: artifacts/digital-city/android
         run: chmod +x gradlew
 
-      # ── 10. Build debug APK ─────────────────────────────────────────────────
+      # ── 12. Build debug APK ─────────────────────────────────────────────────
       - name: Build Sanad debug APK
         working-directory: artifacts/digital-city/android
         run: |
-          ./gradlew assembleDebug --no-daemon --info 2>&1 | grep -E "error|Error|FAILED|SUCCESS|warning|BUILD" | tail -60
-          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
-          echo "APK found: $APK_PATH"
-          cp "$APK_PATH" ../Sanad_Final.apk
+          ./gradlew assembleDebug --no-daemon 2>&1 | tail -30
+          APK=$(find app/build/outputs/apk/debug -name "*.apk" 2>/dev/null | head -1)
+          if [ -z "$APK" ]; then
+            echo "ERROR: APK not found!"
+            find . -name "*.apk" 2>/dev/null
+            exit 1
+          fi
+          echo "APK found: $APK"
+          cp "$APK" ../Sanad_Final.apk
           ls -lh ../Sanad_Final.apk
 
-      # ── 11. Upload APK as downloadable artifact ─────────────────────────────
+      # ── 13. Upload APK as downloadable artifact ─────────────────────────────
       - name: Upload Sanad_Final.apk
         uses: actions/upload-artifact@v4
         with:
