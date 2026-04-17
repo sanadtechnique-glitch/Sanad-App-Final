@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { get } from "./admin-api";
 
-const FALLBACK = "/sanad-logo.svg?v=5";
+const FALLBACK = "/sanad-logo-master.png";
 let cached: string | null = null;
 const listeners: Array<(url: string) => void> = [];
 

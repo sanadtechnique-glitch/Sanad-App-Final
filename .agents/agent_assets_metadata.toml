@@ -53,10 +53,16 @@ title = "Play Store Icon 512×512"
 id = "dDHmowg5sQarg3hLv0hLM"
 uri = "file://artifacts/digital-city/public/icon-512.png"
 type = "image"
-title = "PWA Icon 512×512 (manifest + Android)"
+title = "Master Icon 512×512 (PWA + Play Store)"
 
 [[outputs]]
 id = "RREaH5Y5ncoEfBpnDkbvR"
 uri = "file://artifacts/digital-city/public/apple-touch-icon.png"
 type = "image"
-title = "Apple Touch Icon 180×180 (iOS Add to Home Screen)"
+title = "Apple Touch Icon 180×180 (iOS)"
+
+[[outputs]]
+id = "diw8i9u6XHMk5wlEJq558"
+uri = "file://artifacts/digital-city/public/icon-192.png"
+type = "image"
+title = "PWA Icon 192×192"
