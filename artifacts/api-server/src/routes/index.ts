@@ -28,6 +28,7 @@ import messagesRouter from "./messages";
 import resetRouter from "./reset";
 import d17RenewalRouter from "./d17Renewal";
 import promotionsRouter from "./promotions";
+import generateApkRouter from "./generateApk";
 
 const router: IRouter = Router();
 
@@ -60,5 +61,6 @@ router.use(messagesRouter);
 router.use(resetRouter);
 router.use(d17RenewalRouter);
 router.use(promotionsRouter);
+router.use("/generate-apk", generateApkRouter);
 
 export default router;

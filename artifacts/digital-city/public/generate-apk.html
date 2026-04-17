@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>توليد APK – سند · Sanad</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #FFF3E0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #1A4D1F;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 40px 32px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 4px 32px rgba(26,77,31,0.10);
+      text-align: center;
+    }
+    img { width: 90px; margin-bottom: 16px; }
+    h1 { font-size: 1.6rem; margin-bottom: 6px; }
+    .sub { color: #888; font-size: 0.9rem; margin-bottom: 28px; }
+    .status-box {
+      background: #F5F5F5;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+      font-size: 0.95rem;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 3px solid #FFA500;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn {
+      display: inline-block;
+      padding: 14px 32px;
+      background: #1A4D1F;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #133A17; }
+    .btn.orange { background: #FFA500; color: #fff; }
+    .btn.orange:hover { background: #e59400; }
+    .error { color: #c0392b; }
+    .done { color: #1A4D1F; font-weight: 600; }
+    .note { font-size: 0.8rem; color: #aaa; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="/sanad-logo-master.png" alt="Sanad Logo" />
+    <h1>توليد ملف APK</h1>
+    <p class="sub">Sanad - سند &nbsp;|&nbsp; com.sanad.app</p>
+
+    <div class="status-box" id="status-box">
+      <span id="status-text">اضغط الزر لبدء البناء</span>
+    </div>
+
+    <div id="actions">
+      <button class="btn orange" onclick="startBuild()">▶ ابدأ بناء APK</button>
+    </div>
+
+    <p class="note" id="note"></p>
+  </div>
+
+  <script>
+    let polling = false;
+
+    async function startBuild() {
+      document.getElementById('actions').innerHTML = '';
+      setStatus('⏳', 'جارٍ إرسال الطلب إلى PWABuilder…');
+
+      try {
+        const res = await fetch('/api/generate-apk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const data = await res.json();
+
+        if (res.status === 409) {
+          setStatus('⏳', 'البناء جارٍ بالفعل…');
+        } else if (!res.ok) {
+          setStatus('❌', data.error || 'خطأ غير معروف', true);
+          showRetry();
+          return;
+        }
+
+        document.getElementById('note').textContent =
+          'هذه العملية قد تستغرق 2–5 دقائق. الصفحة تتحدث تلقائياً.';
+        pollStatus();
+      } catch (e) {
+        setStatus('❌', 'فشل الاتصال: ' + e.message, true);
+        showRetry();
+      }
+    }
+
+    async function pollStatus() {
+      if (polling) return;
+      polling = true;
+
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/generate-apk/status');
+          const data = await res.json();
+
+          if (data.state === 'building') {
+            setStatus('⏳', data.message);
+          } else if (data.state === 'done') {
+            clearInterval(interval);
+            polling = false;
+            setStatus('✅', 'APK جاهز للتنزيل!', false, true);
+            document.getElementById('actions').innerHTML =
+              `<a class="btn orange" href="${data.apkUrl}" download>⬇ تنزيل Sanad.apk</a>`;
+            document.getElementById('note').textContent = '';
+          } else if (data.state === 'error') {
+            clearInterval(interval);
+            polling = false;
+            setStatus('❌', data.message, true);
+            showRetry();
+          }
+        } catch (e) {
+          // network hiccup — keep polling
+        }
+      }, 4000);
+    }
+
+    function setStatus(icon, msg, isError, isDone) {
+      const box = document.getElementById('status-box');
+      box.className = 'status-box';
+      let html = '';
+      if (icon === '⏳') {
+        html = `<div class="spinner"></div><span>${msg}</span>`;
+      } else {
+        const cls = isError ? 'error' : isDone ? 'done' : '';
+        html = `<span class="${cls}">${icon} ${msg}</span>`;
+      }
+      box.innerHTML = html;
+    }
+
+    function showRetry() {
+      document.getElementById('actions').innerHTML =
+        `<button class="btn" onclick="location.reload()">↺ المحاولة مرة أخرى</button>`;
+    }
+
+    // Auto-check if a build is already in progress
+    (async () => {
+      try {
+        const res = await fetch('/api/generate-apk/status');
+        const data = await res.json();
+        if (data.state === 'building') {
+          document.getElementById('actions').innerHTML = '';
+          setStatus('⏳', data.message);
+          document.getElementById('note').textContent =
+            'بناء جارٍ بالفعل. الصفحة تتحدث تلقائياً.';
+          pollStatus();
+        } else if (data.state === 'done') {
+          setStatus('✅', 'APK جاهز للتنزيل!', false, true);
+          document.getElementById('actions').innerHTML =
+            `<a class="btn orange" href="${data.apkUrl}" download>⬇ تنزيل Sanad.apk</a>`;
+        }
+      } catch (_) {}
+    })();
+  </script>
+</body>
+</html>
