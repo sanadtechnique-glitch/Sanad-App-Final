@@ -16,14 +16,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── 2. Java 17 ─────────────────────────────────────────────────────────
-      - name: Setup Java 17
+      # ── 2. Java 21 (Capacitor 8 requires sourceCompatibility = 21) ─────────
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version: "21"
 
-      # ── 3. Node.js 22 (required by Capacitor 8) ────────────────────────────
+      # ── 3. Node.js 22 (required by Capacitor 8 CLI) ────────────────────────
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -47,49 +47,47 @@ jobs:
         env:
           NODE_ENV: production
 
-      # ── 7. Android SDK — install SDK 36 (required by Capacitor 8 + AGP 8.13)
+      # ── 7. Android SDK 34 (stable, as requested) ────────────────────────────
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK 36
+      - name: Install Android SDK 34
         run: |
-          sdkmanager --update 2>/dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
           yes | sdkmanager --licenses 2>/dev/null || true
-          echo "Installed SDK components:"
-          sdkmanager --list_installed 2>/dev/null | grep "platforms\|build-tools" | head -10
 
-      # ── 8. Fresh Android project (Capacitor 8, AGP 8.13, Gradle 8.14) ──────
+      # ── 8. Fresh Android project ────────────────────────────────────────────
       - name: Regenerate Android project fresh
         working-directory: artifacts/digital-city
         run: |
           rm -rf android
           ./node_modules/.bin/cap add android 2>&1
-          echo "=== variables.gradle ==="
-          cat android/variables.gradle
-          echo "=== AGP version ==="
-          grep "com.android.tools.build" android/build.gradle
+          ls android/
 
-      # ── 9. Copy Yellow Logo icons to all mipmap folders ────────────────────
-      - name: Copy Yellow Logo to mipmap folders
-        working-directory: artifacts/digital-city
+      # ── 9. Patch SDK to 34 (Capacitor 8 defaults to 36) ────────────────────
+      - name: Patch compileSdk and targetSdk to 34
+        working-directory: artifacts/digital-city/android
         run: |
-          RES="android/app/src/main/res"
-          ICONS="public/android-icons"
-          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            cp "$ICONS/$density/ic_launcher.png"            "$RES/mipmap-$density/ic_launcher.png"
-            cp "$ICONS/$density/ic_launcher_round.png"      "$RES/mipmap-$density/ic_launcher_round.png"
-            cp "$ICONS/$density/ic_launcher_foreground.png" "$RES/mipmap-$density/ic_launcher_foreground.png"
-          done
-          echo "Icons installed:"
-          ls -lh android/app/src/main/res/mipmap-xxxhdpi/
+          sed -i 's/compileSdkVersion = [0-9]*/compileSdkVersion = 34/' variables.gradle
+          sed -i 's/targetSdkVersion = [0-9]*/targetSdkVersion = 34/' variables.gradle
+          sed -i 's/compileSdk = [0-9]*/compileSdk = 34/' variables.gradle
+          grep "compileSdk\|targetSdk" variables.gradle
 
-      # ── 10. Make gradlew executable ─────────────────────────────────────────
-      - name: Make Gradle wrapper executable
+      # ── 10. Use default Capacitor icons (no custom icons for now) ───────────
+      - name: Verify default icons exist
+        working-directory: artifacts/digital-city/android
+        run: |
+          echo "Icons in mipmap-xxxhdpi:"
+          ls -lh app/src/main/res/mipmap-xxxhdpi/
+          echo "Icons in mipmap-hdpi:"
+          ls -lh app/src/main/res/mipmap-hdpi/
+
+      # ── 11. Make gradlew executable ─────────────────────────────────────────
+      - name: Make gradlew executable
         working-directory: artifacts/digital-city/android
         run: chmod +x gradlew
 
-      # ── 11. Build debug APK (full output for debugging) ─────────────────────
+      # ── 12. Build debug APK ─────────────────────────────────────────────────
       - name: Build Sanad debug APK
         working-directory: artifacts/digital-city/android
         run: |
@@ -97,13 +95,12 @@ jobs:
           APK=$(find app/build/outputs/apk/debug -name "*.apk" 2>/dev/null | head -1)
           if [ -z "$APK" ]; then
             echo "ERROR: APK not found"
-            find . -name "*.apk" 2>/dev/null
             exit 1
           fi
           cp "$APK" ../Sanad_Final.apk
           ls -lh ../Sanad_Final.apk
 
-      # ── 12. Upload APK ──────────────────────────────────────────────────────
+      # ── 13. Upload APK ──────────────────────────────────────────────────────
       - name: Upload Sanad_Final.apk
         uses: actions/upload-artifact@v4
         with:
