@@ -7165,6 +7165,32 @@ export default function Admin() {
 
   const adminLogout = () => { clearSession(); navigate("/home"); };
 
+  const handleResetAll = async () => {
+    const step1 = window.confirm("⚠️ Are you sure you want to delete EVERYTHING?\n\nThis will permanently wipe all users, products, vendors, and orders. This cannot be undone.");
+    if (!step1) return;
+    const typed = window.prompt("Type the word DELETE (in capital letters) to confirm:");
+    if (typed?.trim() !== "DELETE") {
+      window.alert("Reset cancelled — confirmation text did not match.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/admin/reset-all-data", {
+        method: "POST",
+        headers: { "x-session-token": session?.token || "" },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        window.alert("Reset failed: " + (body.message || res.statusText));
+        return;
+      }
+      clearSession();
+      window.alert("✅ All data has been cleared. You will now be logged out.");
+      navigate("/home");
+    } catch (err) {
+      window.alert("Network error during reset. Please try again.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex" dir={isRTL ? "rtl" : "ltr"}>
       {/* ── Mobile backdrop ── */}
@@ -7287,6 +7313,17 @@ export default function Admin() {
             <Power size={15} className="flex-shrink-0" />
             <span>{t("تسجيل الخروج","Déconnexion")}</span>
           </button>
+          {isSuper && (
+            <button
+              onClick={handleResetAll}
+              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg opacity-30 hover:opacity-70 transition-all"
+              style={{ color: "#ef4444", fontSize: 9, fontWeight: 700, letterSpacing: "0.03em" }}
+              title="Development only — clears all data"
+            >
+              <Trash2 size={9} className="flex-shrink-0" />
+              <span>DANGER: RESET ALL DATA</span>
+            </button>
+          )}
         </div>
       </aside>
 

@@ -25,6 +25,7 @@ import pushRouter from "./push";
 import partnersRouter from "./partners";
 import searchRouter from "./search";
 import messagesRouter from "./messages";
+import resetRouter from "./reset";
 
 const router: IRouter = Router();
 
@@ -54,5 +55,6 @@ router.use(pushRouter);
 router.use(partnersRouter);
 router.use(searchRouter);
 router.use(messagesRouter);
+router.use(resetRouter);
 
 export default router;

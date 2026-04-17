@@ -39,6 +39,22 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   });
 }
 
+/** Require super_admin role only */
+export function requireSuperAdmin(req: Request, res: Response, next: NextFunction): void {
+  const token = extractToken(req);
+  if (!token) { res.status(401).json({ message: "Authentication required" }); return; }
+  getSession(token).then(session => {
+    if (!session) { res.status(401).json({ message: "Session expired or invalid" }); return; }
+    if (session.role !== "super_admin") {
+      res.status(403).json({ message: "Super admin access required" }); return;
+    }
+    (req as any).authSession = session;
+    next();
+  }).catch(() => {
+    res.status(500).json({ message: "Session lookup failed" });
+  });
+}
+
 /** Require any staff role (admin, manager, provider, driver) */
 export function requireStaff(req: Request, res: Response, next: NextFunction): void {
   const token = extractToken(req);
