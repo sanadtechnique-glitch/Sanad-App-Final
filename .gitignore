@@ -47,3 +47,7 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Android keystore
+artifacts/digital-city/android/sanad-release.jks
+artifacts/digital-city/android/keystore.properties

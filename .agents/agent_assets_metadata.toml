@@ -42,3 +42,9 @@ id = "x-T_SXgB3ITVxPf36XakO"
 uri = "file://Sanad-Setup.tar.gz"
 type = "unspecified"
 title = "Sanad Windows Desktop App (Sanad-Setup.tar.gz)"
+
+[[outputs]]
+id = "dBwyvJ7NQ0SyO7vFtE8NA"
+uri = "file://artifacts/digital-city/android/play-store-icon-512.png"
+type = "image"
+title = "Play Store Icon 512×512"
