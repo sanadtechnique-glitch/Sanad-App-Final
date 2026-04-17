@@ -1,5 +1,6 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer } from "node:http";
+import fs from "node:fs";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import path from "node:path";
@@ -71,6 +72,22 @@ app.use(
     },
   }),
 );
+
+// ── Serve frontend static files (production) ────────────────────────────────
+// The Vite frontend builds to artifacts/digital-city/dist/public/
+// __dirname is artifacts/api-server/dist/ so we go up two levels
+const frontendDir = path.resolve(__dirname, "../../digital-city/dist/public");
+if (fs.existsSync(frontendDir)) {
+  app.use(express.static(frontendDir));
+  // SPA fallback — serve index.html for any unmatched non-API route
+  // Express 5 requires named wildcards (path-to-regexp v8)
+  app.get("/{*any}", (_req: Request, res: Response) => {
+    res.sendFile(path.join(frontendDir, "index.html"));
+  });
+  logger.info({ frontendDir }, "Serving frontend static files");
+} else {
+  logger.warn({ frontendDir }, "Frontend build not found — static serving disabled");
+}
 
 // ── Global error handler — catches unhandled thrown errors ───────────────────
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
