@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout";
 import { useLang } from "@/lib/language";
-import { useCart } from "@/lib/cart";
+import { useCart, WEIGHTED_STEP } from "@/lib/cart";
 import {
   Plus, Minus, Trash2, ShoppingCart, ArrowLeft, ArrowRight,
   ShoppingBag, PackageOpen,
@@ -152,35 +152,46 @@ export default function CartPage() {
                     </div>
 
                     {/* Qty controls */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {/* Remove entirely if qty = 1 */}
-                      <motion.button
-                        whileTap={{ scale: 0.88 }}
-                        onClick={() => item.qty === 1 ? handleRemove(item.id) : updateQty(item.id, item.qty - 1)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                        style={{
-                          background: item.qty === 1 ? "rgba(239,68,68,0.1)" : "rgba(26,77,31,0.08)",
-                          color: item.qty === 1 ? "#ef4444" : "#1A4D1F",
-                        }}
-                      >
-                        {item.qty === 1
-                          ? <Trash2 size={13} strokeWidth={2.5} />
-                          : <Minus size={13} strokeWidth={2.5} />}
-                      </motion.button>
+                    {(() => {
+                      const step    = item.isWeighted ? WEIGHTED_STEP : 1;
+                      const isMin   = item.qty <= step;
+                      const newMinus = Math.round((item.qty - step) * 1000) / 1000;
+                      const newPlus  = Math.round((item.qty + step) * 1000) / 1000;
+                      const qtyLabel = item.isWeighted
+                        ? `${item.qty.toFixed(2)} kg`
+                        : `${item.qty}`;
+                      return (
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <motion.button
+                            whileTap={{ scale: 0.88 }}
+                            onClick={() => isMin ? handleRemove(item.id) : updateQty(item.id, newMinus)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                            style={{
+                              background: isMin ? "rgba(239,68,68,0.1)" : "rgba(26,77,31,0.08)",
+                              color: isMin ? "#ef4444" : "#1A4D1F",
+                            }}
+                          >
+                            {isMin
+                              ? <Trash2 size={13} strokeWidth={2.5} />
+                              : <Minus size={13} strokeWidth={2.5} />}
+                          </motion.button>
 
-                      <span className="w-6 text-center text-sm font-black text-[#1A4D1F]">
-                        {item.qty}
-                      </span>
+                          <span className="text-center text-xs font-black text-[#1A4D1F]"
+                            style={{ minWidth: item.isWeighted ? 44 : 16 }}>
+                            {qtyLabel}
+                          </span>
 
-                      <motion.button
-                        whileTap={{ scale: 0.88 }}
-                        onClick={() => updateQty(item.id, item.qty + 1)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                        style={{ background: "rgba(26,77,31,0.08)", color: "#1A4D1F" }}
-                      >
-                        <Plus size={13} strokeWidth={2.5} />
-                      </motion.button>
-                    </div>
+                          <motion.button
+                            whileTap={{ scale: 0.88 }}
+                            onClick={() => updateQty(item.id, newPlus)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                            style={{ background: "rgba(26,77,31,0.08)", color: "#1A4D1F" }}
+                          >
+                            <Plus size={13} strokeWidth={2.5} />
+                          </motion.button>
+                        </div>
+                      );
+                    })()}
 
                     {/* Delete button */}
                     <motion.button

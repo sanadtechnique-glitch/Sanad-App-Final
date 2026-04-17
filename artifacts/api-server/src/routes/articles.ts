@@ -130,7 +130,7 @@ router.get("/provider/:providerId/articles", async (req, res) => {
 router.post("/provider/:providerId/articles", async (req, res) => {
   const supplierId = parseInt(req.params.providerId);
   if (isNaN(supplierId)) { res.status(400).json({ message: "Invalid providerId" }); return; }
-  const { nameAr, nameFr, descriptionAr, descriptionFr, price, originalPrice, photoUrl, images, isAvailable } = req.body;
+  const { nameAr, nameFr, descriptionAr, descriptionFr, price, originalPrice, photoUrl, images, isAvailable, isWeighted } = req.body;
   if (!nameAr) { res.status(400).json({ message: "nameAr required" }); return; }
   // Derive photoUrl from first image if not provided
   const imagesJson = Array.isArray(images) ? JSON.stringify(images) : (images || null);
@@ -147,6 +147,7 @@ router.post("/provider/:providerId/articles", async (req, res) => {
       originalPrice: originalPrice != null ? Number(originalPrice) : null,
       photoUrl: firstImage,
       images: imagesJson,
+      isWeighted: isWeighted === true,
       isAvailable: isAvailable !== false,
     }).returning();
     res.status(201).json(article);
@@ -160,7 +161,7 @@ router.patch("/provider/:providerId/articles/:id", async (req, res) => {
   const supplierId = parseInt(req.params.providerId);
   const id = parseInt(req.params.id);
   if (isNaN(supplierId) || isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
-  const { nameAr, nameFr, descriptionAr, descriptionFr, price, originalPrice, photoUrl, images, isAvailable } = req.body;
+  const { nameAr, nameFr, descriptionAr, descriptionFr, price, originalPrice, photoUrl, images, isAvailable, isWeighted } = req.body;
   const updates: Record<string, unknown> = {};
   if (nameAr !== undefined)        updates.nameAr        = nameAr;
   if (nameFr !== undefined)        updates.nameFr        = nameFr;
@@ -177,6 +178,7 @@ router.patch("/provider/:providerId/articles/:id", async (req, res) => {
   } else if (photoUrl !== undefined) {
     updates.photoUrl = photoUrl || null;
   }
+  if (isWeighted !== undefined)    updates.isWeighted    = isWeighted === true;
   if (isAvailable !== undefined)   updates.isAvailable   = isAvailable;
   try {
     const [article] = await db.update(articlesTable).set(updates)
@@ -245,7 +247,7 @@ router.get("/admin/articles", requireAdmin, async (req, res) => {
 router.post("/admin/articles", requireAdmin, async (req, res) => {
   const {
     supplierId, nameAr, nameFr, descriptionAr, descriptionFr,
-    price, originalPrice, discountedPrice, photoUrl, images, isAvailable,
+    price, originalPrice, discountedPrice, photoUrl, images, isAvailable, isWeighted,
   } = req.body;
   const sid = safeParseInt(supplierId);
   if (!sid || !nameAr) {
@@ -266,6 +268,7 @@ router.post("/admin/articles", requireAdmin, async (req, res) => {
       discountedPrice: discountedPrice != null ? (safeParseFloat(discountedPrice) ?? null) : null,
       photoUrl: firstImage,
       images: imagesJson,
+      isWeighted: isWeighted === true,
       isAvailable: isAvailable ?? true,
     }).returning();
     res.status(201).json(article);
@@ -280,7 +283,7 @@ router.patch("/admin/articles/:id", requireAdmin, async (req, res) => {
   if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
   const {
     nameAr, nameFr, descriptionAr, descriptionFr,
-    price, originalPrice, discountedPrice, photoUrl, images, isAvailable, supplierId,
+    price, originalPrice, discountedPrice, photoUrl, images, isAvailable, isWeighted, supplierId,
   } = req.body;
   const sid = supplierId ? safeParseInt(supplierId) : undefined;
   const updates: Record<string, unknown> = {};
@@ -299,6 +302,7 @@ router.patch("/admin/articles/:id", requireAdmin, async (req, res) => {
   } else if (photoUrl !== undefined) {
     updates.photoUrl = photoUrl || null;
   }
+  if (isWeighted !== undefined)       updates.isWeighted       = isWeighted === true;
   if (isAvailable !== undefined)      updates.isAvailable      = isAvailable;
   if (sid)                            updates.supplierId       = sid;
   try {

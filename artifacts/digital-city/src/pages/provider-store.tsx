@@ -27,6 +27,7 @@ interface Article {
   descriptionAr: string; descriptionFr: string; price: number;
   originalPrice?: number; photoUrl?: string; images?: string | null; isAvailable: boolean;
   category?: string;
+  isWeighted?: boolean;
 }
 
 function getImages(a: Article): string[] {
@@ -72,15 +73,21 @@ export default function ProviderStore() {
     }).finally(() => setLoading(false));
   }, [id]);
 
+  const WEIGHTED_STEP = 0.25;
+
   const handleAdd = (article: Article) => {
     if (!supplier) return;
     addItem(
       supplier.id,
       lang === "ar" ? supplier.nameAr : supplier.name,
-      { id: article.id, name: article.nameFr, nameAr: article.nameAr, price: article.price, image: article.photoUrl },
+      { id: article.id, name: article.nameFr, nameAr: article.nameAr, price: article.price, image: article.photoUrl, isWeighted: article.isWeighted ?? false },
       supplier.deliveryFee ?? 0,
     );
   };
+
+  const getStep = (article: Article) => article.isWeighted ? WEIGHTED_STEP : 1;
+  const fmtQty  = (qty: number, article: Article) =>
+    article.isWeighted ? `${qty.toFixed(2)} kg` : `${qty}`;
 
   const getQty = (articleId: number) =>
     cart.items.find(i => i.id === articleId)?.qty ?? 0;
@@ -322,11 +329,12 @@ export default function ProviderStore() {
                         <div style={{
                           position: "absolute", top: 5, insetInlineEnd: 32,
                           background: "#1A4D1F", color: "#fff",
-                          width: 18, height: 18, borderRadius: "50%",
+                          minWidth: 18, height: 18, borderRadius: 9,
+                          padding: "0 4px",
                           display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 9, fontWeight: 700,
+                          fontSize: 8, fontWeight: 700, whiteSpace: "nowrap",
                         }}>
-                          {qty}
+                          {article.isWeighted ? `${qty.toFixed(2)}kg` : qty}
                         </div>
                       )}
 
@@ -357,7 +365,7 @@ export default function ProviderStore() {
                           zIndex: 5,
                         }}>
                           <button
-                            onClick={() => updateQty(article.id, qty - 1)}
+                            onClick={() => updateQty(article.id, Math.round((qty - getStep(article)) * 1000) / 1000)}
                             style={{
                               width: 20, height: 20, borderRadius: "50%",
                               background: "#f0f0f0", border: "none",
@@ -367,9 +375,11 @@ export default function ProviderStore() {
                           >
                             <Minus size={10} />
                           </button>
-                          <span style={{ fontSize: 11, fontWeight: 700, minWidth: 14, textAlign: "center" }}>{qty}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, minWidth: 14, textAlign: "center" }}>
+                            {fmtQty(qty, article)}
+                          </span>
                           <button
-                            onClick={() => updateQty(article.id, qty + 1)}
+                            onClick={() => updateQty(article.id, Math.round((qty + getStep(article)) * 1000) / 1000)}
                             style={{
                               width: 20, height: 20, borderRadius: "50%",
                               background: "#1A4D1F", border: "none", color: "#fff",
@@ -385,18 +395,28 @@ export default function ProviderStore() {
 
                     {/* ── Text area ── */}
                     <div style={{ padding: "6px 6px 10px", textAlign: "center" }}>
-                      <p style={{
-                        fontSize: 11, color: "#222", lineHeight: 1.35, margin: "0 0 4px",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}>
-                        {lang === "ar" ? article.nameAr : article.nameFr}
-                      </p>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 3, marginBottom: 2 }}>
+                        <p style={{
+                          fontSize: 11, color: "#222", lineHeight: 1.35, margin: 0,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}>
+                          {lang === "ar" ? article.nameAr : article.nameFr}
+                        </p>
+                        {article.isWeighted && (
+                          <span style={{ flexShrink: 0, fontSize: 8, fontWeight: 700, color: "#FFA500", background: "rgba(255,165,0,0.12)", borderRadius: 4, padding: "1px 4px" }}>
+                            kg
+                          </span>
+                        )}
+                      </div>
                       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 4, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 12, fontWeight: 800, color: "#000" }}>
                           {formatPrice(article.price)}
+                          {article.isWeighted && (
+                            <span style={{ fontSize: 9, fontWeight: 600, color: "#777" }}>/{lang === "ar" ? "كغ" : "kg"}</span>
+                          )}
                         </span>
                         {hasSale && (
                           <span style={{ fontSize: 9, color: "#aaa", textDecoration: "line-through" }}>

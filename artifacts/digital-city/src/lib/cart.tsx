@@ -7,6 +7,7 @@ export interface CartItem {
   price: number;
   qty: number;
   image?: string;
+  isWeighted?: boolean;
 }
 export interface CartState {
   supplierId: number | null;
@@ -26,6 +27,11 @@ interface CartContextType {
   itemCount: number;
 }
 
+export const WEIGHTED_STEP = 0.25;
+export const UNIT_STEP = 1;
+
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
 const EMPTY: CartState = { supplierId: null, supplierName: "", items: [], deliveryFee: 0 };
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -43,14 +49,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [cart]);
 
   const addItem = (supplierId: number, supplierName: string, item: Omit<CartItem, "qty">, deliveryFee = 0) => {
+    const step = item.isWeighted ? WEIGHTED_STEP : UNIT_STEP;
     setCart(prev => {
       if (prev.supplierId !== null && prev.supplierId !== supplierId) {
-        return { supplierId, supplierName, deliveryFee, items: [{ ...item, qty: 1 }] };
+        return { supplierId, supplierName, deliveryFee, items: [{ ...item, qty: step }] };
       }
       const existing = prev.items.find(i => i.id === item.id);
       const items = existing
-        ? prev.items.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i)
-        : [...prev.items, { ...item, qty: 1 }];
+        ? prev.items.map(i => i.id === item.id ? { ...i, qty: round3(i.qty + step) } : i)
+        : [...prev.items, { ...item, qty: step }];
       return { supplierId, supplierName, deliveryFee, items };
     });
   };
@@ -63,20 +70,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const updateQty = (itemId: number, qty: number) => {
-    if (qty <= 0) { removeItem(itemId); return; }
-    setCart(prev => ({ ...prev, items: prev.items.map(i => i.id === itemId ? { ...i, qty } : i) }));
+    const rounded = round3(qty);
+    if (rounded <= 0) { removeItem(itemId); return; }
+    setCart(prev => ({ ...prev, items: prev.items.map(i => i.id === itemId ? { ...i, qty: rounded } : i) }));
   };
 
   const clearCart = () => setCart(EMPTY);
 
-  // Called from order page after GPS+distance calculation to push the real fee into the cart
   const setDeliveryFee = (fee: number) => {
     setCart(prev => ({ ...prev, deliveryFee: fee }));
   };
 
   const subtotal  = cart.items.reduce((s, i) => s + i.price * i.qty, 0);
   const total     = subtotal + cart.deliveryFee;
-  const itemCount = cart.items.reduce((s, i) => s + i.qty, 0);
+  const itemCount = cart.items.length;
 
   return (
     <CartContext.Provider value={{ cart, addItem, removeItem, updateQty, clearCart, setDeliveryFee, total, itemCount }}>

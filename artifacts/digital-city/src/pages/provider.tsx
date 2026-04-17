@@ -61,8 +61,11 @@ interface Article {
   price: number; originalPrice?: number | null;
   photoUrl?: string | null;
   images?: string | null;
+  isWeighted?: boolean;
   isAvailable: boolean; createdAt: string;
 }
+
+const WEIGHTED_CATEGORIES = ["grocery", "vegetables", "butcher", "bakery"];
 
 // ── Reusable Image Picker Field ───────────────────────────────────────────────
 // aspect: "16:9" | "4:3" | "1:1"
@@ -413,13 +416,14 @@ function SosVehiclePhotoCard({
 }
 
 // ── Products Management Component ─────────────────────────────────────────────
-function ProductsManager({ providerId, t, lang, isService = false, overrideLabel }: { providerId: number; t: (ar: string, fr: string) => string; lang: string; isService?: boolean; overrideLabel?: { titleAr: string; titleFr: string; unitAr: string; unitFr: string } }) {
+function ProductsManager({ providerId, t, lang, category = "", isService = false, overrideLabel }: { providerId: number; t: (ar: string, fr: string) => string; lang: string; category?: string; isService?: boolean; overrideLabel?: { titleAr: string; titleFr: string; unitAr: string; unitFr: string } }) {
+  const defaultWeighted = WEIGHTED_CATEGORIES.includes(category);
   const [products, setProducts]   = useState<Article[]>([]);
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm]   = useState(false);
   const [editing, setEditing]     = useState<Article | null>(null);
   const [saving, setSaving]       = useState(false);
-  const EMPTY = { nameAr: "", nameFr: "", descriptionAr: "", images: [] as string[], price: "", originalPrice: "", isAvailable: true };
+  const EMPTY = { nameAr: "", nameFr: "", descriptionAr: "", images: [] as string[], price: "", originalPrice: "", isWeighted: defaultWeighted, isAvailable: true };
   const [form, setForm]           = useState(EMPTY);
 
   const getArticleImages = (p: Article): string[] => {
@@ -445,6 +449,7 @@ function ProductsManager({ providerId, t, lang, isService = false, overrideLabel
       images: getArticleImages(p),
       price: p.price ? String(p.price) : "",
       originalPrice: p.originalPrice ? String(p.originalPrice) : "",
+      isWeighted: p.isWeighted ?? defaultWeighted,
       isAvailable: p.isAvailable,
     });
     setShowForm(true);
@@ -461,6 +466,7 @@ function ProductsManager({ providerId, t, lang, isService = false, overrideLabel
         images: form.images,
         price: form.price ? Number(form.price) : 0,
         originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
+        isWeighted: form.isWeighted,
         isAvailable: form.isAvailable,
       };
       if (editing) await patch(`/provider/${providerId}/articles/${editing.id}`, payload);
@@ -540,10 +546,18 @@ function ProductsManager({ providerId, t, lang, isService = false, overrideLabel
                 </div>
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-sm text-[#1A4D1F] truncate">{lang === "ar" ? p.nameAr : (p.nameFr || p.nameAr)}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-black text-sm text-[#1A4D1F] truncate">{lang === "ar" ? p.nameAr : (p.nameFr || p.nameAr)}</p>
+                    {p.isWeighted && (
+                      <span className="shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black"
+                        style={{ background: "rgba(255,165,0,0.12)", color: "#FFA500" }}>
+                        <Scale size={8} /> kg
+                      </span>
+                    )}
+                  </div>
                   {/* Prices */}
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-sm font-black text-[#1A4D1F]">{p.price.toFixed(3)} TND</span>
+                    <span className="text-sm font-black text-[#1A4D1F]">{p.price.toFixed(3)} TND/{p.isWeighted ? t("كغ", "kg") : t("قطعة", "pce")}</span>
                     {hasSale(p) && p.originalPrice && (
                       <span className="text-xs font-bold line-through" style={{ color: "#9CA3AF" }}>{p.originalPrice.toFixed(3)}</span>
                     )}
@@ -652,6 +666,27 @@ function ProductsManager({ providerId, t, lang, isService = false, overrideLabel
                     <span className="text-base font-black text-[#1A4D1F]">{parseFloat(form.price).toFixed(3)} TND</span>
                   </div>
                 )}
+                {/* isWeighted toggle */}
+                <div className="flex items-center justify-between px-1 py-1 rounded-xl bg-white border border-[#1A4D1F]/10">
+                  <div className="flex items-center gap-2">
+                    <Scale size={15} className="text-[#1A4D1F]/60" />
+                    <div>
+                      <p className="text-sm font-black text-[#1A4D1F]">{t("مباع بالوزن (كيلو)", "Vendu au poids (kg)")}</p>
+                      <p className="text-[10px] text-[#1A4D1F]/40 font-semibold">
+                        {form.isWeighted
+                          ? t("يُقاس بالكيلو — خطوة 0.25 كغ", "Vendu en kg — pas de 0,25 kg")
+                          : t("عدد صحيح — قطعة / وحدة", "Entier — pièce / unité")}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setForm(f => ({ ...f, isWeighted: !f.isWeighted }))}>
+                    {form.isWeighted
+                      ? <ToggleRight size={26} className="text-[#FFA500]" />
+                      : <ToggleLeft size={26} className="text-[#1A4D1F]/20" />
+                    }
+                  </button>
+                </div>
+                {/* isAvailable toggle */}
                 <div className="flex items-center justify-between px-1">
                   <span className="text-sm font-black text-[#1A4D1F]">{t("متاح للبيع", "Disponible")}</span>
                   <button onClick={() => setForm(f => ({ ...f, isAvailable: !f.isAvailable }))}>
@@ -1797,6 +1832,7 @@ export default function ProviderDashboard() {
             providerId={selected.id}
             t={t}
             lang={lang}
+            category={selected.category}
             isService={!isProductCat(selected.category)}
             overrideLabel={selected.category === "lawyer"
               ? { titleAr: "تخصصاتي", titleFr: "Mes spécialités", unitAr: "تخصص", unitFr: "spécialité(s)" }
