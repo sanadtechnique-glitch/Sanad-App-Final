@@ -43,6 +43,9 @@ router.get("/products/deals", async (req, res) => {
     category:      serviceProvidersTable.category,
     supplierName:  serviceProvidersTable.nameAr,
     delegationAr:  serviceProvidersTable.delegationAr,
+    // Provider coordinates — used by the client for haversine distance sorting
+    providerLat:   serviceProvidersTable.latitude,
+    providerLng:   serviceProvidersTable.longitude,
     isAvailable:   articlesTable.isAvailable,
     createdAt:     articlesTable.createdAt,
   };
