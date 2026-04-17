@@ -7,7 +7,7 @@ import {
   Power, Clock, Truck, Star, RefreshCw, MessageCircle, ChevronRight,
   Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon, History,
   Plus, Trash2, Pencil, ToggleLeft, ToggleRight, AlertTriangle, KeyRound, Calendar, Phone, Scale, FileText, Hotel,
-  Camera,
+  Camera, LocateFixed, Navigation, CheckCircle2, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -15,6 +15,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { get, patch, post, del } from "@/lib/admin-api";
 import { pushNotification, readNotifKey, markNotifKeyRead, providerKey, type Notification } from "@/lib/notifications";
 import { playProviderChime, playTaxiHorn, playTruckAlert, unlockAudio } from "@/lib/notification-sound";
+import { VendorMapPicker, type VendorMapPickerResult } from "@/components/VendorMapPicker";
 
 function playRoleSound(category: string) {
   if (category === "taxi")               { playTaxiHorn();    return; }
@@ -22,7 +23,7 @@ function playRoleSound(category: string) {
   playProviderChime();
 }
 
-interface Supplier { id: number; name: string; nameAr: string; category: string; isAvailable: boolean; shift?: string; rating?: number; phone?: string; photoUrl?: string | null; }
+interface Supplier { id: number; name: string; nameAr: string; category: string; isAvailable: boolean; shift?: string; rating?: number; phone?: string; photoUrl?: string | null; latitude?: number | null; longitude?: number | null; address?: string | null; }
 interface Order { id: number; customerName: string; customerPhone?: string; customerAddress: string; notes?: string; status: string; createdAt: string; deliveryFee?: number; photoUrl?: string; }
 interface OrderItem { id: number; orderId: number; articleId?: number | null; nameAr: string; nameFr: string; price: number; qty: number; subtotal: number; }
 
@@ -1179,7 +1180,11 @@ export default function ProviderDashboard() {
   const [pendingCount, setPendingCount] = useState(0);
   const [hasNewOrder, setHasNewOrder] = useState(false);
   const [photoModal, setPhotoModal] = useState<string | null>(null);
-  const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos" | "lawyer" | "cars" | "chat">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "products" | "bookings" | "sos" | "lawyer" | "cars" | "chat" | "location">("pending");
+  const [showVendorMap, setShowVendorMap] = useState(false);
+  const [locSaving, setLocSaving]         = useState(false);
+  const [locSaved, setLocSaved]           = useState(false);
+  const [locErr, setLocErr]               = useState("");
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [chatInput, setChatInput]       = useState("");
   const [chatSending, setChatSending]   = useState(false);
@@ -1462,6 +1467,29 @@ export default function ProviderDashboard() {
     setProviders(prev => prev.map(p => p.id === selected.id ? res : p));
   };
 
+  const saveLocation = async (result: VendorMapPickerResult) => {
+    if (!selected) return;
+    setLocSaving(true);
+    setLocErr("");
+    try {
+      await patch(`/provider/${selected.id}/location`, {
+        latitude:  result.lat,
+        longitude: result.lng,
+        address:   result.address,
+      });
+      const updated = { ...selected, latitude: result.lat, longitude: result.lng, address: result.address };
+      setSelected(updated);
+      setProviders(prev => prev.map(p => p.id === selected.id ? updated : p));
+      setShowVendorMap(false);
+      setLocSaved(true);
+      setTimeout(() => setLocSaved(false), 4000);
+    } catch {
+      setLocErr(t("فشل الحفظ — حاول مجدداً", "Échec de la sauvegarde — réessayez"));
+    } finally {
+      setLocSaving(false);
+    }
+  };
+
   const logout = () => {
     clearSession();
     setSelected(null); setOrders([]); setPendingCount(0);
@@ -1676,6 +1704,27 @@ export default function ProviderDashboard() {
           )}
         </div>
 
+        {/* ── Missing-location warning banner ───────────────────────── */}
+        {(!selected.latitude || !selected.longitude) && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl border cursor-pointer"
+            style={{ background: "#fff8e1", borderColor: "#FFA500", color: "#92400e" }}
+            onClick={() => setTab("location")}
+          >
+            <AlertTriangle size={16} className="text-[#FFA500] flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black">
+                {t("موقع المحل غير محدد بعد", "Position de la boutique non définie")}
+              </p>
+              <p className="text-[10px] font-bold opacity-60">
+                {t("اضغط هنا لتثبيت موقعك على الخريطة", "Appuyer pour épingler votre boutique")}
+              </p>
+            </div>
+            <MapPin size={14} className="text-[#FFA500] flex-shrink-0" />
+          </motion.div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: "#FFFDE7" }}>
           {(selected.category === "lawyer"
@@ -1683,12 +1732,14 @@ export default function ProviderDashboard() {
                 { id: "lawyer",   label: t("القضايا","Dossiers"),   icon: <Scale size={10} />, badge: lawyerRequests.filter(r=>r.status==="pending").length },
                 { id: "products", label: t("تخصصاتي","Spécialités"), icon: <FileText size={10} /> },
                 { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
+                { id: "location", label: t("موقع","Lieu"),          icon: <MapPin size={10} />, warn: !selected.latitude || !selected.longitude },
               ]
             : selected.category === "car_rental"
             ? [
                 { id: "cars",     label: t("السيارات","Voitures"),  icon: <span className="text-[10px]">🚗</span> },
                 { id: "bookings", label: t("الحجوزات","Réserv."),  icon: <KeyRound size={10} />, badge: carBookings.filter((b:any)=>b.status==="pending").length },
                 { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
+                { id: "location", label: t("موقع","Lieu"),          icon: <MapPin size={10} />, warn: !selected.latitude || !selected.longitude },
               ]
             : [
                 { id: "pending",  label: t("جديد","Nouv."),       badge: pendingOrders.length },
@@ -1707,10 +1758,11 @@ export default function ProviderDashboard() {
                   id: "sos", label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true,
                 }] : []),
                 { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
+                { id: "location", label: t("موقع","Lieu"),          icon: <MapPin size={10} />, warn: !selected.latitude || !selected.longitude },
               ]
           ).map((tb: any) => (
-            <button key={tb.id} onClick={() => setTab(tb.id)}
-              className={cn("flex-shrink-0 flex-1 py-2 rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1",
+            <button key={tb.id} onClick={() => setTab(tb.id as any)}
+              className={cn("flex-shrink-0 flex-1 py-2 rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1 relative",
                 tab === tb.id
                   ? tb.danger ? "bg-red-500 text-white" : "bg-[#1A4D1F] text-white"
                   : tb.danger ? "text-red-400 hover:text-red-500" : "text-[#1A4D1F]/40 hover:text-[#1A4D1F]")}>
@@ -1720,6 +1772,10 @@ export default function ProviderDashboard() {
                   tab === tb.id ? "bg-white/20 text-white" : tb.danger ? "bg-red-400/20 text-red-400" : "bg-amber-400/20 text-amber-400")}>
                   {tb.badge}
                 </span>
+              )}
+              {/* Orange warning dot when location is not set */}
+              {tb.warn && tab !== tb.id && (
+                <span className="absolute top-1 end-1 w-2 h-2 rounded-full bg-[#FFA500]" />
               )}
             </button>
           ))}
@@ -2346,7 +2402,123 @@ export default function ProviderDashboard() {
           </div>
         )}
 
+        {/* ── Location Tab ─────────────────────────────────────────── */}
+        {tab === "location" && selected && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            className="space-y-4"
+            dir="rtl"
+          >
+            {/* Header */}
+            <div className="flex items-center gap-2 pb-2 border-b border-[#1A4D1F]/8">
+              <MapPin size={15} className="text-[#1A4D1F]" />
+              <p className="text-sm font-black text-[#1A4D1F]">
+                {t("موقع المحل على الخريطة", "Emplacement de la boutique")}
+              </p>
+            </div>
+
+            {/* Current status card */}
+            <div
+              className="rounded-2xl p-4 border"
+              style={{
+                background: (selected.latitude && selected.longitude) ? "#f0fdf4" : "#fff8e1",
+                borderColor: (selected.latitude && selected.longitude) ? "rgba(26,77,31,0.15)" : "#FFA500",
+              }}
+            >
+              {selected.latitude && selected.longitude ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0" />
+                    <p className="text-sm font-black text-[#1A4D1F]">
+                      {t("✓ تم تثبيت موقع المحل", "✓ Position enregistrée")}
+                    </p>
+                  </div>
+                  {selected.address && (
+                    <p className="text-xs font-bold text-[#1A4D1F]/60 leading-snug pe-4">
+                      {selected.address}
+                    </p>
+                  )}
+                  <p className="text-[10px] font-mono text-[#1A4D1F]/40">
+                    {Number(selected.latitude).toFixed(6)}, {Number(selected.longitude).toFixed(6)}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={16} className="text-[#FFA500] flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-black" style={{ color: "#92400e" }}>
+                      {t("موقع المحل غير محدد بعد", "Position non définie")}
+                    </p>
+                    <p className="text-[10px] font-bold opacity-60" style={{ color: "#92400e" }}>
+                      {t(
+                        "يجب تحديد الموقع حتى تظهر في نتائج البحث ويستطيع التطبيق حساب مسافة التوصيل",
+                        "Définissez votre position pour apparaître dans les résultats et calculer les frais de livraison",
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Success banner */}
+            <AnimatePresence>
+              {locSaved && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
+                  style={{ background: "#d1fae5", color: "#065f46" }}
+                >
+                  <CheckCircle2 size={14} />
+                  <span className="text-xs font-black">
+                    {t("تم حفظ موقع المحل بنجاح ✓", "Emplacement sauvegardé avec succès ✓")}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Error */}
+            {locErr && (
+              <p className="text-xs font-bold text-red-500 px-1">{locErr}</p>
+            )}
+
+            {/* Open Map button */}
+            <button
+              onClick={() => { setLocErr(""); setShowVendorMap(true); }}
+              disabled={locSaving}
+              className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl font-black text-base text-white active:scale-95 transition-all"
+              style={{ background: "linear-gradient(135deg, #1A4D1F, #2E7D32)" }}
+            >
+              {locSaving
+                ? <><Loader2 size={18} className="animate-spin" />{t("جارٍ الحفظ...","Enregistrement...")}</>
+                : <><LocateFixed size={18} />{selected.latitude
+                    ? t("تعديل موقع المحل على الخريطة", "Modifier l'emplacement sur la carte")
+                    : t("تثبيت موقع المحل على الخريطة", "Épingler la boutique sur la carte")
+                  }</>}
+            </button>
+
+            <p className="text-center text-[10px] font-bold text-[#1A4D1F]/30">
+              {t(
+                "سيتم رصد موقعك بواسطة GPS تلقائياً عند فتح الخريطة، يمكنك تعديله بالسحب",
+                "Votre GPS sera utilisé automatiquement — ajustez en glissant l'épingle",
+              )}
+            </p>
+          </motion.div>
+        )}
+
       </div>
+
+      {/* ── Vendor Map Picker Modal ──────────────────────────────────────── */}
+      <AnimatePresence>
+        {showVendorMap && selected && (
+          <VendorMapPicker
+            initialLat={selected.latitude}
+            initialLng={selected.longitude}
+            onConfirm={saveLocation}
+            onClose={() => setShowVendorMap(false)}
+          />
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

@@ -326,4 +326,48 @@ router.patch("/provider/:id/photo", requireStaff, async (req, res) => {
   } catch (err) { req.log.error({ err }); res.status(500).json({ message: "Server error" }); }
 });
 
+// Provider updates their OWN shop GPS coordinates
+// Body: { latitude: number, longitude: number, address?: string }
+// Validation: both lat and lng are required and must be valid floats
+router.patch("/provider/:id/location", requireStaff, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ message: "Invalid id" }); return; }
+
+  const { latitude, longitude, address } = req.body as {
+    latitude?: unknown; longitude?: unknown; address?: string;
+  };
+
+  const lat = typeof latitude === "number" ? latitude : parseFloat(String(latitude ?? ""));
+  const lng = typeof longitude === "number" ? longitude : parseFloat(String(longitude ?? ""));
+
+  if (isNaN(lat) || isNaN(lng)) {
+    res.status(400).json({
+      message: "latitude and longitude are required · الإحداثيات إجبارية",
+      error: "coords_required",
+    });
+    return;
+  }
+  // Basic sanity range check
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    res.status(400).json({ message: "Invalid coordinates", error: "coords_invalid" });
+    return;
+  }
+
+  try {
+    const updates: Record<string, unknown> = { latitude: lat, longitude: lng };
+    if (address) updates.address = address;
+
+    const [row] = await db.update(serviceProvidersTable)
+      .set(updates)
+      .where(eq(serviceProvidersTable.id, id))
+      .returning();
+
+    if (!row) { res.status(404).json({ message: "Not found" }); return; }
+    cacheDeletePrefix("suppliers:");
+    res.json({ ok: true, latitude: row.latitude, longitude: row.longitude, address: row.address });
+  } catch (err) {
+    req.log.error({ err }); res.status(500).json({ message: "Server error" });
+  }
+});
+
 export default router;
