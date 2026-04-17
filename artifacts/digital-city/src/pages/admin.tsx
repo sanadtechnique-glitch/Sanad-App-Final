@@ -4468,192 +4468,384 @@ const BROADCAST_ROLE_OPTIONS = [
   { value: "admin",    labelAr: "المديرون",      labelFr: "Admins" },
 ];
 
-function BroadcastSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
-  const [message, setMessage] = useState("");
-  const [messageAr, setMessageAr] = useState("");
-  const [targetRole, setTargetRole] = useState("all");
-  const [sending, setSending] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [broadcasts, setBroadcasts] = useState<BroadcastRow[]>([]);
-  const [deleting, setDeleting] = useState<number | null>(null);
+// ── Rich-text parser: **bold**, [label](url) → JSX ────────────────────────────
+function parseRichBody(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  // Regex: links [label](url) and bold **text**
+  const re = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)|\*\*(.+?)\*\*/g;
+  let last = 0, m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m[1] && m[2]) {
+      parts.push(<a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer"
+        className="underline text-blue-600 font-bold">{m[1]}</a>);
+    } else if (m[3]) {
+      parts.push(<strong key={m.index} className="font-black">{m[3]}</strong>);
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
 
-  const load = useCallback(async () => {
+type NotifType = "info" | "warning" | "success";
+const NOTIF_TYPES: { value: NotifType; icon: string; ar: string; fr: string; bg: string; border: string; text: string; dot: string }[] = [
+  { value: "info",    icon: "ℹ️",  ar: "معلومة",  fr: "Info",      bg: "#EFF6FF", border: "#BFDBFE", text: "#1D4ED8", dot: "#3B82F6" },
+  { value: "warning", icon: "⚠️",  ar: "تنبيه",   fr: "Avertissement", bg: "#FFFBEB", border: "#FDE68A", text: "#92400E", dot: "#F59E0B" },
+  { value: "success", icon: "✅",  ar: "إنجاز",   fr: "Succès",    bg: "#F0FDF4", border: "#BBF7D0", text: "#065F46", dot: "#10B981" },
+];
+
+const ALL_VENDOR_CATS = [
+  "restaurant","grocery","vegetables","pharmacy","bakery","butcher","cafe","sweets","clothing","hotel","car_rental","sos","lawyer","taxi"
+] as const;
+
+function timeAgoAdmin(dateStr: string, lang: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+  if (lang === "ar") {
+    if (diff < 1) return "الآن";
+    if (diff < 60) return `منذ ${diff} دقيقة`;
+    if (diff < 1440) return `منذ ${Math.floor(diff / 60)} ساعة`;
+    return `منذ ${Math.floor(diff / 1440)} يوم`;
+  }
+  if (diff < 1) return "Maintenant";
+  if (diff < 60) return `Il y a ${diff}min`;
+  if (diff < 1440) return `Il y a ${Math.floor(diff / 60)}h`;
+  return `Il y a ${Math.floor(diff / 1440)}j`;
+}
+
+function BroadcastSection({ t, lang }: { t: (ar: string, fr: string) => string; lang: string }) {
+  // ── Vendor Notification Composer ──
+  const [notifType, setNotifType]       = useState<NotifType>("info");
+  const [notifTitle, setNotifTitle]     = useState("");
+  const [notifBody, setNotifBody]       = useState("");
+  const [targetMode, setTargetMode]     = useState<"all" | "category" | "delegation">("all");
+  const [targetValue, setTargetValue]   = useState("");
+  const [delegations, setDelegations]   = useState<string[]>([]);
+  const [sending, setSending]           = useState(false);
+  const [sendResult, setSendResult]     = useState<{ ok: boolean; count?: number } | null>(null);
+  const [showPreview, setShowPreview]   = useState(false);
+
+  // ── Legacy push broadcast ──
+  const [pushMsg, setPushMsg]           = useState("");
+  const [pushRole, setPushRole]         = useState("all");
+  const [pushSending, setPushSending]   = useState(false);
+  const [pushSuccess, setPushSuccess]   = useState(false);
+  const [broadcasts, setBroadcasts]     = useState<BroadcastRow[]>([]);
+  const [deleting, setDeleting]         = useState<number | null>(null);
+  const [showLegacy, setShowLegacy]     = useState(false);
+
+  const loadBroadcasts = useCallback(async () => {
     try { setBroadcasts(await get<BroadcastRow[]>("/admin/broadcasts")); } catch {}
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    loadBroadcasts();
+    get<string[]>("/admin/broadcast/delegations").then(setDelegations).catch(() => {});
+  }, [loadBroadcasts]);
 
-  const send = async () => {
-    if (!message.trim()) return;
-    setSending(true);
+  const sendNotification = async () => {
+    if (!notifBody.trim()) return;
+    setSending(true); setSendResult(null);
     try {
-      await post("/admin/broadcast", {
-        message: message.trim(),
-        messageAr: messageAr.trim() || message.trim(),
-        targetRole,
-        createdBy: "admin",
+      const res = await post<{ ok: boolean; sent: number }>("/admin/broadcast/notification", {
+        type: notifType,
+        title: notifTitle.trim() || null,
+        body: notifBody.trim(),
+        targetMode,
+        targetValue: targetMode !== "all" ? targetValue : undefined,
       });
-      setMessage("");
-      setMessageAr("");
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-      await load();
-    } catch {}
+      setSendResult({ ok: true, count: res.sent });
+      setNotifTitle(""); setNotifBody(""); setShowPreview(false);
+      setTimeout(() => setSendResult(null), 5000);
+    } catch { setSendResult({ ok: false }); }
     setSending(false);
   };
 
-  const remove = async (id: number) => {
+  const sendPush = async () => {
+    if (!pushMsg.trim()) return;
+    setPushSending(true);
+    try {
+      await post("/admin/broadcast", { message: pushMsg.trim(), messageAr: pushMsg.trim(), targetRole: pushRole, createdBy: "admin" });
+      setPushMsg(""); setPushSuccess(true); setTimeout(() => setPushSuccess(false), 3000);
+      await loadBroadcasts();
+    } catch {}
+    setPushSending(false);
+  };
+
+  const removePush = async (id: number) => {
     setDeleting(id);
-    try { await del(`/admin/broadcast/${id}`); await load(); } catch {}
+    try { await del(`/admin/broadcast/${id}`); await loadBroadcasts(); } catch {}
     setDeleting(null);
   };
 
-  const roleLabel = (role: string) => {
-    const opt = BROADCAST_ROLE_OPTIONS.find(r => r.value === role);
-    return lang === "ar" ? (opt?.labelAr || role) : (opt?.labelFr || role);
-  };
+  const selectedNotifStyle = NOTIF_TYPES.find(n => n.value === notifType)!;
 
   return (
-    <div className="space-y-6" dir={lang === "ar" ? "rtl" : "ltr"}>
-      <div>
-        <h2 className="text-2xl font-black text-[#1A4D1F] mb-1">{t("بث إشعار", "Diffuser une notification")}</h2>
-        <p className="text-[#1A4D1F]/40 text-sm">{t("أرسل إشعاراً فورياً لجميع المستخدمين أو لفئة محددة", "Envoyez une notification instantanée à tous les utilisateurs ou à un rôle ciblé")}</p>
+    <div className="space-y-6" dir="rtl">
+      {/* ── Header ── */}
+      <div className="flex items-center gap-3">
+        <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "#1A4D1F" }}>
+          <Bell size={20} className="text-white" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-[#1A4D1F]">{t("مركز الإشعارات — إرسال للموردين", "Centre de notifications — Diffusion vendeurs")}</h2>
+          <p className="text-xs text-[#1A4D1F]/40">{t("ترسل الإشعارات مباشرة إلى لوحة تحكم المورد وكإشعار فوري", "Les notifications apparaissent dans le tableau de bord du vendeur et en push")}</p>
+        </div>
       </div>
 
-      {/* Compose */}
-      <div className="glass-panel rounded-2xl p-6 border border-[#1A4D1F]/10 space-y-4" style={{ background: "#FFFDE7" }}>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-9 h-9 rounded-xl bg-[#FFA500]/20 border border-[#FFA500]/30 flex items-center justify-center">
-            <Radio size={17} className="text-[#FFA500]" />
-          </div>
-          <h3 className="font-black text-[#1A4D1F]">{t("رسالة جديدة", "Nouveau message")}</h3>
+      {/* ── Composer Card ── */}
+      <div className="rounded-2xl border border-[#1A4D1F]/10 overflow-hidden shadow-sm">
+        {/* Card header */}
+        <div className="px-5 py-4 border-b border-[#1A4D1F]/8" style={{ background: "#F8FFF8" }}>
+          <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest">{t("إنشاء إشعار جديد", "Composer une nouvelle notification")}</p>
         </div>
 
-        <div>
-          <label className="block text-xs font-bold text-[#1A4D1F]/50 mb-1 uppercase tracking-wide">
-            {t("الرسالة (عربي)", "Message (Arabe)")}
-          </label>
-          <textarea
-            value={messageAr}
-            onChange={e => setMessageAr(e.target.value)}
-            placeholder={t("أدخل الرسالة بالعربية...", "Entrez le message en arabe...")}
-            rows={3}
-            dir="rtl"
-            className="w-full bg-[#FFA500]/30 border border-[#1A4D1F]/10 rounded-xl px-3 py-2.5 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/20 focus:outline-none focus:border-[#1A4D1F]/50 transition-colors resize-none"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-[#1A4D1F]/50 mb-1 uppercase tracking-wide">
-            {t("الرسالة (فرنسي)", "Message (Français)")} <span className="text-red-400">*</span>
-          </label>
-          <textarea
-            value={message}
-            onChange={e => setMessage(e.target.value)}
-            placeholder={t("أدخل الرسالة بالفرنسية...", "Entrez le message en français...")}
-            rows={3}
-            dir="ltr"
-            className="w-full bg-[#FFA500]/30 border border-[#1A4D1F]/10 rounded-xl px-3 py-2.5 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/20 focus:outline-none focus:border-[#1A4D1F]/50 transition-colors resize-none"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-[#1A4D1F]/50 mb-1 uppercase tracking-wide">
-            {t("المستهدفون", "Destinataires")}
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {BROADCAST_ROLE_OPTIONS.map(r => (
-              <button
-                key={r.value}
-                onClick={() => setTargetRole(r.value)}
-                className={cn(
-                  "px-3 py-1.5 rounded-xl text-xs font-black border transition-all",
-                  targetRole === r.value
-                    ? "bg-[#1A4D1F] text-white border-[#1A4D1F]"
-                    : "bg-transparent text-[#1A4D1F] border-[#1A4D1F]/20 hover:border-[#1A4D1F]/50"
-                )}
-              >
-                {lang === "ar" ? r.labelAr : r.labelFr}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <button
-          onClick={send}
-          disabled={!message.trim() || sending}
-          className={cn(
-            "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm transition-all w-full justify-center",
-            !message.trim() || sending
-              ? "bg-[#1A4D1F]/20 text-[#1A4D1F]/30 cursor-not-allowed"
-              : "bg-[#1A4D1F] text-white hover:bg-[#0D3311] shadow-[0_4px_12px_-2px_rgba(46,125,50,0.3)]"
-          )}
-        >
-          {sending ? (
-            <RefreshCw size={14} className="animate-spin" />
-          ) : (
-            <Send size={14} />
-          )}
-          {t("إرسال الإشعار", "Envoyer la notification")}
-        </button>
-
-        {success && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-400/10 border border-emerald-400/30"
-          >
-            <CheckCircle size={14} className="text-emerald-400" />
-            <span className="text-sm font-bold text-emerald-400">
-              {t("تم إرسال الإشعار بنجاح!", "Notification envoyée avec succès!")}
-            </span>
-          </motion.div>
-        )}
-      </div>
-
-      {/* History */}
-      {broadcasts.length > 0 && (
-        <div>
-          <h3 className="font-black text-[#1A4D1F] mb-3 flex items-center gap-2">
-            <Bell size={16} className="text-[#1A4D1F]/40" />
-            {t("الإشعارات المرسلة", "Historique des notifications")}
-          </h3>
-          <div className="space-y-2">
-            {broadcasts.map(b => (
-              <motion.div
-                key={b.id}
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="glass-panel rounded-xl p-4 border border-[#1A4D1F]/10 flex items-start gap-3"
-                style={{ background: "#FFFDE7" }}
-              >
-                <div className="w-8 h-8 rounded-xl bg-[#FFA500]/20 border border-[#FFA500]/30 flex items-center justify-center flex-shrink-0">
-                  <Radio size={13} className="text-[#FFA500]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-[#FFA500] bg-[#FFA500]/10 border border-[#FFA500]/20 px-2 py-0.5 rounded-full">
-                      {roleLabel(b.targetRole)}
-                    </span>
-                    <span className="text-[10px] text-[#1A4D1F]/30">
-                      {new Date(b.createdAt).toLocaleString(lang === "ar" ? "ar-TN" : "fr-TN")}
-                    </span>
+        <div className="p-5 space-y-5" style={{ background: "#fff" }}>
+          {/* ① Type selector */}
+          <div>
+            <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-3">① {t("نوع الإشعار", "Type de notification")}</p>
+            <div className="grid grid-cols-3 gap-3">
+              {NOTIF_TYPES.map(n => (
+                <button key={n.value} onClick={() => setNotifType(n.value)}
+                  className="relative rounded-2xl p-4 border-2 transition-all flex flex-col items-center gap-2 text-center"
+                  style={{
+                    background: notifType === n.value ? n.bg : "#fff",
+                    borderColor: notifType === n.value ? n.dot : "#E5E7EB",
+                    boxShadow: notifType === n.value ? `0 0 0 3px ${n.dot}22` : "none",
+                  }}>
+                  <span className="text-2xl">{n.icon}</span>
+                  <div>
+                    <p className="text-xs font-black" style={{ color: notifType === n.value ? n.text : "#6B7280" }}>{n.ar}</p>
+                    <p className="text-[10px] font-bold opacity-60" style={{ color: notifType === n.value ? n.text : "#9CA3AF" }}>{n.fr}</p>
                   </div>
-                  {b.messageAr && <p className="text-sm font-bold text-[#1A4D1F] leading-snug" dir="rtl">{b.messageAr}</p>}
-                  <p className="text-xs text-[#1A4D1F]/50 leading-snug mt-0.5" dir="ltr">{b.message}</p>
-                </div>
-                <button
-                  onClick={() => remove(b.id)}
-                  disabled={deleting === b.id}
-                  className="p-1.5 rounded-lg text-red-400/40 hover:text-red-400 hover:bg-red-400/5 transition-all flex-shrink-0"
-                >
-                  {deleting === b.id ? <RefreshCw size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                  {notifType === n.value && (
+                    <div className="absolute top-2 end-2 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: n.dot }}>
+                      <Check size={11} color="#fff" />
+                    </div>
+                  )}
                 </button>
-              </motion.div>
-            ))}
+              ))}
+            </div>
           </div>
+
+          {/* ② Title */}
+          <div>
+            <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-2">② {t("عنوان الإشعار (بارز)", "Titre de la notification (affiché en gras)")}</p>
+            <input
+              value={notifTitle}
+              onChange={e => setNotifTitle(e.target.value)}
+              placeholder={t("مثال: تحديث مهم على ساعات العمل", "Ex: Mise à jour importante des horaires")}
+              className="w-full rounded-xl border border-[#1A4D1F]/15 px-4 py-3 text-sm font-bold text-[#1A4D1F] placeholder:text-[#1A4D1F]/25 focus:outline-none focus:border-[#1A4D1F]/40 transition-all"
+              dir="rtl"
+            />
+          </div>
+
+          {/* ③ Body with rich text */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest">③ {t("نص الإشعار", "Corps du message")}</p>
+              <div className="flex gap-2 text-[10px] font-black text-[#1A4D1F]/30">
+                <span className="bg-[#1A4D1F]/5 px-2 py-0.5 rounded-md">**{t("غامق","gras")}**</span>
+                <span className="bg-[#1A4D1F]/5 px-2 py-0.5 rounded-md">[{t("رابط","lien")}](url)</span>
+              </div>
+            </div>
+            <textarea
+              value={notifBody}
+              onChange={e => { setNotifBody(e.target.value); setShowPreview(false); }}
+              placeholder={t(
+                "اكتب رسالتك هنا... يمكنك استخدام **نص غامق** و [اضغط هنا](https://example.com)",
+                "Écrivez votre message... **texte en gras** et [cliquez ici](https://example.com)"
+              )}
+              rows={4}
+              dir="rtl"
+              className="w-full rounded-xl border border-[#1A4D1F]/15 px-4 py-3 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/25 focus:outline-none focus:border-[#1A4D1F]/40 transition-all resize-none"
+            />
+
+            {/* Live preview */}
+            {notifBody.trim() && (
+              <button onClick={() => setShowPreview(v => !v)}
+                className="mt-2 text-[11px] font-black text-[#1A4D1F]/40 hover:text-[#1A4D1F]/70 flex items-center gap-1 transition-all">
+                <Eye size={12} /> {t("معاينة","Prévisualiser")}
+              </button>
+            )}
+            <AnimatePresence>
+              {showPreview && notifBody.trim() && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                  className="mt-3 rounded-xl border-2 p-4 overflow-hidden"
+                  style={{ background: selectedNotifStyle.bg, borderColor: selectedNotifStyle.border }}>
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl flex-shrink-0">{selectedNotifStyle.icon}</span>
+                    <div>
+                      {notifTitle && <p className="text-sm font-black mb-1" style={{ color: selectedNotifStyle.text }}>{notifTitle}</p>}
+                      <p className="text-sm leading-relaxed" style={{ color: selectedNotifStyle.text }}>
+                        {parseRichBody(notifBody)}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* ④ Target */}
+          <div>
+            <p className="text-xs font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-3">④ {t("المستهدفون", "Destinataires")}</p>
+            <div className="flex gap-2 mb-3">
+              {([
+                { value: "all",         ar: "🌐 جميع الموردين",  fr: "🌐 Tous les vendeurs" },
+                { value: "category",    ar: "🏪 حسب الفئة",       fr: "🏪 Par catégorie" },
+                { value: "delegation",  ar: "📍 حسب المعتمدية",  fr: "📍 Par délégation" },
+              ] as const).map(m => (
+                <button key={m.value} onClick={() => { setTargetMode(m.value); setTargetValue(""); }}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-black border-2 transition-all"
+                  style={{
+                    background: targetMode === m.value ? "#1A4D1F" : "#fff",
+                    borderColor: targetMode === m.value ? "#1A4D1F" : "#E5E7EB",
+                    color: targetMode === m.value ? "#fff" : "#1A4D1F",
+                  }}>
+                  {lang === "ar" ? m.ar : m.fr}
+                </button>
+              ))}
+            </div>
+
+            {/* Category grid */}
+            {targetMode === "category" && (
+              <div className="flex flex-wrap gap-2">
+                {ALL_VENDOR_CATS.map(cat => {
+                  const lbl = CATEGORY_LABELS[cat];
+                  const isSelected = targetValue === cat;
+                  return (
+                    <button key={cat} onClick={() => setTargetValue(isSelected ? "" : cat)}
+                      className="px-3 py-2 rounded-xl text-xs font-black border-2 transition-all"
+                      style={{
+                        background: isSelected ? "#1A4D1F" : "#F9FAF9",
+                        borderColor: isSelected ? "#1A4D1F" : "#E5E7EB",
+                        color: isSelected ? "#fff" : "#1A4D1F",
+                      }}>
+                      {lang === "ar" ? lbl.ar : lbl.fr}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Delegation chips */}
+            {targetMode === "delegation" && (
+              <div className="flex flex-wrap gap-2">
+                {delegations.length === 0 ? (
+                  <p className="text-xs text-[#1A4D1F]/30">{t("لا توجد معتمديات مسجلة", "Aucune délégation enregistrée")}</p>
+                ) : delegations.map(d => (
+                  <button key={d} onClick={() => setTargetValue(d === targetValue ? "" : d)}
+                    className="px-3 py-2 rounded-xl text-xs font-black border-2 transition-all"
+                    style={{
+                      background: targetValue === d ? "#1A4D1F" : "#F9FAF9",
+                      borderColor: targetValue === d ? "#1A4D1F" : "#E5E7EB",
+                      color: targetValue === d ? "#fff" : "#1A4D1F",
+                    }}>
+                    📍 {d}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ⑤ Send */}
+          <button
+            onClick={sendNotification}
+            disabled={!notifBody.trim() || sending || (targetMode !== "all" && !targetValue)}
+            className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-sm font-black transition-all active:scale-[0.98]"
+            style={{
+              background: (!notifBody.trim() || sending || (targetMode !== "all" && !targetValue))
+                ? "#1A4D1F22" : "linear-gradient(135deg, #1A4D1F 0%, #2E7D32 100%)",
+              color: (!notifBody.trim() || sending || (targetMode !== "all" && !targetValue)) ? "#1A4D1F44" : "#fff",
+              boxShadow: (!notifBody.trim() || sending || (targetMode !== "all" && !targetValue)) ? "none" : "0 4px 14px rgba(26,77,31,0.3)",
+            }}>
+            {sending
+              ? <><RefreshCw size={16} className="animate-spin" />{t("جارٍ الإرسال...","Envoi en cours...")}</>
+              : <><Send size={16} />{t("إرسال الإشعار للموردين","Envoyer aux vendeurs")}</>}
+          </button>
+
+          <AnimatePresence>
+            {sendResult && (
+              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl border"
+                style={sendResult.ok
+                  ? { background: "#F0FDF4", borderColor: "#BBF7D0", color: "#065F46" }
+                  : { background: "#FEF2F2", borderColor: "#FECACA", color: "#991B1B" }}>
+                <span className="text-lg">{sendResult.ok ? "✅" : "❌"}</span>
+                <p className="text-sm font-black">
+                  {sendResult.ok
+                    ? t(`تم الإرسال بنجاح لـ ${sendResult.count} مورد ✓`, `Envoyé avec succès à ${sendResult.count} vendeur(s) ✓`)
+                    : t("حدث خطأ، حاول مجدداً", "Une erreur s'est produite, réessayez")}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      )}
+      </div>
+
+      {/* ── Legacy Push Notification (collapsed) ── */}
+      <div className="rounded-2xl border border-[#1A4D1F]/10 overflow-hidden">
+        <button onClick={() => setShowLegacy(v => !v)}
+          className="w-full flex items-center gap-3 px-5 py-4 text-start transition-all hover:bg-[#1A4D1F]/3"
+          style={{ background: "#F8FFF8" }}>
+          <Radio size={15} className="text-[#1A4D1F]/40 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-black text-[#1A4D1F]/70">{t("إشعار فوري للتطبيق (Push)", "Notification push instantanée (app)")}</p>
+            <p className="text-[11px] text-[#1A4D1F]/30">{t("يصل لكل المستخدمين حسب الدور، لا يُحفظ في لوحة المورد", "Atteint tous les utilisateurs par rôle, non sauvegardé dans le tableau vendeur")}</p>
+          </div>
+          <ChevronDown size={14} className={cn("text-[#1A4D1F]/30 transition-transform", showLegacy && "rotate-180")} />
+        </button>
+        <AnimatePresence>
+          {showLegacy && (
+            <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }}
+              className="overflow-hidden">
+              <div className="p-5 space-y-4 border-t border-[#1A4D1F]/8">
+                <textarea value={pushMsg} onChange={e => setPushMsg(e.target.value)}
+                  placeholder={t("نص الإشعار الفوري...", "Texte de la notification push...")}
+                  rows={2} dir="rtl"
+                  className="w-full rounded-xl border border-[#1A4D1F]/15 px-4 py-3 text-sm text-[#1A4D1F] placeholder:text-[#1A4D1F]/25 focus:outline-none focus:border-[#1A4D1F]/40 resize-none" />
+                <div className="flex flex-wrap gap-2">
+                  {BROADCAST_ROLE_OPTIONS.map(r => (
+                    <button key={r.value} onClick={() => setPushRole(r.value)}
+                      className="px-3 py-1.5 rounded-xl text-xs font-black border-2 transition-all"
+                      style={{
+                        background: pushRole === r.value ? "#1A4D1F" : "#fff",
+                        borderColor: pushRole === r.value ? "#1A4D1F" : "#E5E7EB",
+                        color: pushRole === r.value ? "#fff" : "#1A4D1F",
+                      }}>
+                      {lang === "ar" ? r.labelAr : r.labelFr}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={sendPush} disabled={!pushMsg.trim() || pushSending}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all"
+                  style={{ background: pushMsg.trim() && !pushSending ? "#FFA500" : "#FFA50033", color: pushMsg.trim() && !pushSending ? "#1A4D1F" : "#1A4D1F44" }}>
+                  {pushSending ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+                  {t("إرسال إشعار فوري", "Envoyer en push")}
+                </button>
+                {pushSuccess && (
+                  <p className="text-xs font-black text-center text-emerald-600">✓ {t("تم الإرسال", "Envoyé avec succès")}</p>
+                )}
+                {broadcasts.length > 0 && (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {broadcasts.slice(0, 5).map(b => (
+                      <div key={b.id} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#1A4D1F]/8 bg-[#F8FFF8]">
+                        <p className="flex-1 text-xs font-bold text-[#1A4D1F]/70 truncate">{b.message}</p>
+                        <p className="text-[10px] text-[#1A4D1F]/30 flex-shrink-0">{new Date(b.createdAt).toLocaleDateString("fr-TN")}</p>
+                        <button onClick={() => removePush(b.id)} disabled={deleting === b.id}
+                          className="p-1 rounded-lg text-red-400/40 hover:text-red-400 transition-all">
+                          {deleting === b.id ? <RefreshCw size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   Bell, LogOut, Package, Check, X, MapPin, Image as ImageIcon, History,
   Plus, Trash2, Pencil, ToggleLeft, ToggleRight, AlertTriangle, KeyRound, Calendar, Phone, Scale, FileText, Hotel,
   Camera, LocateFixed, Navigation, CheckCircle2, Loader2, CreditCard, Upload,
+  Send, Eye, Info, ChevronDown, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/language";
@@ -42,8 +43,32 @@ function timeAgo(dateStr: string, lang: string) {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
   if (diff < 1) return lang === "ar" ? "الآن" : "Maintenant";
   if (diff < 60) return lang === "ar" ? `${diff} د` : `${diff}min`;
-  return lang === "ar" ? `${Math.floor(diff / 60)} س` : `${Math.floor(diff / 60)}h`;
+  if (diff < 1440) return lang === "ar" ? `${Math.floor(diff / 60)} س` : `${Math.floor(diff / 60)}h`;
+  return lang === "ar" ? `${Math.floor(diff / 1440)} ي` : `${Math.floor(diff / 1440)}j`;
 }
+
+// ── Rich-text parser: **bold**, [label](url) ───────────────────────────────
+function parseRichBody(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const re = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)|\*\*(.+?)\*\*/g;
+  let last = 0; let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m[1] && m[2]) parts.push(<a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer" className="underline font-black" style={{ color: "inherit" }}>{m[1]}<ExternalLink size={11} style={{ display: "inline", marginInlineStart: 2, verticalAlign: "middle" }} /></a>);
+    else if (m[3]) parts.push(<strong key={m.index} className="font-black">{m[3]}</strong>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
+// ── Notification type styles ───────────────────────────────────────────────
+const NOTIF_STYLES: Record<string, { icon: string; bg: string; border: string; text: string; dot: string }> = {
+  info:    { icon: "ℹ️",  bg: "#EFF6FF", border: "#BFDBFE", text: "#1D4ED8", dot: "#3B82F6" },
+  warning: { icon: "⚠️",  bg: "#FFFBEB", border: "#FDE68A", text: "#92400E", dot: "#F59E0B" },
+  success: { icon: "✅",  bg: "#F0FDF4", border: "#BBF7D0", text: "#065F46", dot: "#10B981" },
+  chat:    { icon: "💬",  bg: "#F3F4F6", border: "#E5E7EB", text: "#111827", dot: "#6B7280" },
+};
 
 // ── فئات مزودي المنتجات (يبيعون أصنافاً من كتالوج)
 const PRODUCT_CATS = ["restaurant", "grocery", "pharmacy", "bakery", "butcher", "cafe", "sweets", "clothing"];
@@ -1533,6 +1558,14 @@ export default function ProviderDashboard() {
     if (providerNotifPollRef.current) clearInterval(providerNotifPollRef.current);
   }, []);
 
+  // Auto-mark admin messages as read when vendor opens the notification tab
+  useEffect(() => {
+    if (tab === "chat" && selected) {
+      loadChatMessages(selected.id, true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, selected?.id]);
+
   const startProviderNotifPolling = useCallback((provider: Supplier) => {
     if (providerNotifPollRef.current) clearInterval(providerNotifPollRef.current);
     providerNotifPollRef.current = setInterval(() => {
@@ -1666,11 +1699,16 @@ export default function ProviderDashboard() {
     setCarBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b));
   };
 
-  const loadChatMessages = useCallback(async (supplierId: number) => {
+  const loadChatMessages = useCallback(async (supplierId: number, markRead = false) => {
     try {
       const msgs = await get<any[]>(`/vendor-messages/${supplierId}`);
       setChatMessages(msgs);
       setTimeout(() => { chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, 80);
+      if (markRead) {
+        // Mark all admin messages as read (vendor has seen them)
+        await post(`/vendor-messages/mark-read/${supplierId}`, {}).catch(() => {});
+        setChatMessages(prev => prev.map(m => m.senderRole === "admin" ? { ...m, isRead: true } : m));
+      }
     } catch {}
   }, []);
 
@@ -1987,7 +2025,7 @@ export default function ProviderDashboard() {
             ? [
                 { id: "lawyer",   label: t("القضايا","Dossiers"),   icon: <Scale size={10} />, badge: lawyerRequests.filter(r=>r.status==="pending").length },
                 { id: "products", label: t("تخصصاتي","Spécialités"), icon: <FileText size={10} /> },
-                { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
+                { id: "chat",     label: t("إشعارات","Notifs"),      icon: <Bell size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
                 { id: "location", label: t("موقع","Lieu"),          icon: <MapPin size={10} />, warn: !selected.latitude || !selected.longitude },
                 { id: "subscription", label: t("اشتراك","Abonn."), icon: <CreditCard size={10} />, warn: !selected.subscriptionActive || (selected.subscriptionRenewalDate != null && new Date(selected.subscriptionRenewalDate) < new Date()) },
               ]
@@ -1995,7 +2033,7 @@ export default function ProviderDashboard() {
             ? [
                 { id: "cars",     label: t("السيارات","Voitures"),  icon: <span className="text-[10px]">🚗</span> },
                 { id: "bookings", label: t("الحجوزات","Réserv."),  icon: <KeyRound size={10} />, badge: carBookings.filter((b:any)=>b.status==="pending").length },
-                { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
+                { id: "chat",     label: t("إشعارات","Notifs"),      icon: <Bell size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
                 { id: "location", label: t("موقع","Lieu"),          icon: <MapPin size={10} />, warn: !selected.latitude || !selected.longitude },
                 { id: "subscription", label: t("اشتراك","Abonn."), icon: <CreditCard size={10} />, warn: !selected.subscriptionActive || (selected.subscriptionRenewalDate != null && new Date(selected.subscriptionRenewalDate) < new Date()) },
               ]
@@ -2015,7 +2053,7 @@ export default function ProviderDashboard() {
                 ...(isSosCat(selected.category) ? [{
                   id: "sos", label: "SOS", icon: <AlertTriangle size={10} />, badge: sosRequests.filter(s=>s.status==="pending").length, danger: true,
                 }] : []),
-                { id: "chat",     label: t("مراسلة","Messages"),    icon: <MessageCircle size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
+                { id: "chat",     label: t("إشعارات","Notifs"),      icon: <Bell size={10} />, badge: chatMessages.filter(m=>m.senderRole==="admin"&&!m.isRead).length },
                 { id: "location", label: t("موقع","Lieu"),          icon: <MapPin size={10} />, warn: !selected.latitude || !selected.longitude },
                 { id: "subscription", label: t("اشتراك","Abonn."), icon: <CreditCard size={10} />, warn: !selected.subscriptionActive || (selected.subscriptionRenewalDate != null && new Date(selected.subscriptionRenewalDate) < new Date()) },
               ]
@@ -2583,84 +2621,157 @@ export default function ProviderDashboard() {
           </AnimatePresence>
         ))}
 
-        {/* ── Chat Panel (مراسلة الإدارة) ─────────────────────────── */}
-        {tab === "chat" && selected && (
-          <div style={{ display: "flex", flexDirection: "column", height: 460, background: "#fff", borderRadius: 16, border: "1px solid #1A4D1F12", overflow: "hidden" }}>
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#1A4D1F", flexShrink: 0 }}>
-              <MessageCircle size={15} color="#FFA500" />
-              <div>
-                <p style={{ color: "#fff", fontWeight: 800, fontSize: 12, margin: 0 }}>{t("مراسلة الإدارة", "Contacter l'admin")}</p>
-                <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, margin: 0 }}>{t("يُحدَّث كل ٢٠ ث", "Actualisation auto. 20s")}</p>
-              </div>
-              <button
-                onClick={() => loadChatMessages(selected.id)}
-                style={{ marginInlineStart: "auto", background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: 6, cursor: "pointer" }}
-              >
-                <RefreshCw size={12} color="rgba(255,255,255,0.7)" />
-              </button>
-            </div>
+        {/* ── Notification Center (مركز الإشعارات + المحادثة) ───── */}
+        {tab === "chat" && selected && (() => {
+          const adminNotifs   = chatMessages.filter((m: any) => m.senderRole === "admin" && m.type !== "chat");
+          const chatThread    = chatMessages.filter((m: any) => m.type === "chat" || m.senderRole === "vendor");
+          const unreadNotifs  = adminNotifs.filter((m: any) => !m.isRead).length;
 
-            {/* Messages area */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-              {chatMessages.length === 0 ? (
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: 0.3, gap: 8, minHeight: 200 }}>
-                  <MessageCircle size={36} color="#1A4D1F" />
-                  <p style={{ fontSize: 12, color: "#1A4D1F", fontWeight: 700 }}>{t("لا توجد رسائل بعد", "Aucun message pour l'instant")}</p>
+          return (
+            <div style={{ display: "flex", flexDirection: "column", background: "#fff", borderRadius: 20, border: "1px solid rgba(26,77,31,0.1)", overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+
+              {/* ── Top bar ── */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#1A4D1F", flexShrink: 0 }}>
+                <Bell size={16} color="#FFA500" />
+                <div style={{ flex: 1 }}>
+                  <p style={{ color: "#fff", fontWeight: 900, fontSize: 13, margin: 0, fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                    {t("مركز الإشعارات", "Centre de notifications")}
+                  </p>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, margin: 0 }}>
+                    {unreadNotifs > 0 ? t(`${unreadNotifs} إشعار غير مقروء`, `${unreadNotifs} notification(s) non lue(s)`) : t("كل شيء بخير ✓", "Tout est à jour ✓")}
+                  </p>
                 </div>
-              ) : chatMessages.map((msg: any) => {
-                const isVendor = msg.senderRole === "vendor";
-                return (
-                  <div key={msg.id} style={{ display: "flex", justifyContent: isVendor ? "flex-end" : "flex-start" }}>
-                    <div style={{
-                      maxWidth: "78%", padding: "8px 12px",
-                      borderRadius: isVendor ? "14px 14px 2px 14px" : "14px 14px 14px 2px",
-                      background: isVendor ? "#1A4D1F" : "#f3f4f6",
-                      color: isVendor ? "#fff" : "#111",
-                    }}>
-                      {!isVendor && (
-                        <p style={{ fontSize: 9, fontWeight: 800, color: "#FFA500", marginBottom: 3 }}>{t("الإدارة", "Admin")}</p>
-                      )}
-                      <p style={{ fontSize: 13, margin: 0, lineHeight: 1.4, fontFamily: "'Cairo','Tajawal',sans-serif", wordBreak: "break-word" }}>{msg.body}</p>
-                      <p style={{ fontSize: 9, opacity: 0.55, marginTop: 3, textAlign: isVendor ? "right" : "left" }}>
-                        {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString("fr-TN", { hour: "2-digit", minute: "2-digit" }) : ""}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={chatBottomRef} />
-            </div>
+                <button onClick={() => loadChatMessages(selected.id, true)}
+                  style={{ background: "rgba(255,255,255,0.12)", border: "none", borderRadius: 8, padding: 7, cursor: "pointer", display: "flex" }}>
+                  <RefreshCw size={13} color="rgba(255,255,255,0.7)" />
+                </button>
+              </div>
 
-            {/* Input */}
-            <div style={{ display: "flex", gap: 8, padding: "10px 12px", borderTop: "1px solid #f3f4f6", background: "#fff", flexShrink: 0 }}>
-              <input
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(selected.id); } }}
-                placeholder={t("اكتب رسالة...", "Écrire un message...")}
-                style={{
-                  flex: 1, border: "1.5px solid #e5e7eb", borderRadius: 10, padding: "8px 12px",
-                  fontSize: 13, fontFamily: "'Cairo','Tajawal',sans-serif", outline: "none",
-                  background: "#fafafa",
-                }}
-                dir={lang === "ar" ? "rtl" : "ltr"}
-              />
-              <button
-                onClick={() => sendChatMessage(selected.id)}
-                disabled={!chatInput.trim() || chatSending}
-                style={{
-                  background: "#FFA500", border: "none", borderRadius: 10,
-                  padding: "8px 14px", cursor: "pointer", fontWeight: 800, fontSize: 12,
-                  color: "#fff", opacity: (!chatInput.trim() || chatSending) ? 0.4 : 1, flexShrink: 0,
-                  fontFamily: "'Cairo','Tajawal',sans-serif",
-                }}
-              >
-                {chatSending ? "..." : t("إرسال", "Envoyer")}
-              </button>
+              {/* ── Admin Notifications ── */}
+              {adminNotifs.length > 0 && (
+                <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(26,77,31,0.07)", display: "flex", flexDirection: "column", gap: 10 }}>
+                  <p style={{ fontSize: 10, fontWeight: 900, color: "rgba(26,77,31,0.4)", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
+                    {t("الإشعارات الرسمية", "Notifications officielles")}
+                  </p>
+                  {adminNotifs.map((msg: any) => {
+                    const st = NOTIF_STYLES[msg.type as string] ?? NOTIF_STYLES.info;
+                    return (
+                      <div key={msg.id} style={{
+                        borderRadius: 14, border: `1.5px solid ${st.border}`,
+                        background: msg.isRead ? "#fafafa" : st.bg,
+                        padding: "12px 14px",
+                        transition: "background 0.4s",
+                        position: "relative",
+                        opacity: msg.isRead ? 0.8 : 1,
+                      }}>
+                        {/* Unread dot */}
+                        {!msg.isRead && (
+                          <div style={{
+                            position: "absolute", top: 10, insetInlineEnd: 10,
+                            width: 8, height: 8, borderRadius: "50%",
+                            background: st.dot, boxShadow: `0 0 6px ${st.dot}88`,
+                          }} />
+                        )}
+                        <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                          <span style={{ fontSize: 20, flexShrink: 0, lineHeight: 1.2 }}>{st.icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            {msg.title && (
+                              <p style={{ fontWeight: 900, fontSize: 13, color: st.text, margin: "0 0 4px", fontFamily: "'Cairo','Tajawal',sans-serif", lineHeight: 1.3 }} dir="rtl">
+                                {msg.title}
+                              </p>
+                            )}
+                            <p style={{ fontSize: 12.5, color: msg.isRead ? "#6B7280" : st.text, margin: 0, lineHeight: 1.6, fontFamily: "'Cairo','Tajawal',sans-serif", wordBreak: "break-word" }} dir="rtl">
+                              {parseRichBody(msg.body)}
+                            </p>
+                            <p style={{ fontSize: 10, color: "rgba(107,114,128,0.7)", marginTop: 6, margin: "6px 0 0" }}>
+                              {timeAgo(msg.createdAt, lang)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ── Chat Thread ── */}
+              <div style={{ maxHeight: 320, overflowY: "auto", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                {chatThread.length === 0 && adminNotifs.length === 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 0", opacity: 0.3, gap: 10 }}>
+                    <Bell size={36} color="#1A4D1F" />
+                    <p style={{ fontSize: 12, color: "#1A4D1F", fontWeight: 700, fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                      {t("لا توجد إشعارات بعد", "Aucune notification pour l'instant")}
+                    </p>
+                  </div>
+                )}
+                {chatThread.length > 0 && (
+                  <>
+                    <p style={{ fontSize: 10, fontWeight: 900, color: "rgba(26,77,31,0.4)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 4px" }}>
+                      {t("المحادثة مع الإدارة", "Conversation avec l'admin")}
+                    </p>
+                    {chatThread.map((msg: any) => {
+                      const isVendor = msg.senderRole === "vendor";
+                      return (
+                        <div key={msg.id} style={{ display: "flex", justifyContent: isVendor ? "flex-end" : "flex-start" }}>
+                          <div style={{
+                            maxWidth: "80%", padding: "8px 12px",
+                            borderRadius: isVendor ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
+                            background: isVendor ? "#1A4D1F" : "#f0f0f0",
+                            color: isVendor ? "#fff" : "#111827",
+                          }}>
+                            {!isVendor && (
+                              <p style={{ fontSize: 9, fontWeight: 900, color: "#FFA500", marginBottom: 3, fontFamily: "'Cairo','Tajawal',sans-serif" }}>
+                                {t("الإدارة", "Admin")}
+                              </p>
+                            )}
+                            <p style={{ fontSize: 13, margin: 0, lineHeight: 1.5, fontFamily: "'Cairo','Tajawal',sans-serif", wordBreak: "break-word" }} dir="rtl">
+                              {parseRichBody(msg.body)}
+                            </p>
+                            <p style={{ fontSize: 9, opacity: 0.5, marginTop: 3, textAlign: "end" }}>
+                              {msg.createdAt ? timeAgo(msg.createdAt, lang) : ""}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div ref={chatBottomRef} />
+                  </>
+                )}
+              </div>
+
+              {/* ── Input bar ── */}
+              <div style={{ display: "flex", gap: 8, padding: "10px 12px", borderTop: "1px solid rgba(26,77,31,0.07)", background: "#FAFFFE", flexShrink: 0, alignItems: "center" }}>
+                <input
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(selected.id); } }}
+                  placeholder={t("اكتب رسالة للإدارة...", "Écrire à l'admin...")}
+                  style={{
+                    flex: 1, border: "1.5px solid rgba(26,77,31,0.15)", borderRadius: 12, padding: "9px 14px",
+                    fontSize: 13, fontFamily: "'Cairo','Tajawal',sans-serif", outline: "none",
+                    background: "#fff", color: "#1A4D1F",
+                  }}
+                  dir="rtl"
+                />
+                <button
+                  onClick={() => sendChatMessage(selected.id)}
+                  disabled={!chatInput.trim() || chatSending}
+                  style={{
+                    background: chatInput.trim() && !chatSending ? "#1A4D1F" : "rgba(26,77,31,0.15)",
+                    border: "none", borderRadius: 12,
+                    width: 42, height: 42, cursor: chatInput.trim() ? "pointer" : "default",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    transition: "background 0.2s",
+                  }}
+                >
+                  {chatSending
+                    ? <RefreshCw size={15} color={chatInput.trim() ? "#fff" : "rgba(26,77,31,0.4)"} style={{ animation: "spin 1s linear infinite" }} />
+                    : <Send size={15} color={chatInput.trim() ? "#fff" : "rgba(26,77,31,0.3)"} />}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── Location Tab ─────────────────────────────────────────── */}
         {tab === "location" && selected && (
