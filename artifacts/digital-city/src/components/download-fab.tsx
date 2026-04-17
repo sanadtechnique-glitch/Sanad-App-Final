@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, X, ChevronRight, ArrowRight } from "lucide-react";
 
-// ─── Links — replace with real URLs when ready ───────────────────────────────
+// ─── Links ───────────────────────────────────────────────────────────────────
 const LINKS = {
-  playStore:     "https://play.google.com/store",
-  appStore:      "https://apps.apple.com",
-  directAndroid: "#",   // ← your .apk URL
-  directIos:     "#",   // ← your .ipa / profile URL
+  playStore:     "https://play.google.com/store",   // ← replace with your Play Store URL
+  appStore:      "https://apps.apple.com",           // ← replace with your App Store URL
+  directAndroid: "/downloads/sanad.apk",             // served by Express → uploads/downloads/
+  directIos:     "/downloads/sanad.ipa",             // served by Express → uploads/downloads/
 };
 
 // ─── Inline SVG brand icons ──────────────────────────────────────────────────
@@ -31,15 +31,16 @@ function AppleIcon({ size = 18 }: { size?: number }) {
 type Level = "closed" | "l1" | "l2";
 
 interface SubBtn {
-  key:      string;
-  labelAr:  string;
-  icon:     React.ReactNode;
-  bg:       string;
-  color:    string;
-  shadow:   string;
-  href?:    string;
-  action?:  () => void;
-  badge?:   string;
+  key:       string;
+  labelAr:   string;
+  icon:      React.ReactNode;
+  bg:        string;
+  color:     string;
+  shadow:    string;
+  href?:     string;
+  download?: string;   // filename for HTML download attribute
+  action?:   () => void;
+  badge?:    string;
 }
 
 // ─── Animation variants ───────────────────────────────────────────────────────
@@ -111,11 +112,13 @@ function PillBtn({
   );
 
   if (btn.href && btn.href !== "#") {
+    const isDirectDownload = !!btn.download;
     return (
       <a
         href={btn.href}
-        target="_blank"
+        target={isDirectDownload ? "_self" : "_blank"}
         rel="noopener noreferrer"
+        download={btn.download || undefined}
         style={{ textDecoration: "none" }}
         onClick={onClose}
       >
@@ -199,24 +202,26 @@ export function DownloadFAB() {
       action:  () => setLevel("l1"),
     },
     {
-      key:     "direct-ios",
-      labelAr: "تحميل مباشر آيفون",
-      icon:    <AppleIcon />,
-      bg:      "linear-gradient(135deg,#1c1c1e 0%,#3a3a3c 100%)",
-      color:   "#fff",
-      shadow:  "0 4px 14px rgba(0,0,0,0.4)",
-      badge:   "IPA",
-      href:    LINKS.directIos,
+      key:      "direct-ios",
+      labelAr:  "تحميل مباشر آيفون",
+      icon:     <AppleIcon />,
+      bg:       "linear-gradient(135deg,#1c1c1e 0%,#3a3a3c 100%)",
+      color:    "#fff",
+      shadow:   "0 4px 14px rgba(0,0,0,0.4)",
+      badge:    "IPA",
+      href:     LINKS.directIos,
+      download: "sanad.ipa",
     },
     {
-      key:     "direct-android",
-      labelAr: "تحميل مباشر أندرويد",
-      icon:    <AndroidIcon />,
-      bg:      "linear-gradient(135deg,#14532d 0%,#166534 100%)",
-      color:   "#fff",
-      shadow:  "0 4px 14px rgba(20,83,45,0.45)",
-      badge:   "APK",
-      href:    LINKS.directAndroid,
+      key:      "direct-android",
+      labelAr:  "تحميل مباشر أندرويد",
+      icon:     <AndroidIcon />,
+      bg:       "linear-gradient(135deg,#14532d 0%,#166534 100%)",
+      color:    "#fff",
+      shadow:   "0 4px 14px rgba(20,83,45,0.45)",
+      badge:    "APK",
+      href:     LINKS.directAndroid,
+      download: "sanad.apk",
     },
   ];
 

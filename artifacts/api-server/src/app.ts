@@ -42,6 +42,36 @@ const uploadsDir = path.resolve(__dirname, "../uploads");
 app.use("/api/uploads", express.static(uploadsDir));
 app.use("/uploads",     express.static(uploadsDir)); // keep for any old stored URLs
 
+// ── Direct app downloads (.apk / .ipa) with correct MIME types ───────────────
+const downloadsDir = path.resolve(__dirname, "../uploads/downloads");
+app.use(
+  "/downloads",
+  (req, _res, next) => {
+    // Set MIME type before express.static handles the response
+    const url = req.url.toLowerCase();
+    if (url.endsWith(".apk")) {
+      _res.setHeader("Content-Type", "application/vnd.android.package-archive");
+      _res.setHeader("Content-Disposition", `attachment; filename="${path.basename(url)}"`);
+    } else if (url.endsWith(".ipa")) {
+      _res.setHeader("Content-Type", "application/octet-stream");
+      _res.setHeader("Content-Disposition", `attachment; filename="${path.basename(url)}"`);
+    }
+    next();
+  },
+  express.static(downloadsDir, {
+    setHeaders(res, filePath) {
+      const lower = filePath.toLowerCase();
+      if (lower.endsWith(".apk")) {
+        res.setHeader("Content-Type", "application/vnd.android.package-archive");
+        res.setHeader("Content-Disposition", `attachment; filename="sanad.apk"`);
+      } else if (lower.endsWith(".ipa")) {
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("Content-Disposition", `attachment; filename="sanad.ipa"`);
+      }
+    },
+  }),
+);
+
 // ── Global error handler — catches unhandled thrown errors ───────────────────
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const message = err instanceof Error ? err.message : "Unexpected error";

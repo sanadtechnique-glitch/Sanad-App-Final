@@ -40,6 +40,10 @@ export default defineConfig({
         target: `http://localhost:${API_PORT}`,
         changeOrigin: true,
       },
+      "/downloads": {
+        target: `http://localhost:${API_PORT}`,
+        changeOrigin: true,
+      },
     },
   },
   preview: {
