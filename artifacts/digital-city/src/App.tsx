@@ -7,6 +7,7 @@ import { NotificationsProvider } from "@/lib/notifications";
 import { getSession, type Role } from "@/lib/auth";
 import { isGuestMode } from "@/lib/guest";
 import { Splash } from "@/components/splash";
+import { FloatingCartFAB } from "@/components/floating-cart-fab";
 
 import Home         from "./pages/home";
 import Services     from "./pages/services";
@@ -140,6 +141,7 @@ function NotFound() {
 
 function Router() {
   return (
+    <>
     <Switch>
       {/* ── Entry: splash (once per session) then /home ── */}
       <Route path="/" component={SplashRoute} />
@@ -205,6 +207,9 @@ function Router() {
 
       <Route component={NotFound} />
     </Switch>
+    {/* Floating cart button — visible on all pages except auth/splash; hides for non-shopper roles */}
+    <FloatingCartFAB />
+    </>
   );
 }
 
