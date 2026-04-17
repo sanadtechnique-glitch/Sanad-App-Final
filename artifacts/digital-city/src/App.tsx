@@ -27,6 +27,7 @@ import SosPage      from "./pages/sos";
 import LawyerPage     from "./pages/lawyer";
 import ResetPassword  from "./pages/reset-password";
 import Profile        from "./pages/profile";
+import CartPage       from "./pages/cart";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -175,6 +176,11 @@ function Router() {
       {/* ── User profile (all authenticated roles) ── */}
       <Route path="/profile">
         {() => <ProtectedRoute component={Profile} roles={["client", "customer", "provider", "delivery", "driver", "admin", "super_admin", "manager", "taxi_driver"]} />}
+      </Route>
+
+      {/* ── Cart summary (guest + customer/client) ── */}
+      <Route path="/cart">
+        {() => <ProtectedRoute component={CartPage} roles={["client", "customer"]} guestAllowed />}
       </Route>
 
       {/* ── Deals / promotions (public) ── */}

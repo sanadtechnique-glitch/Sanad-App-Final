@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { isGuestMode } from "@/lib/guest";
 
 // Pages where the FAB must NOT appear
-const HIDDEN_PATHS = new Set(["/", "/auth", "/login", "/reset-password"]);
+const HIDDEN_PATHS = new Set(["/", "/auth", "/login", "/reset-password", "/cart"]);
 
 // Roles that cannot place orders — FAB is irrelevant for them
 const NON_SHOPPER_ROLES = new Set([
@@ -46,7 +46,7 @@ export function FloatingCartFAB() {
 
   const handleClick = () => {
     if (hasItems) {
-      navigate(`/order/${cart.supplierId}`);
+      navigate("/cart");
     } else {
       navigate("/services");
     }
