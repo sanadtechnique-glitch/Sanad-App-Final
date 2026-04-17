@@ -736,6 +736,316 @@ function ProductsManager({ providerId, t, lang, category = "", isService = false
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Promotions Panel — only for product (non-service) categories ── */}
+      {!isService && (
+        <PromotionsPanel
+          providerId={providerId}
+          articles={products}
+          t={t}
+          lang={lang}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Promotions Panel (product categories ONLY) ───────────────────────────────
+// ► Only mounted when !isService (validated in ProductsManager before render)
+// ► qty  = Buy N get M free of the SAME article
+// ► bundle = Buy article A, get article B free
+
+interface PromoRow {
+  id: number; supplierId: number; type: "qty" | "bundle";
+  buyArticleId: number; getArticleId?: number | null;
+  buyQty: number; getFreeQty: number;
+  labelAr: string; labelFr: string;
+  isActive: boolean; createdAt: string;
+  buyNameAr?: string | null; buyNameFr?: string | null;
+  buyPrice?: number | null; buyWeighted?: boolean | null;
+}
+
+function PromotionsPanel({ providerId, articles, t, lang }: {
+  providerId: number;
+  articles: Article[];
+  t: (ar: string, fr: string) => string;
+  lang: string;
+}) {
+  const [promos, setPromos]         = useState<PromoRow[]>([]);
+  const [loadingP, setLoadingP]     = useState(true);
+  const [showForm, setShowForm]     = useState(false);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState<string | null>(null);
+
+  // Form state
+  const [promoType, setPromoType]   = useState<"qty" | "bundle">("qty");
+  const [buyId, setBuyId]           = useState<number | "">("");
+  const [getId, setGetId]           = useState<number | "">("");
+  const [buyQty, setBuyQty]         = useState(2);
+  const [freeQty, setFreeQty]       = useState(1);
+
+  const loadPromos = useCallback(async () => {
+    setLoadingP(true);
+    try { setPromos(await get<PromoRow[]>(`/promotions?supplierId=${providerId}`)); } catch { setPromos([]); }
+    setLoadingP(false);
+  }, [providerId]);
+
+  useEffect(() => { loadPromos(); }, [loadPromos]);
+
+  const resetForm = () => {
+    setPromoType("qty"); setBuyId(""); setGetId("");
+    setBuyQty(2); setFreeQty(1); setError(null);
+  };
+
+  const submit = async () => {
+    if (!buyId) { setError(t("اختر المنتج المُشترى", "Sélectionnez le produit acheté")); return; }
+    if (promoType === "bundle" && !getId) { setError(t("اختر المنتج المجاني", "Sélectionnez le produit offert")); return; }
+    setSaving(true); setError(null);
+    try {
+      await post("/promotions", {
+        supplierId: providerId,
+        type: promoType,
+        buyArticleId: buyId,
+        getArticleId: promoType === "bundle" ? getId : null,
+        buyQty, getFreeQty: freeQty,
+      });
+      resetForm(); setShowForm(false); await loadPromos();
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || "Error";
+      setError(msg);
+    }
+    setSaving(false);
+  };
+
+  const toggleActive = async (p: PromoRow) => {
+    await patch("/promotions/" + p.id, { isActive: !p.isActive }).catch(() => {});
+    setPromos(prev => prev.map(r => r.id === p.id ? { ...r, isActive: !r.isActive } : r));
+  };
+
+  const remove = async (id: number) => {
+    if (!confirm(t("حذف العرض؟", "Supprimer cette promotion ?"))) return;
+    await del(`/promotions/${id}`).catch(() => {});
+    setPromos(prev => prev.filter(r => r.id !== id));
+  };
+
+  // Filter articles for the buy-selector (qty type excludes weighted)
+  const buyableArticles = promoType === "qty"
+    ? articles.filter(a => !a.isWeighted && a.isAvailable)
+    : articles.filter(a => a.isAvailable);
+  const gettableArticles = articles.filter(a => a.isAvailable && a.id !== (buyId || 0));
+
+  return (
+    <div className="mt-6 pt-5 border-t border-[#1A4D1F]/10">
+      {/* ── Section Header ── */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,165,0,0.15)" }}>
+            <span className="text-sm">🛍️</span>
+          </div>
+          <div>
+            <p className="text-sm font-black text-[#1A4D1F]">{t("عروض المنتجات", "Offres produits")}</p>
+            <p className="text-[10px] text-[#1A4D1F]/40">{t("خاص بمنتجات البيع فقط · ليس للخدمات", "Réservé aux produits · non aux services")}</p>
+          </div>
+        </div>
+        <button
+          onClick={() => { resetForm(); setShowForm(v => !v); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black"
+          style={{ background: showForm ? "rgba(26,77,31,0.08)" : "#FFA500", color: showForm ? "#1A4D1F" : "#1A4D1F" }}
+        >
+          {showForm ? <X size={12} /> : <Plus size={12} />}
+          {showForm ? t("إلغاء", "Annuler") : t("عرض جديد", "Ajouter")}
+        </button>
+      </div>
+
+      {/* ── Add Form ── */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden mb-4"
+          >
+            <div className="rounded-2xl border border-[#FFA500]/30 p-4 space-y-4"
+              style={{ background: "rgba(255,165,0,0.04)" }}>
+
+              {/* Type selector */}
+              <div>
+                <p className="text-[10px] font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-2">
+                  {t("نوع العرض", "Type de promotion")}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { value: "qty",    icon: "🔢", ar: "كمية · اشترِ N واحصل على M مجاناً",    fr: "Qté · Achetez N, obtenez M gratuits" },
+                    { value: "bundle", icon: "🎁", ar: "ربطي · اشترِ A واحصل على B مجاناً", fr: "Lot · Achetez A, obtenez B gratuit" },
+                  ] as const).map(opt => (
+                    <button key={opt.value} onClick={() => { setPromoType(opt.value); setGetId(""); setError(null); }}
+                      className="flex items-start gap-2 p-3 rounded-xl border-2 text-start transition-all"
+                      style={{
+                        borderColor: promoType === opt.value ? "#FFA500" : "rgba(26,77,31,0.12)",
+                        background:  promoType === opt.value ? "rgba(255,165,0,0.1)" : "#fff",
+                      }}>
+                      <span className="text-base mt-0.5">{opt.icon}</span>
+                      <p className="text-[10px] font-black text-[#1A4D1F] leading-tight">
+                        {lang === "ar" ? opt.ar : opt.fr}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Weighted note for qty type */}
+              {promoType === "qty" && (
+                <div className="flex items-start gap-2 px-3 py-2 rounded-xl"
+                  style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)" }}>
+                  <AlertTriangle size={12} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-[10px] font-bold text-amber-800">
+                    {t("المنتجات المباعة بالكيلو (موزونة) مستثناة تلقائياً من عروض الكمية", "Les articles vendus au kg sont exclus automatiquement des promotions quantité")}
+                  </p>
+                </div>
+              )}
+
+              {/* Buy Article */}
+              <div>
+                <p className="text-[10px] font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-1.5">
+                  {promoType === "qty" ? t("المنتج المُشترى", "Produit acheté") : t("المنتج A (يُشترى)", "Produit A (acheté)")}
+                </p>
+                <select value={buyId} onChange={e => setBuyId(e.target.value ? Number(e.target.value) : "")}
+                  className="w-full rounded-xl border border-[#1A4D1F]/15 px-3 py-2.5 text-sm font-bold text-[#1A4D1F] bg-white outline-none focus:border-[#1A4D1F]/40"
+                  dir="rtl">
+                  <option value="">{t("— اختر منتجاً —", "— Choisir un produit —")}</option>
+                  {buyableArticles.map(a => (
+                    <option key={a.id} value={a.id}>{a.nameAr} · {a.price.toFixed(3)} TND</option>
+                  ))}
+                </select>
+                {buyableArticles.length === 0 && (
+                  <p className="text-[10px] text-red-500 font-bold mt-1">
+                    {t("لا توجد منتجات متاحة (غير موزونة) — أضف منتجات أولاً", "Aucun article disponible (non pesé) — ajoutez des articles d'abord")}
+                  </p>
+                )}
+              </div>
+
+              {/* Qty inputs (for qty type) */}
+              {promoType === "qty" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-1.5">
+                      {t("عدد الشراء", "Qté d'achat")}
+                    </p>
+                    <input type="number" min={1} max={20} value={buyQty} onChange={e => setBuyQty(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full rounded-xl border border-[#1A4D1F]/15 px-3 py-2.5 text-sm font-black text-center text-[#1A4D1F] outline-none" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-1.5">
+                      {t("عدد المجاني", "Qté offerte")}
+                    </p>
+                    <input type="number" min={1} max={20} value={freeQty} onChange={e => setFreeQty(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full rounded-xl border border-[#1A4D1F]/15 px-3 py-2.5 text-sm font-black text-center text-[#1A4D1F] outline-none" />
+                  </div>
+                </div>
+              )}
+
+              {/* Get Article (bundle only) */}
+              {promoType === "bundle" && (
+                <div>
+                  <p className="text-[10px] font-black text-[#1A4D1F]/50 uppercase tracking-widest mb-1.5">
+                    {t("المنتج B (مجاناً)", "Produit B (offert)")}
+                  </p>
+                  <select value={getId} onChange={e => setGetId(e.target.value ? Number(e.target.value) : "")}
+                    className="w-full rounded-xl border border-[#1A4D1F]/15 px-3 py-2.5 text-sm font-bold text-[#1A4D1F] bg-white outline-none focus:border-[#1A4D1F]/40"
+                    dir="rtl">
+                    <option value="">{t("— المنتج المجاني —", "— Article offert —")}</option>
+                    {gettableArticles.map(a => (
+                      <option key={a.id} value={a.id}>{a.nameAr} · {a.price.toFixed(3)} TND</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Preview label */}
+              {buyId && (
+                <div className="px-3 py-2 rounded-xl border border-[#1A4D1F]/10" style={{ background: "#F0FDF4" }}>
+                  <p className="text-xs font-black text-[#1A4D1F]">
+                    {promoType === "qty"
+                      ? t(`اشترِ ${buyQty} واحصل على ${freeQty} مجاناً`, `Achetez ${buyQty} et obtenez ${freeQty} gratuit(s)`)
+                      : t("اشترِ A واحصل على B مجاناً", "Achetez A, obtenez B gratuit")}
+                  </p>
+                  <p className="text-[10px] text-[#1A4D1F]/50">
+                    {t("معاينة العرض", "Aperçu de la promotion")}
+                  </p>
+                </div>
+              )}
+
+              {error && (
+                <p className="text-xs font-bold text-red-600 bg-red-50 px-3 py-2 rounded-xl border border-red-200">{error}</p>
+              )}
+
+              <button onClick={submit} disabled={saving || !buyId || (promoType === "bundle" && !getId)}
+                className="w-full py-3 rounded-xl text-sm font-black transition-all"
+                style={{
+                  background: (saving || !buyId || (promoType === "bundle" && !getId)) ? "rgba(26,77,31,0.2)" : "#1A4D1F",
+                  color: (saving || !buyId || (promoType === "bundle" && !getId)) ? "rgba(26,77,31,0.4)" : "#fff",
+                }}>
+                {saving ? <RefreshCw size={14} className="animate-spin mx-auto" /> : t("حفظ العرض", "Enregistrer la promotion")}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Promotions List ── */}
+      {loadingP ? (
+        <div className="flex justify-center py-6"><div className="w-5 h-5 border-2 border-[#FFA500] border-t-transparent rounded-full animate-spin" /></div>
+      ) : promos.length === 0 ? (
+        <div className="text-center py-8 rounded-2xl border border-dashed border-[#1A4D1F]/15">
+          <span className="text-3xl">🛍️</span>
+          <p className="text-xs font-black text-[#1A4D1F]/30 mt-2">{t("لا توجد عروض بعد", "Aucune promotion")}</p>
+          <p className="text-[10px] text-[#1A4D1F]/20">{t("أضف عرضاً لجذب المزيد من الزبائن", "Ajoutez une promo pour attirer plus de clients")}</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {promos.map(p => (
+            <div key={p.id}
+              className="flex items-center gap-3 p-3 rounded-2xl border transition-all"
+              style={{
+                borderColor: p.isActive ? "rgba(255,165,0,0.3)" : "rgba(26,77,31,0.08)",
+                background:  p.isActive ? "rgba(255,165,0,0.05)" : "#fafafa",
+                opacity: p.isActive ? 1 : 0.6,
+              }}>
+              {/* Type badge */}
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: p.type === "qty" ? "rgba(255,165,0,0.15)" : "rgba(99,102,241,0.1)" }}>
+                <span className="text-base">{p.type === "qty" ? "🔢" : "🎁"}</span>
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black text-[#1A4D1F] truncate">
+                  {lang === "ar" ? p.labelAr : p.labelFr}
+                </p>
+                <p className="text-[10px] text-[#1A4D1F]/40 truncate">
+                  {p.buyNameAr ?? "—"}
+                  {p.type === "qty" && ` · ${p.buyQty}+${p.getFreeQty}`}
+                </p>
+              </div>
+
+              {/* Active toggle */}
+              <button onClick={() => toggleActive(p)}
+                className="p-1.5 rounded-lg transition-all"
+                style={{ background: p.isActive ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.07)" }}>
+                {p.isActive
+                  ? <ToggleRight size={18} className="text-emerald-500" />
+                  : <ToggleLeft size={18} className="text-red-400" />}
+              </button>
+
+              {/* Delete */}
+              <button onClick={() => remove(p.id)}
+                className="p-1.5 rounded-lg text-red-400/40 hover:text-red-500 hover:bg-red-50 transition-all">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -24,3 +24,4 @@ export * from "./partners";
 export * from "./orderItems";
 export * from "./vendorMessages";
 export * from "./d17Receipts";
+export * from "./promotions";

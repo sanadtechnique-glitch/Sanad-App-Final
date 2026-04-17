@@ -1368,6 +1368,173 @@ function AdminCarsManager({ agencyId, t, lang }: { agencyId: number; t: (ar: str
   );
 }
 
+// ── Admin Promotions Panel ─────────────────────────────────────────────────────
+interface AdminPromoRow {
+  id: number; supplierId: number; type: "qty" | "bundle";
+  buyArticleId: number; getArticleId?: number | null;
+  buyQty: number; getFreeQty: number;
+  labelAr: string; labelFr: string; isActive: boolean; createdAt: string;
+  buyNameAr?: string | null; buyNameFr?: string | null;
+  buyPrice?: number | null; buyWeighted?: boolean | null;
+}
+interface AdminPromoArticle { id: number; nameAr: string; nameFr: string; price: number; isWeighted?: boolean | null; isAvailable: boolean; }
+
+function AdminPromotionsPanel({ supplierId, t, lang }: { supplierId: number; t: (ar: string, fr: string) => string; lang: string }) {
+  const [promos, setPromos]           = useState<AdminPromoRow[]>([]);
+  const [articles, setArticles]       = useState<AdminPromoArticle[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [showForm, setShowForm]       = useState(false);
+  const [saving, setSaving]           = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+
+  const [promoType, setPromoType]     = useState<"qty" | "bundle">("qty");
+  const [buyId, setBuyId]             = useState<number | "">("");
+  const [getId, setGetId]             = useState<number | "">("");
+  const [buyQty, setBuyQty]           = useState(2);
+  const [freeQty, setFreeQty]         = useState(1);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [p, a] = await Promise.all([
+      get<AdminPromoRow[]>(`/promotions?supplierId=${supplierId}`).catch(() => []),
+      get<AdminPromoArticle[]>(`/admin/articles?supplierId=${supplierId}`).catch(() => []),
+    ]);
+    setPromos(p); setArticles(a); setLoading(false);
+  }, [supplierId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const resetForm = () => { setPromoType("qty"); setBuyId(""); setGetId(""); setBuyQty(2); setFreeQty(1); setError(null); };
+
+  const submit = async () => {
+    if (!buyId) { setError(t("اختر المنتج المُشترى", "Sélectionnez le produit acheté")); return; }
+    if (promoType === "bundle" && !getId) { setError(t("اختر المنتج المجاني", "Sélectionnez le produit offert")); return; }
+    setSaving(true); setError(null);
+    try {
+      await post("/promotions", { supplierId, type: promoType, buyArticleId: buyId, getArticleId: promoType === "bundle" ? getId : null, buyQty, getFreeQty: freeQty });
+      resetForm(); setShowForm(false); await load();
+    } catch (e: any) { setError(e?.response?.data?.message || e?.message || "Error"); }
+    setSaving(false);
+  };
+
+  const toggleActive = async (p: AdminPromoRow) => {
+    await patch("/promotions/" + p.id, { isActive: !p.isActive }).catch(() => {});
+    setPromos(prev => prev.map(r => r.id === p.id ? { ...r, isActive: !r.isActive } : r));
+  };
+
+  const remove = async (id: number) => {
+    if (!confirm(t("حذف العرض؟", "Supprimer cette promotion ?"))) return;
+    await del(`/promotions/${id}`).catch(() => {});
+    setPromos(prev => prev.filter(r => r.id !== id));
+  };
+
+  const buyableArticles = promoType === "qty" ? articles.filter(a => !a.isWeighted && a.isAvailable) : articles.filter(a => a.isAvailable);
+  const gettableArticles = articles.filter(a => a.isAvailable && a.id !== (buyId || 0));
+
+  if (loading) return <div className="flex justify-center py-10"><div className="w-5 h-5 border-2 border-[#FFA500] border-t-transparent rounded-full animate-spin" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🛍️</span>
+          <div>
+            <p className="text-sm font-black text-[#1A4D1F]">{t("عروض المنتجات", "Promotions produits")}</p>
+            <p className="text-[10px] text-[#1A4D1F]/40">{promos.length} {t("عرض", "promo(s)")}</p>
+          </div>
+        </div>
+        <button onClick={() => { resetForm(); setShowForm(v => !v); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black"
+          style={{ background: showForm ? "rgba(26,77,31,0.08)" : "#FFA500", color: "#1A4D1F" }}>
+          {showForm ? <X size={12} /> : <Plus size={12} />}
+          {showForm ? t("إلغاء", "Annuler") : t("عرض جديد", "Ajouter")}
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <div className="rounded-2xl border border-[#FFA500]/30 p-4 space-y-3" style={{ background: "rgba(255,165,0,0.04)" }}>
+              {/* Type chips */}
+              <div className="grid grid-cols-2 gap-2">
+                {(["qty", "bundle"] as const).map(tp => (
+                  <button key={tp} onClick={() => { setPromoType(tp); setGetId(""); setError(null); }}
+                    className="py-2.5 rounded-xl border-2 text-xs font-black transition-all"
+                    style={{ borderColor: promoType === tp ? "#FFA500" : "rgba(26,77,31,0.12)", background: promoType === tp ? "rgba(255,165,0,0.1)" : "#fff", color: "#1A4D1F" }}>
+                    {tp === "qty" ? (lang === "ar" ? "🔢 كمية" : "🔢 Qté") : (lang === "ar" ? "🎁 ربطي" : "🎁 Lot")}
+                  </button>
+                ))}
+              </div>
+              {/* Buy article */}
+              <select value={buyId} onChange={e => setBuyId(e.target.value ? Number(e.target.value) : "")}
+                className="w-full rounded-xl border border-[#1A4D1F]/15 px-3 py-2.5 text-sm font-bold text-[#1A4D1F] bg-white outline-none" dir="rtl">
+                <option value="">{lang === "ar" ? "— المنتج المُشترى —" : "— Produit acheté —"}</option>
+                {buyableArticles.map(a => <option key={a.id} value={a.id}>{a.nameAr} · {a.price?.toFixed(3)} TND</option>)}
+              </select>
+              {/* Qty inputs */}
+              {promoType === "qty" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-[10px] font-black text-[#1A4D1F]/50 mb-1">{lang === "ar" ? "عدد الشراء" : "Qté achat"}</p>
+                    <input type="number" min={1} value={buyQty} onChange={e => setBuyQty(Math.max(1, +e.target.value || 1))} className="w-full rounded-xl border border-[#1A4D1F]/15 px-3 py-2 text-sm font-black text-center text-[#1A4D1F] outline-none" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-[#1A4D1F]/50 mb-1">{lang === "ar" ? "عدد المجاني" : "Qté offerte"}</p>
+                    <input type="number" min={1} value={freeQty} onChange={e => setFreeQty(Math.max(1, +e.target.value || 1))} className="w-full rounded-xl border border-[#1A4D1F]/15 px-3 py-2 text-sm font-black text-center text-[#1A4D1F] outline-none" />
+                  </div>
+                </div>
+              )}
+              {/* Get article (bundle) */}
+              {promoType === "bundle" && (
+                <select value={getId} onChange={e => setGetId(e.target.value ? Number(e.target.value) : "")}
+                  className="w-full rounded-xl border border-[#1A4D1F]/15 px-3 py-2.5 text-sm font-bold text-[#1A4D1F] bg-white outline-none" dir="rtl">
+                  <option value="">{lang === "ar" ? "— المنتج المجاني —" : "— Article offert —"}</option>
+                  {gettableArticles.map(a => <option key={a.id} value={a.id}>{a.nameAr} · {a.price?.toFixed(3)} TND</option>)}
+                </select>
+              )}
+              {error && <p className="text-xs font-bold text-red-600 bg-red-50 px-3 py-2 rounded-xl border border-red-200">{error}</p>}
+              <button onClick={submit} disabled={saving || !buyId || (promoType === "bundle" && !getId)}
+                className="w-full py-2.5 rounded-xl text-sm font-black text-white disabled:opacity-40"
+                style={{ background: "#1A4D1F" }}>
+                {saving ? <RefreshCw size={13} className="animate-spin mx-auto" /> : t("حفظ العرض", "Enregistrer")}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* List */}
+      {promos.length === 0 ? (
+        <div className="text-center py-8 rounded-2xl border border-dashed border-[#1A4D1F]/15">
+          <span className="text-3xl">🛍️</span>
+          <p className="text-xs font-black text-[#1A4D1F]/30 mt-2">{t("لا توجد عروض", "Aucune promotion")}</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {promos.map(p => (
+            <div key={p.id} className="flex items-center gap-3 p-3 rounded-2xl border transition-all"
+              style={{ borderColor: p.isActive ? "rgba(255,165,0,0.3)" : "rgba(26,77,31,0.08)", background: p.isActive ? "rgba(255,165,0,0.05)" : "#fafafa", opacity: p.isActive ? 1 : 0.6 }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: p.type === "qty" ? "rgba(255,165,0,0.15)" : "rgba(99,102,241,0.1)" }}>
+                <span className="text-sm">{p.type === "qty" ? "🔢" : "🎁"}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black text-[#1A4D1F] truncate">{lang === "ar" ? p.labelAr : p.labelFr}</p>
+                <p className="text-[10px] text-[#1A4D1F]/40 truncate">{p.buyNameAr ?? "—"}{p.type === "qty" && ` · ${p.buyQty}+${p.getFreeQty}`}</p>
+              </div>
+              <button onClick={() => toggleActive(p)} className="p-1.5 rounded-lg" style={{ background: p.isActive ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.07)" }}>
+                {p.isActive ? <ToggleRight size={18} className="text-emerald-500" /> : <ToggleLeft size={18} className="text-red-400" />}
+              </button>
+              <button onClick={() => remove(p.id)} className="p-1.5 rounded-lg text-red-400/40 hover:text-red-500 hover:bg-red-50 transition-all">
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Admin Provider Drawer — slides up and shows full provider management */
 function AdminProviderDrawer({ supplier, t, lang, onClose }: { supplier: Supplier; t: (ar: string, fr: string) => string; lang: string; onClose: () => void; }) {
   const CAT = supplier.category;
@@ -1377,11 +1544,16 @@ function AdminProviderDrawer({ supplier, t, lang, onClose }: { supplier: Supplie
   const isSos       = CAT === "sos";
   const isLawyer    = CAT === "lawyer";
 
-  type TabId = "content" | "cars" | "vehicle";
+  type TabId = "content" | "cars" | "vehicle" | "promotions";
   const tabDefs: { id: TabId; ar: string; fr: string }[] = isCarRental
     ? [{ id:"cars", ar:"السيارات", fr:"Voitures" }]
     : isSos
     ? [{ id:"vehicle", ar:"الشاحنة", fr:"Véhicule" }]
+    : isProductCat
+    ? [
+        { id:"content",    ar:"المنتجات",  fr:"Produits" },
+        { id:"promotions", ar:"🛍️ عروض", fr:"🛍️ Promos" },
+      ]
     : [{ id:"content", ar: isHotel ? "الغرف" : isLawyer ? "التخصصات" : "المنتجات", fr: isHotel ? "Chambres" : isLawyer ? "Spécialités" : "Produits" }];
 
   const [tab, setTab] = useState<TabId>(tabDefs[0].id);
@@ -1454,6 +1626,11 @@ function AdminProviderDrawer({ supplier, t, lang, onClose }: { supplier: Supplie
                 t={t}
                 lang={lang}
               />
+            )}
+
+            {/* Promotions */}
+            {tab === "promotions" && (
+              <AdminPromotionsPanel supplierId={supplier.id} t={t} lang={lang} />
             )}
 
             {/* Cars */}
