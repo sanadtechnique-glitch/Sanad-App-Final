@@ -1,0 +1,104 @@
+name: Build Sanad Android APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js + pnpm ──────────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ── 3. Java 17 ─────────────────────────────────────────────────────────
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      # ── 4. Android SDK ─────────────────────────────────────────────────────
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses 2>/dev/null || true
+
+      # ── 5. Build web assets ─────────────────────────────────────────────────
+      - name: Build Vite frontend
+        working-directory: artifacts/digital-city
+        run: pnpm run build
+
+      # ── 6. Capacitor sync ──────────────────────────────────────────────────
+      - name: Sync Capacitor (embed web into Android)
+        working-directory: artifacts/digital-city
+        run: npx cap sync android
+
+      # ── 7. Make gradlew executable ─────────────────────────────────────────
+      - name: Make Gradle wrapper executable
+        working-directory: artifacts/digital-city/android
+        run: chmod +x gradlew
+
+      # ── 8a. Build SIGNED release APK (if keystore secrets exist) ──────────
+      - name: Build signed release APK
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        working-directory: artifacts/digital-city/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > app/sanad-release.jks
+          cat > keystore.properties << EOF
+storeFile=sanad-release.jks
+storePassword=${STORE_PASSWORD}
+keyAlias=${KEY_ALIAS}
+keyPassword=${KEY_PASSWORD}
+EOF
+          ./gradlew assembleRelease --no-daemon -q
+          cp app/build/outputs/apk/release/app-release.apk ../Sanad_Final.apk
+          echo "Built: SIGNED release APK"
+
+      # ── 8b. Build debug APK (no keystore needed) ──────────────────────────
+      - name: Build debug APK (fallback)
+        if: ${{ secrets.KEYSTORE_BASE64 == '' }}
+        working-directory: artifacts/digital-city/android
+        run: |
+          ./gradlew assembleDebug --no-daemon -q
+          cp app/build/outputs/apk/debug/app-debug.apk ../Sanad_Final.apk
+          echo "Built: debug APK (installable, not for Play Store)"
+
+      # ── 9. Upload APK as downloadable artifact ─────────────────────────────
+      - name: Upload Sanad_Final.apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sanad_Final
+          path: artifacts/digital-city/Sanad_Final.apk
+          retention-days: 30
+
+      - name: Show APK info
+        run: |
+          ls -lh artifacts/digital-city/Sanad_Final.apk
+          echo "✅ Download from: Actions → This run → Sanad_Final"
