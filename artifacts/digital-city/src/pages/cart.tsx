@@ -6,7 +6,7 @@ import { useLang } from "@/lib/language";
 import { useCart, WEIGHTED_STEP } from "@/lib/cart";
 import {
   Plus, Minus, Trash2, ShoppingCart, ArrowLeft, ArrowRight,
-  ShoppingBag, PackageOpen,
+  ShoppingBag, PackageOpen, Gift,
 } from "lucide-react";
 
 function formatPrice(n: number) {
@@ -15,7 +15,7 @@ function formatPrice(n: number) {
 
 export default function CartPage() {
   const { t, isRTL } = useLang();
-  const { cart, itemCount, updateQty, removeItem } = useCart();
+  const { cart, itemCount, updateQty, removeItem, freeItems, promoSavings } = useCart();
   const [, navigate] = useLocation();
 
   const [removing, setRemoving] = useState<number | null>(null);
@@ -207,6 +207,65 @@ export default function CartPage() {
               </AnimatePresence>
             </div>
 
+            {/* ── Free Items from Promotions ────────────────────────────── */}
+            <AnimatePresence>
+              {freeItems.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="px-4 pt-1 pb-2"
+                >
+                  <div
+                    className="rounded-2xl p-3 border"
+                    style={{ background: "rgba(251,191,36,0.06)", borderColor: "rgba(251,191,36,0.35)" }}
+                  >
+                    {/* Header */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,165,0,0.15)" }}>
+                        <Gift size={14} className="text-amber-600" />
+                      </div>
+                      <p className="text-xs font-black text-amber-700">
+                        {t("هدايا مجانية مع طلبك 🎁", "Articles offerts avec votre commande 🎁")}
+                      </p>
+                    </div>
+                    {/* Free item rows */}
+                    <div className="space-y-2">
+                      {freeItems.map((fi, idx) => (
+                        <div key={`${fi.promoId}-${idx}`}
+                          className="flex items-center gap-2 rounded-xl p-2"
+                          style={{ background: "rgba(255,255,255,0.7)" }}>
+                          {/* Image or placeholder */}
+                          <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
+                            style={{ background: "rgba(255,165,0,0.1)" }}>
+                            {fi.image ? (
+                              <img src={fi.image} alt={fi.nameAr} className="w-full h-full object-cover" />
+                            ) : (
+                              <Gift size={16} className="text-amber-400" />
+                            )}
+                          </div>
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-black text-amber-800 truncate">{fi.nameAr}</p>
+                            <p className="text-[10px] text-amber-600 font-medium">
+                              {t("مجاناً · بموجب العرض", "Gratuit · via promotion")}
+                            </p>
+                          </div>
+                          {/* Qty + price */}
+                          <div className="text-end flex-shrink-0">
+                            <p className="text-xs font-black text-amber-700">×{fi.freeQty}</p>
+                            <p className="text-[10px] font-black" style={{ color: "#16a34a" }}>
+                              {t("مجاناً", "0.000 DT")}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* ── Subtotal card ────────────────────────────────────────────── */}
             <div className="px-4 pt-2 pb-4">
               <div
@@ -221,6 +280,17 @@ export default function CartPage() {
                     {formatPrice(subtotal)}
                   </span>
                 </div>
+                {/* Promo savings row */}
+                {promoSavings > 0 && (
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold" style={{ color: "#16a34a" }}>
+                      🎁 {t("توفير العروض", "Économies promotions")}
+                    </span>
+                    <span className="text-xs font-black" style={{ color: "#16a34a" }}>
+                      -{formatPrice(promoSavings)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between mb-3 pb-3 border-b border-[#1A4D1F]/10">
                   <span className="text-xs font-medium text-[#1A4D1F]/40">
                     {t("رسوم التوصيل", "Frais de livraison")}

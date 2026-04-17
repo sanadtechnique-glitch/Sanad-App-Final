@@ -22,12 +22,26 @@ interface Supplier {
   rating?: number; isAvailable: boolean; photoUrl?: string;
   deliveryFee?: number;
 }
+interface ArticlePromo {
+  id: number;
+  type: "qty" | "bundle";
+  buyQty: number;
+  getFreeQty: number;
+  getArticleId: number | null;
+  getArticleNameAr: string | null;
+  getArticleNameFr: string | null;
+  getArticleImage: string | null;
+  labelAr: string;
+  labelFr: string;
+}
+
 interface Article {
   id: number; supplierId: number; nameAr: string; nameFr: string;
   descriptionAr: string; descriptionFr: string; price: number;
   originalPrice?: number; photoUrl?: string; images?: string | null; isAvailable: boolean;
   category?: string;
   isWeighted?: boolean;
+  promo?: ArticlePromo | null;
 }
 
 function getImages(a: Article): string[] {
@@ -46,7 +60,7 @@ function formatPrice(n: number) {
 export default function ProviderStore() {
   const { id } = useParams<{ id: string }>();
   const { lang, t, isRTL } = useLang();
-  const { addItem, updateQty, cart } = useCart();
+  const { addItem, updateQty, cart, setPromos } = useCart();
   const [, navigate] = useLocation();
 
   const [supplier, setSupplier] = useState<Supplier | null>(null);
@@ -69,7 +83,27 @@ export default function ProviderStore() {
         return;
       }
       setSupplier(sup || null);
-      setArticles(Array.isArray(arts) ? arts.filter((a: Article) => a.isAvailable) : []);
+      const available = Array.isArray(arts) ? arts.filter((a: Article) => a.isAvailable) : [];
+      setArticles(available);
+
+      // Extract active promos from articles and push them into cart context
+      // so free-item logic stays in sync with what vendor has configured.
+      const promos = available
+        .filter(a => a.promo)
+        .map(a => ({
+          id:                a.promo!.id,
+          type:              a.promo!.type,
+          buyArticleId:      a.id,
+          getArticleId:      a.promo!.getArticleId,
+          getArticleNameAr:  a.promo!.getArticleNameAr,
+          getArticleNameFr:  a.promo!.getArticleNameFr,
+          getArticleImage:   a.promo!.getArticleImage,
+          buyQty:            a.promo!.buyQty,
+          getFreeQty:        a.promo!.getFreeQty,
+          labelAr:           a.promo!.labelAr,
+          labelFr:           a.promo!.labelFr,
+        }));
+      setPromos(promos);
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -324,6 +358,33 @@ export default function ProviderStore() {
                         </div>
                       )}
 
+                      {/* Promo badge — top-left if no sale badge, else stacked */}
+                      {article.promo && !hasSale && (
+                        <div style={{
+                          position: "absolute", top: 5, insetInlineStart: 5,
+                          background: "#FFA500", color: "#fff",
+                          fontSize: 8, fontWeight: 800,
+                          padding: "2px 6px", borderRadius: 4,
+                          letterSpacing: "0.02em",
+                        }}>
+                          {article.promo.type === "qty"
+                            ? `${article.promo.buyQty}+${article.promo.getFreeQty} 🎁`
+                            : `🎁 ${lang === "ar" ? article.promo.getArticleNameAr || "مجاناً" : article.promo.getArticleNameFr || "Gratuit"}`}
+                        </div>
+                      )}
+                      {article.promo && hasSale && (
+                        <div style={{
+                          position: "absolute", top: 18, insetInlineStart: 5,
+                          background: "#FFA500", color: "#fff",
+                          fontSize: 8, fontWeight: 800,
+                          padding: "2px 6px", borderRadius: 4,
+                        }}>
+                          {article.promo.type === "qty"
+                            ? `${article.promo.buyQty}+${article.promo.getFreeQty} 🎁`
+                            : "🎁"}
+                        </div>
+                      )}
+
                       {/* Qty badge */}
                       {qty > 0 && (
                         <div style={{
@@ -411,6 +472,21 @@ export default function ProviderStore() {
                           </span>
                         )}
                       </div>
+                      {/* Promo label below name */}
+                      {article.promo && (
+                        <p style={{
+                          fontSize: 8, fontWeight: 800, color: "#FFA500",
+                          margin: "0 0 2px", lineHeight: 1.3,
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>
+                          {article.promo.type === "qty"
+                            ? (lang === "ar"
+                                ? `اشترِ ${article.promo.buyQty} + ${article.promo.getFreeQty} مجاناً`
+                                : `Achetez ${article.promo.buyQty} + ${article.promo.getFreeQty} gratuit`)
+                            : (lang === "ar" ? article.promo.labelAr : article.promo.labelFr)
+                          }
+                        </p>
+                      )}
                       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 4, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 12, fontWeight: 800, color: "#000" }}>
                           {formatPrice(article.price)}
@@ -570,6 +646,21 @@ export default function ProviderStore() {
                       -{discountPct}%
                     </div>
                   )}
+                  {/* Promo badge on detail image */}
+                  {detailArticle.promo && (
+                    <div style={{
+                      position: "absolute",
+                      top: hasSale ? 42 : 12,
+                      insetInlineStart: 12,
+                      background: "#FFA500", color: "#fff",
+                      fontSize: 11, fontWeight: 800,
+                      padding: "3px 10px", borderRadius: 6,
+                    }}>
+                      {detailArticle.promo.type === "qty"
+                        ? `${detailArticle.promo.buyQty}+${detailArticle.promo.getFreeQty} 🎁`
+                        : "🎁 Offert"}
+                    </div>
+                  )}
                 </div>
 
                 {/* ── Info section ── */}
@@ -580,6 +671,36 @@ export default function ProviderStore() {
                   }}>
                     {lang === "ar" ? detailArticle.nameAr : detailArticle.nameFr}
                   </h2>
+
+                  {/* Promo banner in detail modal */}
+                  {detailArticle.promo && (
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      background: "rgba(255,165,0,0.08)", border: "1.5px solid rgba(255,165,0,0.3)",
+                      borderRadius: 10, padding: "8px 12px", marginBottom: 10,
+                    }}>
+                      <span style={{ fontSize: 18 }}>🎁</span>
+                      <div>
+                        <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: "#B45309" }}>
+                          {lang === "ar" ? detailArticle.promo.labelAr : detailArticle.promo.labelFr}
+                        </p>
+                        {detailArticle.promo.type === "qty" && (
+                          <p style={{ margin: 0, fontSize: 10, color: "#B45309", opacity: 0.7 }}>
+                            {lang === "ar"
+                              ? `أضف ${detailArticle.promo.buyQty} وستحصل على ${detailArticle.promo.getFreeQty} مجاناً تلقائياً`
+                              : `Ajoutez ${detailArticle.promo.buyQty} et obtenez ${detailArticle.promo.getFreeQty} offert(s) automatiquement`}
+                          </p>
+                        )}
+                        {detailArticle.promo.type === "bundle" && detailArticle.promo.getArticleNameAr && (
+                          <p style={{ margin: 0, fontSize: 10, color: "#B45309", opacity: 0.7 }}>
+                            {lang === "ar"
+                              ? `+ ${detailArticle.promo.getArticleNameAr} مجاناً`
+                              : `+ ${detailArticle.promo.getArticleNameFr || detailArticle.promo.getArticleNameAr} offert(e)`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {detailArticle.descriptionAr && (
                     <p style={{ fontSize: 12, color: "#777", margin: "0 0 12px", fontFamily: "'Cairo','Tajawal',sans-serif", lineHeight: 1.5 }}>

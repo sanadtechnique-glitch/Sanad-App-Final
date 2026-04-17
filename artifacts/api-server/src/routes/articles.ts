@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { articlesTable, serviceProvidersTable } from "@workspace/db/schema";
+import { articlesTable, serviceProvidersTable, promotionsTable } from "@workspace/db/schema";
 import { eq, and, isNotNull, sql } from "drizzle-orm";
 import { requireAdmin } from "../lib/authMiddleware";
 import { safeParseFloat, safeParseInt } from "../lib/validate";
@@ -8,6 +8,8 @@ import { safeParseFloat, safeParseInt } from "../lib/validate";
 const router: IRouter = Router();
 
 // Public: articles for a supplier (customer-facing product grid)
+// Returns available articles enriched with their active promotion (promo field)
+// No caching — always fresh so vendor promo changes reflect immediately.
 router.get("/articles", async (req, res) => {
   const { supplierId } = req.query;
   const id = safeParseInt(supplierId as string);
@@ -15,8 +17,50 @@ router.get("/articles", async (req, res) => {
     res.status(400).json({ message: "supplierId query param required" }); return;
   }
   try {
-    const rows = await db.select().from(articlesTable).where(eq(articlesTable.supplierId, id));
-    res.json(rows.filter(r => r.isAvailable));
+    // Fetch articles + active promos for this supplier in parallel
+    const [rows, promos] = await Promise.all([
+      db.select().from(articlesTable).where(eq(articlesTable.supplierId, id)),
+      db.select({
+        id:           promotionsTable.id,
+        type:         promotionsTable.type,
+        buyArticleId: promotionsTable.buyArticleId,
+        getArticleId: promotionsTable.getArticleId,
+        buyQty:       promotionsTable.buyQty,
+        getFreeQty:   promotionsTable.getFreeQty,
+        labelAr:      promotionsTable.labelAr,
+        labelFr:      promotionsTable.labelFr,
+      }).from(promotionsTable).where(
+        and(eq(promotionsTable.supplierId, id), eq(promotionsTable.isActive, true))
+      ),
+    ]);
+
+    const available = rows.filter(r => r.isAvailable);
+
+    // Article name lookup for bundle promo's get-article
+    const articleNames = new Map(rows.map(a => [a.id, { nameAr: a.nameAr, nameFr: a.nameFr, image: a.photoUrl }]));
+
+    // Build promoMap: buyArticleId → promo info (first active promo wins)
+    const promoMap = new Map<number, object>();
+    for (const promo of promos) {
+      if (!promoMap.has(promo.buyArticleId)) {
+        const getInfo = promo.getArticleId ? articleNames.get(promo.getArticleId) : null;
+        promoMap.set(promo.buyArticleId, {
+          id:                promo.id,
+          type:              promo.type,
+          buyQty:            promo.buyQty,
+          getFreeQty:        promo.getFreeQty,
+          getArticleId:      promo.getArticleId ?? null,
+          getArticleNameAr:  getInfo?.nameAr  ?? null,
+          getArticleNameFr:  getInfo?.nameFr  ?? null,
+          getArticleImage:   getInfo?.image   ?? null,
+          labelAr:           promo.labelAr,
+          labelFr:           promo.labelFr,
+        });
+      }
+    }
+
+    // Return available articles, each with promo (or null)
+    res.json(available.map(a => ({ ...a, promo: promoMap.get(a.id) ?? null })));
   } catch (err) {
     req.log.error({ err }); res.status(500).json({ message: "Internal server error" });
   }
