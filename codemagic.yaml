@@ -6,18 +6,23 @@ workflows:
     scripts:
       - name: Force Install Dependencies
         script: |
-          # حذف أي قيود تفرض نوع معين من المدير للمكتبات
-          rm -f .npmrc
-          rm -f yarn.lock
-          rm -f package-lock.json
-          
-          # تثبيت pnpm وإجبار النظام على العمل به وتجاوز حارس الـ preinstall
+          rm -f .npmrc yarn.lock package-lock.json
           npm install -g pnpm --force
           pnpm install --no-frozen-lockfile --ignore-scripts
       - name: Build Android APK
         script: | 
-          cd android
+          # هذا السطر سيبحث عن مجلد android ويخبرنا بمكانه
+          ANDROID_PATH=$(find . -name "gradlew" -type f -not -path "*/node_modules/*" | sed 's/\/gradlew//')
+          
+          if [ -z "$ANDROID_PATH" ]; then
+            echo "خطأ: لم نجد مجلد الأندرويد، سأعرض لك الملفات المتاحة الآن:"
+            ls -R
+            exit 1
+          fi
+          
+          echo "تم العثور على المجلد في: $ANDROID_PATH"
+          cd $ANDROID_PATH
           chmod +x gradlew
           ./gradlew assembleDebug
     artifacts:
-      - android/app/outputs/apk/**/*.apk
+      - "**/app/outputs/apk/**/*.apk"
