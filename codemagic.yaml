@@ -1,4 +1,4 @@
-Workflows:
+workflows:
   android-workflow:
     name: Sanad Android Build
     max_build_duration: 60
