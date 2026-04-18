@@ -6,37 +6,37 @@ workflows:
     scripts:
       - name: Preparation
         script: |
-          # تنظيف البيئة
+          # تنظيف شامل للبدء من جديد
           rm -f .npmrc yarn.lock package-lock.json
           npm install -g pnpm --force
           pnpm install --no-frozen-lockfile --ignore-scripts
       - name: Build Android APK
         script: | 
-          # 1. إجبار النظام على استخدام Java 21 من المسار المباشر في Codemagic
-          export JAVA_HOME=$JAVA_HOME_21
-          export PATH=$JAVA_HOME/bin:$PATH
-          java -version # للتأكد في السجلات أن النسخة أصبحت 21
+          # 1. إعداد الجافا (أنت الآن تستخدم 25 وهذا ممتاز)
+          export JAVA_HOME=$JAVA_HOME_21 || export JAVA_HOME=$JAVA_HOME_17
           
-          npm install -g @capacitor/cli
+          # 2. إضافة منصة الأندرويد وإعادة المزامنة لضمان وجود المجلد
+          npx cap add android || true
           npx cap sync android
           
           cd artifacts/digital-city/android
           
-          # 2. تنظيف الملفات المكررة
-          rm -f app/src/main/res/values/ic_launcher_background.xml
+          # 3. حل مشكلة الـ Timeout برفع مهلة تحميل Gradle
+          export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.networkTimeout=60000"
           
-          # 3. هيكل المكتبة المفقودة (بنسخة متوافقة)
+          # 4. تنظيف الملفات المكررة وإنشاء هيكل الإضافات (الخطوات الناجحة سابقاً)
+          rm -f app/src/main/res/values/ic_launcher_background.xml
           mkdir -p capacitor-cordova-android-plugins/src/main
           echo '<?xml version="1.0" encoding="utf-8"?><manifest package="com.capacitor.plugins"></manifest>' > capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
           echo "apply plugin: 'com.android.library'" > capacitor-cordova-android-plugins/build.gradle
           echo "android { compileSdk 36; namespace 'com.capacitor.plugins'; defaultConfig { minSdk 22 } }" >> capacitor-cordova-android-plugins/build.gradle
           echo "ext { }" > capacitor-cordova-android-plugins/cordova.variables.gradle
           
-          # 4. إجبار نسخة الـ SDK على 36
+          # 5. رفع نسخة الـ SDK وتغيير Java Version في Gradle ليتوافق مع 25
           sed -i '' 's/34/36/g' variables.gradle || sed -i 's/34/36/g' variables.gradle
           
-          # 5. تشغيل البناء مع تمرير مسار الجافا لـ Gradle أيضاً
+          # 6. البناء النهائي
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon -Dorg.gradle.java.home=$JAVA_HOME_21
+          ./gradlew assembleDebug --no-daemon
     artifacts:
       - "**/app/outputs/apk/**/*.apk"
