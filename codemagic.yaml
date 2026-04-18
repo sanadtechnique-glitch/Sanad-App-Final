@@ -11,13 +11,20 @@ workflows:
           pnpm install --no-frozen-lockfile --ignore-scripts
       - name: Build Android APK
         script: | 
-          # 1. المزامنة لإنشاء ملفات Cordova و Capacitor المفقودة
-          npx cap sync
+          # 1. تثبيت أدوات Capacitor بشكل عالمي لضمان عملها
+          npm install -g @capacitor/cli
           
-          # 2. التوجه لمجلد الأندرويد الذي اكتشفناه سابقاً
+          # 2. المزامنة من المجلد الرئيسي للمشروع
+          npx cap sync android
+          
+          # 3. التوجه للمجلد العميق والتأكد من وجود الملفات
           cd artifacts/digital-city/android
           
-          # 3. إعطاء صلاحية التنفيذ وبدء البناء
+          # 4. محاولة إصلاح يدوية للملف المفقود إذا لم ينشأ
+          mkdir -p capacitor-cordova-android-plugins
+          touch capacitor-cordova-android-plugins/cordova.variables.gradle
+          
+          # 5. تشغيل البناء
           chmod +x gradlew
           ./gradlew assembleDebug
     artifacts:
