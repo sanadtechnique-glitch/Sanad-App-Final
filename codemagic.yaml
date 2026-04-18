@@ -11,17 +11,18 @@ workflows:
           pnpm install --no-frozen-lockfile --ignore-scripts
       - name: Build Android APK
         script: | 
+          # 1. التأكد من وجود أدوات كاباسيتور
           npm install -g @capacitor/cli
-          npx cap sync android
           
+          # 2. الانتقال للمجلد الصحيح مباشرة
           cd artifacts/digital-city/android
+          
+          # 3. معالجة مشكلة Cordova المفقودة يدوياً (للاحتياط)
           mkdir -p capacitor-cordova-android-plugins
-          touch capacitor-cordova-android-plugins/cordova.variables.gradle
+          echo "" > capacitor-cordova-android-plugins/cordova.variables.gradle
           
-          # إعدادات لتسريع ومنع تعليق التحميل
-          export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.networkTimeout=60000"
-          
+          # 4. تشغيل البناء مع إيقاف الـ Daemon وتجاهل المشاكل البسيطة
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace --warning-mode all
     artifacts:
       - "**/app/outputs/apk/**/*.apk"
