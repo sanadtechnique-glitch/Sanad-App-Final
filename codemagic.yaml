@@ -12,20 +12,19 @@ workflows:
           pnpm install --no-frozen-lockfile --ignore-scripts
       - name: Build Android APK
         script: | 
-          # 1. الدخول المباشر لمجلد الأندرويد الذي اكتشفناه
+          # 1. تثبيت كاباسيتور وتحديث الروابط
+          npm install -g @capacitor/cli
+          
+          # 2. تحديث الإضافات لإنشاء الـ Variants المطلوبة
+          npx cap update android
+          
+          # 3. الانتقال للمجلد وتجهيز الملفات المفقودة
           cd artifacts/digital-city/android
-          
-          # 2. إنشاء الملف المفقود في المسار الذي يطلبه الخطأ بالضبط
-          # الخطأ يقول إنه يبحث عنه في: capacitor-cordova-android-plugins/cordova.variables.gradle
           mkdir -p capacitor-cordova-android-plugins
-          echo "// فارغ لتجاوز الخطأ" > capacitor-cordova-android-plugins/cordova.variables.gradle
+          echo "// empty" > capacitor-cordova-android-plugins/cordova.variables.gradle
           
-          # 3. التأكد من وجود نسخة في مجلد app أيضاً للاحتياط
-          mkdir -p app/capacitor-cordova-android-plugins
-          cp capacitor-cordova-android-plugins/cordova.variables.gradle app/capacitor-cordova-android-plugins/
-          
-          # 4. محاولة البناء الآن
+          # 4. بناء التطبيق مع السماح لـ Gradle بحل مشاكل الاعتماديات تلقائياً
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
     artifacts:
       - "**/app/outputs/apk/**/*.apk"
