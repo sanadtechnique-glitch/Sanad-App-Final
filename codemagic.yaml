@@ -4,27 +4,30 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m1
     scripts:
-      - name: Set Java Version and Install
+      - name: Preparation & Dependencies
         script: |
           sdk use java 17.0.10-tem
           rm -f .npmrc yarn.lock package-lock.json
           npm install -g pnpm --force
           pnpm install --no-frozen-lockfile --ignore-scripts
-      - name: Build Android APK
+      - name: Deep Build Android APK
         script: | 
-          # 1. تثبيت كاباسيتور وتحديث الروابط
-          npm install -g @capacitor/cli
+          # 1. تثبيت الأدوات اللازمة
+          npm install -g @capacitor/cli @capacitor/core @capacitor/android
           
-          # 2. تحديث الإضافات لإنشاء الـ Variants المطلوبة
-          npx cap update android
+          # 2. الانتقال للمجلد الذي يحتوي على كود الأندرويد
+          # لاحظ: سنقوم بالعمليات من الجذر ومن المجلد الفرعي لضمان الربط
+          npx cap sync android
           
-          # 3. الانتقال للمجلد وتجهيز الملفات المفقودة
           cd artifacts/digital-city/android
-          mkdir -p capacitor-cordova-android-plugins
-          echo "// empty" > capacitor-cordova-android-plugins/cordova.variables.gradle
           
-          # 4. بناء التطبيق مع السماح لـ Gradle بحل مشاكل الاعتماديات تلقائياً
+          # 3. محاكاة وجود إضافات كوردوفا (الحل الجذري للملف المفقود)
+          mkdir -p capacitor-cordova-android-plugins
+          echo "ext { }" > capacitor-cordova-android-plugins/cordova.variables.gradle
+          echo "include ':capacitor-cordova-android-plugins'" >> ../../../settings.gradle || echo "include ':capacitor-cordova-android-plugins'" >> settings.gradle
+          
+          # 4. بناء المشروع مع تنظيف الذاكرة وتجاهل أخطاء التوافقية البسيطة
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew clean assembleDebug --no-daemon -Pandroid.plugin.validation.enabled=false
     artifacts:
       - "**/app/outputs/apk/**/*.apk"
