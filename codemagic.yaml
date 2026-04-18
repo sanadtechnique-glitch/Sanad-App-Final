@@ -17,19 +17,19 @@ workflows:
           
           cd artifacts/digital-city/android
           
-          # 1. إنشاء هيكل كامل لمجلد الإضافات ليعتبره Gradle مشروعاً حقيقياً
+          # 1. إنشاء هيكل المكتبة المفقودة ليتجاوزها النظام
           mkdir -p capacitor-cordova-android-plugins/src/main
           echo '<?xml version="1.0" encoding="utf-8"?><manifest package="com.capacitor.plugins"></manifest>' > capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
-          
-          # 2. إنشاء ملف build.gradle للمكتبة مع تعريف الـ variants
           echo "apply plugin: 'com.android.library'" > capacitor-cordova-android-plugins/build.gradle
-          echo "android { compileSdk 34; namespace 'com.capacitor.plugins'; defaultConfig { minSdk 22 } }" >> capacitor-cordova-android-plugins/build.gradle
+          echo "android { compileSdk 36; namespace 'com.capacitor.plugins'; defaultConfig { minSdk 22 } }" >> capacitor-cordova-android-plugins/build.gradle
           echo "ext { }" > capacitor-cordova-android-plugins/cordova.variables.gradle
           
-          # 3. تعديل نسخة الـ SDK للمشروع الرئيسي (كما طلب الخطأ السابق)
-          sed -i '' 's/compileSdk = 34/compileSdk = 35/g' variables.gradle || sed -i 's/compileSdk = 34/compileSdk = 35/g' variables.gradle
+          # 2. تحديث ملف المتغيرات لرفع النسخة إلى 36 إجبارياً
+          # سنقوم بتغيير أي رقم 34 أو 35 إلى 36
+          sed -i '' 's/34/36/g' variables.gradle || sed -i 's/34/36/g' variables.gradle
+          sed -i '' 's/35/36/g' variables.gradle || sed -i 's/35/36/g' variables.gradle
           
-          # 4. تشغيل البناء
+          # 3. تشغيل البناء
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
     artifacts:
