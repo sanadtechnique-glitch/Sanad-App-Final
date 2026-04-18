@@ -1,38 +1,49 @@
-workflows:
-  android-workflow:
-    name: Sanad Android Build
-    max_build_duration: 60
-    instance_type: mac_mini_m1
-    scripts:
-      - name: Preparation
-        script: |
-          sdk use java 17.0.10-tem
-          rm -f .npmrc yarn.lock package-lock.json
-          npm install -g pnpm --force
-          pnpm install --no-frozen-lockfile --ignore-scripts
-      - name: Build Android APK
-        script: | 
-          npm install -g @capacitor/cli
-          npx cap sync android
-          
-          cd artifacts/digital-city/android
-          
-          # 1. حل مشكلة الملفات المكررة (حذف الملف الزائد)
-          rm -f app/src/main/res/values/ic_launcher_background.xml
-          
-          # 2. إنشاء هيكل المكتبة المفقودة (نفس الخطوات الناجحة السابقة)
-          mkdir -p capacitor-cordova-android-plugins/src/main
-          echo '<?xml version="1.0" encoding="utf-8"?><manifest package="com.capacitor.plugins"></manifest>' > capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
-          echo "apply plugin: 'com.android.library'" > capacitor-cordova-android-plugins/build.gradle
-          echo "android { compileSdk 36; namespace 'com.capacitor.plugins'; defaultConfig { minSdk 22 } }" >> capacitor-cordova-android-plugins/build.gradle
-          echo "ext { }" > capacitor-cordova-android-plugins/cordova.variables.gradle
-          
-          # 3. إجبار النسخة على 36 للتوافق
-          sed -i '' 's/34/36/g' variables.gradle || sed -i 's/34/36/g' variables.gradle
-          sed -i '' 's/35/36/g' variables.gradle || sed -i 's/35/36/g' variables.gradle
-          
-          # 4. تشغيل البناء
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-    artifacts:
-      - "**/app/outputs/apk/**/*.apk"
+Task :capacitor-cordova-android-plugins:extractDeepLinksDebug
+> Task :app:parseDebugLocalResources
+> Task :capacitor-cordova-android-plugins:compileDebugLibraryResources
+> Task :capacitor-android:compileDebugLibraryResources
+> Task :capacitor-android:parseDebugLocalResources
+> Task :capacitor-android:javaPreCompileDebug
+> Task :capacitor-cordova-android-plugins:javaPreCompileDebug
+> Task :capacitor-cordova-android-plugins:parseDebugLocalResources
+> Task :capacitor-android:processDebugManifest
+
+> Task :capacitor-cordova-android-plugins:processDebugManifest
+package="com.capacitor.plugins" found in source AndroidManifest.xml: /Users/builder/clone/artifacts/digital-city/android/capacitor-cordova-android-plugins/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.capacitor.plugins" from the source AndroidManifest.xml: /Users/builder/clone/artifacts/digital-city/android/capacitor-cordova-android-plugins/src/main/AndroidManifest.xml.
+
+> Task :capacitor-android:generateDebugRFile
+> Task :capacitor-cordova-android-plugins:generateDebugRFile
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :capacitor-android:compileDebugJavaWithJavac FAILED
+> Task :app:processDebugManifestForPackage
+
+[Incubating] Problems report is available at: file:///Users/builder/clone/artifacts/digital-city/android/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':capacitor-android:compileDebugJavaWithJavac'.
+> Java compilation initialization error
+    error: invalid source release: 21
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 40s
+38 actionable tasks: 38 executed
+
+
+Build failed :|
+Step 3 script `Build Android APK` exited with status code 1
