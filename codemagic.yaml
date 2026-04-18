@@ -10,26 +10,23 @@ workflows:
           rm -f .npmrc yarn.lock package-lock.json
           npm install -g pnpm --force
           pnpm install --no-frozen-lockfile --ignore-scripts
-      - name: Rebuild Capacitor & Android APK
+      - name: Build Android APK
         script: | 
-          # 1. تثبيت الأدوات اللازمة
-          npm install -g @capacitor/cli @capacitor/core @capacitor/android
-          
-          # 2. تحديث الروابط وبناء الإضافات (هذه الخطوة ستحل مشكلة No variants)
+          npm install -g @capacitor/cli
           npx cap sync android
           
-          # 3. الانتقال للمجلد العميق
           cd artifacts/digital-city/android
           
-          # 4. إصلاح ملف Cordova (بمحتوى برمجي صحيح)
+          # 1. حل مشكلة الملف المفقود
           mkdir -p capacitor-cordova-android-plugins
-          echo "apply plugin: 'com.android.library'" > capacitor-cordova-android-plugins/build.gradle
-          echo "android { compileSdk 34; namespace 'com.capacitor.plugins' }" >> capacitor-cordova-android-plugins/build.gradle
           echo "ext { }" > capacitor-cordova-android-plugins/cordova.variables.gradle
           
-          # 5. البناء النهائي
+          # 2. إجبار المشروع على استخدام SDK 36 ليتوافق مع المكتبات الحديثة
+          sed -i '' 's/compileSdk = 34/compileSdk = 36/g' variables.gradle || sed -i 's/compileSdk = 34/compileSdk = 36/g' variables.gradle
+          sed -i '' 's/targetSdk = 34/targetSdk = 36/g' variables.gradle || sed -i 's/targetSdk = 34/targetSdk = 36/g' variables.gradle
+          
+          # 3. تشغيل البناء النهائي
           chmod +x gradlew
-          ./gradlew :capacitor-cordova-android-plugins:assembleDebug
           ./gradlew assembleDebug --no-daemon
     artifacts:
       - "**/app/outputs/apk/**/*.apk"
