@@ -17,15 +17,19 @@ workflows:
           
           cd artifacts/digital-city/android
           
-          # 1. حل مشكلة الملف المفقود
-          mkdir -p capacitor-cordova-android-plugins
+          # 1. إنشاء هيكل كامل لمجلد الإضافات ليعتبره Gradle مشروعاً حقيقياً
+          mkdir -p capacitor-cordova-android-plugins/src/main
+          echo '<?xml version="1.0" encoding="utf-8"?><manifest package="com.capacitor.plugins"></manifest>' > capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
+          
+          # 2. إنشاء ملف build.gradle للمكتبة مع تعريف الـ variants
+          echo "apply plugin: 'com.android.library'" > capacitor-cordova-android-plugins/build.gradle
+          echo "android { compileSdk 34; namespace 'com.capacitor.plugins'; defaultConfig { minSdk 22 } }" >> capacitor-cordova-android-plugins/build.gradle
           echo "ext { }" > capacitor-cordova-android-plugins/cordova.variables.gradle
           
-          # 2. إجبار المشروع على استخدام SDK 36 ليتوافق مع المكتبات الحديثة
-          sed -i '' 's/compileSdk = 34/compileSdk = 36/g' variables.gradle || sed -i 's/compileSdk = 34/compileSdk = 36/g' variables.gradle
-          sed -i '' 's/targetSdk = 34/targetSdk = 36/g' variables.gradle || sed -i 's/targetSdk = 34/targetSdk = 36/g' variables.gradle
+          # 3. تعديل نسخة الـ SDK للمشروع الرئيسي (كما طلب الخطأ السابق)
+          sed -i '' 's/compileSdk = 34/compileSdk = 35/g' variables.gradle || sed -i 's/compileSdk = 34/compileSdk = 35/g' variables.gradle
           
-          # 3. تشغيل البناء النهائي
+          # 4. تشغيل البناء
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
     artifacts:
