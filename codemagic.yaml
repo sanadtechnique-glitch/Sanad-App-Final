@@ -6,37 +6,39 @@ workflows:
     scripts:
       - name: Preparation
         script: |
-          # 1. تنظيف عميق وشامل
-          rm -rf node_modules package-lock.json pnpm-lock.yaml
-          npm install -g pnpm
-          pnpm install --no-frozen-lockfile
+          # 1. تنظيف شامل لملفات التعريف المتعارضة
+          rm -rf node_modules yarn.lock package-lock.json pnpm-lock.yaml
+          
+          # 2. استخدام Yarn بما أن النظام يطلبه
+          yarn install
       - name: Build Android APK
         script: | 
-          # 2. تثبيت Capacitor محلياً لتجنب خطأ "could not determine executable"
-          npm install @capacitor/cli @capacitor/core @capacitor/android
+          # 1. تثبيت كاباسيتور باستخدام Yarn
+          yarn add @capacitor/cli @capacitor/core @capacitor/android
           
-          # 3. محاولة المزامنة مع تجاهل الأخطاء إذا كان المجلد موجوداً
-          ./node_modules/.bin/cap sync android || npx cap sync android
+          # 2. المزامنة
+          npx cap sync android
           
           cd artifacts/digital-city/android
           
-          # 4. حل مشكلة الـ Timeout: إجبار Gradle على عدم التحميل من الإنترنت
-          # سنستخدم نسخة Gradle المثبتة مسبقاً في ماكينة Codemagic
+          # 3. استخدام نسخة Gradle محلية لتجنب مشاكل الشبكة (Timeout)
           sed -i '' 's/gradle-8.14.3-all.zip/gradle-8.7-bin.zip/g' gradle/wrapper/gradle-wrapper.properties || true
           
-          # 5. تنظيف الملفات المكررة وهيكل الإضافات
+          # 4. تنظيف الملفات المكررة (التي سببت الفشل سابقاً)
           rm -f app/src/main/res/values/ic_launcher_background.xml
+          
+          # 5. هيكل المكتبة المفقودة
           mkdir -p capacitor-cordova-android-plugins/src/main
           echo '<?xml version="1.0" encoding="utf-8"?><manifest package="com.capacitor.plugins"></manifest>' > capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
           echo "apply plugin: 'com.android.library'" > capacitor-cordova-android-plugins/build.gradle
           echo "android { compileSdk 36; namespace 'com.capacitor.plugins'; defaultConfig { minSdk 22 } }" >> capacitor-cordova-android-plugins/build.gradle
           echo "ext { }" > capacitor-cordova-android-plugins/cordova.variables.gradle
           
-          # 6. تحديث النسخ
+          # 6. تحديث النسخ لـ SDK 36
           sed -i '' 's/34/36/g' variables.gradle || sed -i 's/34/36/g' variables.gradle
           
-          # 7. البناء النهائي مع إيقاف أي محاولة اتصال خارجي للـ Gradle
+          # 7. البناء النهائي
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --offline || ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon
     artifacts:
       - "**/app/outputs/apk/**/*.apk"
