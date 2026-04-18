@@ -17,19 +17,21 @@ workflows:
           
           cd artifacts/digital-city/android
           
-          # 1. إنشاء هيكل المكتبة المفقودة ليتجاوزها النظام
+          # 1. حل مشكلة الملفات المكررة (حذف الملف الزائد)
+          rm -f app/src/main/res/values/ic_launcher_background.xml
+          
+          # 2. إنشاء هيكل المكتبة المفقودة (نفس الخطوات الناجحة السابقة)
           mkdir -p capacitor-cordova-android-plugins/src/main
           echo '<?xml version="1.0" encoding="utf-8"?><manifest package="com.capacitor.plugins"></manifest>' > capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
           echo "apply plugin: 'com.android.library'" > capacitor-cordova-android-plugins/build.gradle
           echo "android { compileSdk 36; namespace 'com.capacitor.plugins'; defaultConfig { minSdk 22 } }" >> capacitor-cordova-android-plugins/build.gradle
           echo "ext { }" > capacitor-cordova-android-plugins/cordova.variables.gradle
           
-          # 2. تحديث ملف المتغيرات لرفع النسخة إلى 36 إجبارياً
-          # سنقوم بتغيير أي رقم 34 أو 35 إلى 36
+          # 3. إجبار النسخة على 36 للتوافق
           sed -i '' 's/34/36/g' variables.gradle || sed -i 's/34/36/g' variables.gradle
           sed -i '' 's/35/36/g' variables.gradle || sed -i 's/35/36/g' variables.gradle
           
-          # 3. تشغيل البناء
+          # 4. تشغيل البناء
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
     artifacts:
