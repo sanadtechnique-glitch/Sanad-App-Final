@@ -11,17 +11,13 @@ workflows:
           pnpm install --no-frozen-lockfile --ignore-scripts
       - name: Build Android APK
         script: | 
-          # هذا السطر سيبحث عن مجلد android ويخبرنا بمكانه
-          ANDROID_PATH=$(find . -name "gradlew" -type f -not -path "*/node_modules/*" | sed 's/\/gradlew//')
+          # 1. المزامنة لإنشاء ملفات Cordova و Capacitor المفقودة
+          npx cap sync
           
-          if [ -z "$ANDROID_PATH" ]; then
-            echo "خطأ: لم نجد مجلد الأندرويد، سأعرض لك الملفات المتاحة الآن:"
-            ls -R
-            exit 1
-          fi
+          # 2. التوجه لمجلد الأندرويد الذي اكتشفناه سابقاً
+          cd artifacts/digital-city/android
           
-          echo "تم العثور على المجلد في: $ANDROID_PATH"
-          cd $ANDROID_PATH
+          # 3. إعطاء صلاحية التنفيذ وبدء البناء
           chmod +x gradlew
           ./gradlew assembleDebug
     artifacts:
