@@ -3,11 +3,16 @@ workflows:
     name: Sanad Android Build
     max_build_duration: 60
     instance_type: mac_mini_m1
+    environment:
+      groups:
+        - ../secrets.yaml # إذا كان لديك ملف أسرار
+      vars:
+        JAVA_VERSION: "21" # إجبار النظام على استخدام جافا 21
+      node: latest
     scripts:
       - name: Preparation
         script: |
-          # الانتقال إلى Java 21 لدعم Capacitor الجديد
-          sdk use java 21.0.2-tem
+          # تنظيف وبدء التثبيت
           rm -f .npmrc yarn.lock package-lock.json
           npm install -g pnpm --force
           pnpm install --no-frozen-lockfile --ignore-scripts
@@ -18,21 +23,21 @@ workflows:
           
           cd artifacts/digital-city/android
           
-          # 1. تنظيف ملف الألوان المكرر الذي سبب الفشل سابقاً
+          # 1. تنظيف الملفات المكررة
           rm -f app/src/main/res/values/ic_launcher_background.xml
           
-          # 2. بناء هيكل المكتبة المفقودة لضمان عبور مرحلة الـ Configure
+          # 2. هيكل المكتبة المفقودة
           mkdir -p capacitor-cordova-android-plugins/src/main
           echo '<?xml version="1.0" encoding="utf-8"?><manifest package="com.capacitor.plugins"></manifest>' > capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
           echo "apply plugin: 'com.android.library'" > capacitor-cordova-android-plugins/build.gradle
           echo "android { compileSdk 36; namespace 'com.capacitor.plugins'; defaultConfig { minSdk 22 } }" >> capacitor-cordova-android-plugins/build.gradle
           echo "ext { }" > capacitor-cordova-android-plugins/cordova.variables.gradle
           
-          # 3. إجبار النظام على استخدام SDK 36 ليتوافق مع Java 21 والمكتبات الحديثة
+          # 3. إجبار النسخة على 36
           sed -i '' 's/34/36/g' variables.gradle || sed -i 's/34/36/g' variables.gradle
           sed -i '' 's/35/36/g' variables.gradle || sed -i 's/35/36/g' variables.gradle
           
-          # 4. تشغيل البناء النهائي
+          # 4. تشغيل البناء
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
     artifacts:
