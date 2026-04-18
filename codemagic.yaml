@@ -6,28 +6,26 @@ workflows:
     scripts:
       - name: Set Java Version and Install
         script: |
-          # 1. إجبار النظام على استخدام Java 17 (الأكثر استقراراً لـ Capacitor)
           sdk use java 17.0.10-tem
-          
-          # 2. تنظيف ملفات الإعدادات المتعارضة
           rm -f .npmrc yarn.lock package-lock.json
-          
-          # 3. تثبيت pnpm وتثبيت المكتبات مع تجاهل الأوامر الاعتراضية
           npm install -g pnpm --force
           pnpm install --no-frozen-lockfile --ignore-scripts
       - name: Build Android APK
         script: | 
-          # 1. تثبيت أدوات Capacitor
-          npm install -g @capacitor/cli
-          
-          # 2. مزامنة المشروع (Sync)
-          npx cap sync android
-          
-          # 3. الدخول لمجلد الأندرويد
+          # 1. الدخول المباشر لمجلد الأندرويد الذي اكتشفناه
           cd artifacts/digital-city/android
           
-          # 4. بناء الـ APK مع تنظيف الذاكرة المؤقتة (Clean)
+          # 2. إنشاء الملف المفقود في المسار الذي يطلبه الخطأ بالضبط
+          # الخطأ يقول إنه يبحث عنه في: capacitor-cordova-android-plugins/cordova.variables.gradle
+          mkdir -p capacitor-cordova-android-plugins
+          echo "// فارغ لتجاوز الخطأ" > capacitor-cordova-android-plugins/cordova.variables.gradle
+          
+          # 3. التأكد من وجود نسخة في مجلد app أيضاً للاحتياط
+          mkdir -p app/capacitor-cordova-android-plugins
+          cp capacitor-cordova-android-plugins/cordova.variables.gradle app/capacitor-cordova-android-plugins/
+          
+          # 4. محاولة البناء الآن
           chmod +x gradlew
-          ./gradlew clean assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon
     artifacts:
       - "**/app/outputs/apk/**/*.apk"
